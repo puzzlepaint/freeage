@@ -6,7 +6,10 @@
 #include <stdio.h>
 #include <vector>
 
+#include <QApplication>
 #include <QImage>
+#include <QLabel>
+#include <QPushButton>
 
 
 // Type definitions which are more concise and thus easier to read and write (no
@@ -267,7 +270,12 @@ bool LoadSMXGraphicLayer(
     }
   }
   
-  graphic.save("test-graphic.png");  // TODO
+  static QLabel* testLabel = new QLabel();
+  testLabel->setPixmap(QPixmap::fromImage(graphic));
+  testLabel->show();
+  
+  // graphic.save("test-graphic.png");
+  
   return true;
 }
 
@@ -351,12 +359,98 @@ bool LoadSMXShadowLayer(
     }
   }
   
-  graphic.save("test-shadow.png");  // TODO
+  static QLabel* testLabel = new QLabel();
+  testLabel->setPixmap(QPixmap::fromImage(graphic));
+  testLabel->show();
+  
+  // graphic.save("test-shadow.png");
+  
   return true;
 }
 
-bool LoadSMXOutlineLayer() {
-  // TODO
+bool LoadSMXOutlineLayer(
+    const SMXLayerHeader& layerHeader,
+    const std::vector<SMPLayerRowEdge>& rowEdges,
+    FILE* file) {
+  // Read the combined command and data array
+  u32 dataLen;
+  if (fread(&dataLen, sizeof(u32), 1, file) != 1) {
+    std::cout << "LoadSMXOutlineLayer(): Unexpected EOF while trying to read dataLen\n";
+    return false;
+  }
+  std::cout << "Data length: " << dataLen << "\n";
+  
+  std::vector<u8> data(dataLen);
+  if (fread(data.data(), sizeof(u8), dataLen, file) != dataLen) {
+    std::cout << "LoadSMXOutlineLayer(): Unexpected EOF while trying to read data\n";
+    return false;
+  }
+  
+  // Build the image.
+  QImage graphic(layerHeader.width, layerHeader.height, QImage::Format_Grayscale8);
+  
+  const u8* dataPtr = data.data();
+  for (int row = 0; row < layerHeader.height; ++ row) {
+    u8* out = graphic.scanLine(row);
+    
+    // Check for skipped rows
+    const SMPLayerRowEdge& edge = rowEdges[row];
+    if (edge.leftSpace == 0xFFFF || edge.rightSpace == 0xFFFF) {
+      // Row is completely transparent
+      for (int col = 0; col < layerHeader.width; ++ col) {
+        *out++ = 0;
+      }
+      continue;
+    }
+    
+    // Left edge skip
+    for (int col = 0; col < edge.leftSpace; ++ col) {
+      *out++ = 0;
+    }
+    int col = edge.leftSpace;
+    
+    while (true) {
+      // Check the next command.
+      u8 command = *dataPtr;
+      ++ dataPtr;
+      
+      u8 commandCode = command & 0b11;
+      if (commandCode == 0b00) {
+        // Draw *count* transparent pixels.
+        u8 count = (command >> 2) + 1;
+        for (int i = 0; i < count; ++ i) {
+          *out++ = 0;
+        }
+        col += count;
+      } else if (commandCode == 0b01) {
+        // Draw *count* pixels.
+        u8 count = (command >> 2) + 1;
+        for (int i = 0; i < count; ++ i) {
+          *out++ = 255;
+        }
+        col += count;
+      } else if (commandCode == 0b11) {
+        // End of row.
+        if (col + edge.rightSpace != layerHeader.width) {
+          std::cout << "Warning: Row " << row << ": Pixel count does not match expectation (col: " << col
+                    << ", edge.rightSpace: " << edge.rightSpace << ", layerHeader.width: " << layerHeader.width << ")\n";
+        }
+        for (; col < layerHeader.width; ++ col) {
+          *out++ = 0;
+        }
+        break;
+      } else {
+        std::cout << "LoadSMXShadowLayer(): Unexpected drawing code 0b10\n";
+        return false;
+      }
+    }
+  }
+  
+  static QLabel* testLabel = new QLabel();
+  testLabel->setPixmap(QPixmap::fromImage(graphic));
+  testLabel->show();
+  
+  // graphic.save("test-outline.png");
   
   return true;
 }
@@ -409,7 +503,10 @@ bool LoadSMXLayer(
       return false;
     }
   } else if (layerType == SMXLayerType::Outline) {
-    if (!LoadSMXOutlineLayer()) {
+    if (!LoadSMXOutlineLayer(
+        layerHeader,
+        rowEdges,
+        file)) {
       return false;
     }
   }
@@ -464,8 +561,6 @@ bool LoadSMXFrame(const Palettes& palettes, FILE* file) {
     }
   }
   
-  exit(123);  // TODO
-  
   // Read outline layer
   if (frameHeader.HasOutlineLayer()) {
     if (!LoadSMXLayer(
@@ -509,11 +604,21 @@ bool LoadSMXFile(const char* path, const Palettes& palettes) {
   std::cout << "Version: " << header.version << "\n";
   std::cout << "Frame count: " << header.numFrames << "\n";
   
+  QPushButton* continueButton = new QPushButton("continue");
+  QObject::connect(continueButton, &QPushButton::clicked, qApp, &QApplication::exit);
+  continueButton->show();
+  
   for (int frameIdx = 0; frameIdx < header.numFrames; ++ frameIdx) {
+    std::cout << "Loading frame " << frameIdx << " ...\n";
+    
     if (!LoadSMXFrame(palettes, file)) {
       fclose(file);
       return false;
     }
+    
+    std::cout << "Showing frame " << frameIdx << "\n";
+    
+    qApp->exec();
   }
   
   fclose(file);
@@ -668,7 +773,9 @@ bool ReadPalettesConf(const char* path, Palettes* palettes) {
 }
 
 
-int main(int /*argc*/, char** /*argv*/) {
+int main(int argc, char** argv) {
+  QApplication qapp(argc, argv);
+  
   Palettes palettes;
   
   std::filesystem::path commonResourcesPath = "/home/thomas/.local/share/Steam/steamapps/common/AoE2DE/resources/_common";
@@ -687,7 +794,11 @@ int main(int /*argc*/, char** /*argv*/) {
   //   return 1;
   // }
   
-  if (!LoadSMXFile((commonResourcesPath / "drs" / "graphics" / "b_indi_mill_age3_x1.smx" /*"b_east_castle_age3_x1.smx"*/).c_str(), palettes)) {
+  // if (!LoadSMXFile((commonResourcesPath / "drs" / "graphics" / "b_indi_mill_age3_x1.smx" /*"b_east_castle_age3_x1.smx"*/).c_str(), palettes)) {
+  //   return 1;
+  // }
+  
+  if (!LoadSMXFile((commonResourcesPath / "drs" / "graphics" / "b_meso_wonder_mayans_destruction_x1.smx").c_str(), palettes)) {
     return 1;
   }
   
