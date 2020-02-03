@@ -99,6 +99,12 @@ struct SMXLayerHeader {
 };
 #pragma pack(pop)
 
+enum class SMXLayerType {
+  Graphic = 0,
+  Shadow,
+  Outline
+};
+
 #pragma pack(push, 1)
 struct SMPLayerRowEdge {
   u16 leftSpace;
@@ -119,20 +125,20 @@ inline QRgb GetPalettedPixel(const Palette& palette, u8 paletteSection, u8 color
   }
 }
 
-inline QRgb DecompressNextPixel8To5(const u8*& pixelPtr, int& decompressionState, const Palette& palette) {
+inline QRgb DecompressNextPixel8To5(const u8*& pixelPtr, int& decompressionState, const Palette& palette, bool ignoreAlpha) {
   QRgb result;
   if (decompressionState == 0) {
     const u8& colorIndex = pixelPtr[0];
     const u8 paletteSection = pixelPtr[1] & 0b11;
     // TODO: Extract and store damage modifiers
     
-    result = GetPalettedPixel(palette, paletteSection, colorIndex, true);
+    result = GetPalettedPixel(palette, paletteSection, colorIndex, ignoreAlpha);
   } else {  // if (decompressionState == 1)
     const u8& colorIndex = ((pixelPtr[2] & 0b11) << 6) | (pixelPtr[1] >> 2);
     const u8 paletteSection = (pixelPtr[2] >> 2) & 0b11;
     // TODO: Extract and store damage modifiers
     
-    result = GetPalettedPixel(palette, paletteSection, colorIndex, true);
+    result = GetPalettedPixel(palette, paletteSection, colorIndex, ignoreAlpha);
     pixelPtr += 5;
   }
   
@@ -140,23 +146,339 @@ inline QRgb DecompressNextPixel8To5(const u8*& pixelPtr, int& decompressionState
   return result;
 }
 
-inline QRgb DecompressNextPixel4Plus1(const u8*& pixelPtr, int& decompressionState, const Palette& palette) {
+inline QRgb DecompressNextPixel4Plus1(const u8*& pixelPtr, int& decompressionState, const Palette& palette, bool ignoreAlpha) {
   const u8& paletteSections = pixelPtr[4];
   
   QRgb result;
   if (decompressionState == 0) {
-    result = GetPalettedPixel(palette, (paletteSections >> 0) & 0b11, pixelPtr[0], true);
+    result = GetPalettedPixel(palette, (paletteSections >> 0) & 0b11, pixelPtr[0], ignoreAlpha);
   } else if (decompressionState == 1) {
-    result = GetPalettedPixel(palette, (paletteSections >> 2) & 0b11, pixelPtr[1], true);
+    result = GetPalettedPixel(palette, (paletteSections >> 2) & 0b11, pixelPtr[1], ignoreAlpha);
   } else if (decompressionState == 2) {
-    result = GetPalettedPixel(palette, (paletteSections >> 4) & 0b11, pixelPtr[2], true);
+    result = GetPalettedPixel(palette, (paletteSections >> 4) & 0b11, pixelPtr[2], ignoreAlpha);
   } else {  // if (decompressionState == 3)
-    result = GetPalettedPixel(palette, paletteSections >> 6, pixelPtr[3], true);
+    result = GetPalettedPixel(palette, paletteSections >> 6, pixelPtr[3], ignoreAlpha);
     pixelPtr += 5;
   }
   
   decompressionState = (decompressionState + 1) % 4;
   return result;
+}
+
+bool LoadSMXGraphicLayer(
+    const SMXLayerHeader& layerHeader,
+    const std::vector<SMPLayerRowEdge>& rowEdges,
+    bool usesEightToFiveCompression,
+    const Palette& standardPalette,
+    const Palette& playerColorPalette,
+    FILE* file) {
+  // Read the command and pixel array length
+  u32 commandArrayLen;
+  if (fread(&commandArrayLen, sizeof(u32), 1, file) != 1) {
+    std::cout << "LoadSMXGraphicLayer(): Unexpected EOF while trying to read commandArrayLen\n";
+    return false;
+  }
+  std::cout << "Command array length: " << commandArrayLen << "\n";
+  
+  u32 pixelArrayLen;
+  if (fread(&pixelArrayLen, sizeof(u32), 1, file) != 1) {
+    std::cout << "LoadSMXGraphicLayer(): Unexpected EOF while trying to read pixelArrayLen\n";
+    return false;
+  }
+  std::cout << "Pixel array length: " << pixelArrayLen << "\n";
+  
+  // Read the command and pixel array data
+  std::vector<u8> commandArray(commandArrayLen);
+  if (fread(commandArray.data(), sizeof(u8), commandArrayLen, file) != commandArrayLen) {
+    std::cout << "LoadSMXGraphicLayer(): Unexpected EOF while trying to read commandArray\n";
+    return false;
+  }
+  
+  std::vector<u8> pixelArray(pixelArrayLen);
+  if (fread(pixelArray.data(), sizeof(u8), pixelArrayLen, file) != pixelArrayLen) {
+    std::cout << "LoadSMXGraphicLayer(): Unexpected EOF while trying to read pixelArray\n";
+    return false;
+  }
+  
+  // Build the image.
+  QImage graphic(layerHeader.width, layerHeader.height, QImage::Format_ARGB32);
+  
+  const u8* commandPtr = commandArray.data();
+  const u8* pixelPtr = pixelArray.data();
+  int decompressionState = 0;
+  for (int row = 0; row < layerHeader.height; ++ row) {
+    QRgb* out = reinterpret_cast<QRgb*>(graphic.scanLine(row));
+    
+    // Check for skipped rows
+    const SMPLayerRowEdge& edge = rowEdges[row];
+    if (edge.leftSpace == 0xFFFF || edge.rightSpace == 0xFFFF) {
+      // Row is completely transparent
+      for (int col = 0; col < layerHeader.width; ++ col) {
+        *out++ = qRgba(0, 0, 0, 0);
+      }
+      continue;
+    }
+    
+    // Left edge skip
+    for (int col = 0; col < edge.leftSpace; ++ col) {
+      *out++ = qRgba(0, 0, 0, 0);
+    }
+    int col = edge.leftSpace;
+    
+    while (true) {
+      // Check the next command.
+      u8 command = *commandPtr;
+      ++ commandPtr;
+      
+      u8 commandCode = command & 0b11;
+      if (commandCode == 0b00) {
+        // Draw *count* transparent pixels.
+        u8 count = (command >> 2) + 1;
+        for (int i = 0; i < count; ++ i) {
+          *out++ = qRgba(0, 0, 0, 0);
+        }
+        col += count;
+      } else if (commandCode == 0b01 || commandCode == 0b10) {
+        // Choose the normal or player-color palette depending on the command.
+        const Palette& palette = (commandCode == 0b01) ? standardPalette : playerColorPalette;
+        
+        // Draw *count* pixels from that palette.
+        u8 count = (command >> 2) + 1;
+        bool ignoreAlpha = true;  /*layerType == SMXLayerType::Graphic*/
+        for (int i = 0; i < count; ++ i) {
+          if (usesEightToFiveCompression) {
+            *out++ = DecompressNextPixel8To5(pixelPtr, decompressionState, palette, ignoreAlpha);
+          } else {
+            *out++ = DecompressNextPixel4Plus1(pixelPtr, decompressionState, palette, ignoreAlpha);
+          }
+        }
+        col += count;
+      } else if (commandCode == 0b11) {
+        // End of row.
+        if (col + edge.rightSpace != layerHeader.width) {
+          std::cout << "Warning: Row " << row << ": Pixel count does not match expectation (col: " << col
+                    << ", edge.rightSpace: " << edge.rightSpace << ", layerHeader.width: " << layerHeader.width << ")\n";
+        }
+        for (; col < layerHeader.width; ++ col) {
+          *out++ = qRgba(0, 0, 0, 0);
+        }
+        break;
+      }
+    }
+  }
+  
+  graphic.save("test-graphic.png");  // TODO
+  return true;
+}
+
+bool LoadSMXShadowLayer(
+    const SMXLayerHeader& layerHeader,
+    const std::vector<SMPLayerRowEdge>& rowEdges,
+    FILE* file) {
+  // Read the combined command and data array
+  u32 dataLen;
+  if (fread(&dataLen, sizeof(u32), 1, file) != 1) {
+    std::cout << "LoadSMXShadowLayer(): Unexpected EOF while trying to read dataLen\n";
+    return false;
+  }
+  std::cout << "Data length: " << dataLen << "\n";
+  
+  std::vector<u8> data(dataLen);
+  if (fread(data.data(), sizeof(u8), dataLen, file) != dataLen) {
+    std::cout << "LoadSMXShadowLayer(): Unexpected EOF while trying to read data\n";
+    return false;
+  }
+  
+  // Build the image.
+  QImage graphic(layerHeader.width, layerHeader.height, QImage::Format_Grayscale8);
+  
+  const u8* dataPtr = data.data();
+  for (int row = 0; row < layerHeader.height; ++ row) {
+    u8* out = graphic.scanLine(row);
+    
+    // Check for skipped rows
+    const SMPLayerRowEdge& edge = rowEdges[row];
+    if (edge.leftSpace == 0xFFFF || edge.rightSpace == 0xFFFF) {
+      // Row is completely transparent
+      for (int col = 0; col < layerHeader.width; ++ col) {
+        *out++ = 255;
+      }
+      continue;
+    }
+    
+    // Left edge skip
+    for (int col = 0; col < edge.leftSpace; ++ col) {
+      *out++ = 255;
+    }
+    int col = edge.leftSpace;
+    
+    while (true) {
+      // Check the next command.
+      u8 command = *dataPtr;
+      ++ dataPtr;
+      
+      u8 commandCode = command & 0b11;
+      if (commandCode == 0b00) {
+        // Draw *count* transparent pixels.
+        u8 count = (command >> 2) + 1;
+        for (int i = 0; i < count; ++ i) {
+          *out++ = 255;
+        }
+        col += count;
+      } else if (commandCode == 0b01) {
+        // Draw *count* pixels.
+        u8 count = (command >> 2) + 1;
+        for (int i = 0; i < count; ++ i) {
+          *out++ = 255 - *dataPtr++;
+        }
+        col += count;
+      } else if (commandCode == 0b11) {
+        // End of row.
+        // NOTE: We account for what seems like a bug here, where there is one pixel of data missing.
+        if ((col + edge.rightSpace != layerHeader.width) &&
+            (col + edge.rightSpace + 1 != layerHeader.width)) {
+          std::cout << "Warning: Row " << row << ": Pixel count does not match expectation (col: " << col
+                    << ", edge.rightSpace: " << edge.rightSpace << ", layerHeader.width: " << layerHeader.width << ")\n";
+        }
+        for (; col < layerHeader.width; ++ col) {
+          *out++ = 255;
+        }
+        break;
+      } else {
+        std::cout << "LoadSMXShadowLayer(): Unexpected drawing code 0b10\n";
+        return false;
+      }
+    }
+  }
+  
+  graphic.save("test-shadow.png");  // TODO
+  return true;
+}
+
+bool LoadSMXOutlineLayer() {
+  // TODO
+  
+  return true;
+}
+
+bool LoadSMXLayer(
+    bool usesEightToFiveCompression,
+    const Palette& standardPalette,
+    const Palette& playerColorPalette,
+    SMXLayerType layerType,
+    FILE* file) {
+  // Read the layer header.
+  SMXLayerHeader layerHeader;
+  if (fread(&layerHeader, sizeof(SMXLayerHeader), 1, file) != 1) {
+    std::cout << "LoadSMXFile(): Unexpected EOF while trying to read SMXLayerHeader\n";
+    return false;
+  }
+  
+  std::cout << "Layer width: " << layerHeader.width << "\n";
+  std::cout << "Layer height: " << layerHeader.height << "\n";
+  std::cout << "Layer hotspot x: " << layerHeader.hotspotX << "\n";
+  std::cout << "Layer hotspot y: " << layerHeader.hotspotY << "\n";
+  std::cout << "Layer length: " << layerHeader.layerLen << "\n";
+  std::cout << "Layer unknown: " << layerHeader.unknown << "\n";
+  
+  // Read the row edge data.
+  std::vector<SMPLayerRowEdge> rowEdges(layerHeader.height);
+  for (int row = 0; row < layerHeader.height; ++ row) {
+    if (fread(&rowEdges[row], sizeof(SMPLayerRowEdge), 1, file) != 1) {
+      std::cout << "LoadSMXLayer(): Unexpected EOF while trying to read SMPLayerRowEdge for row " << row << "\n";
+      return false;
+    }
+    // std::cout << "Row edge: L: " << rowEdges[row].leftSpace << " R: " << rowEdges[row].rightSpace << "\n";
+  }
+  
+  if (layerType == SMXLayerType::Graphic) {
+    if (!LoadSMXGraphicLayer(
+        layerHeader,
+         rowEdges,
+        usesEightToFiveCompression,
+        standardPalette,
+        playerColorPalette,
+        file)) {
+      return false;
+    }
+  } else if (layerType == SMXLayerType::Shadow) {
+    if (!LoadSMXShadowLayer(
+        layerHeader,
+        rowEdges,
+        file)) {
+      return false;
+    }
+  } else if (layerType == SMXLayerType::Outline) {
+    if (!LoadSMXOutlineLayer()) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+bool LoadSMXFrame(const Palettes& palettes, FILE* file) {
+// Read the frame header.
+  SMXFrameHeader frameHeader;
+  if (fread(&frameHeader, sizeof(SMXFrameHeader), 1, file) != 1) {
+    std::cout << "LoadSMXFile(): Unexpected EOF while trying to read SMXFrameHeader\n";
+    return false;
+  }
+  
+  std::cout << "Frame has graphic layer: " << frameHeader.HasGraphicLayer() << "\n";
+  std::cout << "Frame has shadow layer: " << frameHeader.HasShadowLayer() << "\n";
+  std::cout << "Frame has outline layer: " << frameHeader.HasOutlineLayer() << "\n";
+  std::cout << "Frame uses 8to5 compression: " << frameHeader.UsesEightToFiveCompression() << "\n";
+  std::cout << "Frame has unknown bridge flag: " << frameHeader.HasUnknownBridgeFlag() << "\n";
+  
+  // Get the palette for the frame.
+  auto paletteIt = palettes.find(frameHeader.paletteNumber);
+  if (paletteIt == palettes.end()) {
+    std::cout << "LoadSMXFile(): File references an invalid palette (number: " << frameHeader.paletteNumber << ")\n";
+    return false;
+  }
+  const Palette& standardPalette = paletteIt->second;
+  const Palette& playerColorPalette = palettes.at(55);  // TODO: Hardcoded the blue player palette
+  
+  // Read graphic layer
+  if (frameHeader.HasGraphicLayer()) {
+    if (!LoadSMXLayer(
+        frameHeader.UsesEightToFiveCompression(),
+        standardPalette,
+        playerColorPalette,
+        SMXLayerType::Graphic,
+        file)) {
+      return false;
+    }
+  }
+  
+  // Read shadow layer
+  if (frameHeader.HasShadowLayer()) {
+    if (!LoadSMXLayer(
+        frameHeader.UsesEightToFiveCompression(),
+        standardPalette,
+        playerColorPalette,
+        SMXLayerType::Shadow,
+        file)) {
+      return false;
+    }
+  }
+  
+  exit(123);  // TODO
+  
+  // Read outline layer
+  if (frameHeader.HasOutlineLayer()) {
+    if (!LoadSMXLayer(
+        frameHeader.UsesEightToFiveCompression(),
+        standardPalette,
+        playerColorPalette,
+        SMXLayerType::Outline,
+        file)) {
+      return false;
+    }
+  }
+  
+  return true;
 }
 
 bool LoadSMXFile(const char* path, const Palettes& palettes) {
@@ -187,162 +509,12 @@ bool LoadSMXFile(const char* path, const Palettes& palettes) {
   std::cout << "Version: " << header.version << "\n";
   std::cout << "Frame count: " << header.numFrames << "\n";
   
-  // Read the frame header.
-  SMXFrameHeader frameHeader;
-  if (fread(&frameHeader, sizeof(SMXFrameHeader), 1, file) != 1) {
-    std::cout << "LoadSMXFile(): Unexpected EOF while trying to read SMXFrameHeader\n";
-    fclose(file);
-    return false;
-  }
-  
-  std::cout << "Frame has graphic layer: " << frameHeader.HasGraphicLayer() << "\n";
-  std::cout << "Frame has shadow layer: " << frameHeader.HasShadowLayer() << "\n";
-  std::cout << "Frame has outline layer: " << frameHeader.HasOutlineLayer() << "\n";
-  std::cout << "Frame uses 8to5 compression: " << frameHeader.UsesEightToFiveCompression() << "\n";
-  std::cout << "Frame has unknown bridge flag: " << frameHeader.HasUnknownBridgeFlag() << "\n";
-  
-  // Get the palette for the frame.
-  auto paletteIt = palettes.find(frameHeader.paletteNumber);
-  if (paletteIt == palettes.end()) {
-    std::cout << "LoadSMXFile(): File references an invalid palette (number: " << frameHeader.paletteNumber << ")\n";
-    fclose(file);
-    return false;
-  }
-  const Palette& standardPalette = paletteIt->second;
-  const Palette& playerColorPalette = palettes.at(55);  // TODO: Hardcoded the blue player palette
-  
-  // Read the layer header.
-  SMXLayerHeader layerHeader;
-  if (fread(&layerHeader, sizeof(SMXLayerHeader), 1, file) != 1) {
-    std::cout << "LoadSMXFile(): Unexpected EOF while trying to read SMXLayerHeader\n";
-    fclose(file);
-    return false;
-  }
-  
-  std::cout << "Layer width: " << layerHeader.width << "\n";
-  std::cout << "Layer height: " << layerHeader.height << "\n";
-  std::cout << "Layer hotspot x: " << layerHeader.hotspotX << "\n";
-  std::cout << "Layer hotspot y: " << layerHeader.hotspotY << "\n";
-  std::cout << "Layer length: " << layerHeader.layerLen << "\n";
-  std::cout << "Layer unknown: " << layerHeader.unknown << "\n";
-  
-  // Read graphic layer
-  if (frameHeader.HasGraphicLayer()) {
-    // Read the row edge data.
-    std::vector<SMPLayerRowEdge> rowEdges(layerHeader.height);
-    for (int row = 0; row < layerHeader.height; ++ row) {
-      if (fread(&rowEdges[row], sizeof(SMPLayerRowEdge), 1, file) != 1) {
-        std::cout << "LoadSMXFile(): Unexpected EOF while trying to read SMPLayerRowEdge for row " << row << "\n";
-        fclose(file);
-        return false;
-      }
-      // std::cout << "Row edge: L: " << rowEdges[row].leftSpace << " R: " << rowEdges[row].rightSpace << "\n";
-    }
-    
-    // Read the command and pixel array length
-    u32 commandArrayLen;
-    if (fread(&commandArrayLen, sizeof(u32), 1, file) != 1) {
-      std::cout << "LoadSMXFile(): Unexpected EOF while trying to read commandArrayLen\n";
+  for (int frameIdx = 0; frameIdx < header.numFrames; ++ frameIdx) {
+    if (!LoadSMXFrame(palettes, file)) {
       fclose(file);
       return false;
     }
-    std::cout << "Command array length: " << commandArrayLen << "\n";
-    
-    u32 pixelArrayLen;
-    if (fread(&pixelArrayLen, sizeof(u32), 1, file) != 1) {
-      std::cout << "LoadSMXFile(): Unexpected EOF while trying to read pixelArrayLen\n";
-      fclose(file);
-      return false;
-    }
-    std::cout << "Pixel array length: " << pixelArrayLen << "\n";
-    
-    // Read the command and pixel array data
-    std::vector<u8> commandArray(commandArrayLen);
-    if (fread(commandArray.data(), sizeof(u8), commandArrayLen, file) != commandArrayLen) {
-      std::cout << "LoadSMXFile(): Unexpected EOF while trying to read commandArray\n";
-      fclose(file);
-      return false;
-    }
-    
-    std::vector<u8> pixelArray(pixelArrayLen);
-    if (fread(pixelArray.data(), sizeof(u8), pixelArrayLen, file) != pixelArrayLen) {
-      std::cout << "LoadSMXFile(): Unexpected EOF while trying to read pixelArray\n";
-      fclose(file);
-      return false;
-    }
-    
-    // Build the image.
-    QImage graphic(layerHeader.width, layerHeader.height, QImage::Format_ARGB32);
-    
-    const u8* commandPtr = commandArray.data();
-    const u8* pixelPtr = pixelArray.data();
-    int decompressionState = 0;
-    for (int row = 0; row < layerHeader.height; ++ row) {
-      QRgb* out = reinterpret_cast<QRgb*>(graphic.scanLine(row));
-      
-      // Check for skipped rows
-      const SMPLayerRowEdge& edge = rowEdges[row];
-      if (edge.leftSpace == 0xFFFF || edge.rightSpace == 0xFFFF) {
-        // Row is completely transparent
-        for (int col = 0; col < layerHeader.width; ++ col) {
-          *out++ = qRgba(0, 0, 0, 0);
-        }
-        continue;
-      }
-      
-      // Left edge skip
-      for (int col = 0; col < edge.leftSpace; ++ col) {
-        *out++ = qRgba(0, 0, 0, 0);
-      }
-      int col = edge.leftSpace;
-      
-      while (true) {
-        // Check the next command.
-        u8 command = *commandPtr;
-        ++ commandPtr;
-        
-        u8 commandCode = command & 0b11;
-        if (commandCode == 0b00) {
-          // Draw *count* transparent pixels.
-          u8 count = (command >> 2) + 1;
-          for (int i = 0; i < count; ++ i) {
-            *out++ = qRgba(0, 0, 0, 0);
-          }
-          col += count;
-        } else if (commandCode == 0b01 || commandCode == 0b10) {
-          // Choose the normal or player-color palette depending on the command.
-          const Palette& palette = (commandCode == 0b01) ? standardPalette : playerColorPalette;
-          
-          // Draw *count* pixels from that palette.
-          u8 count = (command >> 2) + 1;
-          for (int i = 0; i < count; ++ i) {
-            if (frameHeader.UsesEightToFiveCompression()) {
-              *out++ = DecompressNextPixel8To5(pixelPtr, decompressionState, palette);
-            } else {
-              *out++ = DecompressNextPixel4Plus1(pixelPtr, decompressionState, palette);
-            }
-          }
-          col += count;
-        } else if (commandCode == 0b11) {
-          // End of row.
-          if (col + edge.rightSpace != layerHeader.width) {
-            std::cout << "Warning: Row " << row << ": Pixel count does not match expectation (col: " << col
-                      << ", edge.rightSpace: " << edge.rightSpace << ", layerHeader.width: " << layerHeader.width << ")\n";
-          }
-          for (; col < layerHeader.width; ++ col) {
-            *out++ = qRgba(0, 0, 0, 0);
-          }
-          break;
-        }
-      }
-    }
-    
-    // TODO: Load other layers / frames
-    
-    graphic.save("test.png");
   }
-  
-  // TODO: Other layers
   
   fclose(file);
   return true;
