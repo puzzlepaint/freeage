@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "FreeAge/FreeAge.h"
+#include "FreeAge/free_age.h"
 
 struct RGBA {
   inline RGBA() = default;
@@ -36,6 +36,11 @@ class Sprite {
       QImage image;
       int centerX;
       int centerY;
+      
+      // The layer's position in the texture atlas.
+      int atlasX;
+      int atlasY;
+      bool rotated;
     };
     
     Layer graphic;
@@ -48,7 +53,7 @@ class Sprite {
   bool LoadFromFile(const char* path, const Palettes& palettes);
   
   inline int NumFrames() const { return frames.size(); }
-  inline const Frame& frame(int index) { return frames[index]; }
+  inline Frame& frame(int index) { return frames[index]; }
   
  private:
   std::vector<Frame> frames;

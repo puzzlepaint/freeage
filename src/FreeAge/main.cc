@@ -11,17 +11,37 @@
 #include <QOpenGLWidget>
 #include <QPushButton>
 
-#include "FreeAge/FreeAge.h"
-#include "FreeAge/Sprite.h"
-#include "FreeAge/SpriteAtlas.h"
+#include "FreeAge/free_age.h"
+#include "FreeAge/logging.h"
+#include "FreeAge/render_window.h"
+#include "FreeAge/sprite.h"
+#include "FreeAge/sprite_atlas.h"
 
 int main(int argc, char** argv) {
+  // Initialize loguru
+  loguru::g_preamble_date = false;
+  loguru::g_preamble_thread = false;
+  loguru::g_preamble_uptime = false;
+  loguru::g_stderr_verbosity = 2;
+  if (argc > 0) {
+    loguru::init(argc, argv, /*verbosity_flag*/ nullptr);
+  }
+  
+  // Set the default OpenGL format *before* creating a QApplication.
+  QSurfaceFormat format;
+  // format.setDepthBufferSize(24);
+  // format.setStencilBufferSize(8);
+  format.setVersion(3, 2);
+  format.setProfile(QSurfaceFormat::CoreProfile);
+  QSurfaceFormat::setDefaultFormat(format);
+  
+  // Initialize QApplication.
   QApplication qapp(argc, argv);
   QCoreApplication::setOrganizationName("FreeAge");
   QCoreApplication::setOrganizationDomain("free-age.org");
   QCoreApplication::setApplicationName("FreeAge");
   
-  // We would like to get all input events immediately
+  // We would like to get all input events immediately to be able to react quickly.
   qapp.setAttribute(Qt::AA_CompressHighFrequencyEvents, false);
   
   // TODO: Make configurable
@@ -58,17 +78,11 @@ int main(int argc, char** argv) {
     return 1;
   }
   
-  // DEBUG
-  QLabel* testLabel = new QLabel();
-  testLabel->setPixmap(QPixmap::fromImage(atlasImage));
-  testLabel->show();
-  qapp.exec();
-  
   // Create an OpenGL render window using Qt
-  // TODO
+  RenderWindow renderWindow;
+  renderWindow.SetSprite(&sprite, atlasImage);
+  renderWindow.show();
   
-  // Render the sprite animation
-  // TODO
-  
+  qapp.exec();
   return 0;
 }

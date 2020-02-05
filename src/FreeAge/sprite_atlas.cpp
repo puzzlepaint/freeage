@@ -1,6 +1,7 @@
-#include "FreeAge/SpriteAtlas.h"
+#include "FreeAge/sprite_atlas.h"
 
-#include "FreeAge/Sprite.h"
+#include "FreeAge/logging.h"
+#include "FreeAge/sprite.h"
 #include "RectangleBinPack/MaxRectsBinPack.h"
 
 using namespace rbp;
@@ -53,10 +54,16 @@ QImage SpriteAtlas::BuildAtlas(int width, int height) {
   index = 0;
   for (Sprite* sprite : sprites) {
     for (int frameIdx = 0; frameIdx < sprite->NumFrames(); ++ frameIdx) {
-      const QImage& image = sprite->frame(frameIdx).graphic.image;
+      Sprite::Frame::Layer& layer = sprite->frame(frameIdx).graphic;
+      const QImage& image = layer.image;
       const Rect& packedRect = packedRects[originalToPackedIndex[index]];
       
+      layer.atlasX = packedRect.x;
+      layer.atlasY = packedRect.y;
+      
       if (packedRect.width == image.width() && packedRect.height == image.height()) {
+        layer.rotated = false;
+        
         // Draw the image directly into the assigned rect.
         for (int y = 0; y < image.height(); ++ y) {
           for (int x = 0; x < image.width(); ++ x) {
@@ -65,6 +72,8 @@ QImage SpriteAtlas::BuildAtlas(int width, int height) {
           }
         }
       } else if (packedRect.width == image.height() && packedRect.height == image.width()) {
+        layer.rotated = true;
+        
         // Draw the image into the assigned rect while rotating it by 90 degrees (to the right).
         for (int y = 0; y < image.height(); ++ y) {
           for (int x = 0; x < image.width(); ++ x) {
@@ -74,7 +83,7 @@ QImage SpriteAtlas::BuildAtlas(int width, int height) {
         }
       } else {
         // Something went wrong.
-        std::cout << "SpriteAtlas::BuildAtlas(): Internal error: The size of the rect assigned to a sprite frame is incorrect.\n";
+        LOG(ERROR) << "Internal error of SpriteAtlas::BuildAtlas(): The size of the rect assigned to a sprite frame is incorrect.";
         return QImage();
       }
       

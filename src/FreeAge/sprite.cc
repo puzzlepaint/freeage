@@ -1,4 +1,6 @@
-#include "FreeAge/Sprite.h"
+#include "FreeAge/sprite.h"
+
+#include "FreeAge/logging.h"
 
 QImage LoadSMXGraphicLayer(
     const SMXLayerHeader& layerHeader,
@@ -10,28 +12,26 @@ QImage LoadSMXGraphicLayer(
   // Read the command and pixel array length
   u32 commandArrayLen;
   if (fread(&commandArrayLen, sizeof(u32), 1, file) != 1) {
-    std::cout << "LoadSMXGraphicLayer(): Unexpected EOF while trying to read commandArrayLen\n";
+    LOG(ERROR) << "Unexpected EOF while trying to read commandArrayLen";
     return QImage();
   }
-  // std::cout << "Command array length: " << commandArrayLen << "\n";
   
   u32 pixelArrayLen;
   if (fread(&pixelArrayLen, sizeof(u32), 1, file) != 1) {
-    std::cout << "LoadSMXGraphicLayer(): Unexpected EOF while trying to read pixelArrayLen\n";
+    LOG(ERROR) << "Unexpected EOF while trying to read pixelArrayLen";
     return QImage();
   }
-  // std::cout << "Pixel array length: " << pixelArrayLen << "\n";
   
   // Read the command and pixel array data
   std::vector<u8> commandArray(commandArrayLen);
   if (fread(commandArray.data(), sizeof(u8), commandArrayLen, file) != commandArrayLen) {
-    std::cout << "LoadSMXGraphicLayer(): Unexpected EOF while trying to read commandArray\n";
+    LOG(ERROR) << "Unexpected EOF while trying to read commandArray";
     return QImage();
   }
   
   std::vector<u8> pixelArray(pixelArrayLen);
   if (fread(pixelArray.data(), sizeof(u8), pixelArrayLen, file) != pixelArrayLen) {
-    std::cout << "LoadSMXGraphicLayer(): Unexpected EOF while trying to read pixelArray\n";
+    LOG(ERROR) << "Unexpected EOF while trying to read pixelArray";
     return QImage();
   }
   
@@ -91,8 +91,8 @@ QImage LoadSMXGraphicLayer(
       } else if (commandCode == 0b11) {
         // End of row.
         if (col + edge.rightSpace != layerHeader.width) {
-          std::cout << "Warning: Row " << row << ": Pixel count does not match expectation (col: " << col
-                    << ", edge.rightSpace: " << edge.rightSpace << ", layerHeader.width: " << layerHeader.width << ")\n";
+          LOG(WARNING) << "Row " << row << ": Pixel count does not match expectation (col: " << col
+                       << ", edge.rightSpace: " << edge.rightSpace << ", layerHeader.width: " << layerHeader.width << ")";
         }
         for (; col < layerHeader.width; ++ col) {
           *out++ = qRgba(0, 0, 0, 0);
@@ -112,14 +112,13 @@ QImage LoadSMXShadowLayer(
   // Read the combined command and data array
   u32 dataLen;
   if (fread(&dataLen, sizeof(u32), 1, file) != 1) {
-    std::cout << "LoadSMXShadowLayer(): Unexpected EOF while trying to read dataLen\n";
+    LOG(ERROR) << "Unexpected EOF while trying to read dataLen";
     return QImage();
   }
-  // std::cout << "Data length: " << dataLen << "\n";
   
   std::vector<u8> data(dataLen);
   if (fread(data.data(), sizeof(u8), dataLen, file) != dataLen) {
-    std::cout << "LoadSMXShadowLayer(): Unexpected EOF while trying to read data\n";
+    LOG(ERROR) << "Unexpected EOF while trying to read data";
     return QImage();
   }
   
@@ -171,15 +170,15 @@ QImage LoadSMXShadowLayer(
         // NOTE: We account for what seems like a bug here, where there is one pixel of data missing.
         if ((col + edge.rightSpace != layerHeader.width) &&
             (col + edge.rightSpace + 1 != layerHeader.width)) {
-          std::cout << "Warning: Row " << row << ": Pixel count does not match expectation (col: " << col
-                    << ", edge.rightSpace: " << edge.rightSpace << ", layerHeader.width: " << layerHeader.width << ")\n";
+          LOG(WARNING) << "Row " << row << ": Pixel count does not match expectation (col: " << col
+                       << ", edge.rightSpace: " << edge.rightSpace << ", layerHeader.width: " << layerHeader.width << ")";
         }
         for (; col < layerHeader.width; ++ col) {
           *out++ = 255;
         }
         break;
       } else {
-        std::cout << "LoadSMXShadowLayer(): Unexpected drawing code 0b10\n";
+        LOG(ERROR) << "Unexpected drawing code 0b10";
         return QImage();
       }
     }
@@ -195,14 +194,13 @@ QImage LoadSMXOutlineLayer(
   // Read the combined command and data array
   u32 dataLen;
   if (fread(&dataLen, sizeof(u32), 1, file) != 1) {
-    std::cout << "LoadSMXOutlineLayer(): Unexpected EOF while trying to read dataLen\n";
+    LOG(ERROR) << "Unexpected EOF while trying to read dataLen";
     return QImage();
   }
-  // std::cout << "Data length: " << dataLen << "\n";
   
   std::vector<u8> data(dataLen);
   if (fread(data.data(), sizeof(u8), dataLen, file) != dataLen) {
-    std::cout << "LoadSMXOutlineLayer(): Unexpected EOF while trying to read data\n";
+    LOG(ERROR) << "Unexpected EOF while trying to read data";
     return QImage();
   }
   
@@ -252,15 +250,15 @@ QImage LoadSMXOutlineLayer(
       } else if (commandCode == 0b11) {
         // End of row.
         if (col + edge.rightSpace != layerHeader.width) {
-          std::cout << "Warning: Row " << row << ": Pixel count does not match expectation (col: " << col
-                    << ", edge.rightSpace: " << edge.rightSpace << ", layerHeader.width: " << layerHeader.width << ")\n";
+          LOG(WARNING) << "Row " << row << ": Pixel count does not match expectation (col: " << col
+                       << ", edge.rightSpace: " << edge.rightSpace << ", layerHeader.width: " << layerHeader.width << ")";
         }
         for (; col < layerHeader.width; ++ col) {
           *out++ = 0;
         }
         break;
       } else {
-        std::cout << "LoadSMXShadowLayer(): Unexpected drawing code 0b10\n";
+        LOG(ERROR) << "Unexpected drawing code 0b10";
         return QImage();
       }
     }
@@ -279,16 +277,16 @@ bool LoadSMXLayer(
   // Read the layer header.
   SMXLayerHeader layerHeader;
   if (fread(&layerHeader, sizeof(SMXLayerHeader), 1, file) != 1) {
-    std::cout << "LoadSMXFile(): Unexpected EOF while trying to read SMXLayerHeader\n";
+    LOG(ERROR) << "Unexpected EOF while trying to read SMXLayerHeader";
     return false;
   }
   
-  // std::cout << "Layer width: " << layerHeader.width << "\n";
-  // std::cout << "Layer height: " << layerHeader.height << "\n";
-  // std::cout << "Layer hotspot x: " << layerHeader.hotspotX << "\n";
-  // std::cout << "Layer hotspot y: " << layerHeader.hotspotY << "\n";
-  // std::cout << "Layer length: " << layerHeader.layerLen << "\n";
-  // std::cout << "Layer unknown: " << layerHeader.unknown << "\n";
+  // LOG(INFO) << "Layer width: " << layerHeader.width;
+  // LOG(INFO) << "Layer height: " << layerHeader.height;
+  // LOG(INFO) << "Layer hotspot x: " << layerHeader.hotspotX;
+  // LOG(INFO) << "Layer hotspot y: " << layerHeader.hotspotY;
+  // LOG(INFO) << "Layer length: " << layerHeader.layerLen;
+  // LOG(INFO) << "Layer unknown: " << layerHeader.unknown;
   
   layer->centerX = layerHeader.hotspotX;
   layer->centerY = layerHeader.hotspotY;
@@ -297,10 +295,10 @@ bool LoadSMXLayer(
   std::vector<SMPLayerRowEdge> rowEdges(layerHeader.height);
   for (int row = 0; row < layerHeader.height; ++ row) {
     if (fread(&rowEdges[row], sizeof(SMPLayerRowEdge), 1, file) != 1) {
-      std::cout << "LoadSMXLayer(): Unexpected EOF while trying to read SMPLayerRowEdge for row " << row << "\n";
+      LOG(ERROR) << "Unexpected EOF while trying to read SMPLayerRowEdge for row " << row;
       return false;
     }
-    // std::cout << "Row edge: L: " << rowEdges[row].leftSpace << " R: " << rowEdges[row].rightSpace << "\n";
+    // LOG(INFO) << "Row edge: L: " << rowEdges[row].leftSpace << " R: " << rowEdges[row].rightSpace;
   }
   
   if (layerType == SMXLayerType::Graphic) {
@@ -337,7 +335,7 @@ Palette LoadPalette(const std::filesystem::path& path) {
   
   FILE* file = fopen(path.c_str(), "rb");
   if (!file) {
-    std::cout << "LoadPalette(): Cannot open file: " << path << "\n";
+    LOG(ERROR) << "Cannot open file: " << path;
     return result;
   }
   
@@ -347,7 +345,7 @@ Palette LoadPalette(const std::filesystem::path& path) {
   
   std::vector<char> data(size);
   if (fread(data.data(), 1, size, file) != size) {
-    std::cout << "LoadPalette(): Failed to fully read file: " << path << "\n";
+    LOG(ERROR) << "Failed to fully read file: " << path;
     return result;
   }
   fclose(file);
@@ -368,14 +366,14 @@ Palette LoadPalette(const std::filesystem::path& path) {
           if (lineText == "JASC-PAL" || (hasAlpha && lineText == "JASC-PALX")) {
             headerReadState = 1;
           } else {
-            std::cout << "LoadPalette(): Unexpected header in file: " << path << "\n";
+            LOG(ERROR) << "Unexpected header in file: " << path;
             return result;
           }
         } else if (headerReadState == 1) {
           if (lineText == "0100") {
             headerReadState = 2;
           } else {
-            std::cout << "LoadPalette(): Unexpected header in file: " << path << "\n";
+            LOG(ERROR) << "Unexpected header in file: " << path;
             return result;
           }
         } else if (headerReadState == 2) {
@@ -390,25 +388,25 @@ Palette LoadPalette(const std::filesystem::path& path) {
           // Read a color.
           int spacePos = lineText.find(' ');
           if (spacePos < 0) {
-            std::cout << "LoadPalette(): Failed to parse a color in file: " << path << " (1)\n";
+            LOG(ERROR) << "Failed to parse a color in file: " << path << " (1)";
             return result;
           }
           int secondSpacePos = lineText.find(' ', spacePos + 1);
           if (secondSpacePos < 0) {
-            std::cout << "LoadPalette(): Failed to parse a color in file: " << path << " (2)\n";
+            LOG(ERROR) << "Failed to parse a color in file: " << path << " (2)";
             return result;
           }
           int thirdSpacePos;
           if (hasAlpha) {
             thirdSpacePos = lineText.find(' ', secondSpacePos + 1);
             if (thirdSpacePos < 0) {
-              std::cout << "LoadPalette(): Failed to parse a color in file: " << path << " (3)\n";
+              LOG(ERROR) << "Failed to parse a color in file: " << path << " (3)";
               return result;
             }
           }
           
           if (currentColor >= result.size()) {
-            std::cout << "LoadPalette(): Too many colors in file: " << path << "\n";
+            LOG(ERROR) << "Too many colors in file: " << path;
             return result;
           }
           result[currentColor] = RGBA(
@@ -432,7 +430,7 @@ bool ReadPalettesConf(const char* path, Palettes* palettes) {
   
   FILE* file = fopen(path, "rb");
   if (!file) {
-    std::cout << "LoadSMXFile(): Cannot open file: " << path << "\n";
+    LOG(ERROR) << "Cannot open file: " << path;
     return false;
   }
   
@@ -442,7 +440,7 @@ bool ReadPalettesConf(const char* path, Palettes* palettes) {
   
   std::vector<char> data(size);
   if (fread(data.data(), 1, size, file) != size) {
-    std::cout << "LoadSMXFile(): Failed to fully read file: " << path << "\n";
+    LOG(ERROR) << "Failed to fully read file: " << path;
     return false;
   }
   fclose(file);
@@ -458,7 +456,7 @@ bool ReadPalettesConf(const char* path, Palettes* palettes) {
         std::string lineText(data.data() + lineStart, lineSize);
         int commaPos = lineText.find(',');
         if (commaPos < 0) {
-          std::cout << "Error: ReadPalettesConf() cannot parse line: " << lineText;
+          LOG(ERROR) << "Cannot parse line: " << lineText;
         } else {
           std::string numberText(lineText, 0, commaPos);
           std::string filename(lineText, commaPos + 1);
@@ -480,7 +478,7 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
   
   FILE* file = fopen(path, "rb");
   if (!file) {
-    std::cout << "Sprite::LoadFromFile(): Cannot open file: " << path << "\n";
+    LOG(ERROR) << "Cannot open file: " << path;
     return false;
   }
   std::shared_ptr<FILE> fileCloser(file, [&](FILE* file) { fclose(file); });
@@ -488,7 +486,7 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
   // Read the header and verify it.
   SMXHeader header;
   if (fread(&header, sizeof(SMXHeader), 1, file) != 1) {
-    std::cout << "Sprite::LoadFromFile(): Unexpected EOF while trying to read SMXHeader\n";
+    LOG(ERROR) << "Unexpected EOF while trying to read SMXHeader";
     return false;
   }
   
@@ -496,13 +494,13 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
       header.fileDescriptor[1] != 'M' ||
       header.fileDescriptor[2] != 'P' ||
       header.fileDescriptor[3] != 'X') {
-    std::cout << "Sprite::LoadFromFile(): Header file descriptor is not SMPX\nActual data: "
-              << header.fileDescriptor[0] << header.fileDescriptor[1] << header.fileDescriptor[2] << header.fileDescriptor[3] << "\n";
+    LOG(ERROR) << "Header file descriptor is not SMPX\nActual data: "
+               << header.fileDescriptor[0] << header.fileDescriptor[1] << header.fileDescriptor[2] << header.fileDescriptor[3];
     return false;
   }
   
-  // std::cout << "Version: " << header.version << "\n";
-  // std::cout << "Frame count: " << header.numFrames << "\n";
+  // LOG(INFO) << "Version: " << header.version;
+  // LOG(INFO) << "Frame count: " << header.numFrames;
   
   frames.resize(header.numFrames);
   for (int frameIdx = 0; frameIdx < header.numFrames; ++ frameIdx) {
@@ -511,20 +509,20 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
     // Read the frame header.
     SMXFrameHeader frameHeader;
     if (fread(&frameHeader, sizeof(SMXFrameHeader), 1, file) != 1) {
-      std::cout << "LoadSMXFile(): Unexpected EOF while trying to read SMXFrameHeader\n";
+      LOG(ERROR) << "Unexpected EOF while trying to read SMXFrameHeader";
       return false;
     }
     
-    // std::cout << "Frame has graphic layer: " << frameHeader.HasGraphicLayer() << "\n";
-    // std::cout << "Frame has shadow layer: " << frameHeader.HasShadowLayer() << "\n";
-    // std::cout << "Frame has outline layer: " << frameHeader.HasOutlineLayer() << "\n";
-    // std::cout << "Frame uses 8to5 compression: " << frameHeader.UsesEightToFiveCompression() << "\n";
-    // std::cout << "Frame has unknown bridge flag: " << frameHeader.HasUnknownBridgeFlag() << "\n";
+    // LOG(INFO) << "Frame has graphic layer: " << frameHeader.HasGraphicLayer();
+    // LOG(INFO) << "Frame has shadow layer: " << frameHeader.HasShadowLayer();
+    // LOG(INFO) << "Frame has outline layer: " << frameHeader.HasOutlineLayer();
+    // LOG(INFO) << "Frame uses 8to5 compression: " << frameHeader.UsesEightToFiveCompression();
+    // LOG(INFO) << "Frame has unknown bridge flag: " << frameHeader.HasUnknownBridgeFlag();
     
     // Get the palette for the frame.
     auto paletteIt = palettes.find(frameHeader.paletteNumber);
     if (paletteIt == palettes.end()) {
-      std::cout << "LoadSMXFile(): File references an invalid palette (number: " << frameHeader.paletteNumber << ")\n";
+      LOG(ERROR) << "File references an invalid palette (number: " << frameHeader.paletteNumber << ")";
       return false;
     }
     const Palette& standardPalette = paletteIt->second;
