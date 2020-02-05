@@ -37,6 +37,7 @@
 // 
 // in_position : Position input to the vertex shader.
 // in_color    : Color input to the vertex shader.
+// in_texcoord : Texture coordinate input to the vertex shader.
 //
 // A current OpenGL context is required for calling each member function except
 // the constructor. This includes the destructor.
@@ -87,6 +88,7 @@ class ShaderProgram {
   // Attribute setters.
   void SetPositionAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset);
   void SetColorAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset);
+  void SetTexCoordAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset);
   
   
   inline GLuint program_name() const { return program_; }
@@ -106,4 +108,5 @@ class ShaderProgram {
   // exists.
   GLint position_attribute_location_;
   GLint color_attribute_location_;
+  GLint texcoord_attribute_location_;
 };

@@ -24,12 +24,19 @@ RenderWindow::RenderWindow(QWidget* parent)
   connect(timer, &QTimer::timeout, this, QOverload<>::of(&RenderWindow::update));
   // TODO: This is rounded to milliseconds, thus the FPS cap will be approximate
   timer->start(1000.f / framesPerSecondCap + 0.5f);
+  
+  
+  sprite = nullptr;
+  map = nullptr;
 }
 
 RenderWindow::~RenderWindow() {
   makeCurrent();
   // Destroy OpenGL resources here
-  constantColorProgram.reset();
+  spriteProgram.reset();
+  if (map) {
+    delete map;
+  }
   doneCurrent();
 }
 
@@ -38,10 +45,14 @@ void RenderWindow::SetSprite(Sprite* sprite, const QImage& atlasImage) {
   this->atlasImage = atlasImage;
 }
 
+void RenderWindow::SetMap(Map* map) {
+  this->map = map;
+}
+
 void RenderWindow::CreateConstantColorProgram() {
-  constantColorProgram.reset(new ShaderProgram());
+  spriteProgram.reset(new ShaderProgram());
   
-  CHECK(constantColorProgram->AttachShader(
+  CHECK(spriteProgram->AttachShader(
       "#version 330 core\n"
       "in vec3 in_position;\n"
       "void main() {\n"
@@ -49,7 +60,7 @@ void RenderWindow::CreateConstantColorProgram() {
       "}\n",
       ShaderProgram::ShaderType::kVertexShader));
   
-  CHECK(constantColorProgram->AttachShader(
+  CHECK(spriteProgram->AttachShader(
       "#version 330 core\n"
       "#extension GL_EXT_geometry_shader : enable\n"
       "layout(points) in;\n"
@@ -79,7 +90,7 @@ void RenderWindow::CreateConstantColorProgram() {
       "}\n",
       ShaderProgram::ShaderType::kGeometryShader));
   
-  CHECK(constantColorProgram->AttachShader(
+  CHECK(spriteProgram->AttachShader(
       "#version 330 core\n"
       "layout(location = 0) out vec4 out_color;\n"
       "\n"
@@ -92,18 +103,18 @@ void RenderWindow::CreateConstantColorProgram() {
       "}\n",
       ShaderProgram::ShaderType::kFragmentShader));
   
-  CHECK(constantColorProgram->LinkProgram());
+  CHECK(spriteProgram->LinkProgram());
   
-  constantColorProgram->UseProgram();
+  spriteProgram->UseProgram();
   
-  constantColorProgram_u_texture_location =
-      constantColorProgram->GetUniformLocationOrAbort("u_texture");
-  constantColorProgram_u_size_location =
-      constantColorProgram->GetUniformLocationOrAbort("u_size");
-  constantColorProgram_u_tex_topleft_location =
-      constantColorProgram->GetUniformLocationOrAbort("u_tex_topleft");
-  constantColorProgram_u_tex_bottomright_location =
-      constantColorProgram->GetUniformLocationOrAbort("u_tex_bottomright");
+  spriteProgram_u_texture_location =
+      spriteProgram->GetUniformLocationOrAbort("u_texture");
+  spriteProgram_u_size_location =
+      spriteProgram->GetUniformLocationOrAbort("u_size");
+  spriteProgram_u_tex_topleft_location =
+      spriteProgram->GetUniformLocationOrAbort("u_tex_topleft");
+  spriteProgram_u_tex_bottomright_location =
+      spriteProgram->GetUniformLocationOrAbort("u_tex_bottomright");
 }
 
 void RenderWindow::LoadSprite() {
@@ -128,7 +139,6 @@ void RenderWindow::LoadSprite() {
   //   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   // }
   
-  // Load texture
   f->glTexImage2D(
       GL_TEXTURE_2D,
       0, GL_RGBA,
@@ -146,9 +156,11 @@ void RenderWindow::DrawTestRect(int x, int y, int width, int height, int frameNu
   f->glEnable(GL_BLEND);
   f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   
-  constantColorProgram->UseProgram();
-  constantColorProgram->SetUniform1i(constantColorProgram_u_texture_location, 0);  // use GL_TEXTURE0
-  constantColorProgram->SetUniform2f(constantColorProgram_u_size_location, width / (0.5f * widgetWidth), height / (0.5f * widgetHeight));
+  spriteProgram->UseProgram();
+  spriteProgram->SetUniform1i(spriteProgram_u_texture_location, 0);  // use GL_TEXTURE0
+  f->glBindTexture(GL_TEXTURE_2D, textureId);
+  
+  spriteProgram->SetUniform2f(spriteProgram_u_size_location, width / (0.5f * widgetWidth), height / (0.5f * widgetHeight));
   float texLeftX = layer.atlasX / (1.f * atlasImage.width());
   float texTopY = layer.atlasY / (1.f * atlasImage.height());
   float texRightX = (layer.atlasX + layer.image.width()) / (1.f * atlasImage.width());
@@ -156,16 +168,14 @@ void RenderWindow::DrawTestRect(int x, int y, int width, int height, int frameNu
   if (layer.rotated) {
     // TODO? Is this worth implementing? It will complicate the shader a little.
   }
-  constantColorProgram->SetUniform2f(constantColorProgram_u_tex_topleft_location, texLeftX, texTopY);
-  constantColorProgram->SetUniform2f(constantColorProgram_u_tex_bottomright_location, texRightX, texBottomY);
-  
-  f->glBindTexture(GL_TEXTURE_2D, textureId);
+  spriteProgram->SetUniform2f(spriteProgram_u_tex_topleft_location, texLeftX, texTopY);
+  spriteProgram->SetUniform2f(spriteProgram_u_tex_bottomright_location, texRightX, texBottomY);
   
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   float data[] = {x / (1.f * widgetWidth) * 2.f - 1.f, (1.f - y / (1.f * widgetHeight)) * 2.f - 1.f, 0};
   int elementSizeInBytes = 3 * sizeof(float);
   f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
-  constantColorProgram->SetPositionAttribute(
+  spriteProgram->SetPositionAttribute(
       3,
       GetGLType<float>::value,
       3 * sizeof(float),
@@ -189,15 +199,21 @@ void RenderWindow::initializeGL() {
   CreateConstantColorProgram();
   CHECK_OPENGL_NO_ERROR();
   
-  LoadSprite();
+  if (map) {
+    map->LoadRenderResources();
+  }
   
-  f->glGenBuffers(1, &pointBuffer);
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
-  int elementSizeInBytes = 3 * sizeof(float);
-  float data[] = {
-      0.f, 0.f, 0};
-  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
-  CHECK_OPENGL_NO_ERROR();
+  if (sprite) {
+    LoadSprite();
+    
+    f->glGenBuffers(1, &pointBuffer);
+    f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+    int elementSizeInBytes = 3 * sizeof(float);
+    float data[] = {
+        0.f, 0.f, 0};
+    f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
+    CHECK_OPENGL_NO_ERROR();
+  }
   
   // Remember the game start time.
   gameStartTime = std::chrono::steady_clock::now();
@@ -224,11 +240,18 @@ void RenderWindow::paintGL() {
   std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
   double seconds = std::chrono::duration<double>(now - gameStartTime).count();
   
+  // Draw the map.
+  if (map) {
+    map->Render(widgetWidth, widgetHeight);
+  }
+  
   // Draw a sprite.
-  float framesPerSecond = 30.f;
-  int frameIndex = static_cast<int>(framesPerSecond * seconds + 0.5f) % sprite->NumFrames();
-  Sprite::Frame::Layer& layer = sprite->frame(frameIndex).graphic;
-  DrawTestRect(widgetWidth / 2 - layer.centerX, widgetHeight / 2 - layer.centerY, layer.image.width(), layer.image.height(), frameIndex);
+  if (sprite) {
+    float framesPerSecond = 30.f;
+    int frameIndex = static_cast<int>(framesPerSecond * seconds + 0.5f) % sprite->NumFrames();
+    Sprite::Frame::Layer& layer = sprite->frame(frameIndex).graphic;
+    DrawTestRect(widgetWidth / 2 - layer.centerX, widgetHeight / 2 - layer.centerY, layer.image.width(), layer.image.height(), frameIndex);
+  }
 }
 
 void RenderWindow::resizeGL(int width, int height) {

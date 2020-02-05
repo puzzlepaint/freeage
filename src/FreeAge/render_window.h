@@ -5,6 +5,7 @@
 
 #include <QOpenGLWidget>
 
+#include "FreeAge/map.h"
 #include "FreeAge/shader_program.h"
 #include "FreeAge/sprite.h"
 
@@ -15,6 +16,7 @@ class RenderWindow : public QOpenGLWidget {
   ~RenderWindow();
   
   void SetSprite(Sprite* sprite, const QImage& atlasImage);
+  void SetMap(Map* map);
   
  protected:
   void CreateConstantColorProgram();
@@ -33,15 +35,17 @@ class RenderWindow : public QOpenGLWidget {
   
   GLuint pointBuffer;
   
-  std::shared_ptr<ShaderProgram> constantColorProgram;
-  GLint constantColorProgram_u_texture_location;
-  GLint constantColorProgram_u_size_location;
-  GLint constantColorProgram_u_tex_topleft_location;
-  GLint constantColorProgram_u_tex_bottomright_location;
+  std::shared_ptr<ShaderProgram> spriteProgram;
+  GLint spriteProgram_u_texture_location;
+  GLint spriteProgram_u_size_location;
+  GLint spriteProgram_u_tex_topleft_location;
+  GLint spriteProgram_u_tex_bottomright_location;
   
   Sprite* sprite;
   QImage atlasImage;
   GLuint textureId;
+  
+  Map* map;
   
   // Game start time.
   std::chrono::steady_clock::time_point gameStartTime;

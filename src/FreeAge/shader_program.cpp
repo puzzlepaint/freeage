@@ -105,6 +105,7 @@ bool ShaderProgram::LinkProgram() {
   // Get attributes.
   position_attribute_location_ = f->glGetAttribLocation(program_, "in_position");
   color_attribute_location_ = f->glGetAttribLocation(program_, "in_color");
+  texcoord_attribute_location_ = f->glGetAttribLocation(program_, "in_texcoord");
   return true;
 }
 
@@ -184,6 +185,26 @@ void ShaderProgram::SetColorAttribute(int component_count, GLenum component_type
       component_count,
       component_type,
       GL_TRUE,  // Whether fixed-point data values should be normalized.
+      stride,
+      reinterpret_cast<void*>(offset));
+  CHECK_OPENGL_NO_ERROR();
+}
+
+void ShaderProgram::SetTexCoordAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset) {
+  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+  
+  // CHECK(position_attribute_location_ != -1) << "SetTexCoordAttribute() called, but no attribute \"in_position\" found.";
+  if (texcoord_attribute_location_ == -1) {
+    // Allow using an object with positions with a material that ignores the positions.
+    return;
+  }
+  
+  f->glEnableVertexAttribArray(texcoord_attribute_location_);
+  f->glVertexAttribPointer(
+      texcoord_attribute_location_,
+      component_count,
+      component_type,
+      GL_FALSE,  // Whether fixed-point data values should be normalized.
       stride,
       reinterpret_cast<void*>(offset));
   CHECK_OPENGL_NO_ERROR();

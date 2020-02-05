@@ -13,6 +13,7 @@
 
 #include "FreeAge/free_age.h"
 #include "FreeAge/logging.h"
+#include "FreeAge/map.h"
 #include "FreeAge/render_window.h"
 #include "FreeAge/sprite.h"
 #include "FreeAge/sprite_atlas.h"
@@ -114,9 +115,14 @@ int main(int argc, char** argv) {
   LOG(INFO) << "--> Using size: " << smallestAcceptableSize;
   QImage atlasImage = atlas.BuildAtlas(smallestAcceptableSize, smallestAcceptableSize);
   
+  // Create a terain
+  Map* testMap = new Map(15, 15);
+  testMap->GenerateRandomMap();
+  
   // Create an OpenGL render window using Qt
   RenderWindow renderWindow;
   renderWindow.SetSprite(&sprite, atlasImage);
+  renderWindow.SetMap(testMap);  // transferring ownership
   renderWindow.show();
   
   qapp.exec();
