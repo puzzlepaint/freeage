@@ -27,6 +27,19 @@ int main(int argc, char** argv) {
     loguru::init(argc, argv, /*verbosity_flag*/ nullptr);
   }
   
+  if (argc != 3) {
+    // For example:
+    //
+    // ./FreeAge /home/thomas/.local/share/Steam/steamapps/common/AoE2DE/resources/_common b_indi_mill_age3_x1.smx
+    LOG(INFO) << "Usage: <Program> <common_resources_path> <smx_filename>";
+    return 1;
+  }
+  std::string commonResourcesPathStr = argv[1];
+  if (commonResourcesPathStr.size() >= 8 && commonResourcesPathStr.substr(0, 7) == "file://") {
+    commonResourcesPathStr = commonResourcesPathStr.substr(7);
+  }
+  std::filesystem::path commonResourcesPath = commonResourcesPathStr;
+  
   // Set the default OpenGL format *before* creating a QApplication.
   QSurfaceFormat format;
   // format.setDepthBufferSize(24);
@@ -45,7 +58,6 @@ int main(int argc, char** argv) {
   qapp.setAttribute(Qt::AA_CompressHighFrequencyEvents, false);
   
   // TODO: Make configurable
-  std::filesystem::path commonResourcesPath = "/home/thomas/.local/share/Steam/steamapps/common/AoE2DE/resources/_common";
   std::filesystem::path graphicsPath = commonResourcesPath / "drs" / "graphics";
   
   // Load palettes
@@ -56,13 +68,8 @@ int main(int argc, char** argv) {
   }
   
   // Load sprite from SMX
-  // std::filesystem::path smxPath = graphicsPath / "u_cav_warwagon_idleA_x1.smx";
-  // std::filesystem::path smxPath = graphicsPath / "n_tree_palm_x1.smx"";
-  std::filesystem::path smxPath = graphicsPath / "b_indi_mill_age3_x1.smx";
-  // std::filesystem::path smxPath = graphicsPath / "b_meso_wonder_mayans_destruction_x1.smx";
-  
   Sprite sprite;
-  if (!sprite.LoadFromFile(smxPath.c_str(), palettes)) {
+  if (!sprite.LoadFromFile((graphicsPath / argv[2]).c_str(), palettes)) {
     std::cout << "Failed to load sprite. Exiting.\n";
     return 1;
   }
@@ -72,11 +79,40 @@ int main(int argc, char** argv) {
   //       non-rectangular geometry to save some more space.
   SpriteAtlas atlas;
   atlas.AddSprite(&sprite);
-  QImage atlasImage = atlas.BuildAtlas(2 * 2048, 2048);
-  if (atlasImage.isNull()) {
-    std::cout << "Failed to build atlas: Not enough space in given area. Exiting.\n";
+  
+  int textureSize = 2048;
+  int largestTooSmallSize = -1;
+  int smallestAcceptableSize = -1;
+  for (int attempt = 0; attempt < 8; ++ attempt) {
+    QImage atlasImage = atlas.BuildAtlas(textureSize, textureSize);
+    
+    if (atlasImage.isNull()) {
+      // The size is too small.
+      LOG(INFO) << "Size " << textureSize << " is too small.";
+      largestTooSmallSize = textureSize;
+      if (smallestAcceptableSize >= 0) {
+        textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+      } else {
+        textureSize = 2 * largestTooSmallSize;
+      }
+    } else {
+      // The size is large enough.
+      LOG(INFO) << "Size " << textureSize << " is okay.";
+      smallestAcceptableSize = textureSize;
+      if (smallestAcceptableSize >= 0) {
+        textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+      } else {
+        textureSize = smallestAcceptableSize / 2;
+      }
+    }
+  }
+  if (smallestAcceptableSize <= 0) {
+    std::cout << "Unable to find a texture size which all animation frames can be packed into. Exiting.";
     return 1;
   }
+  
+  LOG(INFO) << "--> Using size: " << smallestAcceptableSize;
+  QImage atlasImage = atlas.BuildAtlas(smallestAcceptableSize, smallestAcceptableSize);
   
   // Create an OpenGL render window using Qt
   RenderWindow renderWindow;

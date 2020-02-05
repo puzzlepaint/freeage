@@ -204,7 +204,6 @@ void RenderWindow::initializeGL() {
 }
 
 void RenderWindow::paintGL() {
-  LOG(INFO) << "Rendering ...";
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   CHECK_OPENGL_NO_ERROR();
@@ -215,7 +214,7 @@ void RenderWindow::paintGL() {
   f->glDisable(GL_CULL_FACE);
   
   // Clear background.
-  f->glClearColor(0.5f, 0.5f, 0.0f, 1.0f);
+  f->glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
   f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   
   CHECK_OPENGL_NO_ERROR();
@@ -226,10 +225,10 @@ void RenderWindow::paintGL() {
   double seconds = std::chrono::duration<double>(now - gameStartTime).count();
   
   // Draw a sprite.
-  Sprite::Frame::Layer& layer = sprite->frame(0).graphic;
   float framesPerSecond = 30.f;
   int frameIndex = static_cast<int>(framesPerSecond * seconds + 0.5f) % sprite->NumFrames();
-  DrawTestRect(10, 10, layer.image.width(), layer.image.height(), frameIndex);
+  Sprite::Frame::Layer& layer = sprite->frame(frameIndex).graphic;
+  DrawTestRect(widgetWidth / 2 - layer.centerX, widgetHeight / 2 - layer.centerY, layer.image.width(), layer.image.height(), frameIndex);
 }
 
 void RenderWindow::resizeGL(int width, int height) {
