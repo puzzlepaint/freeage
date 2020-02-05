@@ -79,6 +79,7 @@ class ShaderProgram {
   // Uniform setters.
   void SetUniform1f(GLint location, float x);
   void SetUniform1i(GLint location, int x);
+  void SetUniform2f(GLint location, float x, float y);
   void SetUniform3f(GLint location, float x, float y, float z);
   void SetUniform4f(GLint location, float x, float y, float z, float w);
   

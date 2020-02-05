@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <memory>
 
 #include <QOpenGLWidget>
@@ -18,7 +19,7 @@ class RenderWindow : public QOpenGLWidget {
  protected:
   void CreateConstantColorProgram();
   void LoadSprite();
-  void DrawTestRect(int x, int y, int width, int height);
+  void DrawTestRect(int x, int y, int width, int height, int frameNumber);
   
   virtual void initializeGL() override;
   virtual void paintGL() override;
@@ -34,12 +35,16 @@ class RenderWindow : public QOpenGLWidget {
   
   std::shared_ptr<ShaderProgram> constantColorProgram;
   GLint constantColorProgram_u_texture_location;
-  GLint constantColorProgram_u_width_location;
-  GLint constantColorProgram_u_height_location;
+  GLint constantColorProgram_u_size_location;
+  GLint constantColorProgram_u_tex_topleft_location;
+  GLint constantColorProgram_u_tex_bottomright_location;
   
   Sprite* sprite;
   QImage atlasImage;
   GLuint textureId;
+  
+  // Game start time.
+  std::chrono::steady_clock::time_point gameStartTime;
   
   // Cached widget size.
   int widgetWidth;

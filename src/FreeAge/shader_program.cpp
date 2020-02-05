@@ -135,6 +135,11 @@ void ShaderProgram::SetUniform1i(GLint location, int x) {
   f->glUniform1i(location, x);
 }
 
+void ShaderProgram::SetUniform2f(GLint location, float x, float y) {
+  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+  f->glUniform2f(location, x, y);
+}
+
 void ShaderProgram::SetUniform3f(GLint location, float x, float y, float z) {
   QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
   f->glUniform3f(location, x, y, z);

@@ -2,6 +2,7 @@
 
 #include <QOpenGLContext>
 #include <QOpenGLFunctions_3_2_Core>
+#include <QTimer>
 
 #include "FreeAge/logging.h"
 #include "FreeAge/opengl.h"
@@ -16,6 +17,13 @@ RenderWindow::RenderWindow(QWidget* parent)
   
   // This may be faster than keeping partial updates possible
   setUpdateBehavior(QOpenGLWidget::NoPartialUpdate);
+  
+  // Do continuous rendering via a timer
+  float framesPerSecondCap = 120;
+  QTimer* timer = new QTimer(this);
+  connect(timer, &QTimer::timeout, this, QOverload<>::of(&RenderWindow::update));
+  // TODO: This is rounded to milliseconds, thus the FPS cap will be approximate
+  timer->start(1000.f / framesPerSecondCap + 0.5f);
 }
 
 RenderWindow::~RenderWindow() {
@@ -47,23 +55,24 @@ void RenderWindow::CreateConstantColorProgram() {
       "layout(points) in;\n"
       "layout(triangle_strip, max_vertices = 4) out;\n"
       "\n"
-      "uniform float u_width;\n"
-      "uniform float u_height;\n"
+      "uniform vec2 u_size;\n"
+      "uniform vec2 u_tex_topleft;\n"
+      "uniform vec2 u_tex_bottomright;\n"
       "\n"
       "out vec2 texcoord;\n"
       "\n"
       "void main() {\n"
       "  gl_Position = vec4(gl_in[0].gl_Position.x, gl_in[0].gl_Position.y, gl_in[0].gl_Position.z, 1.0);\n"
-      "  texcoord = vec2(0, 0);\n"
+      "  texcoord = vec2(u_tex_topleft.x, u_tex_topleft.y);\n"
       "  EmitVertex();\n"
-      "  gl_Position = vec4(gl_in[0].gl_Position.x + u_width, gl_in[0].gl_Position.y, gl_in[0].gl_Position.z, 1.0);\n"
-      "  texcoord = vec2(0.1, 0);\n"
+      "  gl_Position = vec4(gl_in[0].gl_Position.x + u_size.x, gl_in[0].gl_Position.y, gl_in[0].gl_Position.z, 1.0);\n"
+      "  texcoord = vec2(u_tex_bottomright.x, u_tex_topleft.y);\n"
       "  EmitVertex();\n"
-      "  gl_Position = vec4(gl_in[0].gl_Position.x, gl_in[0].gl_Position.y - u_height, gl_in[0].gl_Position.z, 1.0);\n"
-      "  texcoord = vec2(0, 0.1);\n"
+      "  gl_Position = vec4(gl_in[0].gl_Position.x, gl_in[0].gl_Position.y - u_size.y, gl_in[0].gl_Position.z, 1.0);\n"
+      "  texcoord = vec2(u_tex_topleft.x, u_tex_bottomright.y);\n"
       "  EmitVertex();\n"
-      "  gl_Position = vec4(gl_in[0].gl_Position.x + u_width, gl_in[0].gl_Position.y - u_height, gl_in[0].gl_Position.z, 1.0);\n"
-      "  texcoord = vec2(0.1, 0.1);\n"
+      "  gl_Position = vec4(gl_in[0].gl_Position.x + u_size.x, gl_in[0].gl_Position.y - u_size.y, gl_in[0].gl_Position.z, 1.0);\n"
+      "  texcoord = vec2(u_tex_bottomright.x, u_tex_bottomright.y);\n"
       "  EmitVertex();\n"
       "  \n"
       "  EndPrimitive();\n"
@@ -89,10 +98,12 @@ void RenderWindow::CreateConstantColorProgram() {
   
   constantColorProgram_u_texture_location =
       constantColorProgram->GetUniformLocationOrAbort("u_texture");
-  constantColorProgram_u_width_location =
-      constantColorProgram->GetUniformLocationOrAbort("u_width");
-  constantColorProgram_u_height_location =
-      constantColorProgram->GetUniformLocationOrAbort("u_height");
+  constantColorProgram_u_size_location =
+      constantColorProgram->GetUniformLocationOrAbort("u_size");
+  constantColorProgram_u_tex_topleft_location =
+      constantColorProgram->GetUniformLocationOrAbort("u_tex_topleft");
+  constantColorProgram_u_tex_bottomright_location =
+      constantColorProgram->GetUniformLocationOrAbort("u_tex_bottomright");
 }
 
 void RenderWindow::LoadSprite() {
@@ -128,7 +139,8 @@ void RenderWindow::LoadSprite() {
   CHECK_OPENGL_NO_ERROR();
 }
 
-void RenderWindow::DrawTestRect(int x, int y, int width, int height) {
+void RenderWindow::DrawTestRect(int x, int y, int width, int height, int frameNumber) {
+  const Sprite::Frame::Layer& layer = sprite->frame(frameNumber).graphic;
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   f->glEnable(GL_BLEND);
@@ -136,11 +148,16 @@ void RenderWindow::DrawTestRect(int x, int y, int width, int height) {
   
   constantColorProgram->UseProgram();
   constantColorProgram->SetUniform1i(constantColorProgram_u_texture_location, 0);  // use GL_TEXTURE0
-  constantColorProgram->SetUniform1f(constantColorProgram_u_width_location, width / (0.5f * widgetWidth));
-  constantColorProgram->SetUniform1f(constantColorProgram_u_height_location, height / (0.5f * widgetHeight));
-  
-  // TODO: Set texture coordinates
-  // sprite->frame(0).graphic;
+  constantColorProgram->SetUniform2f(constantColorProgram_u_size_location, width / (0.5f * widgetWidth), height / (0.5f * widgetHeight));
+  float texLeftX = layer.atlasX / (1.f * atlasImage.width());
+  float texTopY = layer.atlasY / (1.f * atlasImage.height());
+  float texRightX = (layer.atlasX + layer.image.width()) / (1.f * atlasImage.width());
+  float texBottomY = (layer.atlasY + layer.image.height()) / (1.f * atlasImage.height());
+  if (layer.rotated) {
+    // TODO? Is this worth implementing? It will complicate the shader a little.
+  }
+  constantColorProgram->SetUniform2f(constantColorProgram_u_tex_topleft_location, texLeftX, texTopY);
+  constantColorProgram->SetUniform2f(constantColorProgram_u_tex_bottomright_location, texRightX, texBottomY);
   
   f->glBindTexture(GL_TEXTURE_2D, textureId);
   
@@ -181,6 +198,9 @@ void RenderWindow::initializeGL() {
       0.f, 0.f, 0};
   f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
   CHECK_OPENGL_NO_ERROR();
+  
+  // Remember the game start time.
+  gameStartTime = std::chrono::steady_clock::now();
 }
 
 void RenderWindow::paintGL() {
@@ -200,9 +220,16 @@ void RenderWindow::paintGL() {
   
   CHECK_OPENGL_NO_ERROR();
   
-  // DEBUG: Draw a colored shape.
+  // Get the time now.
+  // TODO: Predict the time at which the rendered frame will be displayed?
+  std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+  double seconds = std::chrono::duration<double>(now - gameStartTime).count();
+  
+  // Draw a sprite.
   Sprite::Frame::Layer& layer = sprite->frame(0).graphic;
-  DrawTestRect(10, 10, layer.image.width(), layer.image.height());
+  float framesPerSecond = 30.f;
+  int frameIndex = static_cast<int>(framesPerSecond * seconds + 0.5f) % sprite->NumFrames();
+  DrawTestRect(10, 10, layer.image.width(), layer.image.height(), frameIndex);
 }
 
 void RenderWindow::resizeGL(int width, int height) {

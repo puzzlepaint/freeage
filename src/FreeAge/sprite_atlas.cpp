@@ -11,7 +11,8 @@ void SpriteAtlas::AddSprite(Sprite* sprite) {
 }
 
 QImage SpriteAtlas::BuildAtlas(int width, int height) {
-  MaxRectsBinPack packer(width, height, true);
+  // TODO: Should we allow flipping? It is currently not implemented for texture coordinate setting in rendering.
+  MaxRectsBinPack packer(width, height, /*allowFlip*/ false);
   
   // TODO: Right now, we only pack the sprites' main graphics.
   //       We should pack the shadows too (into another texture, since they are only 8 bit per pixel).
