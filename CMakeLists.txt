@@ -50,9 +50,14 @@ target_link_libraries(loguru
 )
 
 
-# FreeAge application
-add_executable(FreeAge
-  src/FreeAge/main.cc
+# Packaged dependency: googletest (for unit tests)
+add_subdirectory(third_party/googletest)
+set_target_properties(gtest gtest_main PROPERTIES FOLDER "third_party")
+
+
+# FreeAge base library, used by both the application and the test
+# TODO: Unify cpp / cc spelling. Maybe also use hpp to make it clear for headers too that they are C++ code, not C code.
+add_library(FreeAgeLib
   src/FreeAge/map.cpp
   src/FreeAge/opengl.cc
   src/FreeAge/render_window.cpp
@@ -63,7 +68,7 @@ add_executable(FreeAge
   src/RectangleBinPack/MaxRectsBinPack.cpp
   src/RectangleBinPack/Rect.cpp
 )
-target_compile_options(FreeAge PUBLIC
+target_compile_options(FreeAgeLib PUBLIC
   "$<$<COMPILE_LANGUAGE:CXX>:-Wall>"
   ";$<$<COMPILE_LANGUAGE:CXX>:-Wextra>"
   ";$<$<COMPILE_LANGUAGE:CXX>:-O2>"
@@ -71,15 +76,37 @@ target_compile_options(FreeAge PUBLIC
   ";$<$<COMPILE_LANGUAGE:CXX>:-msse3>"
   ";$<$<COMPILE_LANGUAGE:CXX>:-Wno-comment>"
 )
-target_include_directories(FreeAge PUBLIC
+target_include_directories(FreeAgeLib PUBLIC
   src
   third_party
   third_party/mango/include
 )
-target_link_libraries(FreeAge PUBLIC
+target_link_libraries(FreeAgeLib PUBLIC
   Qt5::Widgets
   mango
   loguru
   Threads::Threads
   stdc++fs  # TODO: I think this is specific to gcc version 8
+)
+
+
+# FreeAge application
+add_executable(FreeAge
+  src/FreeAge/main.cc
+)
+target_link_libraries(FreeAge
+  FreeAgeLib
+)
+
+
+# FreeAge test
+add_executable(FreeAgeTest
+  src/FreeAge/test.cpp
+)
+target_link_libraries(FreeAgeTest
+  FreeAgeLib
+  gtest
+)
+add_test(FreeAgeTest
+  FreeAgeTest
 )

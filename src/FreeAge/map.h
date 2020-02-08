@@ -41,18 +41,18 @@ class Map {
   ~Map();
   
   /// Computes the projected coordinates for a map corner.
-  QPointF TileCornerToProjectedCoord(int cornerX, int cornerY);
+  QPointF TileCornerToProjectedCoord(int cornerX, int cornerY) const;
   
   /// Computes the projected coordinates for an arbitrary map coordinate.
   /// Interpolation between corners is performed using bilinear interpolation.
-  QPointF MapCoordToProjectedCoord(const QPointF& mapCoord);
+  QPointF MapCoordToProjectedCoord(const QPointF& mapCoord, QPointF* jacobianColumn0 = nullptr, QPointF* jacobianColumn1 = nullptr) const;
   
   /// Attempts to determine the map coordinates for the given projected coordinates.
   /// If the projected coordinates are outside of the map, false is returned.
-  bool ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCoord);
+  bool ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCoord) const;
   
   /// Returns the elevation at the given tile corner.
-  inline int& elevationAt(int cornerX, int cornerY) { return elevation[cornerY * (width + 1) + cornerX]; }
+  inline int& elevationAt(int cornerX, int cornerY) const { return elevation[cornerY * (width + 1) + cornerX]; }
   
   
   /// For testing, generates some kind of random map.
@@ -67,6 +67,10 @@ class Map {
   // TODO: Should this functionality be moved into its own class?
   void LoadRenderResources();
   void Render(int screenWidth, int screenHeight);
+  
+  
+  inline int GetWidth() const { return width; }
+  inline int GetHeight() const { return height; }
   
  private:
   /// The maximum possible elevation level (the lowest is zero).
@@ -95,3 +99,11 @@ class Map {
   GLint program_u_scaling_location;
   GLint program_u_translation_location;
 };
+
+/// Helper function, exposed here for unit testing
+QPointF DetermineInterpolationCoordinates(
+    const QPointF& topLeft,
+    const QPointF& topRight,
+    const QPointF& bottomLeft,
+    const QPointF& bottomRight,
+    const QPointF& interpolatedPoint);
