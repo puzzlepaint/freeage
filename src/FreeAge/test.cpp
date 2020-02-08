@@ -24,44 +24,6 @@ int main(int argc, char** argv) {
   return RUN_ALL_TESTS();
 }
 
-static QPointF InterpolateVectorBilinearly(
-    float factorX,
-    float factorY,
-    const QPointF& topLeft,
-    const QPointF& topRight,
-    const QPointF& bottomLeft,
-    const QPointF& bottomRight) {
-  return (1 - factorX) * (1 - factorY) * topLeft +
-         (    factorX) * (1 - factorY) * topRight +
-         (1 - factorX) * (    factorY) * bottomLeft +
-         (    factorX) * (    factorY) * bottomRight;
-}
-
-TEST(Map, DetermineInterpolationCoordinates) {
-  QPointF interpolationCoords(0.4f, 0.6f);
-  QPointF topLeft(0.1f, 0.2f);
-  QPointF topRight(1.2f, 0.1f);
-  QPointF bottomLeft(0.3f, 1.5f);
-  QPointF bottomRight(2.4f, 2.6f);
-  
-  QPointF interpolated = InterpolateVectorBilinearly(
-      interpolationCoords.x(),
-      interpolationCoords.y(),
-      topLeft,
-      topRight,
-      bottomLeft,
-      bottomRight);
-  
-  QPointF interpolationCoords2 = DetermineInterpolationCoordinates(
-      topLeft,
-      topRight,
-      bottomLeft,
-      bottomRight,
-      interpolated);
-  
-  EXPECT_NEAR(interpolationCoords.x(), interpolationCoords2.x(), 1e-3f);
-  EXPECT_NEAR(interpolationCoords.y(), interpolationCoords2.y(), 1e-3f);
-}
 
 static void TestProjectedCoordToMapCoord(const Map& map) {
   constexpr bool kDebug = false;

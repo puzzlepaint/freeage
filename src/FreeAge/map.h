@@ -99,11 +99,3 @@ class Map {
   GLint program_u_scaling_location;
   GLint program_u_translation_location;
 };
-
-/// Helper function, exposed here for unit testing
-QPointF DetermineInterpolationCoordinates(
-    const QPointF& topLeft,
-    const QPointF& topRight,
-    const QPointF& bottomLeft,
-    const QPointF& bottomRight,
-    const QPointF& interpolatedPoint);
