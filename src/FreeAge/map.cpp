@@ -19,16 +19,22 @@ Map::Map(int width, int height)
   maxElevation = 7;  // TODO: Make configurable
   elevation = new int[(width + 1) * (height + 1)];
   
-  // Initialize the elevation to zero everywhere.
+  occupied = new bool[width * height];
+  
+  // Initialize the elevation to zero everywhere, and the occupancy to free.
   for (int y = 0; y <= height; ++ y) {
     for (int x = 0; x <= width; ++ x) {
       elevationAt(x, y) = 0;
+      if (x < width && y < height) {
+        occupiedAt(x, y) = false;
+      }
     }
   }
 }
 
 Map::~Map() {
   delete[] elevation;
+  delete[] occupied;
 }
 
 QPointF Map::TileCornerToProjectedCoord(int cornerX, int cornerY) const {
@@ -184,12 +190,91 @@ bool Map::ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCo
 
 
 void Map::GenerateRandomMap() {
+  int nextBuildingID = 0;
+  
+  // Generate town centers
+  QPoint townCenterLocations[2];
+  townCenterLocations[0] = QPoint(1 * width / 4 + (rand() % (width / 8)),
+                                  1 * width / 4 + (rand() % (width / 8)));
+  buildings.insert(std::make_pair(nextBuildingID++, ClientBuilding(BuildingType::TownCenter, townCenterLocations[0].x(), townCenterLocations[0].y())));
+  townCenterLocations[1] = QPoint(3 * width / 4 + (rand() % (width / 8)),
+                                  3 * width / 4 + (rand() % (width / 8)));
+  buildings.insert(std::make_pair(nextBuildingID++, ClientBuilding(BuildingType::TownCenter, townCenterLocations[1].x(), townCenterLocations[1].y())));
+  
+  auto getRandomLocation = [&](float minDistanceToTCs, int* tileX, int* tileY) {
+    bool ok;
+    for (int attempt = 0; attempt < 1000; ++ attempt) {
+      *tileX = rand() % width;
+      *tileY = rand() % height;
+      ok = true;
+      for (int i = 0; i < 2; ++ i) {
+        float distanceX = townCenterLocations[i].x() - *tileX;
+        float distanceY = townCenterLocations[i].y() - *tileY;
+        float distance = sqrtf(distanceX * distanceX + distanceY * distanceY);
+        if (distance < minDistanceToTCs) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) {
+        break;
+      }
+    }
+    return ok;
+  };
+  
+  // Generate forests
+  constexpr int kForestMinDistanceFromTCs = 10;  // TODO: Make configurable
+  constexpr int kNumForests = 6;  // TODO: Make configurable
+  for (int forest = 0; forest < kNumForests; ++ forest) {
+    int tileX;
+    int tileY;
+    if (getRandomLocation(kForestMinDistanceFromTCs, &tileX, &tileY)) {
+      // Place the forest.
+      // TODO: For now, we just place very simple circles.
+      int forestRadius = 6 + rand() % 3;
+      
+      int minX = std::max(0, tileX - forestRadius);
+      int maxX = std::min(width - 1, tileX + forestRadius);
+      int minY = std::max(0, tileY - forestRadius);
+      int maxY = std::min(height - 1, tileY + forestRadius);
+      
+      for (int y = minY; y <= maxY; ++ y) {
+        for (int x = minX; x <= maxX; ++ x) {
+          int diffX = x - tileX;
+          int diffY = y - tileY;
+          float radius = sqrtf(diffX * diffX + diffY * diffY);
+          if (radius <= forestRadius && !occupiedAt(x, y)) {
+            AddBuilding(BuildingType::TreeOak, x, y);
+          }
+        }
+      }
+    }
+  }
+  
+  // Generate hills
+  const int kHillMinDistanceFromTCs = maxElevation + 2 + 8;  // TODO: Make configurable
   constexpr int numHills = 40;  // TODO: Make configurable
   for (int hill = 0; hill < numHills; ++ hill) {
-    int tileX = rand() % width;
-    int tileY = rand() % height;
-    int elevationValue = rand() % maxElevation;
-    PlaceElevation(tileX, tileY, elevationValue);
+    int tileX;
+    int tileY;
+    if (getRandomLocation(kHillMinDistanceFromTCs, &tileX, &tileY)) {
+      int elevationValue = rand() % maxElevation;
+      PlaceElevation(tileX, tileY, elevationValue);
+    }
+  }
+}
+
+void Map::AddBuilding(BuildingType type, int baseTileX, int baseTileY) {
+  // Insert into buildings map
+  buildings.insert(std::make_pair(nextBuildingID++, ClientBuilding(type, baseTileX, baseTileY)));
+  
+  // Mark the occupied tiles as such
+  QSize size = GetBuildingSize(type);
+  for (int y = baseTileY; y < baseTileY + size.height(); ++ y) {
+    for (int x = baseTileX; x < baseTileX + size.width(); ++ x) {
+      occupiedAt(x, y) = true;
+    }
   }
 }
 
@@ -373,9 +458,19 @@ void Map::LoadRenderResources() {
   // TODO: Un-load the render resources again on destruction
 }
 
-void Map::Render(float* viewMatrix) {
+void Map::Render(
+    float* viewMatrix,
+    const std::vector<Sprite>& buildingSprites,
+    const std::vector<Texture>& buildingTextures,
+    SpriteShader* spriteShader,
+    GLuint spritePointBuffer,
+    float zoom,
+    int widgetWidth,
+    int widgetHeight,
+    float elapsedSeconds) {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
+  // Render the map.
   program->UseProgram();
   
   // f->glEnable(GL_BLEND);
@@ -401,6 +496,23 @@ void Map::Render(float* viewMatrix) {
       2 * sizeof(float));
   
   f->glDrawElements(GL_TRIANGLES, width * height * 6, GL_UNSIGNED_INT, 0);
-  
   CHECK_OPENGL_NO_ERROR();
+  
+  
+  // Render the buildings.
+  // TODO: Sort buildings top to bottom by projected coordinate
+  // TODO: Cull buildings that are not visible
+  for (const auto& buildingEntry : buildings) {
+    const ClientBuilding& building = buildingEntry.second;
+    building.Render(
+      this,
+      buildingSprites[static_cast<int>(building.GetType())],
+      buildingTextures[static_cast<int>(building.GetType())],
+      spriteShader,
+      spritePointBuffer,
+      zoom,
+      widgetWidth,
+      widgetHeight,
+      elapsedSeconds);
+  }
 }

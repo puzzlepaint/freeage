@@ -54,6 +54,7 @@ class Sprite {
   
   inline int NumFrames() const { return frames.size(); }
   inline Frame& frame(int index) { return frames[index]; }
+  inline const Frame& frame(int index) const { return frames[index]; }
   
  private:
   std::vector<Frame> frames;

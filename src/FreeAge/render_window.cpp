@@ -9,9 +9,13 @@
 
 #include "FreeAge/logging.h"
 #include "FreeAge/opengl.h"
+#include "FreeAge/sprite.h"
+#include "FreeAge/sprite_atlas.h"
 
-RenderWindow::RenderWindow(QWidget* parent)
-    : QOpenGLWidget(parent) {
+RenderWindow::RenderWindow(const Palettes& palettes, const std::filesystem::path& graphicsPath, QWidget* parent)
+    : QOpenGLWidget(parent),
+      palettes(palettes),
+      graphicsPath(graphicsPath) {
   setAttribute(Qt::WA_OpaquePaintEvent);
   setAutoFillBackground(false);
   
@@ -33,23 +37,19 @@ RenderWindow::RenderWindow(QWidget* parent)
   zoom = 1;
   
   
-  sprite = nullptr;
   map = nullptr;
 }
 
 RenderWindow::~RenderWindow() {
   makeCurrent();
   // Destroy OpenGL resources here
-  spriteProgram.reset();
+  spriteShader.reset();
   if (map) {
     delete map;
   }
+  buildingTextures.clear();
+  buildingSprites.clear();
   doneCurrent();
-}
-
-void RenderWindow::SetSprite(Sprite* sprite, const QImage& atlasImage) {
-  this->sprite = sprite;
-  this->atlasImage = atlasImage;
 }
 
 void RenderWindow::SetMap(Map* map) {
@@ -86,146 +86,6 @@ QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime) {
   return result;
 }
 
-void RenderWindow::CreateConstantColorProgram() {
-  spriteProgram.reset(new ShaderProgram());
-  
-  CHECK(spriteProgram->AttachShader(
-      "#version 330 core\n"
-      "in vec3 in_position;\n"
-      "uniform mat2 u_viewMatrix;\n"
-      "void main() {\n"
-      "  gl_Position = vec4(u_viewMatrix[0][0] * in_position.x + u_viewMatrix[1][0], u_viewMatrix[0][1] * in_position.y + u_viewMatrix[1][1], in_position.z, 1);\n"
-      "}\n",
-      ShaderProgram::ShaderType::kVertexShader));
-  
-  CHECK(spriteProgram->AttachShader(
-      "#version 330 core\n"
-      "#extension GL_EXT_geometry_shader : enable\n"
-      "layout(points) in;\n"
-      "layout(triangle_strip, max_vertices = 4) out;\n"
-      "\n"
-      "uniform vec2 u_size;\n"
-      "uniform vec2 u_tex_topleft;\n"
-      "uniform vec2 u_tex_bottomright;\n"
-      "\n"
-      "out vec2 texcoord;\n"
-      "\n"
-      "void main() {\n"
-      "  gl_Position = vec4(gl_in[0].gl_Position.x, gl_in[0].gl_Position.y, gl_in[0].gl_Position.z, 1.0);\n"
-      "  texcoord = vec2(u_tex_topleft.x, u_tex_topleft.y);\n"
-      "  EmitVertex();\n"
-      "  gl_Position = vec4(gl_in[0].gl_Position.x + u_size.x, gl_in[0].gl_Position.y, gl_in[0].gl_Position.z, 1.0);\n"
-      "  texcoord = vec2(u_tex_bottomright.x, u_tex_topleft.y);\n"
-      "  EmitVertex();\n"
-      "  gl_Position = vec4(gl_in[0].gl_Position.x, gl_in[0].gl_Position.y - u_size.y, gl_in[0].gl_Position.z, 1.0);\n"
-      "  texcoord = vec2(u_tex_topleft.x, u_tex_bottomright.y);\n"
-      "  EmitVertex();\n"
-      "  gl_Position = vec4(gl_in[0].gl_Position.x + u_size.x, gl_in[0].gl_Position.y - u_size.y, gl_in[0].gl_Position.z, 1.0);\n"
-      "  texcoord = vec2(u_tex_bottomright.x, u_tex_bottomright.y);\n"
-      "  EmitVertex();\n"
-      "  \n"
-      "  EndPrimitive();\n"
-      "}\n",
-      ShaderProgram::ShaderType::kGeometryShader));
-  
-  CHECK(spriteProgram->AttachShader(
-      "#version 330 core\n"
-      "layout(location = 0) out vec4 out_color;\n"
-      "\n"
-      "in vec2 texcoord;\n"
-      "\n"
-      "uniform sampler2D u_texture;\n"
-      "\n"
-      "void main() {\n"
-      "  out_color = texture(u_texture, texcoord.xy);\n"
-      "}\n",
-      ShaderProgram::ShaderType::kFragmentShader));
-  
-  CHECK(spriteProgram->LinkProgram());
-  
-  spriteProgram->UseProgram();
-  
-  spriteProgram_u_texture_location =
-      spriteProgram->GetUniformLocationOrAbort("u_texture");
-  spriteProgram_u_viewMatrix_location =
-      spriteProgram->GetUniformLocationOrAbort("u_viewMatrix");
-  spriteProgram_u_size_location =
-      spriteProgram->GetUniformLocationOrAbort("u_size");
-  spriteProgram_u_tex_topleft_location =
-      spriteProgram->GetUniformLocationOrAbort("u_tex_topleft");
-  spriteProgram_u_tex_bottomright_location =
-      spriteProgram->GetUniformLocationOrAbort("u_tex_bottomright");
-}
-
-void RenderWindow::LoadSprite() {
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
-  
-  f->glGenTextures(1, &textureId);
-  f->glBindTexture(GL_TEXTURE_2D, textureId);
-  
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  // TODO
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);  // TODO
-  
-  // TODO: Use this for 8-bit-per-pixel data
-  // // OpenGL by default tries to read data in multiples of 4, if our data is
-  // // only RGB or BGR and the width is not divible by 4 then we need to alert
-  // // opengl
-  // if((img->width % 4) != 0 && 
-  //  (img->format == GL_RGB || 
-  //   img->format == GL_BGR))
-  // {
-  //   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-  // }
-  
-  f->glTexImage2D(
-      GL_TEXTURE_2D,
-      0, GL_RGBA,
-      atlasImage.width(), atlasImage.height(),
-      0, GL_BGRA, GL_UNSIGNED_BYTE,
-      atlasImage.scanLine(0));
-  
-  CHECK_OPENGL_NO_ERROR();
-}
-
-void RenderWindow::DrawSprite(float x, float y, int width, int height, int frameNumber) {
-  const Sprite::Frame::Layer& layer = sprite->frame(frameNumber).graphic;
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
-  
-  f->glEnable(GL_BLEND);
-  f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  
-  spriteProgram->UseProgram();
-  spriteProgram->SetUniform1i(spriteProgram_u_texture_location, 0);  // use GL_TEXTURE0
-  f->glBindTexture(GL_TEXTURE_2D, textureId);
-  
-  spriteProgram->SetUniform2f(spriteProgram_u_size_location, zoom * 2.f * width / static_cast<float>(widgetWidth), zoom * 2.f * height / static_cast<float>(widgetHeight));
-  float texLeftX = layer.atlasX / (1.f * atlasImage.width());
-  float texTopY = layer.atlasY / (1.f * atlasImage.height());
-  float texRightX = (layer.atlasX + layer.image.width()) / (1.f * atlasImage.width());
-  float texBottomY = (layer.atlasY + layer.image.height()) / (1.f * atlasImage.height());
-  if (layer.rotated) {
-    // TODO? Is this worth implementing? It will complicate the shader a little.
-  }
-  spriteProgram->SetUniform2f(spriteProgram_u_tex_topleft_location, texLeftX, texTopY);
-  spriteProgram->SetUniform2f(spriteProgram_u_tex_bottomright_location, texRightX, texBottomY);
-  
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
-  float data[] = {x, y, 0};
-  int elementSizeInBytes = 3 * sizeof(float);
-  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
-  spriteProgram->SetPositionAttribute(
-      3,
-      GetGLType<float>::value,
-      3 * sizeof(float),
-      0);
-  
-  f->glDrawArrays(GL_POINTS, 0, 1);
-  
-  CHECK_OPENGL_NO_ERROR();
-}
-
 void RenderWindow::initializeGL() {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   CHECK_OPENGL_NO_ERROR();
@@ -235,25 +95,81 @@ void RenderWindow::initializeGL() {
   GLuint vao;
   f->glGenVertexArrays(1, &vao);
   f->glBindVertexArray(vao);
-  
-  CreateConstantColorProgram();
   CHECK_OPENGL_NO_ERROR();
+  
+  // Create shaders.
+  spriteShader.reset(new SpriteShader());
+  
+  // Load sprites.
+  int numBuildingTypes = static_cast<int>(BuildingType::NumBuildings);
+  buildingSprites.resize(numBuildingTypes);
+  buildingTextures.resize(numBuildingTypes);
+  for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
+    Sprite& sprite = buildingSprites[buildingType];
+    
+    if (!sprite.LoadFromFile((graphicsPath / GetBuildingFilename(static_cast<BuildingType>(buildingType)).toStdString()).c_str(), palettes)) {
+      std::cout << "Failed to load sprite. Exiting.\n";
+      exit(1);  // TODO: Exit gracefully
+    }
+    
+    // Create a sprite atlas texture containing all frames of the SMX animation.
+    // TODO: This generally takes a LOT of memory. We probably want to do a dense packing of the images using
+    //       non-rectangular geometry to save some more space.
+    SpriteAtlas atlas;
+    atlas.AddSprite(&sprite);
+    
+    int textureSize = 2048;
+    int largestTooSmallSize = -1;
+    int smallestAcceptableSize = -1;
+    for (int attempt = 0; attempt < 8; ++ attempt) {
+      if (!atlas.BuildAtlas(textureSize, textureSize, nullptr)) {
+        // The size is too small.
+        // LOG(INFO) << "Size " << textureSize << " is too small.";
+        largestTooSmallSize = textureSize;
+        if (smallestAcceptableSize >= 0) {
+          textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+        } else {
+          textureSize = 2 * largestTooSmallSize;
+        }
+      } else {
+        // The size is large enough.
+        // LOG(INFO) << "Size " << textureSize << " is okay.";
+        smallestAcceptableSize = textureSize;
+        if (smallestAcceptableSize >= 0) {
+          textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+        } else {
+          textureSize = smallestAcceptableSize / 2;
+        }
+      }
+    }
+    if (smallestAcceptableSize <= 0) {
+      std::cout << "Unable to find a texture size which all animation frames can be packed into. Exiting.";
+      exit(1);  // TODO: Exit gracefully
+    }
+    
+    LOG(INFO) << "Atlas for " << GetBuildingFilename(static_cast<BuildingType>(buildingType)).toStdString() << " uses size: " << smallestAcceptableSize;
+    QImage atlasImage;
+    if (!atlas.BuildAtlas(smallestAcceptableSize, smallestAcceptableSize, &atlasImage)) {
+      LOG(ERROR) << "Unexpected error while building an atlas image.";
+      exit(1);  // TODO: Exit gracefully
+    }
+    
+    // Transfer the atlasImage to the GPU
+    buildingTextures[buildingType].Load(atlasImage);
+  }
   
   if (map) {
     map->LoadRenderResources();
   }
   
-  if (sprite) {
-    LoadSprite();
-    
-    f->glGenBuffers(1, &pointBuffer);
-    f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
-    int elementSizeInBytes = 3 * sizeof(float);
-    float data[] = {
-        0.f, 0.f, 0};
-    f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
-    CHECK_OPENGL_NO_ERROR();
-  }
+  // Create a buffer containing a single point for sprite rendering
+  f->glGenBuffers(1, &pointBuffer);
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+  int elementSizeInBytes = 3 * sizeof(float);
+  float data[] = {
+      0.f, 0.f, 0};
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
+  CHECK_OPENGL_NO_ERROR();
   
   // Remember the game start time.
   gameStartTime = Clock::now();
@@ -293,8 +209,8 @@ void RenderWindow::paintGL() {
   
   // Apply the view transformation to all shaders.
   // TODO: Use a uniform buffer object for that.
-  spriteProgram->UseProgram();
-  spriteProgram->setUniformMatrix2fv(spriteProgram_u_viewMatrix_location, viewMatrix);
+  spriteShader->GetProgram()->UseProgram();
+  spriteShader->GetProgram()->setUniformMatrix2fv(spriteShader->GetViewMatrixLocation(), viewMatrix);
   
   // Set states for rendering.
   // f->glEnable(GL_MULTISAMPLE);
@@ -308,20 +224,16 @@ void RenderWindow::paintGL() {
   CHECK_OPENGL_NO_ERROR();
   
   // Draw the map.
-  if (map) {
-    map->Render(viewMatrix);
-  }
-  
-  // Draw a sprite.
-  if (sprite) {
-    QPointF mapCoord = QPointF(0, 0);
-    QPointF projectedCoord = map->MapCoordToProjectedCoord(mapCoord);
-    
-    float framesPerSecond = 30.f;
-    int frameIndex = static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % sprite->NumFrames();
-    Sprite::Frame::Layer& layer = sprite->frame(frameIndex).graphic;
-    DrawSprite(projectedCoord.x() - layer.centerX, projectedCoord.y() - layer.centerY, layer.image.width(), layer.image.height(), frameIndex);
-  }
+  map->Render(
+      viewMatrix,
+      buildingSprites,
+      buildingTextures,
+      spriteShader.get(),
+      pointBuffer,
+      zoom,
+      widgetWidth,
+      widgetHeight,
+      elapsedSeconds);
 }
 
 void RenderWindow::resizeGL(int width, int height) {

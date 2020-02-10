@@ -6,8 +6,9 @@
 #include <QOpenGLWidget>
 
 #include "FreeAge/map.h"
-#include "FreeAge/shader_program.h"
+#include "FreeAge/shader_sprite.h"
 #include "FreeAge/sprite.h"
+#include "FreeAge/texture.h"
 
 typedef std::chrono::steady_clock Clock;
 typedef Clock::time_point TimePoint;
@@ -15,10 +16,9 @@ typedef Clock::time_point TimePoint;
 class RenderWindow : public QOpenGLWidget {
  Q_OBJECT
  public:
-  RenderWindow(QWidget* parent = nullptr);
+  RenderWindow(const Palettes& palettes, const std::filesystem::path& graphicsPath, QWidget* parent = nullptr);
   ~RenderWindow();
   
-  void SetSprite(Sprite* sprite, const QImage& atlasImage);
   void SetMap(Map* map);
   
   /// Scrolls the given map coordinates by the given amount in projected coordinates.
@@ -28,10 +28,6 @@ class RenderWindow : public QOpenGLWidget {
   QPointF GetCurrentScroll(const TimePoint& atTime);
   
  protected:
-  void CreateConstantColorProgram();
-  void LoadSprite();
-  void DrawSprite(float x, float y, int width, int height, int frameNumber);
-  
   virtual void initializeGL() override;
   virtual void paintGL() override;
   virtual void resizeGL(int width, int height) override;
@@ -41,21 +37,6 @@ class RenderWindow : public QOpenGLWidget {
   virtual void wheelEvent(QWheelEvent* event) override;
   virtual void keyPressEvent(QKeyEvent* event) override;
   virtual void keyReleaseEvent(QKeyEvent* event) override;
-  
-  GLuint pointBuffer;
-  
-  std::shared_ptr<ShaderProgram> spriteProgram;
-  GLint spriteProgram_u_texture_location;
-  GLint spriteProgram_u_viewMatrix_location;
-  GLint spriteProgram_u_size_location;
-  GLint spriteProgram_u_tex_topleft_location;
-  GLint spriteProgram_u_tex_bottomright_location;
-  
-  Sprite* sprite;
-  QImage atlasImage;
-  GLuint textureId;
-  
-  Map* map;
   
   /// Current map scroll position in map coordinates.
   /// The "scroll" map coordinate is visible at the center of the screen.
@@ -75,6 +56,9 @@ class RenderWindow : public QOpenGLWidget {
   
   static constexpr const float scrollDistancePerSecond = 2000;  // TODO: Make configurable
   
+  /// Map data.
+  Map* map;
+  
   /// Current zoom factor. The default zoom is one, two would make everything twice as big, etc.
   float zoom;
   
@@ -84,4 +68,16 @@ class RenderWindow : public QOpenGLWidget {
   /// Cached widget size.
   int widgetWidth;
   int widgetHeight;
+  
+  // Shaders.
+  std::shared_ptr<SpriteShader> spriteShader;
+  
+  // Resources.
+  GLuint pointBuffer;
+  
+  std::vector<Sprite> buildingSprites;
+  std::vector<Texture> buildingTextures;
+  
+  const Palettes& palettes;
+  const std::filesystem::path& graphicsPath;
 };

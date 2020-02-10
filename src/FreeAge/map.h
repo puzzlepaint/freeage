@@ -5,7 +5,10 @@
 #include <QOpenGLFunctions_3_2_Core>
 #include <QPointF>
 
+#include "FreeAge/client_building.h"
 #include "FreeAge/shader_program.h"
+#include "FreeAge/sprite.h"
+#include "FreeAge/texture.h"
 
 /// Stores the map (terrain type, elevation, ...).
 ///
@@ -53,11 +56,19 @@ class Map {
   bool ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCoord) const;
   
   /// Returns the elevation at the given tile corner.
-  inline int& elevationAt(int cornerX, int cornerY) const { return elevation[cornerY * (width + 1) + cornerX]; }
+  inline int& elevationAt(int cornerX, int cornerY) { return elevation[cornerY * (width + 1) + cornerX]; }
+  inline const int& elevationAt(int cornerX, int cornerY) const { return elevation[cornerY * (width + 1) + cornerX]; }
+  
+  /// Returns the occupancy state at the given tile.
+  inline bool& occupiedAt(int tileX, int tileY) { return occupied[tileY * width + tileX]; }
+  inline const bool& occupiedAt(int tileX, int tileY) const { return occupied[tileY * width + tileX]; }
   
   
   /// For testing, generates some kind of random map.
   void GenerateRandomMap();
+  
+  /// Adds a building to the map.
+  void AddBuilding(BuildingType type, int baseTileX, int baseTileY);
   
   /// Sets the given tile's elevation to the given value,
   /// while ensuring that the maximum slope of 1 is not exceeded
@@ -67,7 +78,16 @@ class Map {
   
   // TODO: Should this functionality be moved into its own class?
   void LoadRenderResources();
-  void Render(float* viewMatrix);
+  void Render(
+      float* viewMatrix,
+      const std::vector<Sprite>& buildingSprites,
+      const std::vector<Texture>& buildingTextures,
+      SpriteShader* spriteShader,
+      GLuint spritePointBuffer,
+      float zoom,
+      int widgetWidth,
+      int widgetHeight,
+      float elapsedSeconds);
   
   
   inline int GetWidth() const { return width; }
@@ -84,11 +104,22 @@ class Map {
   /// An element (x, y) has index: [y * (width + 1) + x].
   int* elevation;
   
+  /// 2D array storing whether each tile is occupied (for example,
+  /// by a building). The array size is width times height.
+  /// An element (x, y) has index: [y * width + x].
+  bool* occupied;
+  
   /// Width of the map in tiles.
   int width;
   
-  // Height of the map in tiles.
+  /// Height of the map in tiles.
   int height;
+  
+  /// The next building ID that will be given to the next added building.
+  int nextBuildingID = 0;
+  
+  /// Map of building ID -> ClientBuilding.
+  std::unordered_map<int, ClientBuilding> buildings;
   
   // TODO: Should this functionality be moved into its own class?
   // --- Rendering attributes ---

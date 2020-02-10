@@ -58,12 +58,15 @@ set_target_properties(gtest gtest_main PROPERTIES FOLDER "third_party")
 # FreeAge base library, used by both the application and the test
 # TODO: Unify cpp / cc spelling. Maybe also use hpp to make it clear for headers too that they are C++ code, not C code.
 add_library(FreeAgeLib
+  src/FreeAge/client_building.cpp
   src/FreeAge/map.cpp
   src/FreeAge/opengl.cc
   src/FreeAge/render_window.cpp
   src/FreeAge/shader_program.cpp
+  src/FreeAge/shader_sprite.cpp
   src/FreeAge/sprite.cc
   src/FreeAge/sprite_atlas.cpp
+  src/FreeAge/texture.cpp
   
   src/RectangleBinPack/MaxRectsBinPack.cpp
   src/RectangleBinPack/Rect.cpp
