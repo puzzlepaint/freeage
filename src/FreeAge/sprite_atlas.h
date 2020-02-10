@@ -18,7 +18,7 @@ class SpriteAtlas {
   // TODO: It is cumbersome to choose the width and height here, as it
   //       is unknown beforehand whether the sprites will fit. Can we
   //       choose that automatically?
-  QImage BuildAtlas(int width, int height);
+  bool BuildAtlas(int width, int height, QImage* atlasImage);
   
  private:
   std::vector<Sprite*> sprites;

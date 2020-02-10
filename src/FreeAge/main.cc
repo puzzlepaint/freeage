@@ -85,9 +85,7 @@ int main(int argc, char** argv) {
   int largestTooSmallSize = -1;
   int smallestAcceptableSize = -1;
   for (int attempt = 0; attempt < 8; ++ attempt) {
-    QImage atlasImage = atlas.BuildAtlas(textureSize, textureSize);
-    
-    if (atlasImage.isNull()) {
+    if (!atlas.BuildAtlas(textureSize, textureSize, nullptr)) {
       // The size is too small.
       LOG(INFO) << "Size " << textureSize << " is too small.";
       largestTooSmallSize = textureSize;
@@ -113,7 +111,11 @@ int main(int argc, char** argv) {
   }
   
   LOG(INFO) << "--> Using size: " << smallestAcceptableSize;
-  QImage atlasImage = atlas.BuildAtlas(smallestAcceptableSize, smallestAcceptableSize);
+  QImage atlasImage;
+  if (!atlas.BuildAtlas(smallestAcceptableSize, smallestAcceptableSize, &atlasImage)) {
+    LOG(ERROR) << "Unexpected error while building an atlas image.";
+    return 1;
+  }
   
   // Create a terain
   Map* testMap = new Map(15, 15);

@@ -10,7 +10,7 @@ void SpriteAtlas::AddSprite(Sprite* sprite) {
   sprites.push_back(sprite);
 }
 
-QImage SpriteAtlas::BuildAtlas(int width, int height) {
+bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage) {
   // TODO: Should we allow flipping? It is currently not implemented for texture coordinate setting in rendering.
   MaxRectsBinPack packer(width, height, /*allowFlip*/ false);
   
@@ -37,7 +37,12 @@ QImage SpriteAtlas::BuildAtlas(int width, int height) {
   packer.Insert(rects, packedRects, packedRectIndices, MaxRectsBinPack::RectBestShortSideFit);
   if (!rects.empty()) {
     // Not all rects could be added because they did not fit into the specified area.
-    return QImage();
+    return false;
+  }
+  
+  // If no output image is given, return true to signal that the images fit into the given atlas size.
+  if (!atlasImage) {
+    return true;
   }
   
   // Invert packedRectIndices
@@ -85,11 +90,13 @@ QImage SpriteAtlas::BuildAtlas(int width, int height) {
       } else {
         // Something went wrong.
         LOG(ERROR) << "Internal error of SpriteAtlas::BuildAtlas(): The size of the rect assigned to a sprite frame is incorrect.";
-        return QImage();
+        return false;
       }
       
       ++ index;
     }
   }
-  return atlas;
+  
+  *atlasImage = atlas;
+  return true;
 }
