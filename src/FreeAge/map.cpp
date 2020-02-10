@@ -502,12 +502,12 @@ void Map::Render(
   // Render the buildings.
   // TODO: Sort buildings top to bottom by projected coordinate
   // TODO: Cull buildings that are not visible
-  for (const auto& buildingEntry : buildings) {
-    const ClientBuilding& building = buildingEntry.second;
+  for (auto& buildingEntry : buildings) {
+    ClientBuilding& building = buildingEntry.second;
     building.Render(
       this,
-      buildingSprites[static_cast<int>(building.GetType())],
-      buildingTextures[static_cast<int>(building.GetType())],
+      buildingSprites,
+      buildingTextures,
       spriteShader,
       spritePointBuffer,
       zoom,

@@ -14,9 +14,10 @@ class Map;
 enum class BuildingType {
   // Player buildings
   TownCenter = 0,
-  TownCenterBack,  // Not used as building, just for loading the sprite
+  TownCenterBack,    // Not used as building, just for loading the sprite
   TownCenterCenter,  // Not used as building, just for loading the sprite
-  TownCenterFront,  // Not used as building, just for loading the sprite
+  TownCenterFront,   // Not used as building, just for loading the sprite
+  TownCenterMain,    // Not used as building, just for loading the sprite
   House,
   
   // Gaia "buildings"
@@ -29,6 +30,7 @@ enum class BuildingType {
 
 QSize GetBuildingSize(BuildingType type);
 QString GetBuildingFilename(BuildingType type);
+bool BuildingUsesRandomSpriteFrame(BuildingType type);
 
 
 /// Represents a building on the client side.
@@ -38,19 +40,22 @@ class ClientBuilding {
   
   void Render(
       Map* map,
-      const Sprite& sprite,
-      const Texture& texture,
+      const std::vector<Sprite>& buildingSprites,
+      const std::vector<Texture>& buildingTextures,
       SpriteShader* spriteShader,
       GLuint pointBuffer,
       float zoom,
       int widgetWidth,
       int widgetHeight,
-      float elapsedSeconds) const;
+      float elapsedSeconds);
   
   inline BuildingType GetType() const { return type; }
   
  private:
   BuildingType type;
+  
+  /// In case the building uses a random but fixed frame index, it is stored here.
+  int fixedFrameIndex;
   
   /// The "base tile" is the minimum map tile coordinate on which the building
   /// stands on.
