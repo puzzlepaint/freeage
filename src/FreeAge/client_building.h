@@ -38,6 +38,12 @@ class ClientBuilding {
  public:
   ClientBuilding(BuildingType type, int baseTileX, int baseTileY);
   
+  /// Computes the sprite rectangle for this building in projected coordinates.
+  QRectF GetRectInProjectedCoords(
+      Map* map,
+      const std::vector<Sprite>& buildingSprites,
+      float elapsedSeconds);
+  
   void Render(
       Map* map,
       const std::vector<Sprite>& buildingSprites,
@@ -51,7 +57,11 @@ class ClientBuilding {
   
   inline BuildingType GetType() const { return type; }
   
+  inline QPoint GetBaseTile() const { return QPoint(baseTileX, baseTileY); }
+  
  private:
+  int GetFrameIndex(const Sprite& sprite, float elapsedSeconds);
+  
   BuildingType type;
   
   /// In case the building uses a random but fixed frame index, it is stored here.

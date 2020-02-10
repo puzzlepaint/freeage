@@ -105,6 +105,26 @@ void DrawSprite(
   CHECK_OPENGL_NO_ERROR();
 }
 
+QRectF ClientBuilding::GetRectInProjectedCoords(
+    Map* map,
+    const std::vector<Sprite>& buildingSprites,
+    float elapsedSeconds) {
+  const Sprite& sprite = buildingSprites[static_cast<int>(type)];
+  
+  QSize size = GetBuildingSize(type);
+  QPointF centerMapCoord = QPointF(baseTileX + 0.5f * size.width(), baseTileY + 0.5f * size.height());
+  QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(centerMapCoord);
+  
+  int frameIndex = GetFrameIndex(sprite, elapsedSeconds);
+  
+  const Sprite::Frame::Layer& layer = sprite.frame(frameIndex).graphic;
+  return QRectF(
+      centerProjectedCoord.x() - layer.centerX,
+      centerProjectedCoord.y() - layer.centerY,
+      layer.image.width(),
+      layer.image.height());
+}
+
 void ClientBuilding::Render(
     Map* map,
     const std::vector<Sprite>& buildingSprites,
@@ -122,19 +142,17 @@ void ClientBuilding::Render(
   QPointF centerMapCoord = QPointF(baseTileX + 0.5f * size.width(), baseTileY + 0.5f * size.height());
   QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(centerMapCoord);
   
-  int frameIndex;
-  if (BuildingUsesRandomSpriteFrame(type)) {
-    if (fixedFrameIndex < 0) {
-      fixedFrameIndex = rand() % sprite.NumFrames();
-    }
-    frameIndex = fixedFrameIndex;
-  } else {
-    float framesPerSecond = 30.f;
-    frameIndex = static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % sprite.NumFrames();
-  }
+  int frameIndex = GetFrameIndex(sprite, elapsedSeconds);
   
   if (type == BuildingType::TownCenter) {
     // Special case for town centers: Render all of their separate parts.
+    // Main
+    DrawSprite(
+        buildingSprites[static_cast<int>(BuildingType::TownCenterMain)],
+        buildingTextures[static_cast<int>(BuildingType::TownCenterMain)],
+        spriteShader, centerProjectedCoord, pointBuffer,
+        zoom, widgetWidth, widgetHeight, frameIndex);
+    
     // Back
     DrawSprite(
         buildingSprites[static_cast<int>(BuildingType::TownCenterBack)],
@@ -168,12 +186,17 @@ void ClientBuilding::Render(
         buildingTextures[static_cast<int>(BuildingType::TownCenterFront)],
         spriteShader, centerProjectedCoord, pointBuffer,
         zoom, widgetWidth, widgetHeight, frameIndex);
-    
-    // Main
-    DrawSprite(
-        buildingSprites[static_cast<int>(BuildingType::TownCenterMain)],
-        buildingTextures[static_cast<int>(BuildingType::TownCenterMain)],
-        spriteShader, centerProjectedCoord, pointBuffer,
-        zoom, widgetWidth, widgetHeight, frameIndex);
+  }
+}
+
+int ClientBuilding::GetFrameIndex(const Sprite& sprite, float elapsedSeconds) {
+  if (BuildingUsesRandomSpriteFrame(type)) {
+    if (fixedFrameIndex < 0) {
+      fixedFrameIndex = rand() % sprite.NumFrames();
+    }
+    return fixedFrameIndex;
+  } else {
+    float framesPerSecond = 30.f;
+    return static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % sprite.NumFrames();
   }
 }

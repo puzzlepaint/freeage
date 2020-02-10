@@ -458,6 +458,19 @@ void Map::LoadRenderResources() {
   // TODO: Un-load the render resources again on destruction
 }
 
+struct BuildingToRender {
+  inline BuildingToRender(ClientBuilding* building, float y)
+      : building(building),
+        y(y) {}
+  
+  inline bool operator< (const BuildingToRender& other) {
+    return y < other.y;
+  }
+  
+  ClientBuilding* building;
+  float y;
+};
+
 void Map::Render(
     float* viewMatrix,
     const std::vector<Sprite>& buildingSprites,
@@ -498,21 +511,52 @@ void Map::Render(
   f->glDrawElements(GL_TRIANGLES, width * height * 6, GL_UNSIGNED_INT, 0);
   CHECK_OPENGL_NO_ERROR();
   
+  // Determine the view rect in projected coordinates.
+  // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
+  // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
+  // -->
+  // projected_x = (opengl_x - viewMatrix[2]) / viewMatrix[0]
+  // projected_y = (opengl_y - viewMatrix[3]) / viewMatrix[1];
+  float leftProjectedCoords = ((-1) - viewMatrix[2]) / viewMatrix[0];
+  float rightProjectedCoords = ((1) - viewMatrix[2]) / viewMatrix[0];
+  float topProjectedCoords = ((1) - viewMatrix[3]) / viewMatrix[1];
+  float bottomProjectedCoords = ((-1) - viewMatrix[3]) / viewMatrix[1];
+  QRectF projectedCoordsViewRect(
+      leftProjectedCoords,
+      topProjectedCoords,
+      rightProjectedCoords - leftProjectedCoords,
+      bottomProjectedCoords - topProjectedCoords);
   
   // Render the buildings.
-  // TODO: Sort buildings top to bottom by projected coordinate
-  // TODO: Cull buildings that are not visible
+  std::vector<BuildingToRender> buildingsToRender;
+  buildingsToRender.reserve(256);
   for (auto& buildingEntry : buildings) {
     ClientBuilding& building = buildingEntry.second;
+    
+    QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+        this,
+        buildingSprites,
+        elapsedSeconds);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      // TODO: Currently, the bottom y of the sprite is used for sorting. Use the center point instead?
+      buildingsToRender.push_back(BuildingToRender(&building, projectedCoordsRect.bottom()));
+    }
+  }
+  
+  // Sort by y-position
+  std::sort(buildingsToRender.begin(), buildingsToRender.end());
+  
+  for (const auto& item : buildingsToRender) {
+    ClientBuilding& building = *item.building;
     building.Render(
-      this,
-      buildingSprites,
-      buildingTextures,
-      spriteShader,
-      spritePointBuffer,
-      zoom,
-      widgetWidth,
-      widgetHeight,
-      elapsedSeconds);
+        this,
+        buildingSprites,
+        buildingTextures,
+        spriteShader,
+        spritePointBuffer,
+        zoom,
+        widgetWidth,
+        widgetHeight,
+        elapsedSeconds);
   }
 }
