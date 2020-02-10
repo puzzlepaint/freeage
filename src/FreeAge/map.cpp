@@ -114,28 +114,28 @@ bool Map::ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCo
   float b1 = projectedCoord.y() - originTileAtAssumedElevCoord.y();
   
   // Compute the solution.
-  QPointF currentMapCoordEstimate = QPointF(
+  *mapCoord = QPointF(
       A00_inv * b0 + A01_inv * b1,
       A10_inv * b0 + A11_inv * b1);
   
   // Clamp the initial map coordinate to be within the map
   // (while keeping the projected x coordinate constant).
   constexpr float kClampMargin = 0.001f;
-  if (currentMapCoordEstimate.x() < 0) {
+  if (mapCoord->x() < 0) {
     // The coordinate is beyond the top-left map border. Move the coordinate down (in projected coordinates).
-    currentMapCoordEstimate += -currentMapCoordEstimate.x() * QPointF(1, -1);
+    *mapCoord += -mapCoord->x() * QPointF(1, -1);
   }
-  if (currentMapCoordEstimate.y() >= height) {
+  if (mapCoord->y() >= height) {
     // The coordinate is beyond the top-right map border. Move the coordinate down (in projected coordinates).
-    currentMapCoordEstimate += -(currentMapCoordEstimate.y() - height + kClampMargin) * QPointF(1, -1);
+    *mapCoord += -(mapCoord->y() - height + kClampMargin) * QPointF(1, -1);
   }
-  if (currentMapCoordEstimate.y() < 0) {
+  if (mapCoord->y() < 0) {
     // The coordinate is beyond the bottom-left map border. Move the coordinate up (in projected coordinates)
-    currentMapCoordEstimate += -currentMapCoordEstimate.y() * QPointF(-1, 1);
+    *mapCoord += -mapCoord->y() * QPointF(-1, 1);
   }
-  if (currentMapCoordEstimate.x() >= width) {
+  if (mapCoord->x() >= width) {
     // The coordinate is beyond the bottom-right map border. Move the coordinate up (in projected coordinates)
-    currentMapCoordEstimate += -(currentMapCoordEstimate.x() - width + kClampMargin) * QPointF(-1, 1);
+    *mapCoord += -(mapCoord->x() - width + kClampMargin) * QPointF(-1, 1);
   }
   
   // We use Gauss-Newton optimization (with coordinates clamped to the map) to do the search.
@@ -148,7 +148,7 @@ bool Map::ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCo
   for (int iteration = 0; iteration < kMaxNumIterations; ++ iteration) {
     QPointF jacCol0;
     QPointF jacCol1;
-    QPointF currentProjectedCoord = MapCoordToProjectedCoord(currentMapCoordEstimate, &jacCol0, &jacCol1);
+    QPointF currentProjectedCoord = MapCoordToProjectedCoord(*mapCoord, &jacCol0, &jacCol1);
     QPointF residual = currentProjectedCoord - projectedCoord;
     if (residual.manhattanLength() < 1e-5f) {
       converged = true;
@@ -171,22 +171,15 @@ bool Map::ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCo
     
     float update0 = H00_inv * b0 + H01_inv * b1;
     float update1 = H01_inv * b0 + H11_inv * b1;
-    currentMapCoordEstimate += QPointF(update0, update1);
+    *mapCoord += QPointF(update0, update1);
     // Clamp to map area.
-    currentMapCoordEstimate = QPointF(
-        std::max<float>(0, std::min<float>(width - kClampMargin, currentMapCoordEstimate.x())),
-        std::max<float>(0, std::min<float>(height - kClampMargin, currentMapCoordEstimate.y())));
+    *mapCoord = QPointF(
+        std::max<float>(0, std::min<float>(width - kClampMargin, mapCoord->x())),
+        std::max<float>(0, std::min<float>(height - kClampMargin, mapCoord->y())));
     
-    // LOG(INFO) << "- currentMapCoordEstimate: " << currentMapCoordEstimate.x() << ", " << currentMapCoordEstimate.y();
+    // LOG(INFO) << "- currentMapCoordEstimate: " << mapCoord->x() << ", " << mapCoord->y();
   }
-  if (converged) {
-    *mapCoord = currentMapCoordEstimate;
-    return true;
-  } else {
-    return false;
-  }
-  
-  return false;
+  return converged;
 }
 
 
@@ -348,12 +341,11 @@ void Map::LoadRenderResources() {
       "#version 330 core\n"
       "in vec2 in_position;\n"
       "in vec2 in_texcoord;\n"
-      "uniform vec2 u_scaling;\n"
-      "uniform vec2 u_translation;\n"
+      "uniform mat2 u_viewMatrix;\n"
       "out vec2 var_texcoord;\n"
       "void main() {\n"
       // TODO: Use sensible z value? Or disable z writing while rendering the terrain anyway
-      "  gl_Position = vec4(u_scaling.x * in_position.x + u_translation.x, u_scaling.y * in_position.y + u_translation.y, 0.999, 1);\n"
+      "  gl_Position = vec4(u_viewMatrix[0][0] * in_position.x + u_viewMatrix[1][0], u_viewMatrix[0][1] * in_position.y + u_viewMatrix[1][1], 0.999, 1);\n"
       "  var_texcoord = in_texcoord;\n"
       "}\n",
       ShaderProgram::ShaderType::kVertexShader));
@@ -376,13 +368,12 @@ void Map::LoadRenderResources() {
   program->UseProgram();
   
   program_u_texture_location = program->GetUniformLocationOrAbort("u_texture");
-  program_u_scaling_location = program->GetUniformLocationOrAbort("u_scaling");
-  program_u_translation_location = program->GetUniformLocationOrAbort("u_translation");
+  program_u_viewMatrix_location = program->GetUniformLocationOrAbort("u_viewMatrix");
   
   // TODO: Un-load the render resources again on destruction
 }
 
-void Map::Render(int screenWidth, int screenHeight) {
+void Map::Render(float* viewMatrix) {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   program->UseProgram();
@@ -393,8 +384,7 @@ void Map::Render(int screenWidth, int screenHeight) {
   program->SetUniform1i(program_u_texture_location, 0);  // use GL_TEXTURE0
   f->glBindTexture(GL_TEXTURE_2D, textureId);
   
-  program->SetUniform2f(program_u_scaling_location, 2.f / screenWidth, -2.f / screenHeight);
-  program->SetUniform2f(program_u_translation_location, -1.f, 1.f - /* TODO */ 1.f);
+  program->setUniformMatrix2fv(program_u_viewMatrix_location, viewMatrix);
   
   f->glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
   program->SetPositionAttribute(

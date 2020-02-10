@@ -151,6 +151,11 @@ void ShaderProgram::SetUniform4f(GLint location, float x, float y, float z, floa
   f->glUniform4f(location, x, y, z, w);
 }
 
+void ShaderProgram::setUniformMatrix2fv(GLint location, float* values, bool valuesAreColumnMajor) {
+  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+  f->glUniformMatrix2fv(location, 1, valuesAreColumnMajor ? GL_FALSE : GL_TRUE, values);
+}
+
 void ShaderProgram::SetPositionAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset) {
   QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
   

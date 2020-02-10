@@ -1,5 +1,8 @@
 #include "FreeAge/render_window.h"
 
+#include <math.h>
+
+#include <QKeyEvent>
 #include <QOpenGLContext>
 #include <QOpenGLFunctions_3_2_Core>
 #include <QTimer>
@@ -25,6 +28,10 @@ RenderWindow::RenderWindow(QWidget* parent)
   // TODO: This is rounded to milliseconds, thus the FPS cap will be approximate
   timer->start(1000.f / framesPerSecondCap + 0.5f);
   
+  // Initialize the view settings
+  scroll = QPointF(0, 0);
+  zoom = 1;
+  
   
   sprite = nullptr;
   map = nullptr;
@@ -49,14 +56,45 @@ void RenderWindow::SetMap(Map* map) {
   this->map = map;
 }
 
+void RenderWindow::Scroll(float x, float y, QPointF* mapCoord) {
+  QPointF projectedCoord = map->MapCoordToProjectedCoord(*mapCoord);
+  projectedCoord += QPointF(x, y);
+  map->ProjectedCoordToMapCoord(projectedCoord, mapCoord);
+}
+
+QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime) {
+  QPointF projectedCoord = map->MapCoordToProjectedCoord(scroll);
+  if (scrollRightPressed) {
+    double seconds = std::chrono::duration<double>(atTime - scrollRightPressTime).count();
+    projectedCoord += QPointF(scrollDistancePerSecond / zoom * seconds, 0);
+  }
+  if (scrollLeftPressed) {
+    double seconds = std::chrono::duration<double>(atTime - scrollLeftPressTime).count();
+    projectedCoord += QPointF(-scrollDistancePerSecond / zoom * seconds, 0);
+  }
+  if (scrollDownPressed) {
+    double seconds = std::chrono::duration<double>(atTime - scrollDownPressTime).count();
+    projectedCoord += QPointF(0, scrollDistancePerSecond / zoom * seconds);
+  }
+  if (scrollUpPressed) {
+    double seconds = std::chrono::duration<double>(atTime - scrollUpPressTime).count();
+    projectedCoord += QPointF(0, -scrollDistancePerSecond / zoom * seconds);
+  }
+  
+  QPointF result;
+  map->ProjectedCoordToMapCoord(projectedCoord, &result);
+  return result;
+}
+
 void RenderWindow::CreateConstantColorProgram() {
   spriteProgram.reset(new ShaderProgram());
   
   CHECK(spriteProgram->AttachShader(
       "#version 330 core\n"
       "in vec3 in_position;\n"
+      "uniform mat2 u_viewMatrix;\n"
       "void main() {\n"
-      "  gl_Position = vec4(in_position.xyz, 1);\n"
+      "  gl_Position = vec4(u_viewMatrix[0][0] * in_position.x + u_viewMatrix[1][0], u_viewMatrix[0][1] * in_position.y + u_viewMatrix[1][1], in_position.z, 1);\n"
       "}\n",
       ShaderProgram::ShaderType::kVertexShader));
   
@@ -109,6 +147,8 @@ void RenderWindow::CreateConstantColorProgram() {
   
   spriteProgram_u_texture_location =
       spriteProgram->GetUniformLocationOrAbort("u_texture");
+  spriteProgram_u_viewMatrix_location =
+      spriteProgram->GetUniformLocationOrAbort("u_viewMatrix");
   spriteProgram_u_size_location =
       spriteProgram->GetUniformLocationOrAbort("u_size");
   spriteProgram_u_tex_topleft_location =
@@ -149,7 +189,7 @@ void RenderWindow::LoadSprite() {
   CHECK_OPENGL_NO_ERROR();
 }
 
-void RenderWindow::DrawTestRect(int x, int y, int width, int height, int frameNumber) {
+void RenderWindow::DrawSprite(float x, float y, int width, int height, int frameNumber) {
   const Sprite::Frame::Layer& layer = sprite->frame(frameNumber).graphic;
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
@@ -160,7 +200,7 @@ void RenderWindow::DrawTestRect(int x, int y, int width, int height, int frameNu
   spriteProgram->SetUniform1i(spriteProgram_u_texture_location, 0);  // use GL_TEXTURE0
   f->glBindTexture(GL_TEXTURE_2D, textureId);
   
-  spriteProgram->SetUniform2f(spriteProgram_u_size_location, width / (0.5f * widgetWidth), height / (0.5f * widgetHeight));
+  spriteProgram->SetUniform2f(spriteProgram_u_size_location, zoom * 2.f * width / static_cast<float>(widgetWidth), zoom * 2.f * height / static_cast<float>(widgetHeight));
   float texLeftX = layer.atlasX / (1.f * atlasImage.width());
   float texTopY = layer.atlasY / (1.f * atlasImage.height());
   float texRightX = (layer.atlasX + layer.image.width()) / (1.f * atlasImage.width());
@@ -172,7 +212,7 @@ void RenderWindow::DrawTestRect(int x, int y, int width, int height, int frameNu
   spriteProgram->SetUniform2f(spriteProgram_u_tex_bottomright_location, texRightX, texBottomY);
   
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
-  float data[] = {x / (1.f * widgetWidth) * 2.f - 1.f, (1.f - y / (1.f * widgetHeight)) * 2.f - 1.f, 0};
+  float data[] = {x, y, 0};
   int elementSizeInBytes = 3 * sizeof(float);
   f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
   spriteProgram->SetPositionAttribute(
@@ -216,13 +256,45 @@ void RenderWindow::initializeGL() {
   }
   
   // Remember the game start time.
-  gameStartTime = std::chrono::steady_clock::now();
+  gameStartTime = Clock::now();
 }
 
 void RenderWindow::paintGL() {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
-  
   CHECK_OPENGL_NO_ERROR();
+  
+  // Get the time for which to render the game state.
+  // TODO: Predict the time at which the rendered frame will be displayed rather than taking the current time.
+  TimePoint now = Clock::now();
+  double elapsedSeconds = std::chrono::duration<double>(now - gameStartTime).count();
+  
+  // Update scrolling state
+  scroll = GetCurrentScroll(now);
+  if (scrollRightPressed) { scrollRightPressTime = now; }
+  if (scrollLeftPressed) { scrollLeftPressTime = now; }
+  if (scrollUpPressed) { scrollUpPressTime = now; }
+  if (scrollDownPressed) { scrollDownPressTime = now; }
+  
+  // Compute the view (projected-to-OpenGL) transformation.
+  // Projected coordinates: arbitrary origin, +x goes right, +y goes down, scale is the default scale.
+  // OpenGL normalized device coordinates: top-left widget corner is (-1, 1), bottom-right widget corner is (1, -1).
+  // The transformation is stored as a matrix but applied as follows:
+  // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
+  // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
+  QPointF projectedCoordAtScreenCenter = map->MapCoordToProjectedCoord(scroll);
+  float scalingX = zoom * 2.f / widgetWidth;
+  float scalingY = zoom * -2.f / widgetHeight;
+  
+  float viewMatrix[4];  // column-major
+  viewMatrix[0] = scalingX;
+  viewMatrix[1] = scalingY;
+  viewMatrix[2] = -scalingX * projectedCoordAtScreenCenter.x();
+  viewMatrix[3] = -scalingY * projectedCoordAtScreenCenter.y();
+  
+  // Apply the view transformation to all shaders.
+  // TODO: Use a uniform buffer object for that.
+  spriteProgram->UseProgram();
+  spriteProgram->setUniformMatrix2fv(spriteProgram_u_viewMatrix_location, viewMatrix);
   
   // Set states for rendering.
   // f->glEnable(GL_MULTISAMPLE);
@@ -235,22 +307,20 @@ void RenderWindow::paintGL() {
   
   CHECK_OPENGL_NO_ERROR();
   
-  // Get the time now.
-  // TODO: Predict the time at which the rendered frame will be displayed?
-  std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-  double seconds = std::chrono::duration<double>(now - gameStartTime).count();
-  
   // Draw the map.
   if (map) {
-    map->Render(widgetWidth, widgetHeight);
+    map->Render(viewMatrix);
   }
   
   // Draw a sprite.
   if (sprite) {
+    QPointF mapCoord = QPointF(0, 0);
+    QPointF projectedCoord = map->MapCoordToProjectedCoord(mapCoord);
+    
     float framesPerSecond = 30.f;
-    int frameIndex = static_cast<int>(framesPerSecond * seconds + 0.5f) % sprite->NumFrames();
+    int frameIndex = static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % sprite->NumFrames();
     Sprite::Frame::Layer& layer = sprite->frame(frameIndex).graphic;
-    DrawTestRect(widgetWidth / 2 - layer.centerX, widgetHeight / 2 - layer.centerY, layer.image.width(), layer.image.height(), frameIndex);
+    DrawSprite(projectedCoord.x() - layer.centerX, projectedCoord.y() - layer.centerY, layer.image.width(), layer.image.height(), frameIndex);
   }
 }
 
@@ -265,20 +335,57 @@ void RenderWindow::mousePressEvent(QMouseEvent* /*event*/) {
 
 void RenderWindow::mouseMoveEvent(QMouseEvent* /*event*/) {
   // TODO
+  // TODO: Possibly manually batch these events together, since we disabled event batching globally.
 }
 
 void RenderWindow::mouseReleaseEvent(QMouseEvent* /*event*/) {
   // TODO
 }
 
-void RenderWindow::wheelEvent(QWheelEvent* /*event*/) {
-  // TODO
+void RenderWindow::wheelEvent(QWheelEvent* event) {
+  double degrees = event->angleDelta().y() / 8.0;
+  double numSteps = degrees / 15.0;
+  
+  double scaleFactor = std::pow(std::sqrt(2.0), numSteps);
+  zoom *= scaleFactor;
 }
 
-void RenderWindow::keyPressEvent(QKeyEvent* /*event*/) {
-  // TODO
+void RenderWindow::keyPressEvent(QKeyEvent* event) {
+  if (event->key() == Qt::Key_Right) {
+    scrollRightPressed = true;
+    scrollRightPressTime = Clock::now();
+  } else if (event->key() == Qt::Key_Left) {
+    scrollLeftPressed = true;
+    scrollLeftPressTime = Clock::now();
+  } else if (event->key() == Qt::Key_Up) {
+    scrollUpPressed = true;
+    scrollUpPressTime = Clock::now();
+  } else if (event->key() == Qt::Key_Down) {
+    scrollDownPressed = true;
+    scrollDownPressTime = Clock::now();
+  }
 }
 
-void RenderWindow::keyReleaseEvent(QKeyEvent* /*event*/) {
-  // TODO
+void RenderWindow::keyReleaseEvent(QKeyEvent* event) {
+  if (event->key() == Qt::Key_Right) {
+    scrollRightPressed = false;
+    TimePoint now = Clock::now();
+    double seconds = std::chrono::duration<double>(now - scrollRightPressTime).count();
+    Scroll(scrollDistancePerSecond / zoom * seconds, 0, &scroll);
+  } else if (event->key() == Qt::Key_Left) {
+    scrollLeftPressed = false;
+    TimePoint now = Clock::now();
+    double seconds = std::chrono::duration<double>(now - scrollLeftPressTime).count();
+    Scroll(-scrollDistancePerSecond / zoom * seconds, 0, &scroll);
+  } else if (event->key() == Qt::Key_Up) {
+    scrollUpPressed = false;
+    TimePoint now = Clock::now();
+    double seconds = std::chrono::duration<double>(now - scrollUpPressTime).count();
+    Scroll(0, -scrollDistancePerSecond / zoom * seconds, &scroll);
+  } else if (event->key() == Qt::Key_Down) {
+    scrollDownPressed = false;
+    TimePoint now = Clock::now();
+    double seconds = std::chrono::duration<double>(now - scrollDownPressTime).count();
+    Scroll(0, scrollDistancePerSecond / zoom * seconds, &scroll);
+  }
 }

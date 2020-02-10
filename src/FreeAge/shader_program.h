@@ -84,6 +84,8 @@ class ShaderProgram {
   void SetUniform3f(GLint location, float x, float y, float z);
   void SetUniform4f(GLint location, float x, float y, float z, float w);
   
+  void setUniformMatrix2fv(GLint location, float* values, bool valuesAreColumnMajor = true);
+  
   
   // Attribute setters.
   void SetPositionAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset);

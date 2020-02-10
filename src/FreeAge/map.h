@@ -49,6 +49,7 @@ class Map {
   
   /// Attempts to determine the map coordinates for the given projected coordinates.
   /// If the projected coordinates are outside of the map, false is returned.
+  /// In any case, mapCoord will be set to the closest map coordinate to the given projected coordinate that was found.
   bool ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCoord) const;
   
   /// Returns the elevation at the given tile corner.
@@ -66,7 +67,7 @@ class Map {
   
   // TODO: Should this functionality be moved into its own class?
   void LoadRenderResources();
-  void Render(int screenWidth, int screenHeight);
+  void Render(float* viewMatrix);
   
   
   inline int GetWidth() const { return width; }
@@ -96,6 +97,5 @@ class Map {
   GLuint indexBuffer;
   std::shared_ptr<ShaderProgram> program;
   GLint program_u_texture_location;
-  GLint program_u_scaling_location;
-  GLint program_u_translation_location;
+  GLint program_u_viewMatrix_location;
 };
