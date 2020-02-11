@@ -5,6 +5,7 @@
 
 #include <QOpenGLWidget>
 
+#include "FreeAge/client_unit.h"
 #include "FreeAge/map.h"
 #include "FreeAge/shader_sprite.h"
 #include "FreeAge/sprite.h"
@@ -74,6 +75,8 @@ class RenderWindow : public QOpenGLWidget {
   
   // Resources.
   GLuint pointBuffer;
+  
+  std::vector<ClientUnitType> unitTypes;
   
   std::vector<Sprite> buildingSprites;
   std::vector<Texture> buildingTextures;

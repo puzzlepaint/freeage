@@ -55,56 +55,6 @@ ClientBuilding::ClientBuilding(BuildingType type, int baseTileX, int baseTileY)
       baseTileX(baseTileX),
       baseTileY(baseTileY) {}
 
-void DrawSprite(
-    const Sprite& sprite,
-    const Texture& texture,
-    SpriteShader* spriteShader,
-    const QPointF& centerProjectedCoord,
-    GLuint pointBuffer,
-    float zoom,
-    int widgetWidth,
-    int widgetHeight,
-    int frameNumber) {
-  const Sprite::Frame::Layer& layer = sprite.frame(frameNumber).graphic;
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
-  
-  f->glEnable(GL_BLEND);
-  f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  
-  ShaderProgram* program = spriteShader->GetProgram();
-  program->UseProgram();
-  program->SetUniform1i(spriteShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
-  f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
-  
-  program->SetUniform2f(spriteShader->GetSizeLocation(), zoom * 2.f * layer.image.width() / static_cast<float>(widgetWidth), zoom * 2.f * layer.image.height() / static_cast<float>(widgetHeight));
-  float texLeftX = layer.atlasX / (1.f * texture.GetWidth());
-  float texTopY = layer.atlasY / (1.f * texture.GetHeight());
-  float texRightX = (layer.atlasX + layer.image.width()) / (1.f * texture.GetWidth());
-  float texBottomY = (layer.atlasY + layer.image.height()) / (1.f * texture.GetHeight());
-  if (layer.rotated) {
-    // TODO: Is this worth implementing? It will complicate the shader a little.
-  }
-  program->SetUniform2f(spriteShader->GetTextTopLeftLocation(), texLeftX, texTopY);
-  program->SetUniform2f(spriteShader->GetTexBottomRightLocation(), texRightX, texBottomY);
-  
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
-  float data[] = {
-      static_cast<float>(centerProjectedCoord.x() - layer.centerX),
-      static_cast<float>(centerProjectedCoord.y() - layer.centerY),
-      0};
-  int elementSizeInBytes = 3 * sizeof(float);
-  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
-  program->SetPositionAttribute(
-      3,
-      GetGLType<float>::value,
-      3 * sizeof(float),
-      0);
-  
-  f->glDrawArrays(GL_POINTS, 0, 1);
-  
-  CHECK_OPENGL_NO_ERROR();
-}
-
 QRectF ClientBuilding::GetRectInProjectedCoords(
     Map* map,
     const std::vector<Sprite>& buildingSprites,

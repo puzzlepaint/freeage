@@ -3,11 +3,16 @@
 #include <filesystem>
 #include <iostream>
 #include <QImage>
+#include <QOpenGLFunctions_3_2_Core>
 #include <QRgb>
 #include <unordered_map>
 #include <vector>
 
 #include "FreeAge/free_age.h"
+
+class SpriteShader;
+class Texture;
+
 
 struct RGBA {
   inline RGBA() = default;
@@ -59,6 +64,22 @@ class Sprite {
  private:
   std::vector<Frame> frames;
 };
+
+
+/// Convenience function which loads a sprite and creates a texture atlas (just) for it.
+/// Attempts to find a good texture size automatically.
+bool LoadSpriteAndTexture(const char* path, Sprite* sprite, Texture* texture, const Palettes& palettes);
+
+void DrawSprite(
+    const Sprite& sprite,
+    const Texture& texture,
+    SpriteShader* spriteShader,
+    const QPointF& centerProjectedCoord,
+    GLuint pointBuffer,
+    float zoom,
+    int widgetWidth,
+    int widgetHeight,
+    int frameNumber);
 
 
 // Note: SMX parsing implemented according to:

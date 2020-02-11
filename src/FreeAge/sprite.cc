@@ -1,6 +1,11 @@
 #include "FreeAge/sprite.h"
 
 #include "FreeAge/logging.h"
+#include "FreeAge/opengl.h"
+#include "FreeAge/shader_program.h"
+#include "FreeAge/shader_sprite.h"
+#include "FreeAge/sprite_atlas.h"
+#include "FreeAge/texture.h"
 
 QImage LoadSMXGraphicLayer(
     const SMXLayerHeader& layerHeader,
@@ -569,4 +574,109 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
   }
   
   return true;
+}
+
+
+bool LoadSpriteAndTexture(const char* path, Sprite* sprite, Texture* texture, const Palettes& palettes) {
+  if (!sprite->LoadFromFile(path, palettes)) {
+    LOG(ERROR) << "Failed to load sprite from " << path;
+    return false;
+  }
+  
+  // Create a sprite atlas texture containing all frames of the SMX animation.
+  // TODO: This generally takes a LOT of memory. We probably want to do a dense packing of the images using
+  //       non-rectangular geometry to save some more space.
+  SpriteAtlas atlas;
+  atlas.AddSprite(sprite);
+  
+  int textureSize = 2048;
+  int largestTooSmallSize = -1;
+  int smallestAcceptableSize = -1;
+  for (int attempt = 0; attempt < 8; ++ attempt) {
+    if (!atlas.BuildAtlas(textureSize, textureSize, nullptr)) {
+      // The size is too small.
+      // LOG(INFO) << "Size " << textureSize << " is too small.";
+      largestTooSmallSize = textureSize;
+      if (smallestAcceptableSize >= 0) {
+        textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+      } else {
+        textureSize = 2 * largestTooSmallSize;
+      }
+    } else {
+      // The size is large enough.
+      // LOG(INFO) << "Size " << textureSize << " is okay.";
+      smallestAcceptableSize = textureSize;
+      if (smallestAcceptableSize >= 0) {
+        textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+      } else {
+        textureSize = smallestAcceptableSize / 2;
+      }
+    }
+  }
+  if (smallestAcceptableSize <= 0) {
+    LOG(ERROR) << "Unable to find a texture size which all animation frames can be packed into.";
+    return false;
+  }
+  
+  LOG(INFO) << "Atlas for " << path << " uses size: " << smallestAcceptableSize;
+  QImage atlasImage;
+  if (!atlas.BuildAtlas(smallestAcceptableSize, smallestAcceptableSize, &atlasImage)) {
+    LOG(ERROR) << "Unexpected error while building an atlas image.";
+    return false;
+  }
+  
+  // Transfer the atlasImage to the GPU
+  texture->Load(atlasImage);
+  
+  return true;
+}
+
+void DrawSprite(
+    const Sprite& sprite,
+    const Texture& texture,
+    SpriteShader* spriteShader,
+    const QPointF& centerProjectedCoord,
+    GLuint pointBuffer,
+    float zoom,
+    int widgetWidth,
+    int widgetHeight,
+    int frameNumber) {
+  const Sprite::Frame::Layer& layer = sprite.frame(frameNumber).graphic;
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
+  f->glEnable(GL_BLEND);
+  f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  
+  ShaderProgram* program = spriteShader->GetProgram();
+  program->UseProgram();
+  program->SetUniform1i(spriteShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
+  f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
+  
+  program->SetUniform2f(spriteShader->GetSizeLocation(), zoom * 2.f * layer.image.width() / static_cast<float>(widgetWidth), zoom * 2.f * layer.image.height() / static_cast<float>(widgetHeight));
+  float texLeftX = layer.atlasX / (1.f * texture.GetWidth());
+  float texTopY = layer.atlasY / (1.f * texture.GetHeight());
+  float texRightX = (layer.atlasX + layer.image.width()) / (1.f * texture.GetWidth());
+  float texBottomY = (layer.atlasY + layer.image.height()) / (1.f * texture.GetHeight());
+  if (layer.rotated) {
+    // TODO: Is this worth implementing? It will complicate the shader a little.
+  }
+  program->SetUniform2f(spriteShader->GetTextTopLeftLocation(), texLeftX, texTopY);
+  program->SetUniform2f(spriteShader->GetTexBottomRightLocation(), texRightX, texBottomY);
+  
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+  float data[] = {
+      static_cast<float>(centerProjectedCoord.x() - layer.centerX),
+      static_cast<float>(centerProjectedCoord.y() - layer.centerY),
+      0};
+  int elementSizeInBytes = 3 * sizeof(float);
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
+  program->SetPositionAttribute(
+      3,
+      GetGLType<float>::value,
+      3 * sizeof(float),
+      0);
+  
+  f->glDrawArrays(GL_POINTS, 0, 1);
+  
+  CHECK_OPENGL_NO_ERROR();
 }

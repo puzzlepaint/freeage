@@ -47,6 +47,7 @@ RenderWindow::~RenderWindow() {
   if (map) {
     delete map;
   }
+  unitTypes.clear();
   buildingTextures.clear();
   buildingSprites.clear();
   doneCurrent();
@@ -100,64 +101,31 @@ void RenderWindow::initializeGL() {
   // Create shaders.
   spriteShader.reset(new SpriteShader());
   
-  // Load sprites.
+  // Load unit resources.
+  unitTypes.resize(static_cast<int>(UnitType::NumUnits));
+  for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
+    if (!unitTypes[unitType].Load(static_cast<UnitType>(unitType), graphicsPath, palettes)) {
+      LOG(ERROR) << "Exiting because of a resource load error for unit " << unitType << ".";
+      exit(1);  // TODO: Exit gracefully
+    }
+  }
+  
+  // Load building resources.
   int numBuildingTypes = static_cast<int>(BuildingType::NumBuildings);
   buildingSprites.resize(numBuildingTypes);
   buildingTextures.resize(numBuildingTypes);
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
-    Sprite& sprite = buildingSprites[buildingType];
-    
-    if (!sprite.LoadFromFile((graphicsPath / GetBuildingFilename(static_cast<BuildingType>(buildingType)).toStdString()).c_str(), palettes)) {
-      std::cout << "Failed to load sprite. Exiting.\n";
+    if (!LoadSpriteAndTexture(
+        (graphicsPath / GetBuildingFilename(static_cast<BuildingType>(buildingType)).toStdString()).c_str(),
+        &buildingSprites[buildingType],
+        &buildingTextures[buildingType],
+        palettes)) {
+      LOG(ERROR) << "Exiting because of a resource load error for building " << buildingType << ".";
       exit(1);  // TODO: Exit gracefully
     }
-    
-    // Create a sprite atlas texture containing all frames of the SMX animation.
-    // TODO: This generally takes a LOT of memory. We probably want to do a dense packing of the images using
-    //       non-rectangular geometry to save some more space.
-    SpriteAtlas atlas;
-    atlas.AddSprite(&sprite);
-    
-    int textureSize = 2048;
-    int largestTooSmallSize = -1;
-    int smallestAcceptableSize = -1;
-    for (int attempt = 0; attempt < 8; ++ attempt) {
-      if (!atlas.BuildAtlas(textureSize, textureSize, nullptr)) {
-        // The size is too small.
-        // LOG(INFO) << "Size " << textureSize << " is too small.";
-        largestTooSmallSize = textureSize;
-        if (smallestAcceptableSize >= 0) {
-          textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
-        } else {
-          textureSize = 2 * largestTooSmallSize;
-        }
-      } else {
-        // The size is large enough.
-        // LOG(INFO) << "Size " << textureSize << " is okay.";
-        smallestAcceptableSize = textureSize;
-        if (smallestAcceptableSize >= 0) {
-          textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
-        } else {
-          textureSize = smallestAcceptableSize / 2;
-        }
-      }
-    }
-    if (smallestAcceptableSize <= 0) {
-      std::cout << "Unable to find a texture size which all animation frames can be packed into. Exiting.";
-      exit(1);  // TODO: Exit gracefully
-    }
-    
-    LOG(INFO) << "Atlas for " << GetBuildingFilename(static_cast<BuildingType>(buildingType)).toStdString() << " uses size: " << smallestAcceptableSize;
-    QImage atlasImage;
-    if (!atlas.BuildAtlas(smallestAcceptableSize, smallestAcceptableSize, &atlasImage)) {
-      LOG(ERROR) << "Unexpected error while building an atlas image.";
-      exit(1);  // TODO: Exit gracefully
-    }
-    
-    // Transfer the atlasImage to the GPU
-    buildingTextures[buildingType].Load(atlasImage);
   }
   
+  // Load map resources.
   if (map) {
     map->LoadRenderResources();
   }
@@ -226,6 +194,7 @@ void RenderWindow::paintGL() {
   // Draw the map.
   map->Render(
       viewMatrix,
+      unitTypes,
       buildingSprites,
       buildingTextures,
       spriteShader.get(),

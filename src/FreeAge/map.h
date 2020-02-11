@@ -6,6 +6,7 @@
 #include <QPointF>
 
 #include "FreeAge/client_building.h"
+#include "FreeAge/client_unit.h"
 #include "FreeAge/shader_program.h"
 #include "FreeAge/sprite.h"
 #include "FreeAge/texture.h"
@@ -80,6 +81,7 @@ class Map {
   void LoadRenderResources();
   void Render(
       float* viewMatrix,
+      const std::vector<ClientUnitType>& unitTypes,
       const std::vector<Sprite>& buildingSprites,
       const std::vector<Texture>& buildingTextures,
       SpriteShader* spriteShader,
@@ -120,6 +122,13 @@ class Map {
   
   /// Map of building ID -> ClientBuilding.
   std::unordered_map<int, ClientBuilding> buildings;
+  
+  /// The next unit ID that will be given to the next added unit.
+  /// TODO: Unify building and unit IDs?
+  int nextUnitID = 0;
+  
+  /// Map of unit ID -> ClientUnit.
+  std::unordered_map<int, ClientUnit> units;
   
   // TODO: Should this functionality be moved into its own class?
   // --- Rendering attributes ---

@@ -190,16 +190,22 @@ bool Map::ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCo
 
 
 void Map::GenerateRandomMap() {
-  int nextBuildingID = 0;
-  
   // Generate town centers
+  // TODO: Currently we randomly determine the leftmost tile; use the center instead for even distribution
   QPoint townCenterLocations[2];
   townCenterLocations[0] = QPoint(1 * width / 4 + (rand() % (width / 8)),
                                   1 * width / 4 + (rand() % (width / 8)));
-  buildings.insert(std::make_pair(nextBuildingID++, ClientBuilding(BuildingType::TownCenter, townCenterLocations[0].x(), townCenterLocations[0].y())));
+  AddBuilding(BuildingType::TownCenter, townCenterLocations[0].x(), townCenterLocations[0].y());
   townCenterLocations[1] = QPoint(3 * width / 4 + (rand() % (width / 8)),
                                   3 * width / 4 + (rand() % (width / 8)));
-  buildings.insert(std::make_pair(nextBuildingID++, ClientBuilding(BuildingType::TownCenter, townCenterLocations[1].x(), townCenterLocations[1].y())));
+  AddBuilding(BuildingType::TownCenter, townCenterLocations[1].x(), townCenterLocations[1].y());
+  
+  QPointF townCenterCenters[2];
+  for (int player = 0; player < 2; ++ player) {
+    townCenterCenters[player] = QPointF(
+        townCenterLocations[player].x() + 0.5f * GetBuildingSize(BuildingType::TownCenter).width(),
+        townCenterLocations[player].y() + 0.5f * GetBuildingSize(BuildingType::TownCenter).height());
+  }
   
   auto getRandomLocation = [&](float minDistanceToTCs, int* tileX, int* tileY) {
     bool ok;
@@ -208,8 +214,8 @@ void Map::GenerateRandomMap() {
       *tileY = rand() % height;
       ok = true;
       for (int i = 0; i < 2; ++ i) {
-        float distanceX = townCenterLocations[i].x() - *tileX;
-        float distanceY = townCenterLocations[i].y() - *tileY;
+        float distanceX = townCenterCenters[i].x() - *tileX;
+        float distanceY = townCenterCenters[i].y() - *tileY;
         float distance = sqrtf(distanceX * distanceX + distanceY * distanceY);
         if (distance < minDistanceToTCs) {
           ok = false;
@@ -262,6 +268,28 @@ void Map::GenerateRandomMap() {
       int elevationValue = rand() % maxElevation;
       PlaceElevation(tileX, tileY, elevationValue);
     }
+  }
+  
+  // Generate villagers
+  for (int player = 0; player < 2; ++ player) {
+    for (int villager = 0; villager < 3; ++ villager) {
+      float radius = 4 + 2 * ((rand() % 10000) / 10000.f);
+      float angle = 2 * M_PI * ((rand() % 10000) / 10000.f);
+      QPointF spawnLoc(
+          townCenterCenters[player].x() + radius * sin(angle),
+          townCenterCenters[player].y() + radius * cos(angle));
+      units.insert(std::make_pair(nextUnitID++, ClientUnit((rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, spawnLoc)));
+    }
+  }
+  
+  // Generate scouts
+  for (int player = 0; player < 2; ++ player) {
+    float radius = 6 + 2 * ((rand() % 10000) / 10000.f);
+    float angle = 2 * M_PI * ((rand() % 10000) / 10000.f);
+    QPointF spawnLoc(
+        townCenterCenters[player].x() + radius * sin(angle),
+        townCenterCenters[player].y() + radius * cos(angle));
+    units.insert(std::make_pair(nextUnitID++, ClientUnit(UnitType::Scout, spawnLoc)));
   }
 }
 
@@ -473,6 +501,7 @@ struct BuildingToRender {
 
 void Map::Render(
     float* viewMatrix,
+    const std::vector<ClientUnitType>& unitTypes,
     const std::vector<Sprite>& buildingSprites,
     const std::vector<Texture>& buildingTextures,
     SpriteShader* spriteShader,
@@ -539,6 +568,7 @@ void Map::Render(
         elapsedSeconds);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
       // TODO: Currently, the bottom y of the sprite is used for sorting. Use the center point instead?
+      // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
       buildingsToRender.push_back(BuildingToRender(&building, projectedCoordsRect.bottom()));
     }
   }
@@ -552,6 +582,21 @@ void Map::Render(
         this,
         buildingSprites,
         buildingTextures,
+        spriteShader,
+        spritePointBuffer,
+        zoom,
+        widgetWidth,
+        widgetHeight,
+        elapsedSeconds);
+  }
+  
+  // Render the units.
+  // TODO: Sort to render in correct order (or use Z-buffer).
+  // TODO: If behind a building and the sprite has an outline, render the outline instead.
+  for (auto& item : units) {
+    item.second.Render(
+        this,
+        unitTypes,
         spriteShader,
         spritePointBuffer,
         zoom,

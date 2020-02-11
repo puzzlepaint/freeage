@@ -59,6 +59,7 @@ set_target_properties(gtest gtest_main PROPERTIES FOLDER "third_party")
 # TODO: Unify cpp / cc spelling. Maybe also use hpp to make it clear for headers too that they are C++ code, not C code.
 add_library(FreeAgeLib
   src/FreeAge/client_building.cpp
+  src/FreeAge/client_unit.cpp
   src/FreeAge/map.cpp
   src/FreeAge/opengl.cc
   src/FreeAge/render_window.cpp
