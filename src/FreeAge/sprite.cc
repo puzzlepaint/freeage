@@ -577,7 +577,7 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
 }
 
 
-bool LoadSpriteAndTexture(const char* path, Sprite* sprite, Texture* texture, const Palettes& palettes) {
+bool LoadSpriteAndTexture(const char* path, int wrapMode, int magFilter, int minFilter, Sprite* sprite, Texture* texture, const Palettes& palettes) {
   if (!sprite->LoadFromFile(path, palettes)) {
     LOG(ERROR) << "Failed to load sprite from " << path;
     return false;
@@ -626,7 +626,7 @@ bool LoadSpriteAndTexture(const char* path, Sprite* sprite, Texture* texture, co
   }
   
   // Transfer the atlasImage to the GPU
-  texture->Load(atlasImage);
+  texture->Load(atlasImage, wrapMode, magFilter, minFilter);
   
   return true;
 }

@@ -15,10 +15,8 @@ class SpriteAtlas {
   /// Attempts to pack all added sprites into a texture of the given size.
   /// If the SpriteAtlas fails to pack the sprites into this area, returns
   /// false. Writes the atlas positions of each layer into the Sprites.
-  // TODO: It is cumbersome to choose the width and height here, as it
-  //       is unknown beforehand whether the sprites will fit. Can we
-  //       choose that automatically?
-  bool BuildAtlas(int width, int height, QImage* atlasImage);
+  /// Leaves borderPixels of free border around each sprite.
+  bool BuildAtlas(int width, int height, QImage* atlasImage, int borderPixels = 1);
   
  private:
   std::vector<Sprite*> sprites;

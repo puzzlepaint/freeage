@@ -12,7 +12,7 @@ Texture::~Texture() {
   f->glDeleteTextures(1, &textureId);
 }
 
-void Texture::Load(const QImage& image) {
+void Texture::Load(const QImage& image, int wrapMode, int magFilter, int minFilter) {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   width = image.width();
@@ -21,10 +21,10 @@ void Texture::Load(const QImage& image) {
   f->glGenTextures(1, &textureId);
   f->glBindTexture(GL_TEXTURE_2D, textureId);
   
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  // TODO
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);  // TODO
+  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapMode);
+  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapMode);
+  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
+  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
   
   // TODO: Use this for 8-bit-per-pixel data
   // // OpenGL by default tries to read data in multiples of 4, if our data is

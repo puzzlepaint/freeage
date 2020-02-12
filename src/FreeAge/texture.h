@@ -13,7 +13,7 @@ class Texture {
   ~Texture();
   
   // Loads the texture from the given QImage into GPU memory. The image can be released afterwards.
-  void Load(const QImage& image);
+  void Load(const QImage& image, int wrapMode, int magFilter, int minFilter);
   
   // Returns the OpenGL texture Id.
   GLuint GetId() const { return textureId; }

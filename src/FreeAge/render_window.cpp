@@ -118,6 +118,9 @@ void RenderWindow::initializeGL() {
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
     if (!LoadSpriteAndTexture(
         (graphicsPath / GetBuildingFilename(static_cast<BuildingType>(buildingType)).toStdString()).c_str(),
+        GL_CLAMP,
+        GL_NEAREST,
+        GL_LINEAR,
         &buildingSprites[buildingType],
         &buildingTextures[buildingType],
         palettes)) {

@@ -11,7 +11,7 @@ void SpriteAtlas::AddSprite(Sprite* sprite) {
   sprites.push_back(sprite);
 }
 
-bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage) {
+bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage, int borderPixels) {
   Timer packTimer("SpriteAtlas::BuildAtlas packing");
   
   // TODO: Should we allow flipping? It is currently not implemented for texture coordinate setting in rendering.
@@ -30,7 +30,7 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage) {
   for (Sprite* sprite : sprites) {
     for (int frameIdx = 0; frameIdx < sprite->NumFrames(); ++ frameIdx) {
       const QImage& image = sprite->frame(frameIdx).graphic.image;
-      rects[index] = RectSize{image.width(), image.height()};
+      rects[index] = RectSize{image.width() + 2 * borderPixels, image.height() + 2 * borderPixels};
       ++ index;
     }
   }
@@ -59,8 +59,7 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage) {
   
   // Draw all images into their assigned rects.
   QImage atlas(width, height, QImage::Format_ARGB32);
-  // TODO: Clearing the atlas is only useful to make it look nice. Disable that for release builds?
-  //       (However, if we use mip-mapping, some border around each sprite would be useful ...)
+  // Clear the atlas to have clean borders around the sprites
   atlas.fill(qRgba(0, 0, 0, 0));
   
   index = 0;
@@ -70,27 +69,30 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage) {
       const QImage& image = layer.image;
       const Rect& packedRect = packedRects[originalToPackedIndex[index]];
       
-      layer.atlasX = packedRect.x;
-      layer.atlasY = packedRect.y;
+      layer.atlasX = packedRect.x + borderPixels;
+      layer.atlasY = packedRect.y + borderPixels;
       
-      if (packedRect.width == image.width() && packedRect.height == image.height()) {
+      int packedWidthWithoutBorder = packedRect.width - 2 * borderPixels;
+      int packedHeightWithoutBorder = packedRect.height - 2 * borderPixels;
+      
+      if (packedWidthWithoutBorder == image.width() && packedHeightWithoutBorder == image.height()) {
         layer.rotated = false;
         
         // Draw the image directly into the assigned rect.
         for (int y = 0; y < image.height(); ++ y) {
           for (int x = 0; x < image.width(); ++ x) {
             // TODO: Speed this up with raw access
-            atlas.setPixelColor(packedRect.x + x, packedRect.y + y, image.pixelColor(x, y));
+            atlas.setPixelColor(layer.atlasX + x, layer.atlasY + y, image.pixelColor(x, y));
           }
         }
-      } else if (packedRect.width == image.height() && packedRect.height == image.width()) {
+      } else if (packedWidthWithoutBorder == image.height() && packedHeightWithoutBorder == image.width()) {
         layer.rotated = true;
         
         // Draw the image into the assigned rect while rotating it by 90 degrees (to the right).
         for (int y = 0; y < image.height(); ++ y) {
           for (int x = 0; x < image.width(); ++ x) {
             // TODO: Speed this up with raw access
-            atlas.setPixelColor(packedRect.x + packedRect.width - y, packedRect.y + x, image.pixelColor(x, y));
+            atlas.setPixelColor(layer.atlasX + image.height() - y, layer.atlasY + x, image.pixelColor(x, y));
           }
         }
       } else {
