@@ -37,7 +37,7 @@ bool BuildingUsesRandomSpriteFrame(BuildingType type);
 /// Represents a building on the client side.
 class ClientBuilding {
  public:
-  ClientBuilding(BuildingType type, int baseTileX, int baseTileY);
+  ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY);
   
   /// Computes the sprite rectangle for this building in projected coordinates.
   /// If shadow is true, returns the rectangle for the shadow sprite.
@@ -67,6 +67,8 @@ class ClientBuilding {
  private:
   int GetFrameIndex(const Sprite& sprite, double elapsedSeconds);
   
+  
+  int playerIndex;
   BuildingType type;
   
   /// In case the building uses a random but fixed frame index, it is stored here.

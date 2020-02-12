@@ -65,9 +65,58 @@ SpriteShader::SpriteShader(bool shadow) {
         "in vec2 texcoord;\n"
         "\n"
         "uniform sampler2D u_texture;\n"
+        "uniform vec2 u_textureSize;\n"
+        "uniform float u_hueOffset;\n"
+        "\n"
+        "vec3 rgb2hsv(vec3 c) {\n"
+        "  vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);\n"
+        "  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));\n"
+        "  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));\n"
+        "\n"
+        "  float d = q.x - min(q.w, q.y);\n"
+        "  float e = 1.0e-10;\n"
+        "  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);\n"
+        "}\n"
+        "\n"
+        "vec3 hsv2rgb(vec3 c) {\n"
+        "  vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);\n"
+        "  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);\n"
+        "  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);\n"
+        "}\n"
+        "\n"
+        "vec4 AdjustPlayerColor(vec4 input) {\n"
+        "  if (input.a == 254.0 / 255.0) {\n"
+        "    // This is a player color pixel, change its hue to the actual player's color.\n"
+        "    vec3 hsv = rgb2hsv(input.rgb);\n"
+        "    hsv.r = mod(hsv.r + u_hueOffset, 1.0);\n"
+        "    return vec4(hsv2rgb(hsv), 1.0);\n"
+        "  } else {\n"
+        "    return input;\n"
+        "  }\n"
+        "}\n"
         "\n"
         "void main() {\n"
-        "  out_color = texture(u_texture, texcoord.xy);\n"
+        "  vec2 pixelTexcoord = vec2(u_textureSize.x * texcoord.x, u_textureSize.y * texcoord.y);\n"
+        "  float ix = floor(pixelTexcoord.x - 0.5);\n"
+        "  float iy = floor(pixelTexcoord.y - 0.5);\n"
+        "  float fx = pixelTexcoord.x - 0.5 - ix;\n"
+        "  float fy = pixelTexcoord.y - 0.5 - iy;\n"
+        "  \n"
+        "  vec4 topLeft = texture(u_texture, vec2((ix + 0.5) / u_textureSize.x, (iy + 0.5) / u_textureSize.y));\n"
+        "  topLeft = AdjustPlayerColor(topLeft);\n"
+        "  vec4 topRight = texture(u_texture, vec2((ix + 1.5) / u_textureSize.x, (iy + 0.5) / u_textureSize.y));\n"
+        "  topRight = AdjustPlayerColor(topRight);\n"
+        "  vec4 bottomLeft = texture(u_texture, vec2((ix + 0.5) / u_textureSize.x, (iy + 1.5) / u_textureSize.y));\n"
+        "  bottomLeft = AdjustPlayerColor(bottomLeft);\n"
+        "  vec4 bottomRight = texture(u_texture, vec2((ix + 1.5) / u_textureSize.x, (iy + 1.5) / u_textureSize.y));\n"
+        "  bottomRight = AdjustPlayerColor(bottomRight);\n"
+        "  \n"
+        "  out_color =\n"
+        "      (1 - fx) * (1 - fy) * topLeft +\n"
+        "      (    fx) * (1 - fy) * topRight +\n"
+        "      (1 - fx) * (    fy) * bottomLeft +\n"
+        "      (    fx) * (    fy) * bottomRight;\n"
+        "  \n"
         "  if (out_color.a < 0.5) {\n"
         "    discard;\n"
         "  }\n"
@@ -86,6 +135,12 @@ SpriteShader::SpriteShader(bool shadow) {
       program->GetUniformLocationOrAbort("u_viewMatrix");
   size_location =
       program->GetUniformLocationOrAbort("u_size");
+  if (!shadow) {
+    textureSize_location =
+        program->GetUniformLocationOrAbort("u_textureSize");
+    hueOffset_location =
+        program->GetUniformLocationOrAbort("u_hueOffset");
+  }
   tex_topleft_location =
       program->GetUniformLocationOrAbort("u_tex_topleft");
   tex_bottomright_location =

@@ -197,10 +197,10 @@ void Map::GenerateRandomMap() {
   QPoint townCenterLocations[2];
   townCenterLocations[0] = QPoint(1 * width / 4 + (rand() % (width / 8)),
                                   1 * width / 4 + (rand() % (width / 8)));
-  AddBuilding(BuildingType::TownCenter, townCenterLocations[0].x(), townCenterLocations[0].y());
+  AddBuilding(0, BuildingType::TownCenter, townCenterLocations[0].x(), townCenterLocations[0].y());
   townCenterLocations[1] = QPoint(3 * width / 4 + (rand() % (width / 8)),
                                   3 * width / 4 + (rand() % (width / 8)));
-  AddBuilding(BuildingType::TownCenter, townCenterLocations[1].x(), townCenterLocations[1].y());
+  AddBuilding(1, BuildingType::TownCenter, townCenterLocations[1].x(), townCenterLocations[1].y());
   
   townCenterCenters.resize(2);
   for (int player = 0; player < 2; ++ player) {
@@ -267,7 +267,7 @@ retryForest:  // TODO: Ugly implementation, improve this
           int diffY = y - tileY;
           float radius = sqrtf(diffX * diffX + diffY * diffY);
           if (radius <= forestRadius && !occupiedAt(x, y)) {
-            AddBuilding(BuildingType::TreeOak, x, y);
+            AddBuilding(-1, BuildingType::TreeOak, x, y);
           }
         }
       }
@@ -302,7 +302,7 @@ retryForest:  // TODO: Ugly implementation, improve this
         if (spawnLocTileX < 0 || spawnLocTileY < 0 ||
             spawnLocTileX >= width || spawnLocTileY >= height ||
             !occupiedAt(spawnLocTileX, spawnLocTileY)) {
-          units.insert(std::make_pair(nextUnitID++, ClientUnit((rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, spawnLoc)));
+          units.insert(std::make_pair(nextUnitID++, ClientUnit(player, (rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, spawnLoc)));
           break;
         }
       }
@@ -324,16 +324,16 @@ retryForest:  // TODO: Ugly implementation, improve this
       if (spawnLocTileX < 0 || spawnLocTileY < 0 ||
           spawnLocTileX >= width || spawnLocTileY >= height ||
           !occupiedAt(spawnLocTileX, spawnLocTileY)) {
-        units.insert(std::make_pair(nextUnitID++, ClientUnit(UnitType::Scout, spawnLoc)));
+        units.insert(std::make_pair(nextUnitID++, ClientUnit(player, UnitType::Scout, spawnLoc)));
         break;
       }
     }
   }
 }
 
-void Map::AddBuilding(BuildingType type, int baseTileX, int baseTileY) {
+void Map::AddBuilding(int player, BuildingType type, int baseTileX, int baseTileY) {
   // Insert into buildings map
-  buildings.insert(std::make_pair(nextBuildingID++, ClientBuilding(type, baseTileX, baseTileY)));
+  buildings.insert(std::make_pair(nextBuildingID++, ClientBuilding(player, type, baseTileX, baseTileY)));
   
   // Mark the occupied tiles as such
   QSize size = GetBuildingSize(type);

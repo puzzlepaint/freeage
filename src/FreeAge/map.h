@@ -71,7 +71,7 @@ class Map {
   void GenerateRandomMap();
   
   /// Adds a building to the map.
-  void AddBuilding(BuildingType type, int baseTileX, int baseTileY);
+  void AddBuilding(int player, BuildingType type, int baseTileX, int baseTileY);
   
   /// Sets the given tile's elevation to the given value,
   /// while ensuring that the maximum slope of 1 is not exceeded

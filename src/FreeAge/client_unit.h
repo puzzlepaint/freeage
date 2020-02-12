@@ -55,7 +55,7 @@ class ClientUnitType {
 /// Represents a unit on the client side.
 class ClientUnit {
  public:
-  ClientUnit(UnitType type, const QPointF& mapCoord);
+  ClientUnit(int playerIndex, UnitType type, const QPointF& mapCoord);
   
   /// Computes the sprite rectangle for this unit in projected coordinates.
   QRectF GetRectInProjectedCoords(
@@ -81,6 +81,7 @@ class ClientUnit {
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   
  private:
+  int playerIndex;
   UnitType type;
   
   /// Current position of the unit sprite's center on the map.

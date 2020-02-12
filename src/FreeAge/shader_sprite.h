@@ -17,6 +17,8 @@ class SpriteShader {
   inline GLint GetTextureLocation() const { return texture_location; }
   inline GLint GetViewMatrixLocation() const { return viewMatrix_location; }
   inline GLint GetSizeLocation() const { return size_location; }
+  inline GLint GetTextureSizeLocation() const { return textureSize_location; }
+  inline GLint GetHueOffsetLocation() const { return hueOffset_location; }
   inline GLint GetTextTopLeftLocation() const { return tex_topleft_location; }
   inline GLint GetTexBottomRightLocation() const { return tex_bottomright_location; }
   
@@ -25,6 +27,8 @@ class SpriteShader {
   GLint texture_location;
   GLint viewMatrix_location;
   GLint size_location;
+  GLint textureSize_location;
+  GLint hueOffset_location;
   GLint tex_topleft_location;
   GLint tex_bottomright_location;
 };

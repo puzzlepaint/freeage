@@ -49,8 +49,9 @@ bool BuildingUsesRandomSpriteFrame(BuildingType type) {
           static_cast<int>(type) <= static_cast<int>(BuildingType::LastTree));
 }
 
-ClientBuilding::ClientBuilding(BuildingType type, int baseTileX, int baseTileY)
-    : type(type),
+ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY)
+    : playerIndex(playerIndex),
+      type(type),
       fixedFrameIndex(-1),
       baseTileX(baseTileX),
       baseTileY(baseTileY) {}
@@ -104,21 +105,24 @@ void ClientBuilding::Render(
         buildingSprites[static_cast<int>(BuildingType::TownCenterMain)],
         buildingTextures[static_cast<int>(BuildingType::TownCenterMain)],
         spriteShader, centerProjectedCoord, pointBuffer,
-        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow);
+        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow,
+        GetHueOffsetForPlayer(playerIndex));
     
     // Back
     DrawSprite(
         buildingSprites[static_cast<int>(BuildingType::TownCenterBack)],
         buildingTextures[static_cast<int>(BuildingType::TownCenterBack)],
         spriteShader, centerProjectedCoord, pointBuffer,
-        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow);
+        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow,
+        GetHueOffsetForPlayer(playerIndex));
     
     // Center
     DrawSprite(
         buildingSprites[static_cast<int>(BuildingType::TownCenterCenter)],
         buildingTextures[static_cast<int>(BuildingType::TownCenterCenter)],
         spriteShader, centerProjectedCoord, pointBuffer,
-        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow);
+        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow,
+        GetHueOffsetForPlayer(playerIndex));
   }
   
   DrawSprite(
@@ -132,7 +136,8 @@ void ClientBuilding::Render(
       widgetWidth,
       widgetHeight,
       frameIndex,
-      shadow);
+      shadow,
+      GetHueOffsetForPlayer(playerIndex));
   
   if (type == BuildingType::TownCenter) {
     // Front
@@ -140,7 +145,8 @@ void ClientBuilding::Render(
         buildingSprites[static_cast<int>(BuildingType::TownCenterFront)],
         buildingTextures[static_cast<int>(BuildingType::TownCenterFront)],
         spriteShader, centerProjectedCoord, pointBuffer,
-        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow);
+        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow,
+        GetHueOffsetForPlayer(playerIndex));
   }
 }
 

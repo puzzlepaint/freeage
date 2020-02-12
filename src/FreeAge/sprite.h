@@ -86,7 +86,8 @@ void DrawSprite(
     int widgetWidth,
     int widgetHeight,
     int frameNumber,
-    bool shadow);
+    bool shadow,
+    float hueOffset = 0);
 
 
 // Note: SMX parsing implemented according to:

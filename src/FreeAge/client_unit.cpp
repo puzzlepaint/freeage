@@ -40,8 +40,8 @@ bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::f
       (graphicsPath / filename).c_str(),
       (cachePath / filename).c_str(),
       GL_CLAMP,
-      GL_LINEAR,
-      GL_LINEAR,
+      GL_NEAREST,
+      GL_NEAREST,
       &item.sprite,
       &item.graphicTexture,
       &item.shadowTexture,
@@ -49,8 +49,9 @@ bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::f
 }
 
 
-ClientUnit::ClientUnit(UnitType type, const QPointF& mapCoord)
-    : type(type),
+ClientUnit::ClientUnit(int playerIndex, UnitType type, const QPointF& mapCoord)
+    : playerIndex(playerIndex),
+      type(type),
       mapCoord(mapCoord),
       direction(rand() % kNumFacingDirections),
       currentAnimation(UnitAnimation::Idle),
@@ -121,5 +122,6 @@ void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, 
       widgetWidth,
       widgetHeight,
       frameIndex,
-      shadow);
+      shadow,
+      GetHueOffsetForPlayer(playerIndex));
 }

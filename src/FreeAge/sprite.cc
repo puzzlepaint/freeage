@@ -89,10 +89,17 @@ QImage LoadSMXGraphicLayer(
         bool ignoreAlpha = true;  /*layerType == SMXLayerType::Graphic*/
         for (int i = 0; i < count; ++ i) {
           if (usesEightToFiveCompression) {
-            *out++ = DecompressNextPixel8To5(pixelPtr, decompressionState, palette, ignoreAlpha);
+            *out = DecompressNextPixel8To5(pixelPtr, decompressionState, palette, ignoreAlpha);
           } else {
-            *out++ = DecompressNextPixel4Plus1(pixelPtr, decompressionState, palette, ignoreAlpha);
+            *out = DecompressNextPixel4Plus1(pixelPtr, decompressionState, palette, ignoreAlpha);
           }
+          
+          if (commandCode == 0b10) {
+            // Set the alpha to the magic value of 254, which the shader will interpret as player color marking.
+            reinterpret_cast<u8*>(out)[3] = 254;
+          }
+          
+          ++ out;
         }
         col += count;
       } else if (commandCode == 0b11) {
@@ -584,7 +591,9 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
 }
 
 
-bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode, int magFilter, int minFilter, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes) {
+bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode, int /*magFilter*/, int /*minFilter*/, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes) {
+  // TODO magFilter and minFilter are unused here
+  
   if (!sprite->LoadFromFile(path, palettes)) {
     LOG(ERROR) << "Failed to load sprite from " << path;
     return false;
@@ -673,7 +682,7 @@ bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode,
     }
     
     // Transfer the atlasImage to the GPU
-    texture->Load(atlasImage, wrapMode, magFilter, minFilter);
+    texture->Load(atlasImage, wrapMode, (graphicOrShadow == 0) ? GL_NEAREST : GL_LINEAR, (graphicOrShadow == 0) ? GL_NEAREST : GL_LINEAR);
   }
   
   return true;
@@ -690,7 +699,8 @@ void DrawSprite(
     int widgetWidth,
     int widgetHeight,
     int frameNumber,
-    bool shadow) {
+    bool shadow,
+    float hueOffset) {
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameNumber).shadow : sprite.frame(frameNumber).graphic;
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
@@ -701,6 +711,11 @@ void DrawSprite(
   program->UseProgram();
   program->SetUniform1i(spriteShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
+  
+  if (!shadow) {
+    program->SetUniform1f(spriteShader->GetHueOffsetLocation(), hueOffset);
+    program->SetUniform2f(spriteShader->GetTextureSizeLocation(), texture.GetWidth(), texture.GetHeight());
+  }
   
   program->SetUniform2f(spriteShader->GetSizeLocation(), zoom * 2.f * layer.imageWidth / static_cast<float>(widgetWidth), zoom * 2.f * layer.imageHeight / static_cast<float>(widgetHeight));
   float texLeftX = layer.atlasX / (1.f * texture.GetWidth());
