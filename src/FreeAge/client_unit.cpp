@@ -39,7 +39,7 @@ bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::f
   return LoadSpriteAndTexture(
       (graphicsPath / filename).c_str(),
       GL_CLAMP,
-      GL_NEAREST,
+      GL_LINEAR,
       GL_LINEAR,
       &item.sprite,
       &item.texture,

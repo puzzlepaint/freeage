@@ -54,6 +54,10 @@ SpriteShader::SpriteShader() {
       "\n"
       "void main() {\n"
       "  out_color = texture(u_texture, texcoord.xy);\n"
+      "  if (out_color.a < 0.5) {\n"
+      "    discard;\n"
+      "  }\n"
+      "  out_color.a = 1;\n"  // TODO: Instead of setting a to 1 here, disable blending?
       "}\n",
       ShaderProgram::ShaderType::kFragmentShader));
   
