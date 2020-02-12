@@ -26,24 +26,26 @@ void Texture::Load(const QImage& image, int wrapMode, int magFilter, int minFilt
   f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
   f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
   
-  // TODO: Use this for 8-bit-per-pixel data
-  // // OpenGL by default tries to read data in multiples of 4, if our data is
-  // // only RGB or BGR and the width is not divible by 4 then we need to alert
-  // // opengl
-  // if((img->width % 4) != 0 && 
-  //  (img->format == GL_RGB || 
-  //   img->format == GL_BGR))
-  // {
-  //   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-  // }
+  // QImage scan lines are aligned to multiples of 4 bytes. Ensure that OpenGL reads this correctly.
+  f->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
   
-  // TODO: Don't assume RGBA format, check the QImage's format
-  f->glTexImage2D(
-      GL_TEXTURE_2D,
-      0, GL_RGBA,
-      image.width(), image.height(),
-      0, GL_BGRA, GL_UNSIGNED_BYTE,
-      image.scanLine(0));
+  if (image.format() == QImage::Format_ARGB32) {
+    f->glTexImage2D(
+        GL_TEXTURE_2D,
+        0, GL_RGBA,
+        image.width(), image.height(),
+        0, GL_BGRA, GL_UNSIGNED_BYTE,
+        image.scanLine(0));
+  } else if (image.format() == QImage::Format_Grayscale8) {
+    f->glTexImage2D(
+        GL_TEXTURE_2D,
+        0, GL_RED,
+        image.width(), image.height(),
+        0, GL_RED, GL_UNSIGNED_BYTE,
+        image.scanLine(0));
+  } else {
+    LOG(FATAL) << "Unsupported QImage format.";
+  }
   
   CHECK_OPENGL_NO_ERROR();
 }

@@ -7,6 +7,9 @@
 
 using namespace rbp;
 
+SpriteAtlas::SpriteAtlas(Mode mode)
+    : mode(mode) {}
+
 void SpriteAtlas::AddSprite(Sprite* sprite) {
   sprites.push_back(sprite);
 }
@@ -29,7 +32,10 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage, int bord
   int index = 0;
   for (Sprite* sprite : sprites) {
     for (int frameIdx = 0; frameIdx < sprite->NumFrames(); ++ frameIdx) {
-      const QImage& image = sprite->frame(frameIdx).graphic.image;
+      const QImage& image =
+          (mode == Mode::Graphic) ?
+          sprite->frame(frameIdx).graphic.image :
+          sprite->frame(frameIdx).shadow.image;
       rects[index] = RectSize{image.width() + 2 * borderPixels, image.height() + 2 * borderPixels};
       ++ index;
     }
@@ -38,7 +44,7 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage, int bord
   std::vector<Rect> packedRects;
   std::vector<int> packedRectIndices;
   // TODO: Choose the packing rule that is best.
-  //       RectBottomLeftRule is much faster than RectBestShortSideFit, so it is better for testing, unless we cache the results.
+  //       RectBottomLeftRule is much faster than RectBestShortSideFit, so it is more convenient for testing, unless we cache the results.
   packer.Insert(rects, packedRects, packedRectIndices, MaxRectsBinPack::RectBottomLeftRule);  // RectBestShortSideFit
   packTimer.Stop();
   if (!rects.empty()) {
@@ -60,15 +66,18 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage, int bord
   }
   
   // Draw all images into their assigned rects.
-  QImage atlas(width, height, QImage::Format_ARGB32);
+  QImage atlas(width, height, (mode == Mode::Graphic) ? QImage::Format_ARGB32 : QImage::Format_Grayscale8);
   // Clear the atlas to have clean borders around the sprites
-  atlas.fill(qRgba(0, 0, 0, 0));
+  atlas.fill(qRgba(0, 0, 0, 0));  // this sets the values to 0 for QImage::Format_Grayscale8.
   
   index = 0;
   for (Sprite* sprite : sprites) {
     for (int frameIdx = 0; frameIdx < sprite->NumFrames(); ++ frameIdx) {
-      Sprite::Frame::Layer& layer = sprite->frame(frameIdx).graphic;
-      const QImage& image = layer.image;
+      Sprite::Frame::Layer& layer =
+          (mode == Mode::Graphic) ?
+          sprite->frame(frameIdx).graphic :
+          sprite->frame(frameIdx).shadow;
+      QImage& image = layer.image;
       const Rect& packedRect = packedRects[originalToPackedIndex[index]];
       
       layer.atlasX = packedRect.x + borderPixels;
@@ -81,10 +90,21 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage, int bord
         layer.rotated = false;
         
         // Draw the image directly into the assigned rect.
-        for (int y = 0; y < image.height(); ++ y) {
-          for (int x = 0; x < image.width(); ++ x) {
-            // TODO: Speed this up with raw access
-            atlas.setPixelColor(layer.atlasX + x, layer.atlasY + y, image.pixelColor(x, y));
+        if (mode == Mode::Graphic) {
+          for (int y = 0; y < image.height(); ++ y) {
+            const QRgb* inputScanline = reinterpret_cast<const QRgb*>(image.scanLine(y));
+            QRgb* outputScanline = reinterpret_cast<QRgb*>(atlas.scanLine(layer.atlasY + y));
+            for (int x = 0; x < image.width(); ++ x) {
+              outputScanline[layer.atlasX + x] = inputScanline[x];
+            }
+          }
+        } else {
+          for (int y = 0; y < image.height(); ++ y) {
+            const u8* inputScanline = reinterpret_cast<const u8*>(image.scanLine(y));
+            u8* outputScanline = reinterpret_cast<u8*>(atlas.scanLine(layer.atlasY + y));
+            for (int x = 0; x < image.width(); ++ x) {
+              outputScanline[layer.atlasX + x] = inputScanline[x];
+            }
           }
         }
       } else if (packedWidthWithoutBorder == image.height() && packedHeightWithoutBorder == image.width()) {
@@ -92,9 +112,10 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage, int bord
         
         // Draw the image into the assigned rect while rotating it by 90 degrees (to the right).
         for (int y = 0; y < image.height(); ++ y) {
+          const QRgb* inputScanline = reinterpret_cast<const QRgb*>(image.scanLine(y));
           for (int x = 0; x < image.width(); ++ x) {
-            // TODO: Speed this up with raw access
-            atlas.setPixelColor(layer.atlasX + image.height() - y, layer.atlasY + x, image.pixelColor(x, y));
+            // TODO: Speed this up with raw QRgb or u8 access
+            atlas.setPixelColor(layer.atlasX + image.height() - y, layer.atlasY + x, inputScanline[x]);
           }
         }
       } else {
@@ -103,45 +124,50 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage, int bord
         return false;
       }
       
+      // Unload the sprite image since it should not be needed anymore.
+      image = QImage();
+      
       // Dilate the sprite colors by one (without touching the alpha channel).
       // This prevents us from getting an ugly influence of the black (color value: (0, 0, 0, 0)) background
       // when using bilinear filtering to access pixels on the border of the sprite.
       // TODO: Use integral images for better performance
-      for (int y = 0; y < packedRect.height; ++ y) {
-        QRgb* outputScanline = reinterpret_cast<QRgb*>(atlas.scanLine(packedRect.y + y));
-        
-        for (int x = 0; x < packedRect.width; ++ x) {
-          if (qAlpha(*(outputScanline + (packedRect.x + x))) > 0) {
-            continue;
-          }
+      if (mode == Mode::Graphic) {
+        for (int y = 0; y < packedRect.height; ++ y) {
+          QRgb* outputScanline = reinterpret_cast<QRgb*>(atlas.scanLine(packedRect.y + y));
           
-          int minX = std::max(0, x - 1);
-          int minY = std::max(0, y - 1);
-          int maxX = std::min(packedRect.width - 1, x + 1);
-          int maxY = std::min(packedRect.height - 1, y + 1);
-          
-          int redSum = 0;
-          int greenSum = 0;
-          int blueSum = 0;
-          int count = 0;
-          for (int sy = minY; sy <= maxY; ++ sy) {
-            for (int sx = minX; sx <= maxX; ++ sx) {
-              QRgb rgba = *(reinterpret_cast<QRgb*>(atlas.scanLine(packedRect.y + sy)) + (packedRect.x + sx));
-              if (qAlpha(rgba) == 0) {
-                continue;
-              }
-              
-              redSum += qRed(rgba);
-              greenSum += qGreen(rgba);
-              blueSum += qBlue(rgba);
-              ++ count;
+          for (int x = 0; x < packedRect.width; ++ x) {
+            if (qAlpha(outputScanline[packedRect.x + x]) > 0) {
+              continue;
             }
-          }
-          
-          if (count > 0) {
-            float factor = 1.f / count;
-            *(outputScanline + (packedRect.x + x)) =
-                qRgba(redSum * factor + 0.5f, greenSum * factor + 0.5f, blueSum * factor + 0.5f, 0);
+            
+            int minX = std::max(0, x - 1);
+            int minY = std::max(0, y - 1);
+            int maxX = std::min(packedRect.width - 1, x + 1);
+            int maxY = std::min(packedRect.height - 1, y + 1);
+            
+            int redSum = 0;
+            int greenSum = 0;
+            int blueSum = 0;
+            int count = 0;
+            for (int sy = minY; sy <= maxY; ++ sy) {
+              for (int sx = minX; sx <= maxX; ++ sx) {
+                QRgb rgba = *(reinterpret_cast<QRgb*>(atlas.scanLine(packedRect.y + sy)) + (packedRect.x + sx));
+                if (qAlpha(rgba) == 0) {
+                  continue;
+                }
+                
+                redSum += qRed(rgba);
+                greenSum += qGreen(rgba);
+                blueSum += qBlue(rgba);
+                ++ count;
+              }
+            }
+            
+            if (count > 0) {
+              float factor = 1.f / count;
+              outputScanline[packedRect.x + x] =
+                  qRgba(redSum * factor + 0.5f, greenSum * factor + 0.5f, blueSum * factor + 0.5f, 0);
+            }
           }
         }
       }

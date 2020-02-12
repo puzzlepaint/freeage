@@ -39,8 +39,10 @@ class Sprite {
   struct Frame {
     struct Layer {
       QImage image;
-      int centerX;
-      int centerY;
+      int imageWidth = -1;
+      int imageHeight = -1;
+      int centerX = -1;
+      int centerY = -1;
       
       // The layer's position in the texture atlas.
       int atlasX;
@@ -57,6 +59,9 @@ class Sprite {
   
   bool LoadFromFile(const char* path, const Palettes& palettes);
   
+  inline bool HasShadow() const { return frames.front().shadow.centerX >= 0; }
+  inline bool HasOutline() const { return frames.front().outline.centerX >= 0; }
+  
   inline int NumFrames() const { return frames.size(); }
   inline Frame& frame(int index) { return frames[index]; }
   inline const Frame& frame(int index) const { return frames[index]; }
@@ -68,7 +73,7 @@ class Sprite {
 
 /// Convenience function which loads a sprite and creates a texture atlas (just) for it.
 /// Attempts to find a good texture size automatically.
-bool LoadSpriteAndTexture(const char* path, int wrapMode, int magFilter, int minFilter, Sprite* sprite, Texture* texture, const Palettes& palettes);
+bool LoadSpriteAndTexture(const char* path, int wrapMode, int magFilter, int minFilter, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes);
 
 void DrawSprite(
     const Sprite& sprite,
@@ -79,7 +84,8 @@ void DrawSprite(
     float zoom,
     int widgetWidth,
     int widgetHeight,
-    int frameNumber);
+    int frameNumber,
+    bool shadow);
 
 
 // Note: SMX parsing implemented according to:

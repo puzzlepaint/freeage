@@ -33,8 +33,8 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
 }
 
 bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const Palettes& palettes, UnitAnimation type) {
-  std::vector<SpriteAndTexture>& animationVector = animations[static_cast<int>(type)];
-  SpriteAndTexture& item = animationVector[index];
+  std::vector<SpriteAndTextures>& animationVector = animations[static_cast<int>(type)];
+  SpriteAndTextures& item = animationVector[index];
   
   return LoadSpriteAndTexture(
       (graphicsPath / filename).c_str(),
@@ -42,7 +42,8 @@ bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::f
       GL_LINEAR,
       GL_LINEAR,
       &item.sprite,
-      &item.texture,
+      &item.graphicTexture,
+      &item.shadowTexture,
       palettes);
 }
 
@@ -55,9 +56,9 @@ ClientUnit::ClientUnit(UnitType type, const QPointF& mapCoord)
       currentAnimationVariant(0),
       lastAnimationStartTime(-1) {}
 
-QRectF ClientUnit::GetRectInProjectedCoords(Map* map, const std::vector<ClientUnitType>& unitTypes, double elapsedSeconds) {
+QRectF ClientUnit::GetRectInProjectedCoords(Map* map, const std::vector<ClientUnitType>& unitTypes, double elapsedSeconds, bool shadow) {
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
-  const SpriteAndTexture& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
+  const SpriteAndTextures& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
   const Sprite& sprite = animationSpriteAndTexture.sprite;
   
   QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(mapCoord);
@@ -66,19 +67,19 @@ QRectF ClientUnit::GetRectInProjectedCoords(Map* map, const std::vector<ClientUn
   int framesPerDirection = sprite.NumFrames() / kNumFacingDirections;
   int frameIndex = direction * framesPerDirection + static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % framesPerDirection;
   
-  const Sprite::Frame::Layer& layer = sprite.frame(frameIndex).graphic;
+  const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameIndex).shadow : sprite.frame(frameIndex).graphic;
   return QRectF(
       centerProjectedCoord.x() - layer.centerX,
       centerProjectedCoord.y() - layer.centerY,
-      layer.image.width(),
-      layer.image.height());
+      layer.imageWidth,
+      layer.imageHeight);
 }
 
-void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, SpriteShader* spriteShader, GLuint pointBuffer, float zoom, int widgetWidth, int widgetHeight, double elapsedSeconds) {
+void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, SpriteShader* spriteShader, GLuint pointBuffer, float zoom, int widgetWidth, int widgetHeight, double elapsedSeconds, bool shadow) {
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
-  const SpriteAndTexture& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
+  const SpriteAndTextures& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
   const Sprite& sprite = animationSpriteAndTexture.sprite;
-  const Texture& texture = animationSpriteAndTexture.texture;
+  const Texture& texture = shadow ? animationSpriteAndTexture.shadowTexture : animationSpriteAndTexture.graphicTexture;
   
   QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(mapCoord);
   
@@ -117,5 +118,6 @@ void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, 
       zoom,
       widgetWidth,
       widgetHeight,
-      frameIndex);
+      frameIndex,
+      shadow);
 }

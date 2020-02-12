@@ -9,7 +9,7 @@
 /// Shader for rendering sprites.
 class SpriteShader {
  public:
-  SpriteShader();
+  SpriteShader(bool shadow);
   ~SpriteShader();
   
   inline ShaderProgram* GetProgram() { return program.get(); }

@@ -40,10 +40,12 @@ class ClientBuilding {
   ClientBuilding(BuildingType type, int baseTileX, int baseTileY);
   
   /// Computes the sprite rectangle for this building in projected coordinates.
+  /// If shadow is true, returns the rectangle for the shadow sprite.
   QRectF GetRectInProjectedCoords(
       Map* map,
       const std::vector<Sprite>& buildingSprites,
-      double elapsedSeconds);
+      double elapsedSeconds,
+      bool shadow);
   
   void Render(
       Map* map,
@@ -54,7 +56,8 @@ class ClientBuilding {
       float zoom,
       int widgetWidth,
       int widgetHeight,
-      double elapsedSeconds);
+      double elapsedSeconds,
+      bool shadow);
   
   inline BuildingType GetType() const { return type; }
   

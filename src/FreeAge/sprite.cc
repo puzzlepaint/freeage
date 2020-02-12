@@ -139,14 +139,14 @@ QImage LoadSMXShadowLayer(
     if (edge.leftSpace == 0xFFFF || edge.rightSpace == 0xFFFF) {
       // Row is completely transparent
       for (int col = 0; col < layerHeader.width; ++ col) {
-        *out++ = 255;
+        *out++ = 0;
       }
       continue;
     }
     
     // Left edge skip
     for (int col = 0; col < edge.leftSpace; ++ col) {
-      *out++ = 255;
+      *out++ = 0;
     }
     int col = edge.leftSpace;
     
@@ -160,14 +160,14 @@ QImage LoadSMXShadowLayer(
         // Draw *count* transparent pixels.
         u8 count = (command >> 2) + 1;
         for (int i = 0; i < count; ++ i) {
-          *out++ = 255;
+          *out++ = 0;
         }
         col += count;
       } else if (commandCode == 0b01) {
         // Draw *count* pixels.
         u8 count = (command >> 2) + 1;
         for (int i = 0; i < count; ++ i) {
-          *out++ = 255 - *dataPtr++;
+          *out++ = *dataPtr++;
         }
         col += count;
       } else if (commandCode == 0b11) {
@@ -179,7 +179,7 @@ QImage LoadSMXShadowLayer(
                        << ", edge.rightSpace: " << edge.rightSpace << ", layerHeader.width: " << layerHeader.width << ")";
         }
         for (; col < layerHeader.width; ++ col) {
-          *out++ = 255;
+          *out++ = 0;
         }
         break;
       } else {
@@ -328,6 +328,11 @@ bool LoadSMXLayer(
   if (layer->image.isNull()) {
     return false;
   }
+  
+  // Store the image dimensions for the time when the image got unloaded
+  // (i.e., once it was transferred to the GPU).
+  layer->imageWidth = layer->image.width();
+  layer->imageHeight = layer->image.height();
   
   return true;
 }
@@ -577,7 +582,7 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
 }
 
 
-bool LoadSpriteAndTexture(const char* path, int wrapMode, int magFilter, int minFilter, Sprite* sprite, Texture* texture, const Palettes& palettes) {
+bool LoadSpriteAndTexture(const char* path, int wrapMode, int magFilter, int minFilter, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes) {
   if (!sprite->LoadFromFile(path, palettes)) {
     LOG(ERROR) << "Failed to load sprite from " << path;
     return false;
@@ -586,59 +591,68 @@ bool LoadSpriteAndTexture(const char* path, int wrapMode, int magFilter, int min
   // Create a sprite atlas texture containing all frames of the SMX animation.
   // TODO: This generally takes a LOT of memory. We probably want to do a dense packing of the images using
   //       non-rectangular geometry to save some more space.
-  SpriteAtlas atlas;
-  atlas.AddSprite(sprite);
-  
-  constexpr int pixelBorder = 1;
-  
-  int chosenWidth = -1;
-  int chosenHeight = -1;
-  if (sprite->NumFrames() == 1) {
-    // Special case for a single frame: Use the sprite size (plus the border) directly as texture size.
-    chosenWidth = sprite->frame(0).graphic.image.width() + 2 * pixelBorder;
-    chosenHeight = sprite->frame(0).graphic.image.height() + 2 * pixelBorder;
-  } else {
-    int textureSize = 2048;
-    int largestTooSmallSize = -1;
-    int smallestAcceptableSize = -1;
-    for (int attempt = 0; attempt < 8; ++ attempt) {
-      if (!atlas.BuildAtlas(textureSize, textureSize, nullptr, pixelBorder)) {
-        // The size is too small.
-        // LOG(INFO) << "Size " << textureSize << " is too small.";
-        largestTooSmallSize = textureSize;
-        if (smallestAcceptableSize >= 0) {
-          textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+  for (int graphicOrShadow = 0; graphicOrShadow < 2; ++ graphicOrShadow) {
+    if (graphicOrShadow == 1 && !sprite->HasShadow()) {
+      continue;
+    }
+    SpriteAtlas::Mode mode = (graphicOrShadow == 0) ? SpriteAtlas::Mode::Graphic : SpriteAtlas::Mode::Shadow;
+    Texture* texture = (graphicOrShadow == 0) ? graphicTexture : shadowTexture;
+    
+    SpriteAtlas atlas(mode);
+    atlas.AddSprite(sprite);
+    
+    constexpr int pixelBorder = 1;
+    
+    int chosenWidth = -1;
+    int chosenHeight = -1;
+    if (sprite->NumFrames() == 1) {
+      // Special case for a single frame: Use the sprite size (plus the border) directly as texture size.
+      Sprite::Frame::Layer& layer = ((graphicOrShadow == 0) ? sprite->frame(0).graphic : sprite->frame(0).shadow);
+      chosenWidth = layer.image.width() + 2 * pixelBorder;
+      chosenHeight = layer.image.height() + 2 * pixelBorder;
+    } else {
+      int textureSize = 2048;
+      int largestTooSmallSize = -1;
+      int smallestAcceptableSize = -1;
+      for (int attempt = 0; attempt < 8; ++ attempt) {
+        if (!atlas.BuildAtlas(textureSize, textureSize, nullptr, pixelBorder)) {
+          // The size is too small.
+          // LOG(INFO) << "Size " << textureSize << " is too small.";
+          largestTooSmallSize = textureSize;
+          if (smallestAcceptableSize >= 0) {
+            textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+          } else {
+            textureSize = 2 * largestTooSmallSize;
+          }
         } else {
-          textureSize = 2 * largestTooSmallSize;
-        }
-      } else {
-        // The size is large enough.
-        // LOG(INFO) << "Size " << textureSize << " is okay.";
-        smallestAcceptableSize = textureSize;
-        if (smallestAcceptableSize >= 0) {
-          textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
-        } else {
-          textureSize = smallestAcceptableSize / 2;
+          // The size is large enough.
+          // LOG(INFO) << "Size " << textureSize << " is okay.";
+          smallestAcceptableSize = textureSize;
+          if (smallestAcceptableSize >= 0) {
+            textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+          } else {
+            textureSize = smallestAcceptableSize / 2;
+          }
         }
       }
+      chosenWidth = smallestAcceptableSize;
+      chosenHeight = smallestAcceptableSize;
     }
-    chosenWidth = smallestAcceptableSize;
-    chosenHeight = smallestAcceptableSize;
+    if (chosenWidth <= 0 || chosenHeight <= 0) {
+      LOG(ERROR) << "Unable to find a texture size which all animation frames can be packed into.";
+      return false;
+    }
+    
+    LOG(INFO) << "Atlas for " << path << " uses size: " << chosenWidth << " x " << chosenHeight;
+    QImage atlasImage;
+    if (!atlas.BuildAtlas(chosenWidth, chosenHeight, &atlasImage, pixelBorder)) {
+      LOG(ERROR) << "Unexpected error while building an atlas image.";
+      return false;
+    }
+    
+    // Transfer the atlasImage to the GPU
+    texture->Load(atlasImage, wrapMode, magFilter, minFilter);
   }
-  if (chosenWidth <= 0 || chosenHeight <= 0) {
-    LOG(ERROR) << "Unable to find a texture size which all animation frames can be packed into.";
-    return false;
-  }
-  
-  LOG(INFO) << "Atlas for " << path << " uses size: " << chosenWidth << " x " << chosenHeight;
-  QImage atlasImage;
-  if (!atlas.BuildAtlas(chosenWidth, chosenHeight, &atlasImage, pixelBorder)) {
-    LOG(ERROR) << "Unexpected error while building an atlas image.";
-    return false;
-  }
-  
-  // Transfer the atlasImage to the GPU
-  texture->Load(atlasImage, wrapMode, magFilter, minFilter);
   
   return true;
 }
@@ -652,8 +666,9 @@ void DrawSprite(
     float zoom,
     int widgetWidth,
     int widgetHeight,
-    int frameNumber) {
-  const Sprite::Frame::Layer& layer = sprite.frame(frameNumber).graphic;
+    int frameNumber,
+    bool shadow) {
+  const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameNumber).shadow : sprite.frame(frameNumber).graphic;
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   f->glEnable(GL_BLEND);
@@ -664,11 +679,11 @@ void DrawSprite(
   program->SetUniform1i(spriteShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
   
-  program->SetUniform2f(spriteShader->GetSizeLocation(), zoom * 2.f * layer.image.width() / static_cast<float>(widgetWidth), zoom * 2.f * layer.image.height() / static_cast<float>(widgetHeight));
+  program->SetUniform2f(spriteShader->GetSizeLocation(), zoom * 2.f * layer.imageWidth / static_cast<float>(widgetWidth), zoom * 2.f * layer.imageHeight / static_cast<float>(widgetHeight));
   float texLeftX = layer.atlasX / (1.f * texture.GetWidth());
   float texTopY = layer.atlasY / (1.f * texture.GetHeight());
-  float texRightX = (layer.atlasX + layer.image.width()) / (1.f * texture.GetWidth());
-  float texBottomY = (layer.atlasY + layer.image.height()) / (1.f * texture.GetHeight());
+  float texRightX = (layer.atlasX + layer.imageWidth) / (1.f * texture.GetWidth());
+  float texBottomY = (layer.atlasY + layer.imageHeight) / (1.f * texture.GetHeight());
   if (layer.rotated) {
     // TODO: Is this worth implementing? It will complicate the shader a little.
   }

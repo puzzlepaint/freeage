@@ -44,11 +44,13 @@ RenderWindow::RenderWindow(const Palettes& palettes, const std::filesystem::path
 RenderWindow::~RenderWindow() {
   makeCurrent();
   // Destroy OpenGL resources here
+  shadowShader.reset();
   spriteShader.reset();
   if (map) {
     delete map;
   }
   unitTypes.clear();
+  buildingShadowTextures.clear();
   buildingTextures.clear();
   buildingSprites.clear();
   doneCurrent();
@@ -100,7 +102,8 @@ void RenderWindow::initializeGL() {
   CHECK_OPENGL_NO_ERROR();
   
   // Create shaders.
-  spriteShader.reset(new SpriteShader());
+  shadowShader.reset(new SpriteShader(true));
+  spriteShader.reset(new SpriteShader(false));
   
   // Load unit resources.
   unitTypes.resize(static_cast<int>(UnitType::NumUnits));
@@ -115,6 +118,7 @@ void RenderWindow::initializeGL() {
   int numBuildingTypes = static_cast<int>(BuildingType::NumBuildings);
   buildingSprites.resize(numBuildingTypes);
   buildingTextures.resize(numBuildingTypes);
+  buildingShadowTextures.resize(numBuildingTypes);
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
     if (!LoadSpriteAndTexture(
         (graphicsPath / GetBuildingFilename(static_cast<BuildingType>(buildingType)).toStdString()).c_str(),
@@ -123,6 +127,7 @@ void RenderWindow::initializeGL() {
         GL_LINEAR,
         &buildingSprites[buildingType],
         &buildingTextures[buildingType],
+        &buildingShadowTextures[buildingType],
         palettes)) {
       LOG(ERROR) << "Exiting because of a resource load error for building " << buildingType << ".";
       exit(1);  // TODO: Exit gracefully
@@ -184,6 +189,9 @@ void RenderWindow::paintGL() {
   
   // Apply the view transformation to all shaders.
   // TODO: Use a uniform buffer object for that.
+  shadowShader->GetProgram()->UseProgram();
+  shadowShader->GetProgram()->setUniformMatrix2fv(shadowShader->GetViewMatrixLocation(), viewMatrix);
+  
   spriteShader->GetProgram()->UseProgram();
   spriteShader->GetProgram()->setUniformMatrix2fv(spriteShader->GetViewMatrixLocation(), viewMatrix);
   
@@ -193,7 +201,7 @@ void RenderWindow::paintGL() {
   f->glDisable(GL_CULL_FACE);
   
   // Clear background.
-  f->glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+  f->glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   
   CHECK_OPENGL_NO_ERROR();
@@ -204,6 +212,8 @@ void RenderWindow::paintGL() {
       unitTypes,
       buildingSprites,
       buildingTextures,
+      buildingShadowTextures,
+      shadowShader.get(),
       spriteShader.get(),
       pointBuffer,
       zoom,

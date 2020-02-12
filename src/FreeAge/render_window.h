@@ -28,6 +28,8 @@ class RenderWindow : public QOpenGLWidget {
   /// Computes the current scroll, taking into account the currently pressed keys.
   QPointF GetCurrentScroll(const TimePoint& atTime);
   
+  inline void SetScroll(const QPointF& value) { scroll = value; }
+  
  protected:
   virtual void initializeGL() override;
   virtual void paintGL() override;
@@ -71,6 +73,7 @@ class RenderWindow : public QOpenGLWidget {
   int widgetHeight;
   
   // Shaders.
+  std::shared_ptr<SpriteShader> shadowShader;
   std::shared_ptr<SpriteShader> spriteShader;
   
   // Resources.
@@ -78,8 +81,10 @@ class RenderWindow : public QOpenGLWidget {
   
   std::vector<ClientUnitType> unitTypes;
   
+  // TODO: Group all of this together as ClientBuildingType, just like for units
   std::vector<Sprite> buildingSprites;
   std::vector<Texture> buildingTextures;
+  std::vector<Texture> buildingShadowTextures;
   
   const Palettes& palettes;
   const std::filesystem::path& graphicsPath;

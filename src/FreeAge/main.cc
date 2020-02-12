@@ -74,6 +74,7 @@ int main(int argc, char** argv) {
   // Create an OpenGL render window using Qt
   RenderWindow renderWindow(palettes, graphicsPath);
   renderWindow.SetMap(testMap);  // transferring ownership
+  renderWindow.SetScroll(testMap->GetTownCenterLocation(0));
   renderWindow.show();
   
   // Run the Qt event loop

@@ -11,6 +11,8 @@
 #include "FreeAge/sprite.h"
 #include "FreeAge/texture.h"
 
+class SpriteShader;
+
 /// Stores the map (terrain type, elevation, ...).
 ///
 /// There are three important coordinate systems:
@@ -84,6 +86,8 @@ class Map {
       const std::vector<ClientUnitType>& unitTypes,
       const std::vector<Sprite>& buildingSprites,
       const std::vector<Texture>& buildingTextures,
+      const std::vector<Texture>& buildingShadowTextures,
+      SpriteShader* shadowShader,
       SpriteShader* spriteShader,
       GLuint spritePointBuffer,
       float zoom,
@@ -91,6 +95,8 @@ class Map {
       int widgetHeight,
       double elapsedSeconds);
   
+  
+  inline QPointF GetTownCenterLocation(int player) { return townCenterCenters[player]; }
   
   inline int GetWidth() const { return width; }
   inline int GetHeight() const { return height; }
@@ -129,6 +135,9 @@ class Map {
   
   /// Map of unit ID -> ClientUnit.
   std::unordered_map<int, ClientUnit> units;
+  
+  /// Initial town center center locations of all players.
+  std::vector<QPointF> townCenterCenters;
   
   // TODO: Should this functionality be moved into its own class?
   // --- Rendering attributes ---

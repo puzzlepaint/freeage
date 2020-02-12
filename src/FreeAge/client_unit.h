@@ -28,9 +28,10 @@ enum class UnitAnimation {
 };
 
 
-struct SpriteAndTexture {
+struct SpriteAndTextures {
   Sprite sprite;
-  Texture texture;
+  Texture graphicTexture;
+  Texture shadowTexture;
 };
 
 
@@ -41,13 +42,13 @@ class ClientUnitType {
   
   bool Load(UnitType type, const std::filesystem::path& graphicsPath, const Palettes& palettes);
   
-  inline const std::vector<SpriteAndTexture>& GetAnimations(UnitAnimation type) const { return animations[static_cast<int>(type)]; }
+  inline const std::vector<SpriteAndTextures>& GetAnimations(UnitAnimation type) const { return animations[static_cast<int>(type)]; }
   
  private:
   bool LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const Palettes& palettes, UnitAnimation type);
   
   /// Indexed by: [static_cast<int>(UnitAnimation animation)][animation_variant]
-  std::vector<std::vector<SpriteAndTexture>> animations;
+  std::vector<std::vector<SpriteAndTextures>> animations;
 };
 
 
@@ -60,7 +61,8 @@ class ClientUnit {
   QRectF GetRectInProjectedCoords(
       Map* map,
       const std::vector<ClientUnitType>& unitTypes,
-      double elapsedSeconds);
+      double elapsedSeconds,
+      bool shadow);
   
   void Render(
       Map* map,
@@ -70,7 +72,8 @@ class ClientUnit {
       float zoom,
       int widgetWidth,
       int widgetHeight,
-      double elapsedSeconds);
+      double elapsedSeconds,
+      bool shadow);
   
   inline UnitType GetType() const { return type; }
   

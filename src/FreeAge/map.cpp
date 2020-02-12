@@ -202,7 +202,7 @@ void Map::GenerateRandomMap() {
                                   3 * width / 4 + (rand() % (width / 8)));
   AddBuilding(BuildingType::TownCenter, townCenterLocations[1].x(), townCenterLocations[1].y());
   
-  QPointF townCenterCenters[2];
+  townCenterCenters.resize(2);
   for (int player = 0; player < 2; ++ player) {
     townCenterCenters[player] = QPointF(
         townCenterLocations[player].x() + 0.5f * GetBuildingSize(BuildingType::TownCenter).width(),
@@ -580,6 +580,8 @@ void Map::Render(
     const std::vector<ClientUnitType>& unitTypes,
     const std::vector<Sprite>& buildingSprites,
     const std::vector<Texture>& buildingTextures,
+    const std::vector<Texture>& buildingShadowTextures,
+    SpriteShader* shadowShader,
     SpriteShader* spriteShader,
     GLuint spritePointBuffer,
     float zoom,
@@ -588,11 +590,78 @@ void Map::Render(
     double elapsedSeconds) {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
-  // Render the map.
-  program->UseProgram();
+  // Determine the view rect in projected coordinates.
+  // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
+  // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
+  // -->
+  // projected_x = (opengl_x - viewMatrix[2]) / viewMatrix[0]
+  // projected_y = (opengl_y - viewMatrix[3]) / viewMatrix[1];
+  float leftProjectedCoords = ((-1) - viewMatrix[2]) / viewMatrix[0];
+  float rightProjectedCoords = ((1) - viewMatrix[2]) / viewMatrix[0];
+  float topProjectedCoords = ((1) - viewMatrix[3]) / viewMatrix[1];
+  float bottomProjectedCoords = ((-1) - viewMatrix[3]) / viewMatrix[1];
+  QRectF projectedCoordsViewRect(
+      leftProjectedCoords,
+      topProjectedCoords,
+      rightProjectedCoords - leftProjectedCoords,
+      bottomProjectedCoords - topProjectedCoords);
   
-  // f->glEnable(GL_BLEND);
-  // f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  // NOTE: We assume that the screen has been cleared with color values (0, 0, 0, 0) before this is called.
+  
+  // Render the shadows.
+  f->glEnable(GL_BLEND);
+  // Set up blending such that colors are added (does not matter since we do not render colors),
+  // and for alpha values, the maximum is used.
+  f->glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
+  
+  for (auto& buildingEntry : buildings) {
+    ClientBuilding& building = buildingEntry.second;
+    if (!buildingSprites[static_cast<int>(building.GetType())].HasShadow()) {
+      continue;
+    }
+    
+    QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+        this,
+        buildingSprites,
+        elapsedSeconds,
+        true);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      building.Render(
+          this,
+          buildingSprites,
+          buildingShadowTextures,  // using the shadow texture here
+          shadowShader,
+          spritePointBuffer,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          elapsedSeconds,
+          true);
+    }
+  }
+  for (auto& item : units) {
+    // TODO: Are there any units without shadow?
+    // if (!unitTypes[static_cast<int>(item.second.GetType())].HasShadow()) {
+    //   continue;
+    // }
+    
+    // TODO: Clip
+    item.second.Render(
+        this,
+        unitTypes,
+        shadowShader,
+        spritePointBuffer,
+        zoom,
+        widgetWidth,
+        widgetHeight,
+        elapsedSeconds,
+        true);
+  }
+  
+  // Render the map.
+  f->glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);  // blend with the shadows
+  
+  program->UseProgram();
   
   program->SetUniform1i(program_u_texture_location, 0);  // use GL_TEXTURE0
   f->glBindTexture(GL_TEXTURE_2D, textureId);
@@ -616,21 +685,7 @@ void Map::Render(
   f->glDrawElements(GL_TRIANGLES, width * height * 6, GL_UNSIGNED_INT, 0);
   CHECK_OPENGL_NO_ERROR();
   
-  // Determine the view rect in projected coordinates.
-  // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
-  // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
-  // -->
-  // projected_x = (opengl_x - viewMatrix[2]) / viewMatrix[0]
-  // projected_y = (opengl_y - viewMatrix[3]) / viewMatrix[1];
-  float leftProjectedCoords = ((-1) - viewMatrix[2]) / viewMatrix[0];
-  float rightProjectedCoords = ((1) - viewMatrix[2]) / viewMatrix[0];
-  float topProjectedCoords = ((1) - viewMatrix[3]) / viewMatrix[1];
-  float bottomProjectedCoords = ((-1) - viewMatrix[3]) / viewMatrix[1];
-  QRectF projectedCoordsViewRect(
-      leftProjectedCoords,
-      topProjectedCoords,
-      rightProjectedCoords - leftProjectedCoords,
-      bottomProjectedCoords - topProjectedCoords);
+  f->glBlendFunc(GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA);  // reset the blend func to standard
   
   // Render the buildings.
   std::vector<BuildingToRender> buildingsToRender;
@@ -641,7 +696,8 @@ void Map::Render(
     QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
         this,
         buildingSprites,
-        elapsedSeconds);
+        elapsedSeconds,
+        false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
       // TODO: Currently, the bottom y of the sprite is used for sorting. Use the center point instead?
       // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
@@ -663,10 +719,12 @@ void Map::Render(
         zoom,
         widgetWidth,
         widgetHeight,
-        elapsedSeconds);
+        elapsedSeconds,
+        false);
   }
   
   // Render the units.
+  // TODO: Clip
   // TODO: Sort to render in correct order (or use Z-buffer).
   // TODO: If behind a building and the sprite has an outline, render the outline instead.
   for (auto& item : units) {
@@ -678,6 +736,7 @@ void Map::Render(
         zoom,
         widgetWidth,
         widgetHeight,
-        elapsedSeconds);
+        elapsedSeconds,
+        false);
   }
 }
