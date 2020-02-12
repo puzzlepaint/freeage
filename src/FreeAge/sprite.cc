@@ -589,38 +589,50 @@ bool LoadSpriteAndTexture(const char* path, int wrapMode, int magFilter, int min
   SpriteAtlas atlas;
   atlas.AddSprite(sprite);
   
-  int textureSize = 2048;
-  int largestTooSmallSize = -1;
-  int smallestAcceptableSize = -1;
-  for (int attempt = 0; attempt < 8; ++ attempt) {
-    if (!atlas.BuildAtlas(textureSize, textureSize, nullptr)) {
-      // The size is too small.
-      // LOG(INFO) << "Size " << textureSize << " is too small.";
-      largestTooSmallSize = textureSize;
-      if (smallestAcceptableSize >= 0) {
-        textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+  constexpr int pixelBorder = 1;
+  
+  int chosenWidth = -1;
+  int chosenHeight = -1;
+  if (sprite->NumFrames() == 1) {
+    // Special case for a single frame: Use the sprite size (plus the border) directly as texture size.
+    chosenWidth = sprite->frame(0).graphic.image.width() + 2 * pixelBorder;
+    chosenHeight = sprite->frame(0).graphic.image.height() + 2 * pixelBorder;
+  } else {
+    int textureSize = 2048;
+    int largestTooSmallSize = -1;
+    int smallestAcceptableSize = -1;
+    for (int attempt = 0; attempt < 8; ++ attempt) {
+      if (!atlas.BuildAtlas(textureSize, textureSize, nullptr, pixelBorder)) {
+        // The size is too small.
+        // LOG(INFO) << "Size " << textureSize << " is too small.";
+        largestTooSmallSize = textureSize;
+        if (smallestAcceptableSize >= 0) {
+          textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+        } else {
+          textureSize = 2 * largestTooSmallSize;
+        }
       } else {
-        textureSize = 2 * largestTooSmallSize;
-      }
-    } else {
-      // The size is large enough.
-      // LOG(INFO) << "Size " << textureSize << " is okay.";
-      smallestAcceptableSize = textureSize;
-      if (smallestAcceptableSize >= 0) {
-        textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
-      } else {
-        textureSize = smallestAcceptableSize / 2;
+        // The size is large enough.
+        // LOG(INFO) << "Size " << textureSize << " is okay.";
+        smallestAcceptableSize = textureSize;
+        if (smallestAcceptableSize >= 0) {
+          textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+        } else {
+          textureSize = smallestAcceptableSize / 2;
+        }
       }
     }
+    chosenWidth = smallestAcceptableSize;
+    chosenHeight = smallestAcceptableSize;
   }
-  if (smallestAcceptableSize <= 0) {
+  if (chosenWidth <= 0 || chosenHeight <= 0) {
     LOG(ERROR) << "Unable to find a texture size which all animation frames can be packed into.";
     return false;
   }
   
-  LOG(INFO) << "Atlas for " << path << " uses size: " << smallestAcceptableSize;
+  LOG(INFO) << "Atlas for " << path << " uses size: " << chosenWidth << " x " << chosenHeight;
   QImage atlasImage;
-  if (!atlas.BuildAtlas(smallestAcceptableSize, smallestAcceptableSize, &atlasImage)) {
+  if (!atlas.BuildAtlas(chosenWidth, chosenHeight, &atlasImage, pixelBorder)) {
     LOG(ERROR) << "Unexpected error while building an atlas image.";
     return false;
   }

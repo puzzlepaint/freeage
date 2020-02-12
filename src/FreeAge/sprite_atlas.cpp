@@ -37,7 +37,9 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage, int bord
   
   std::vector<Rect> packedRects;
   std::vector<int> packedRectIndices;
-  packer.Insert(rects, packedRects, packedRectIndices, MaxRectsBinPack::RectBestShortSideFit);
+  // TODO: Choose the packing rule that is best.
+  //       RectBottomLeftRule is much faster than RectBestShortSideFit, so it is better for testing, unless we cache the results.
+  packer.Insert(rects, packedRects, packedRectIndices, MaxRectsBinPack::RectBottomLeftRule);  // RectBestShortSideFit
   packTimer.Stop();
   if (!rects.empty()) {
     // Not all rects could be added because they did not fit into the specified area.
