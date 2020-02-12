@@ -273,23 +273,41 @@ void Map::GenerateRandomMap() {
   // Generate villagers
   for (int player = 0; player < 2; ++ player) {
     for (int villager = 0; villager < 3; ++ villager) {
-      float radius = 4 + 2 * ((rand() % 10000) / 10000.f);
-      float angle = 2 * M_PI * ((rand() % 10000) / 10000.f);
-      QPointF spawnLoc(
-          townCenterCenters[player].x() + radius * sin(angle),
-          townCenterCenters[player].y() + radius * cos(angle));
-      units.insert(std::make_pair(nextUnitID++, ClientUnit((rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, spawnLoc)));
+      while (true) {
+        // TODO: Account for collisions with other units too.
+        // TODO: Prevent this from potentially being an endless loop
+        float radius = 4 + 2 * ((rand() % 10000) / 10000.f);
+        float angle = 2 * M_PI * ((rand() % 10000) / 10000.f);
+        QPointF spawnLoc(
+            townCenterCenters[player].x() + radius * sin(angle),
+            townCenterCenters[player].y() + radius * cos(angle));
+        int spawnLocTileX = static_cast<int>(spawnLoc.x());
+        int spawnLocTileY = static_cast<int>(spawnLoc.y());
+        if (!occupiedAt(spawnLocTileX, spawnLocTileY)) {
+          units.insert(std::make_pair(nextUnitID++, ClientUnit((rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, spawnLoc)));
+          break;
+        }
+      }
     }
   }
   
   // Generate scouts
   for (int player = 0; player < 2; ++ player) {
-    float radius = 6 + 2 * ((rand() % 10000) / 10000.f);
-    float angle = 2 * M_PI * ((rand() % 10000) / 10000.f);
-    QPointF spawnLoc(
-        townCenterCenters[player].x() + radius * sin(angle),
-        townCenterCenters[player].y() + radius * cos(angle));
-    units.insert(std::make_pair(nextUnitID++, ClientUnit(UnitType::Scout, spawnLoc)));
+    while (true) {
+      // TODO: Account for collisions with other units too.
+      // TODO: Prevent this from potentially being an endless loop
+      float radius = 6 + 2 * ((rand() % 10000) / 10000.f);
+      float angle = 2 * M_PI * ((rand() % 10000) / 10000.f);
+      QPointF spawnLoc(
+          townCenterCenters[player].x() + radius * sin(angle),
+          townCenterCenters[player].y() + radius * cos(angle));
+      int spawnLocTileX = static_cast<int>(spawnLoc.x());
+      int spawnLocTileY = static_cast<int>(spawnLoc.y());
+      if (!occupiedAt(spawnLocTileX, spawnLocTileY)) {
+        units.insert(std::make_pair(nextUnitID++, ClientUnit(UnitType::Scout, spawnLoc)));
+        break;
+      }
+    }
   }
 }
 
