@@ -69,6 +69,7 @@ class ClientUnit {
       const std::vector<ClientUnitType>& unitTypes,
       SpriteShader* spriteShader,
       GLuint pointBuffer,
+      float* viewMatrix,
       float zoom,
       int widgetWidth,
       int widgetHeight,

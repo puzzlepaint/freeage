@@ -81,6 +81,7 @@ void DrawSprite(
     SpriteShader* spriteShader,
     const QPointF& centerProjectedCoord,
     GLuint pointBuffer,
+    float* viewMatrix,
     float zoom,
     int widgetWidth,
     int widgetHeight,

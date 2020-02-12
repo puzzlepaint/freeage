@@ -53,6 +53,7 @@ class ClientBuilding {
       const std::vector<Texture>& buildingTextures,
       SpriteShader* spriteShader,
       GLuint pointBuffer,
+      float* viewMatrix,
       float zoom,
       int widgetWidth,
       int widgetHeight,

@@ -76,7 +76,7 @@ QRectF ClientUnit::GetRectInProjectedCoords(Map* map, const std::vector<ClientUn
       layer.imageHeight);
 }
 
-void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, SpriteShader* spriteShader, GLuint pointBuffer, float zoom, int widgetWidth, int widgetHeight, double elapsedSeconds, bool shadow) {
+void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, SpriteShader* spriteShader, GLuint pointBuffer, float* viewMatrix, float zoom, int widgetWidth, int widgetHeight, double elapsedSeconds, bool shadow) {
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
   const SpriteAndTextures& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
   const Sprite& sprite = animationSpriteAndTexture.sprite;
@@ -116,6 +116,7 @@ void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, 
       spriteShader,
       centerProjectedCoord,
       pointBuffer,
+      viewMatrix,
       zoom,
       widgetWidth,
       widgetHeight,

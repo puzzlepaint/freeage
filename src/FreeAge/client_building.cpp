@@ -82,6 +82,7 @@ void ClientBuilding::Render(
     const std::vector<Texture>& buildingTextures,
     SpriteShader* spriteShader,
     GLuint pointBuffer,
+    float* viewMatrix,
     float zoom,
     int widgetWidth,
     int widgetHeight,
@@ -103,21 +104,21 @@ void ClientBuilding::Render(
         buildingSprites[static_cast<int>(BuildingType::TownCenterMain)],
         buildingTextures[static_cast<int>(BuildingType::TownCenterMain)],
         spriteShader, centerProjectedCoord, pointBuffer,
-        zoom, widgetWidth, widgetHeight, frameIndex, shadow);
+        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow);
     
     // Back
     DrawSprite(
         buildingSprites[static_cast<int>(BuildingType::TownCenterBack)],
         buildingTextures[static_cast<int>(BuildingType::TownCenterBack)],
         spriteShader, centerProjectedCoord, pointBuffer,
-        zoom, widgetWidth, widgetHeight, frameIndex, shadow);
+        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow);
     
     // Center
     DrawSprite(
         buildingSprites[static_cast<int>(BuildingType::TownCenterCenter)],
         buildingTextures[static_cast<int>(BuildingType::TownCenterCenter)],
         spriteShader, centerProjectedCoord, pointBuffer,
-        zoom, widgetWidth, widgetHeight, frameIndex, shadow);
+        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow);
   }
   
   DrawSprite(
@@ -126,6 +127,7 @@ void ClientBuilding::Render(
       spriteShader,
       centerProjectedCoord,
       pointBuffer,
+      viewMatrix,
       zoom,
       widgetWidth,
       widgetHeight,
@@ -138,7 +140,7 @@ void ClientBuilding::Render(
         buildingSprites[static_cast<int>(BuildingType::TownCenterFront)],
         buildingTextures[static_cast<int>(BuildingType::TownCenterFront)],
         spriteShader, centerProjectedCoord, pointBuffer,
-        zoom, widgetWidth, widgetHeight, frameIndex, shadow);
+        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow);
   }
 }
 

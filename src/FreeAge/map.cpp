@@ -562,19 +562,6 @@ void Map::LoadRenderResources() {
   // TODO: Un-load the render resources again on destruction
 }
 
-struct BuildingToRender {
-  inline BuildingToRender(ClientBuilding* building, float y)
-      : building(building),
-        y(y) {}
-  
-  inline bool operator< (const BuildingToRender& other) {
-    return y < other.y;
-  }
-  
-  ClientBuilding* building;
-  float y;
-};
-
 void Map::Render(
     float* viewMatrix,
     const std::vector<ClientUnitType>& unitTypes,
@@ -610,6 +597,7 @@ void Map::Render(
   
   // Render the shadows.
   f->glEnable(GL_BLEND);
+  f->glDisable(GL_DEPTH_TEST);
   // Set up blending such that colors are added (does not matter since we do not render colors),
   // and for alpha values, the maximum is used.
   f->glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
@@ -632,6 +620,7 @@ void Map::Render(
           buildingShadowTextures,  // using the shadow texture here
           shadowShader,
           spritePointBuffer,
+          viewMatrix,
           zoom,
           widgetWidth,
           widgetHeight,
@@ -651,6 +640,7 @@ void Map::Render(
         unitTypes,
         shadowShader,
         spritePointBuffer,
+        viewMatrix,
         zoom,
         widgetWidth,
         widgetHeight,
@@ -687,9 +677,12 @@ void Map::Render(
   
   f->glBlendFunc(GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA);  // reset the blend func to standard
   
+  // Enable the depth buffer for sprite rendering.
+  f->glEnable(GL_DEPTH_TEST);
+  f->glDepthFunc(GL_LEQUAL);
+  
   // Render the buildings.
-  std::vector<BuildingToRender> buildingsToRender;
-  buildingsToRender.reserve(256);
+  // TODO: Sort to minmize texture switches.
   for (auto& buildingEntry : buildings) {
     ClientBuilding& building = buildingEntry.second;
     
@@ -699,44 +692,44 @@ void Map::Render(
         elapsedSeconds,
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
-      // TODO: Currently, the bottom y of the sprite is used for sorting. Use the center point instead?
       // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
-      buildingsToRender.push_back(BuildingToRender(&building, projectedCoordsRect.bottom()));
+      building.Render(
+          this,
+          buildingSprites,
+          buildingTextures,
+          spriteShader,
+          spritePointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          elapsedSeconds,
+          false);
     }
   }
   
-  // Sort by y-position
-  std::sort(buildingsToRender.begin(), buildingsToRender.end());
-  
-  for (const auto& item : buildingsToRender) {
-    ClientBuilding& building = *item.building;
-    building.Render(
-        this,
-        buildingSprites,
-        buildingTextures,
-        spriteShader,
-        spritePointBuffer,
-        zoom,
-        widgetWidth,
-        widgetHeight,
-        elapsedSeconds,
-        false);
-  }
-  
   // Render the units.
-  // TODO: Clip
-  // TODO: Sort to render in correct order (or use Z-buffer).
-  // TODO: If behind a building and the sprite has an outline, render the outline instead.
+  // TODO: Sort to minmize texture switches.
   for (auto& item : units) {
-    item.second.Render(
+    ClientUnit& unit = item.second;
+    
+    QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
         this,
         unitTypes,
-        spriteShader,
-        spritePointBuffer,
-        zoom,
-        widgetWidth,
-        widgetHeight,
         elapsedSeconds,
         false);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      unit.Render(
+          this,
+          unitTypes,
+          spriteShader,
+          spritePointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          elapsedSeconds,
+          false);
+    }
   }
 }
