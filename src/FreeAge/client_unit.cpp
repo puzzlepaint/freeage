@@ -99,7 +99,12 @@ void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, 
     
     // A new animation starts. Choose a random animation variant.
     lastAnimationStartTime = std::min(elapsedSeconds, lastAnimationStartTime + framesPerDirection / framesPerSecond);
-    currentAnimationVariant = rand() % unitType.GetAnimations(currentAnimation).size();
+    // TODO: The "currentAnimationVariant == 1" condition is special-case handling to make the scout unit look nicer. Check how this should be handled in general in other cases.
+    if (currentAnimationVariant == 1) {
+      currentAnimationVariant = 0;
+    } else {
+      currentAnimationVariant = rand() % unitType.GetAnimations(currentAnimation).size();
+    }
   }
   int frameIndex = direction * framesPerDirection + frame;
   

@@ -13,6 +13,8 @@ constexpr int kTileProjectedHeight = kTileProjectedWidth / 2;
 //       With the default, tile occupancy on hill sides can be very hard to see.
 constexpr int kTileProjectedElevationDifference = kTileProjectedHeight / 2;
 
+const float kTileDiagonalLength = 0.5f * sqrtf(kTileProjectedWidth * kTileProjectedWidth + kTileProjectedHeight * kTileProjectedHeight);
+
 Map::Map(int width, int height)
     : width(width),
       height(height) {
@@ -428,19 +430,53 @@ void Map::LoadRenderResources() {
   CHECK_OPENGL_NO_ERROR();
   
   // Build geometry buffer
-  int elementSizeInBytes = 4 * sizeof(float);
+  int elementSizeInBytes = 5 * sizeof(float);
   u8* data = new u8[(width + 1) * (height + 1) * elementSizeInBytes];
   u8* ptr = data;
   for (int y = 0; y <= height; ++ y) {
     for (int x = 0; x <= width; ++ x) {
       QPointF projectedCoord = TileCornerToProjectedCoord(x, y);
+      
+      // Estimate the vertex normal
+      // TODO: This is quite messy, it would be nice to have a proper 3D vector class for this.
+      float elevationHere = elevationAt(x, y);
+      float topLeftHeight = (kTileProjectedElevationDifference / kTileDiagonalLength) * (elevationAt(std::max(0, x - 1), y) - elevationHere);
+      float bottomRightHeight = (kTileProjectedElevationDifference / kTileDiagonalLength) * (elevationAt(std::min(width - 1, x + 1), y) - elevationHere);
+      float bottomLeftHeight = (kTileProjectedElevationDifference / kTileDiagonalLength) * (elevationAt(x, std::max(0, y - 1)) - elevationHere);
+      float topRightHeight = (kTileProjectedElevationDifference / kTileDiagonalLength) * (elevationAt(x, std::min(height - 1, y + 1)) - elevationHere);
+      
+      float normalX = topLeftHeight - bottomRightHeight;
+      float normalY = bottomLeftHeight - topRightHeight;
+      
+      float normalLength = sqrtf(normalX * normalX + normalY * normalY + 1 * 1);
+      normalX /= normalLength;
+      normalY /= normalLength;
+      float normalZ = 1 / normalLength;
+      
+      const float lightingDirectionX = 0.3f / sqrtf(0.3f * 0.3f + 0 * 0 + 0.8f * 0.8f);
+      const float lightingDirectionY = 0.f;
+      const float lightingDirectionZ = 0.8f / sqrtf(0.3f * 0.3f + 0 * 0 + 0.8f * 0.8f);
+      
+      float dot = normalX * lightingDirectionX + normalY * lightingDirectionY + normalZ * lightingDirectionZ;
+      
+      // Scale such that upright terrain gets a lighting factor of one
+      float lightingFactor = dot / lightingDirectionZ;
+      
+      // Position
       *reinterpret_cast<float*>(ptr) = projectedCoord.x();
       ptr += sizeof(float);
       *reinterpret_cast<float*>(ptr) = projectedCoord.y();
       ptr += sizeof(float);
+      
+      // Texture coordinate
       *reinterpret_cast<float*>(ptr) = 0.1f * x;
       ptr += sizeof(float);
       *reinterpret_cast<float*>(ptr) = 0.1f * y;
+      ptr += sizeof(float);
+      
+      // Darkening factor for map lighting
+      // NOTE: This is passed on as part of the texture coordinates (for convenience)
+      *reinterpret_cast<float*>(ptr) = lightingFactor;
       ptr += sizeof(float);
     }
   }
@@ -455,10 +491,13 @@ void Map::LoadRenderResources() {
   u32* indexPtr = indexData;
   for (int y = 0; y < height; ++ y) {
     for (int x = 0; x < width; ++ x) {
-      int diff1 = std::abs(elevationAt(x, y) - elevationAt(x + 1, y + 1));
-      int diff2 = std::abs(elevationAt(x + 1, y) - elevationAt(x, y + 1));
+      int horizontalDiff = std::abs(elevationAt(x, y) - elevationAt(x + 1, y + 1));
+      int verticalDiff = std::abs(elevationAt(x + 1, y) - elevationAt(x, y + 1));
       
-      if (diff1 < diff2) {
+      // The special case was needed to make the elevation difference visible at all, since in this case,
+      // the left, upper, and right vertex are all at the same y-coordinate in projected coordinates.
+      bool specialCase = (horizontalDiff == 0) && ((elevationAt(x + 1, y) - elevationAt(x, y + 1)) == 1);
+      if (horizontalDiff < verticalDiff && !specialCase) {
         *indexPtr++ = (x + 0) + (width + 1) * (y + 0);
         *indexPtr++ = (x + 1) + (width + 1) * (y + 1);
         *indexPtr++ = (x + 0) + (width + 1) * (y + 1);
@@ -489,9 +528,9 @@ void Map::LoadRenderResources() {
   CHECK(program->AttachShader(
       "#version 330 core\n"
       "in vec2 in_position;\n"
-      "in vec2 in_texcoord;\n"
+      "in vec3 in_texcoord;\n"
       "uniform mat2 u_viewMatrix;\n"
-      "out vec2 var_texcoord;\n"
+      "out vec3 var_texcoord;\n"
       "void main() {\n"
       // TODO: Use sensible z value? Or disable z writing while rendering the terrain anyway
       "  gl_Position = vec4(u_viewMatrix[0][0] * in_position.x + u_viewMatrix[1][0], u_viewMatrix[0][1] * in_position.y + u_viewMatrix[1][1], 0.999, 1);\n"
@@ -503,12 +542,12 @@ void Map::LoadRenderResources() {
       "#version 330 core\n"
       "layout(location = 0) out vec4 out_color;\n"
       "\n"
-      "in vec2 var_texcoord;\n"
+      "in vec3 var_texcoord;\n"
       "\n"
       "uniform sampler2D u_texture;\n"
       "\n"
       "void main() {\n"
-      "  out_color = texture(u_texture, var_texcoord.xy);\n"
+      "  out_color = vec4(var_texcoord.z * texture(u_texture, var_texcoord.xy).rgb, 1);\n"
       "}\n",
       ShaderProgram::ShaderType::kFragmentShader));
   
@@ -563,14 +602,14 @@ void Map::Render(
   program->SetPositionAttribute(
       2,
       GetGLType<float>::value,
-      4 * sizeof(float),
+      5 * sizeof(float),
       0);
   
   f->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
   program->SetTexCoordAttribute(
-      2,
+      3,
       GetGLType<float>::value,
-      4 * sizeof(float),
+      5 * sizeof(float),
       2 * sizeof(float));
   
   f->glDrawElements(GL_TRIANGLES, width * height * 6, GL_UNSIGNED_INT, 0);
