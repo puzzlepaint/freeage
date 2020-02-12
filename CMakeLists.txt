@@ -68,6 +68,7 @@ add_library(FreeAgeLib
   src/FreeAge/sprite.cc
   src/FreeAge/sprite_atlas.cpp
   src/FreeAge/texture.cpp
+  src/FreeAge/timing.cpp
   
   src/RectangleBinPack/MaxRectsBinPack.cpp
   src/RectangleBinPack/Rect.cpp

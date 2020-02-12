@@ -2,6 +2,7 @@
 
 #include "FreeAge/logging.h"
 #include "FreeAge/sprite.h"
+#include "FreeAge/timing.h"
 #include "RectangleBinPack/MaxRectsBinPack.h"
 
 using namespace rbp;
@@ -11,6 +12,8 @@ void SpriteAtlas::AddSprite(Sprite* sprite) {
 }
 
 bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage) {
+  Timer packTimer("SpriteAtlas::BuildAtlas packing");
+  
   // TODO: Should we allow flipping? It is currently not implemented for texture coordinate setting in rendering.
   MaxRectsBinPack packer(width, height, /*allowFlip*/ false);
   
@@ -35,6 +38,7 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage) {
   std::vector<Rect> packedRects;
   std::vector<int> packedRectIndices;
   packer.Insert(rects, packedRects, packedRectIndices, MaxRectsBinPack::RectBestShortSideFit);
+  packTimer.Stop();
   if (!rects.empty()) {
     // Not all rects could be added because they did not fit into the specified area.
     return false;
@@ -44,6 +48,8 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage) {
   if (!atlasImage) {
     return true;
   }
+  
+  Timer paintTimer("SpriteAtlas::BuildAtlas rendering");
   
   // Invert packedRectIndices
   std::vector<int> originalToPackedIndex(numRects);

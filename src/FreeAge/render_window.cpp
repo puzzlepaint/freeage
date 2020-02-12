@@ -11,6 +11,7 @@
 #include "FreeAge/opengl.h"
 #include "FreeAge/sprite.h"
 #include "FreeAge/sprite_atlas.h"
+#include "FreeAge/timing.h"
 
 RenderWindow::RenderWindow(const Palettes& palettes, const std::filesystem::path& graphicsPath, QWidget* parent)
     : QOpenGLWidget(parent),
@@ -138,6 +139,9 @@ void RenderWindow::initializeGL() {
       0.f, 0.f, 0};
   f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
   CHECK_OPENGL_NO_ERROR();
+  
+  // Output timings of the resource loading processes.
+  Timing::print(std::cout);
   
   // Remember the game start time.
   gameStartTime = Clock::now();
