@@ -60,7 +60,7 @@ class ClientUnit {
   QRectF GetRectInProjectedCoords(
       Map* map,
       const std::vector<ClientUnitType>& unitTypes,
-      float elapsedSeconds);
+      double elapsedSeconds);
   
   void Render(
       Map* map,
@@ -70,7 +70,7 @@ class ClientUnit {
       float zoom,
       int widgetWidth,
       int widgetHeight,
-      float elapsedSeconds);
+      double elapsedSeconds);
   
   inline UnitType GetType() const { return type; }
   
@@ -88,4 +88,5 @@ class ClientUnit {
   
   UnitAnimation currentAnimation;
   int currentAnimationVariant;
+  double lastAnimationStartTime;
 };

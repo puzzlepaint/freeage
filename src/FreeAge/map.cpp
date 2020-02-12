@@ -231,14 +231,28 @@ void Map::GenerateRandomMap() {
   
   // Generate forests
   constexpr int kForestMinDistanceFromTCs = 10;  // TODO: Make configurable
-  constexpr int kNumForests = 6;  // TODO: Make configurable
+  constexpr float kForestMinDistanceFromOtherForests = 10;
+  constexpr int kNumForests = 11;  // TODO: Make configurable
+  QPointF forestCenters[kNumForests];
   for (int forest = 0; forest < kNumForests; ++ forest) {
     int tileX;
     int tileY;
+retryForest:  // TODO: Ugly implementation, improve this
     if (getRandomLocation(kForestMinDistanceFromTCs, &tileX, &tileY)) {
+      for (int otherForest = 0; otherForest < forest; ++ otherForest) {
+        float distanceX = forestCenters[otherForest].x() - tileX;
+        float distanceY = forestCenters[otherForest].y() - tileY;
+        float distance = sqrtf(distanceX * distanceX + distanceY * distanceY);
+        if (distance < kForestMinDistanceFromOtherForests) {
+          goto retryForest;
+        }
+      }
+      
+      forestCenters[forest] = QPointF(tileX + 0.5f, tileY + 0.5f);
+      
       // Place the forest.
       // TODO: For now, we just place very simple circles.
-      int forestRadius = 6 + rand() % 3;
+      int forestRadius = 4 + rand() % 3;
       
       int minX = std::max(0, tileX - forestRadius);
       int maxX = std::min(width - 1, tileX + forestRadius);
@@ -283,7 +297,9 @@ void Map::GenerateRandomMap() {
             townCenterCenters[player].y() + radius * cos(angle));
         int spawnLocTileX = static_cast<int>(spawnLoc.x());
         int spawnLocTileY = static_cast<int>(spawnLoc.y());
-        if (!occupiedAt(spawnLocTileX, spawnLocTileY)) {
+        if (spawnLocTileX < 0 || spawnLocTileY < 0 ||
+            spawnLocTileX >= width || spawnLocTileY >= height ||
+            !occupiedAt(spawnLocTileX, spawnLocTileY)) {
           units.insert(std::make_pair(nextUnitID++, ClientUnit((rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, spawnLoc)));
           break;
         }
@@ -303,7 +319,9 @@ void Map::GenerateRandomMap() {
           townCenterCenters[player].y() + radius * cos(angle));
       int spawnLocTileX = static_cast<int>(spawnLoc.x());
       int spawnLocTileY = static_cast<int>(spawnLoc.y());
-      if (!occupiedAt(spawnLocTileX, spawnLocTileY)) {
+      if (spawnLocTileX < 0 || spawnLocTileY < 0 ||
+          spawnLocTileX >= width || spawnLocTileY >= height ||
+          !occupiedAt(spawnLocTileX, spawnLocTileY)) {
         units.insert(std::make_pair(nextUnitID++, ClientUnit(UnitType::Scout, spawnLoc)));
         break;
       }
@@ -527,7 +545,7 @@ void Map::Render(
     float zoom,
     int widgetWidth,
     int widgetHeight,
-    float elapsedSeconds) {
+    double elapsedSeconds) {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   // Render the map.

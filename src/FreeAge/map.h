@@ -89,7 +89,7 @@ class Map {
       float zoom,
       int widgetWidth,
       int widgetHeight,
-      float elapsedSeconds);
+      double elapsedSeconds);
   
   
   inline int GetWidth() const { return width; }

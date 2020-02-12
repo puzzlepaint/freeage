@@ -52,9 +52,10 @@ ClientUnit::ClientUnit(UnitType type, const QPointF& mapCoord)
       mapCoord(mapCoord),
       direction(rand() % kNumFacingDirections),
       currentAnimation(UnitAnimation::Idle),
-      currentAnimationVariant(0) {}
+      currentAnimationVariant(0),
+      lastAnimationStartTime(-1) {}
 
-QRectF ClientUnit::GetRectInProjectedCoords(Map* map, const std::vector<ClientUnitType>& unitTypes, float elapsedSeconds) {
+QRectF ClientUnit::GetRectInProjectedCoords(Map* map, const std::vector<ClientUnitType>& unitTypes, double elapsedSeconds) {
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
   const SpriteAndTexture& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
   const Sprite& sprite = animationSpriteAndTexture.sprite;
@@ -73,7 +74,7 @@ QRectF ClientUnit::GetRectInProjectedCoords(Map* map, const std::vector<ClientUn
       layer.image.height());
 }
 
-void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, SpriteShader* spriteShader, GLuint pointBuffer, float zoom, int widgetWidth, int widgetHeight, float elapsedSeconds) {
+void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, SpriteShader* spriteShader, GLuint pointBuffer, float zoom, int widgetWidth, int widgetHeight, double elapsedSeconds) {
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
   const SpriteAndTexture& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
   const Sprite& sprite = animationSpriteAndTexture.sprite;
@@ -81,9 +82,26 @@ void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, 
   
   QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(mapCoord);
   
+  // Update the animation.
   float framesPerSecond = 30.f;
   int framesPerDirection = sprite.NumFrames() / kNumFacingDirections;
-  int frameIndex = direction * framesPerDirection + static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % framesPerDirection;
+  
+  if (lastAnimationStartTime < 0) {
+    // Initialize lastAnimationStartTime.
+    lastAnimationStartTime = elapsedSeconds;
+  }
+  int frame;
+  while (true) {
+    frame = std::max(0, static_cast<int>(framesPerSecond * (elapsedSeconds - lastAnimationStartTime) + 0.5f));
+    if (frame < framesPerDirection) {
+      break;
+    }
+    
+    // A new animation starts. Choose a random animation variant.
+    lastAnimationStartTime = std::min(elapsedSeconds, lastAnimationStartTime + framesPerDirection / framesPerSecond);
+    currentAnimationVariant = rand() % unitType.GetAnimations(currentAnimation).size();
+  }
+  int frameIndex = direction * framesPerDirection + frame;
   
   DrawSprite(
       sprite,

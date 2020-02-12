@@ -58,7 +58,7 @@ ClientBuilding::ClientBuilding(BuildingType type, int baseTileX, int baseTileY)
 QRectF ClientBuilding::GetRectInProjectedCoords(
     Map* map,
     const std::vector<Sprite>& buildingSprites,
-    float elapsedSeconds) {
+    double elapsedSeconds) {
   const Sprite& sprite = buildingSprites[static_cast<int>(type)];
   
   QSize size = GetBuildingSize(type);
@@ -84,7 +84,7 @@ void ClientBuilding::Render(
     float zoom,
     int widgetWidth,
     int widgetHeight,
-    float elapsedSeconds) {
+    double elapsedSeconds) {
   const Sprite& sprite = buildingSprites[static_cast<int>(type)];
   const Texture& texture = buildingTextures[static_cast<int>(type)];
   
@@ -139,7 +139,7 @@ void ClientBuilding::Render(
   }
 }
 
-int ClientBuilding::GetFrameIndex(const Sprite& sprite, float elapsedSeconds) {
+int ClientBuilding::GetFrameIndex(const Sprite& sprite, double elapsedSeconds) {
   if (BuildingUsesRandomSpriteFrame(type)) {
     if (fixedFrameIndex < 0) {
       fixedFrameIndex = rand() % sprite.NumFrames();

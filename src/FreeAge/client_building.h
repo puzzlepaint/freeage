@@ -43,7 +43,7 @@ class ClientBuilding {
   QRectF GetRectInProjectedCoords(
       Map* map,
       const std::vector<Sprite>& buildingSprites,
-      float elapsedSeconds);
+      double elapsedSeconds);
   
   void Render(
       Map* map,
@@ -54,14 +54,14 @@ class ClientBuilding {
       float zoom,
       int widgetWidth,
       int widgetHeight,
-      float elapsedSeconds);
+      double elapsedSeconds);
   
   inline BuildingType GetType() const { return type; }
   
   inline QPoint GetBaseTile() const { return QPoint(baseTileX, baseTileY); }
   
  private:
-  int GetFrameIndex(const Sprite& sprite, float elapsedSeconds);
+  int GetFrameIndex(const Sprite& sprite, double elapsedSeconds);
   
   BuildingType type;
   
