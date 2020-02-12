@@ -417,8 +417,8 @@ void Map::LoadRenderResources() {
   
   f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
   f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  // TODO
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);  // TODO: Use mip-mapping for terrain textures
+  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
   
   f->glTexImage2D(
       GL_TEXTURE_2D,
@@ -426,6 +426,7 @@ void Map::LoadRenderResources() {
       textureBitmap.width, textureBitmap.height,
       0, GL_BGRA, GL_UNSIGNED_BYTE,
       textureBitmap.address<u32>(0, 0));
+  f->glGenerateMipmap(GL_TEXTURE_2D);
   
   CHECK_OPENGL_NO_ERROR();
   
