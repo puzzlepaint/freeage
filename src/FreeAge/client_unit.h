@@ -40,12 +40,12 @@ class ClientUnitType {
  public:
   ClientUnitType() = default;
   
-  bool Load(UnitType type, const std::filesystem::path& graphicsPath, const Palettes& palettes);
+  bool Load(UnitType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes);
   
   inline const std::vector<SpriteAndTextures>& GetAnimations(UnitAnimation type) const { return animations[static_cast<int>(type)]; }
   
  private:
-  bool LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const Palettes& palettes, UnitAnimation type);
+  bool LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes, UnitAnimation type);
   
   /// Indexed by: [static_cast<int>(UnitAnimation animation)][animation_variant]
   std::vector<std::vector<SpriteAndTextures>> animations;

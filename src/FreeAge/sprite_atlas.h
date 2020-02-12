@@ -4,6 +4,9 @@
 
 #include <vector>
 
+namespace rbp {
+  struct Rect;
+}
 class Sprite;
 
 /// Packs one or multiple sprites into an atlas texture, where all sprite
@@ -17,20 +20,36 @@ class SpriteAtlas {
   
   SpriteAtlas(Mode mode);
   
+  ~SpriteAtlas();
+  
   void AddSprite(Sprite* sprite);
   
   /// Attempts to pack all added sprites into a texture of the given size,
   /// while leaving @p borderPixels of free border around each sprite.
   /// If the SpriteAtlas fails to pack the sprites into this area, returns
   /// false.
-  ///
-  /// If atlasImage is nullptr, only tests whether the sprites fit into the
-  /// texture. Otherwise, the atlas is created. In this case, the function
-  /// writes the atlas positions of each layer into the Sprites, and
+  bool BuildAtlas(int width, int height, int borderPixels = 1);
+  
+  /// Saves the information computed by BuildAtlas() to the given file.
+  /// Returns true on success, false otherwise.
+  bool Save(const char* path);
+  
+  /// Loads the information computed by BuildAtlas() from the given file.
+  /// Returns true on success, false otherwise.
+  bool Load(const char* path, int expectedNumRects);
+  
+  /// May be called after BuildAtlas() succeeded to render the atlas image.
+  /// Writes the atlas positions of each layer into the Sprites, and
   /// unloads the QImages in the sprite layers that were used to create the atlas.
-  bool BuildAtlas(int width, int height, QImage* atlasImage, int borderPixels = 1);
+  QImage RenderAtlas();
   
  private:
+  int atlasWidth;
+  int atlasHeight;
+  int atlasBorderPixels;
+  std::vector<rbp::Rect> packedRects;
+  std::vector<int> packedRectIndices;
+  
   std::vector<Sprite*> sprites;
   Mode mode;
 };

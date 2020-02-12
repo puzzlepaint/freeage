@@ -13,10 +13,11 @@
 #include "FreeAge/sprite_atlas.h"
 #include "FreeAge/timing.h"
 
-RenderWindow::RenderWindow(const Palettes& palettes, const std::filesystem::path& graphicsPath, QWidget* parent)
+RenderWindow::RenderWindow(const Palettes& palettes, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, QWidget* parent)
     : QOpenGLWidget(parent),
       palettes(palettes),
-      graphicsPath(graphicsPath) {
+      graphicsPath(graphicsPath),
+      cachePath(cachePath) {
   setAttribute(Qt::WA_OpaquePaintEvent);
   setAutoFillBackground(false);
   
@@ -108,7 +109,7 @@ void RenderWindow::initializeGL() {
   // Load unit resources.
   unitTypes.resize(static_cast<int>(UnitType::NumUnits));
   for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
-    if (!unitTypes[unitType].Load(static_cast<UnitType>(unitType), graphicsPath, palettes)) {
+    if (!unitTypes[unitType].Load(static_cast<UnitType>(unitType), graphicsPath, cachePath, palettes)) {
       LOG(ERROR) << "Exiting because of a resource load error for unit " << unitType << ".";
       exit(1);  // TODO: Exit gracefully
     }
@@ -122,6 +123,7 @@ void RenderWindow::initializeGL() {
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
     if (!LoadSpriteAndTexture(
         (graphicsPath / GetBuildingFilename(static_cast<BuildingType>(buildingType)).toStdString()).c_str(),
+        (cachePath / GetBuildingFilename(static_cast<BuildingType>(buildingType)).toStdString()).c_str(),
         GL_CLAMP,
         GL_LINEAR,
         GL_LINEAR,

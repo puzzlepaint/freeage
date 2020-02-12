@@ -59,6 +59,10 @@ int main(int argc, char** argv) {
   
   // Get the graphics path
   std::filesystem::path graphicsPath = commonResourcesPath / "drs" / "graphics";
+  std::filesystem::path cachePath = std::filesystem::path(argv[0]).parent_path() / "graphics_cache";
+  if (!std::filesystem::exists(cachePath)) {
+    std::filesystem::create_directories(cachePath);
+  }
   
   // Load palettes
   Palettes palettes;
@@ -72,7 +76,7 @@ int main(int argc, char** argv) {
   testMap->GenerateRandomMap();
   
   // Create an OpenGL render window using Qt
-  RenderWindow renderWindow(palettes, graphicsPath);
+  RenderWindow renderWindow(palettes, graphicsPath, cachePath);
   renderWindow.SetMap(testMap);  // transferring ownership
   renderWindow.SetScroll(testMap->GetTownCenterLocation(0));
   renderWindow.show();

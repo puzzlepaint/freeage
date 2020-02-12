@@ -1,5 +1,7 @@
 #include "FreeAge/sprite.h"
 
+#include <filesystem>
+
 #include "FreeAge/logging.h"
 #include "FreeAge/opengl.h"
 #include "FreeAge/shader_program.h"
@@ -582,7 +584,7 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
 }
 
 
-bool LoadSpriteAndTexture(const char* path, int wrapMode, int magFilter, int minFilter, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes) {
+bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode, int magFilter, int minFilter, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes) {
   if (!sprite->LoadFromFile(path, palettes)) {
     LOG(ERROR) << "Failed to load sprite from " << path;
     return false;
@@ -603,51 +605,71 @@ bool LoadSpriteAndTexture(const char* path, int wrapMode, int magFilter, int min
     
     constexpr int pixelBorder = 1;
     
-    int chosenWidth = -1;
-    int chosenHeight = -1;
-    if (sprite->NumFrames() == 1) {
-      // Special case for a single frame: Use the sprite size (plus the border) directly as texture size.
-      Sprite::Frame::Layer& layer = ((graphicOrShadow == 0) ? sprite->frame(0).graphic : sprite->frame(0).shadow);
-      chosenWidth = layer.image.width() + 2 * pixelBorder;
-      chosenHeight = layer.image.height() + 2 * pixelBorder;
-    } else {
-      int textureSize = 2048;
-      int largestTooSmallSize = -1;
-      int smallestAcceptableSize = -1;
-      for (int attempt = 0; attempt < 8; ++ attempt) {
-        if (!atlas.BuildAtlas(textureSize, textureSize, nullptr, pixelBorder)) {
-          // The size is too small.
-          // LOG(INFO) << "Size " << textureSize << " is too small.";
-          largestTooSmallSize = textureSize;
-          if (smallestAcceptableSize >= 0) {
-            textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
-          } else {
-            textureSize = 2 * largestTooSmallSize;
-          }
-        } else {
-          // The size is large enough.
-          // LOG(INFO) << "Size " << textureSize << " is okay.";
-          smallestAcceptableSize = textureSize;
-          if (smallestAcceptableSize >= 0) {
-            textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
-          } else {
-            textureSize = smallestAcceptableSize / 2;
-          }
-        }
-      }
-      chosenWidth = smallestAcceptableSize;
-      chosenHeight = smallestAcceptableSize;
-    }
-    if (chosenWidth <= 0 || chosenHeight <= 0) {
-      LOG(ERROR) << "Unable to find a texture size which all animation frames can be packed into.";
-      return false;
+    std::string cacheFilePath = std::string(cachePath) + ((graphicOrShadow == 0) ? ".graphic" : ".shadow");
+    bool loaded = false;
+    if (std::filesystem::exists(cacheFilePath)) {
+      // Attempt to load the atlas from the cache.
+      // TODO: Add some mechanism which discards the cache in case the sprite file has changed
+      loaded = atlas.Load(cacheFilePath.c_str(), sprite->NumFrames());
     }
     
-    LOG(INFO) << "Atlas for " << path << " uses size: " << chosenWidth << " x " << chosenHeight;
-    QImage atlasImage;
-    if (!atlas.BuildAtlas(chosenWidth, chosenHeight, &atlasImage, pixelBorder)) {
-      LOG(ERROR) << "Unexpected error while building an atlas image.";
+    if (!loaded) {
+      int chosenWidth = -1;
+      int chosenHeight = -1;
+      if (sprite->NumFrames() == 1) {
+        // Special case for a single frame: Use the sprite size (plus the border) directly as texture size.
+        Sprite::Frame::Layer& layer = ((graphicOrShadow == 0) ? sprite->frame(0).graphic : sprite->frame(0).shadow);
+        chosenWidth = layer.image.width() + 2 * pixelBorder;
+        chosenHeight = layer.image.height() + 2 * pixelBorder;
+      } else {
+        int textureSize = 2048;
+        int largestTooSmallSize = -1;
+        int smallestAcceptableSize = -1;
+        for (int attempt = 0; attempt < 8; ++ attempt) {
+          if (!atlas.BuildAtlas(textureSize, textureSize, pixelBorder)) {
+            // The size is too small.
+            // LOG(INFO) << "Size " << textureSize << " is too small.";
+            largestTooSmallSize = textureSize;
+            if (smallestAcceptableSize >= 0) {
+              textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+            } else {
+              textureSize = 2 * largestTooSmallSize;
+            }
+          } else {
+            // The size is large enough.
+            // LOG(INFO) << "Size " << textureSize << " is okay.";
+            smallestAcceptableSize = textureSize;
+            if (smallestAcceptableSize >= 0) {
+              textureSize = (largestTooSmallSize + smallestAcceptableSize) / 2;
+            } else {
+              textureSize = smallestAcceptableSize / 2;
+            }
+          }
+        }
+        chosenWidth = smallestAcceptableSize;
+        chosenHeight = smallestAcceptableSize;
+      }
+      if (chosenWidth <= 0 || chosenHeight <= 0) {
+        LOG(ERROR) << "Unable to find a texture size which all animation frames can be packed into.";
+        return false;
+      }
+      LOG(INFO) << "Atlas for " << path << " uses size: " << chosenWidth << " x " << chosenHeight;
+      
+      if (!atlas.BuildAtlas(chosenWidth, chosenHeight, pixelBorder)) {
+        LOG(ERROR) << "Unexpected error while building an atlas image (1).";
+        return false;
+      }
+    }
+    
+    QImage atlasImage = atlas.RenderAtlas();
+    if (atlasImage.isNull()) {
+      LOG(ERROR) << "Unexpected error while building an atlas image (2).";
       return false;
+    }
+    if (!loaded) {
+      if (!atlas.Save(cacheFilePath.c_str())) {
+        LOG(WARNING) << "Failed to save atlas cache file: " << cacheFilePath;
+      }
     }
     
     // Transfer the atlasImage to the GPU

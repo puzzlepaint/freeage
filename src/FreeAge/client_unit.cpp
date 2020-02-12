@@ -3,7 +3,7 @@
 #include "FreeAge/logging.h"
 #include "FreeAge/map.h"
 
-bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPath, const Palettes& palettes) {
+bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes) {
   animations.resize(static_cast<int>(UnitAnimation::NumAnimationTypes));
   
   // TODO: Automatically check how many animations (A, B) for each type are available.
@@ -12,16 +12,16 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   switch (type) {
   case UnitType::FemaleVillager:
     animations[static_cast<int>(UnitAnimation::Idle)].resize(1);
-    ok = ok && LoadAnimation(0, "u_vil_female_villager_idleA_x1.smx", graphicsPath, palettes, UnitAnimation::Idle);
+    ok = ok && LoadAnimation(0, "u_vil_female_villager_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
     break;
   case UnitType::MaleVillager:
     animations[static_cast<int>(UnitAnimation::Idle)].resize(1);
-    ok = ok && LoadAnimation(0, "u_vil_male_villager_idleA_x1.smx", graphicsPath, palettes, UnitAnimation::Idle);
+    ok = ok && LoadAnimation(0, "u_vil_male_villager_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
     break;
   case UnitType::Scout:
     animations[static_cast<int>(UnitAnimation::Idle)].resize(2);
-    ok = ok && LoadAnimation(0, "u_cav_scout_idleA_x1.smx", graphicsPath, palettes, UnitAnimation::Idle);
-    ok = ok && LoadAnimation(1, "u_cav_scout_idleB_x1.smx", graphicsPath, palettes, UnitAnimation::Idle);
+    ok = ok && LoadAnimation(0, "u_cav_scout_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
+    ok = ok && LoadAnimation(1, "u_cav_scout_idleB_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
     break;
   case UnitType::NumUnits:
     LOG(ERROR) << "Invalid unit type in ClientUnitType constructor: " << static_cast<int>(type);
@@ -32,12 +32,13 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   return ok;
 }
 
-bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const Palettes& palettes, UnitAnimation type) {
+bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes, UnitAnimation type) {
   std::vector<SpriteAndTextures>& animationVector = animations[static_cast<int>(type)];
   SpriteAndTextures& item = animationVector[index];
   
   return LoadSpriteAndTexture(
       (graphicsPath / filename).c_str(),
+      (cachePath / filename).c_str(),
       GL_CLAMP,
       GL_LINEAR,
       GL_LINEAR,

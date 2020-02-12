@@ -73,7 +73,7 @@ class Sprite {
 
 /// Convenience function which loads a sprite and creates a texture atlas (just) for it.
 /// Attempts to find a good texture size automatically.
-bool LoadSpriteAndTexture(const char* path, int wrapMode, int magFilter, int minFilter, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes);
+bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode, int magFilter, int minFilter, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes);
 
 void DrawSprite(
     const Sprite& sprite,

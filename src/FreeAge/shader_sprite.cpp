@@ -54,7 +54,7 @@ SpriteShader::SpriteShader(bool shadow) {
         "uniform sampler2D u_texture;\n"
         "\n"
         "void main() {\n"
-        "  out_color = vec4(0, 0, 0, texture(u_texture, texcoord.xy).r);\n"
+        "  out_color = vec4(0, 0, 0, 1.5 * texture(u_texture, texcoord.xy).r);\n"  // TODO: Magic factor 1.5 makes it look nicer (darker shadows)
         "}\n",
         ShaderProgram::ShaderType::kFragmentShader));
   } else {

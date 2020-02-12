@@ -10,12 +10,18 @@ using namespace rbp;
 SpriteAtlas::SpriteAtlas(Mode mode)
     : mode(mode) {}
 
+SpriteAtlas::~SpriteAtlas() {}
+
 void SpriteAtlas::AddSprite(Sprite* sprite) {
   sprites.push_back(sprite);
 }
 
-bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage, int borderPixels) {
+bool SpriteAtlas::BuildAtlas(int width, int height, int borderPixels) {
   Timer packTimer("SpriteAtlas::BuildAtlas packing");
+  
+  atlasWidth = width;
+  atlasHeight = height;
+  atlasBorderPixels = borderPixels;
   
   // TODO: Should we allow flipping? It is currently not implemented for texture coordinate setting in rendering.
   MaxRectsBinPack packer(width, height, /*allowFlip*/ false);
@@ -41,36 +47,85 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage, int bord
     }
   }
   
-  std::vector<Rect> packedRects;
-  std::vector<int> packedRectIndices;
+  packedRects.clear();
+  packedRectIndices.clear();
   // TODO: Choose the packing rule that is best.
   //       RectBottomLeftRule is much faster than RectBestShortSideFit, so it is more convenient for testing, unless we cache the results.
   packer.Insert(rects, packedRects, packedRectIndices, MaxRectsBinPack::RectBottomLeftRule);  // RectBestShortSideFit
   packTimer.Stop();
-  if (!rects.empty()) {
-    // Not all rects could be added because they did not fit into the specified area.
+  return rects.empty();
+}
+
+bool SpriteAtlas::Save(const char* path) {
+  FILE* file = fopen(path, "wb");
+  if (!file) {
     return false;
   }
   
-  // If no output image is given, return true to signal that the images fit into the given atlas size.
-  if (!atlasImage) {
-    return true;
+  fwrite(&atlasWidth, sizeof(int), 1, file);
+  fwrite(&atlasHeight, sizeof(int), 1, file);
+  fwrite(&atlasBorderPixels, sizeof(int), 1, file);
+  int numRects = packedRects.size();
+  fwrite(&numRects, sizeof(int), 1, file);
+  
+  for (int i = 0; i < numRects; ++ i) {
+    const rbp::Rect& rect = packedRects[i];
+    fwrite(&rect.x, sizeof(int), 1, file);
+    fwrite(&rect.y, sizeof(int), 1, file);
+    fwrite(&rect.width, sizeof(int), 1, file);
+    fwrite(&rect.height, sizeof(int), 1, file);
+    fwrite(&packedRectIndices[i], sizeof(int), 1, file);
   }
   
+  fclose(file);
+  return true;
+}
+
+bool SpriteAtlas::Load(const char* path, int expectedNumRects) {
+  FILE* file = fopen(path, "rb");
+  if (!file) {
+    return false;
+  }
+  
+  if (fread(&atlasWidth, sizeof(int), 1, file) != 1) { fclose(file); return false; }
+  if (fread(&atlasHeight, sizeof(int), 1, file) != 1) { fclose(file); return false; }
+  if (fread(&atlasBorderPixels, sizeof(int), 1, file) != 1) { fclose(file); return false; }
+  int numRects;
+  if (fread(&numRects, sizeof(int), 1, file) != 1) { fclose(file); return false; }
+  if (numRects != expectedNumRects) {
+    return false;
+  }
+  packedRects.resize(numRects);
+  packedRectIndices.resize(numRects);
+  
+  for (int i = 0; i < numRects; ++ i) {
+    rbp::Rect& rect = packedRects[i];
+    if (fread(&rect.x, sizeof(int), 1, file) != 1) { fclose(file); return false; }
+    if (fread(&rect.y, sizeof(int), 1, file) != 1) { fclose(file); return false; }
+    if (fread(&rect.width, sizeof(int), 1, file) != 1) { fclose(file); return false; }
+    if (fread(&rect.height, sizeof(int), 1, file) != 1) { fclose(file); return false; }
+    if (fread(&packedRectIndices[i], sizeof(int), 1, file) != 1) { fclose(file); return false; }
+  }
+  
+  fclose(file);
+  return true;
+}
+
+QImage SpriteAtlas::RenderAtlas() {
   Timer paintTimer("SpriteAtlas::BuildAtlas rendering");
   
   // Invert packedRectIndices
-  std::vector<int> originalToPackedIndex(numRects);
+  std::vector<int> originalToPackedIndex(packedRects.size());
   for (std::size_t i = 0; i < packedRectIndices.size(); ++ i) {
     originalToPackedIndex[packedRectIndices[i]] = i;
   }
   
   // Draw all images into their assigned rects.
-  QImage atlas(width, height, (mode == Mode::Graphic) ? QImage::Format_ARGB32 : QImage::Format_Grayscale8);
+  QImage atlas(atlasWidth, atlasHeight, (mode == Mode::Graphic) ? QImage::Format_ARGB32 : QImage::Format_Grayscale8);
   // Clear the atlas to have clean borders around the sprites
   atlas.fill(qRgba(0, 0, 0, 0));  // this sets the values to 0 for QImage::Format_Grayscale8.
   
-  index = 0;
+  int index = 0;
   for (Sprite* sprite : sprites) {
     for (int frameIdx = 0; frameIdx < sprite->NumFrames(); ++ frameIdx) {
       Sprite::Frame::Layer& layer =
@@ -80,11 +135,11 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage, int bord
       QImage& image = layer.image;
       const Rect& packedRect = packedRects[originalToPackedIndex[index]];
       
-      layer.atlasX = packedRect.x + borderPixels;
-      layer.atlasY = packedRect.y + borderPixels;
+      layer.atlasX = packedRect.x + atlasBorderPixels;
+      layer.atlasY = packedRect.y + atlasBorderPixels;
       
-      int packedWidthWithoutBorder = packedRect.width - 2 * borderPixels;
-      int packedHeightWithoutBorder = packedRect.height - 2 * borderPixels;
+      int packedWidthWithoutBorder = packedRect.width - 2 * atlasBorderPixels;
+      int packedHeightWithoutBorder = packedRect.height - 2 * atlasBorderPixels;
       
       if (packedWidthWithoutBorder == image.width() && packedHeightWithoutBorder == image.height()) {
         layer.rotated = false;
@@ -120,8 +175,8 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage, int bord
         }
       } else {
         // Something went wrong.
-        LOG(ERROR) << "Internal error of SpriteAtlas::BuildAtlas(): The size of the rect assigned to a sprite frame is incorrect.";
-        return false;
+        LOG(ERROR) << "Internal error: The size of the rect assigned to a sprite frame is incorrect.";
+        return QImage();
       }
       
       // Unload the sprite image since it should not be needed anymore.
@@ -176,6 +231,5 @@ bool SpriteAtlas::BuildAtlas(int width, int height, QImage* atlasImage, int bord
     }
   }
   
-  *atlasImage = atlas;
-  return true;
+  return atlas;
 }

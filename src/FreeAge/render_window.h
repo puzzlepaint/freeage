@@ -17,7 +17,7 @@ typedef Clock::time_point TimePoint;
 class RenderWindow : public QOpenGLWidget {
  Q_OBJECT
  public:
-  RenderWindow(const Palettes& palettes, const std::filesystem::path& graphicsPath, QWidget* parent = nullptr);
+  RenderWindow(const Palettes& palettes, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, QWidget* parent = nullptr);
   ~RenderWindow();
   
   void SetMap(Map* map);
@@ -88,4 +88,5 @@ class RenderWindow : public QOpenGLWidget {
   
   const Palettes& palettes;
   const std::filesystem::path& graphicsPath;
+  const std::filesystem::path& cachePath;
 };
