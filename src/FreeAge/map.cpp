@@ -191,22 +191,22 @@ bool Map::ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCo
 }
 
 
-void Map::GenerateRandomMap() {
+void Map::GenerateRandomMap(const std::vector<ClientBuildingType>& buildingTypes) {
   // Generate town centers
   // TODO: Currently we randomly determine the leftmost tile; use the center instead for even distribution
   QPoint townCenterLocations[2];
   townCenterLocations[0] = QPoint(1 * width / 4 + (rand() % (width / 8)),
                                   1 * width / 4 + (rand() % (width / 8)));
-  AddBuilding(0, BuildingType::TownCenter, townCenterLocations[0].x(), townCenterLocations[0].y());
+  AddBuilding(0, BuildingType::TownCenter, townCenterLocations[0].x(), townCenterLocations[0].y(), buildingTypes);
   townCenterLocations[1] = QPoint(3 * width / 4 + (rand() % (width / 8)),
                                   3 * width / 4 + (rand() % (width / 8)));
-  AddBuilding(1, BuildingType::TownCenter, townCenterLocations[1].x(), townCenterLocations[1].y());
+  AddBuilding(1, BuildingType::TownCenter, townCenterLocations[1].x(), townCenterLocations[1].y(), buildingTypes);
   
   townCenterCenters.resize(2);
   for (int player = 0; player < 2; ++ player) {
     townCenterCenters[player] = QPointF(
-        townCenterLocations[player].x() + 0.5f * GetBuildingSize(BuildingType::TownCenter).width(),
-        townCenterLocations[player].y() + 0.5f * GetBuildingSize(BuildingType::TownCenter).height());
+        townCenterLocations[player].x() + 0.5f * buildingTypes[static_cast<int>(BuildingType::TownCenter)].GetSize().width(),
+        townCenterLocations[player].y() + 0.5f * buildingTypes[static_cast<int>(BuildingType::TownCenter)].GetSize().height());
   }
   
   auto getRandomLocation = [&](float minDistanceToTCs, int* tileX, int* tileY) {
@@ -267,7 +267,7 @@ retryForest:  // TODO: Ugly implementation, improve this
           int diffY = y - tileY;
           float radius = sqrtf(diffX * diffX + diffY * diffY);
           if (radius <= forestRadius && !occupiedAt(x, y)) {
-            AddBuilding(-1, BuildingType::TreeOak, x, y);
+            AddBuilding(-1, BuildingType::TreeOak, x, y, buildingTypes);
           }
         }
       }
@@ -331,12 +331,12 @@ retryForest:  // TODO: Ugly implementation, improve this
   }
 }
 
-void Map::AddBuilding(int player, BuildingType type, int baseTileX, int baseTileY) {
+void Map::AddBuilding(int player, BuildingType type, int baseTileX, int baseTileY, const std::vector<ClientBuildingType>& buildingTypes) {
   // Insert into buildings map
   buildings.insert(std::make_pair(nextBuildingID++, ClientBuilding(player, type, baseTileX, baseTileY)));
   
   // Mark the occupied tiles as such
-  QSize size = GetBuildingSize(type);
+  QSize size = buildingTypes[static_cast<int>(type)].GetSize();
   for (int y = baseTileY; y < baseTileY + size.height(); ++ y) {
     for (int x = baseTileX; x < baseTileX + size.width(); ++ x) {
       occupiedAt(x, y) = true;
@@ -565,9 +565,7 @@ void Map::LoadRenderResources() {
 void Map::Render(
     float* viewMatrix,
     const std::vector<ClientUnitType>& unitTypes,
-    const std::vector<Sprite>& buildingSprites,
-    const std::vector<Texture>& buildingTextures,
-    const std::vector<Texture>& buildingShadowTextures,
+    const std::vector<ClientBuildingType>& buildingTypes,
     const std::vector<QRgb>& playerColors,
     SpriteShader* shadowShader,
     SpriteShader* spriteShader,
@@ -606,21 +604,20 @@ void Map::Render(
   
   for (auto& buildingEntry : buildings) {
     ClientBuilding& building = buildingEntry.second;
-    if (!buildingSprites[static_cast<int>(building.GetType())].HasShadow()) {
+    if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasShadow()) {
       continue;
     }
     
     QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
         this,
-        buildingSprites,
+        buildingTypes,
         elapsedSeconds,
         true,
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
       building.Render(
           this,
-          buildingSprites,
-          buildingShadowTextures,  // using the shadow texture here
+          buildingTypes,  // using the shadow texture here
           playerColors,
           shadowShader,
           spritePointBuffer,
@@ -702,7 +699,7 @@ void Map::Render(
     
     QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
         this,
-        buildingSprites,
+        buildingTypes,
         elapsedSeconds,
         false,
         false);
@@ -710,8 +707,7 @@ void Map::Render(
       // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
       building.Render(
           this,
-          buildingSprites,
-          buildingTextures,
+          buildingTypes,
           playerColors,
           spriteShader,
           spritePointBuffer,
@@ -765,14 +761,14 @@ void Map::Render(
   // TODO: Does any building have an outline? Or can we delete this?
   for (auto& buildingEntry : buildings) {
     ClientBuilding& building = buildingEntry.second;
-    if (!buildingSprites[static_cast<int>(building.GetType())].HasOutline()) {
+    if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasOutline()) {
       continue;
     }
     LOG(WARNING) << "DEBUG: Buildings with outline exist!";
     
     QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
         this,
-        buildingSprites,
+        buildingTypes,
         elapsedSeconds,
         false,
         true);
@@ -780,8 +776,7 @@ void Map::Render(
       // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
       building.Render(
           this,
-          buildingSprites,
-          buildingTextures,
+          buildingTypes,
           playerColors,
           outlineShader,
           spritePointBuffer,

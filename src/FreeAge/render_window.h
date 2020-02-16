@@ -20,8 +20,6 @@ class RenderWindow : public QOpenGLWidget {
   RenderWindow(const Palettes& palettes, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, QWidget* parent = nullptr);
   ~RenderWindow();
   
-  void SetMap(Map* map);
-  
   /// Scrolls the given map coordinates by the given amount in projected coordinates.
   void Scroll(float x, float y, QPointF* mapCoord);
   
@@ -88,11 +86,7 @@ class RenderWindow : public QOpenGLWidget {
   std::vector<QRgb> playerColors;
   
   std::vector<ClientUnitType> unitTypes;
-  
-  // TODO: Group all of this together as ClientBuildingType, just like for units
-  std::vector<Sprite> buildingSprites;
-  std::vector<Texture> buildingTextures;
-  std::vector<Texture> buildingShadowTextures;
+  std::vector<ClientBuildingType> buildingTypes;
   
   const Palettes& palettes;
   const std::filesystem::path& graphicsPath;

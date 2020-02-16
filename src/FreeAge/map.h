@@ -68,10 +68,10 @@ class Map {
   
   
   /// For testing, generates some kind of random map.
-  void GenerateRandomMap();
+  void GenerateRandomMap(const std::vector<ClientBuildingType>& buildingTypes);
   
   /// Adds a building to the map.
-  void AddBuilding(int player, BuildingType type, int baseTileX, int baseTileY);
+  void AddBuilding(int player, BuildingType type, int baseTileX, int baseTileY, const std::vector<ClientBuildingType>& buildingTypes);
   
   /// Sets the given tile's elevation to the given value,
   /// while ensuring that the maximum slope of 1 is not exceeded
@@ -84,9 +84,7 @@ class Map {
   void Render(
       float* viewMatrix,
       const std::vector<ClientUnitType>& unitTypes,
-      const std::vector<Sprite>& buildingSprites,
-      const std::vector<Texture>& buildingTextures,
-      const std::vector<Texture>& buildingShadowTextures,
+      const std::vector<ClientBuildingType>& buildingTypes,
       const std::vector<QRgb>& playerColors,
       SpriteShader* shadowShader,
       SpriteShader* spriteShader,

@@ -71,14 +71,8 @@ int main(int argc, char** argv) {
     return 1;
   }
   
-  // Generate a map
-  Map* testMap = new Map(50, 50);
-  testMap->GenerateRandomMap();
-  
   // Create an OpenGL render window using Qt
   RenderWindow renderWindow(palettes, graphicsPath, cachePath);
-  renderWindow.SetMap(testMap);  // transferring ownership
-  renderWindow.SetScroll(testMap->GetTownCenterLocation(0));
   renderWindow.show();
   
   // Run the Qt event loop

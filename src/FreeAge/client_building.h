@@ -29,9 +29,30 @@ enum class BuildingType {
   NumBuildings
 };
 
-QSize GetBuildingSize(BuildingType type);
-QString GetBuildingFilename(BuildingType type);
-bool BuildingUsesRandomSpriteFrame(BuildingType type);
+
+/// Stores client-side data for building types (i.e., their graphics).
+class ClientBuildingType {
+ public:
+  ClientBuildingType() = default;
+  
+  bool Load(BuildingType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes);
+  
+  QSize GetSize() const;
+  bool UsesRandomSpriteFrame() const;
+  
+  inline const Sprite& GetSprite() const { return sprite; }
+  inline const Texture& GetTexture() const { return texture; }
+  inline const Texture& GetShadowTexture() const { return shadowTexture; }
+  
+ private:
+  QString GetFilename() const;
+  
+  BuildingType type;
+  
+  Sprite sprite;
+  Texture texture;
+  Texture shadowTexture;
+};
 
 
 /// Represents a building on the client side.
@@ -43,15 +64,14 @@ class ClientBuilding {
   /// If shadow is true, returns the rectangle for the shadow sprite.
   QRectF GetRectInProjectedCoords(
       Map* map,
-      const std::vector<Sprite>& buildingSprites,
+      const std::vector<ClientBuildingType>& buildingTypes,
       double elapsedSeconds,
       bool shadow,
       bool outline);
   
   void Render(
       Map* map,
-      const std::vector<Sprite>& buildingSprites,
-      const std::vector<Texture>& buildingTextures,
+      const std::vector<ClientBuildingType>& buildingTypes,
       const std::vector<QRgb>& playerColors,
       SpriteShader* spriteShader,
       GLuint pointBuffer,
@@ -68,7 +88,10 @@ class ClientBuilding {
   inline QPoint GetBaseTile() const { return QPoint(baseTileX, baseTileY); }
   
  private:
-  int GetFrameIndex(const Sprite& sprite, double elapsedSeconds);
+  int GetFrameIndex(
+      const ClientBuildingType& buildingType,
+      const Sprite& sprite,
+      double elapsedSeconds);
   
   
   int playerIndex;

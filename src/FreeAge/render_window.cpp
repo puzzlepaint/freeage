@@ -52,15 +52,9 @@ RenderWindow::~RenderWindow() {
     delete map;
   }
   unitTypes.clear();
-  buildingShadowTextures.clear();
-  buildingTextures.clear();
-  buildingSprites.clear();
+  buildingTypes.clear();
   playerColorsTexture.reset();
   doneCurrent();
-}
-
-void RenderWindow::SetMap(Map* map) {
-  this->map = map;
 }
 
 void RenderWindow::Scroll(float x, float y, QPointF* mapCoord) {
@@ -173,29 +167,12 @@ void RenderWindow::initializeGL() {
   }
   
   // Load building resources.
-  int numBuildingTypes = static_cast<int>(BuildingType::NumBuildings);
-  buildingSprites.resize(numBuildingTypes);
-  buildingTextures.resize(numBuildingTypes);
-  buildingShadowTextures.resize(numBuildingTypes);
+  buildingTypes.resize(static_cast<int>(BuildingType::NumBuildings));
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
-    if (!LoadSpriteAndTexture(
-        (graphicsPath / GetBuildingFilename(static_cast<BuildingType>(buildingType)).toStdString()).c_str(),
-        (cachePath / GetBuildingFilename(static_cast<BuildingType>(buildingType)).toStdString()).c_str(),
-        GL_CLAMP,
-        GL_NEAREST,
-        GL_NEAREST,
-        &buildingSprites[buildingType],
-        &buildingTextures[buildingType],
-        &buildingShadowTextures[buildingType],
-        palettes)) {
+    if (!buildingTypes[buildingType].Load(static_cast<BuildingType>(buildingType), graphicsPath, cachePath, palettes)) {
       LOG(ERROR) << "Exiting because of a resource load error for building " << buildingType << ".";
       exit(1);  // TODO: Exit gracefully
     }
-  }
-  
-  // Load map resources.
-  if (map) {
-    map->LoadRenderResources();
   }
   
   // Create a buffer containing a single point for sprite rendering
@@ -209,6 +186,12 @@ void RenderWindow::initializeGL() {
   
   // Output timings of the resource loading processes.
   Timing::print(std::cout);
+  
+  // Generate a map
+  map = new Map(50, 50);
+  map->GenerateRandomMap(buildingTypes);
+  SetScroll(map->GetTownCenterLocation(0));
+  map->LoadRenderResources();
   
   // Remember the game start time.
   gameStartTime = Clock::now();
@@ -272,9 +255,7 @@ void RenderWindow::paintGL() {
   map->Render(
       viewMatrix,
       unitTypes,
-      buildingSprites,
-      buildingTextures,
-      buildingShadowTextures,
+      buildingTypes,
       playerColors,
       shadowShader.get(),
       spriteShader.get(),

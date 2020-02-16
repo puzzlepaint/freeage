@@ -4,7 +4,22 @@
 #include "FreeAge/map.h"
 #include "FreeAge/opengl.h"
 
-QSize GetBuildingSize(BuildingType type) {
+bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes) {
+  this->type = type;
+  
+  return LoadSpriteAndTexture(
+      (graphicsPath / GetFilename().toStdString()).c_str(),
+      (cachePath / GetFilename().toStdString()).c_str(),
+      GL_CLAMP,
+      GL_NEAREST,
+      GL_NEAREST,
+      &sprite,
+      &texture,
+      &shadowTexture,
+      palettes);
+}
+
+QSize ClientBuildingType::GetSize() const {
   // TODO: Load this from some data file?
   
   if (static_cast<int>(type) >= static_cast<int>(BuildingType::FirstTree) &&
@@ -25,7 +40,7 @@ QSize GetBuildingSize(BuildingType type) {
   return QSize(0, 0);
 }
 
-QString GetBuildingFilename(BuildingType type) {
+QString ClientBuildingType::GetFilename() const {
   // TODO: Load this from some data file?
   
   switch (type) {
@@ -44,10 +59,11 @@ QString GetBuildingFilename(BuildingType type) {
   return QString();
 }
 
-bool BuildingUsesRandomSpriteFrame(BuildingType type) {
+bool ClientBuildingType::UsesRandomSpriteFrame() const {
   return (static_cast<int>(type) >= static_cast<int>(BuildingType::FirstTree) &&
           static_cast<int>(type) <= static_cast<int>(BuildingType::LastTree));
 }
+
 
 ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY)
     : playerIndex(playerIndex),
@@ -58,17 +74,19 @@ ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX
 
 QRectF ClientBuilding::GetRectInProjectedCoords(
     Map* map,
-    const std::vector<Sprite>& buildingSprites,
+    const std::vector<ClientBuildingType>& buildingTypes,
     double elapsedSeconds,
     bool shadow,
     bool outline) {
-  const Sprite& sprite = buildingSprites[static_cast<int>(type)];
+  const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
-  QSize size = GetBuildingSize(type);
+  const Sprite& sprite = buildingType.GetSprite();
+  
+  QSize size = buildingType.GetSize();
   QPointF centerMapCoord = QPointF(baseTileX + 0.5f * size.width(), baseTileY + 0.5f * size.height());
   QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(centerMapCoord);
   
-  int frameIndex = GetFrameIndex(sprite, elapsedSeconds);
+  int frameIndex = GetFrameIndex(buildingType, sprite, elapsedSeconds);
   
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameIndex).shadow : sprite.frame(frameIndex).graphic;
   bool isGraphic = !shadow && !outline;
@@ -81,8 +99,7 @@ QRectF ClientBuilding::GetRectInProjectedCoords(
 
 void ClientBuilding::Render(
     Map* map,
-    const std::vector<Sprite>& buildingSprites,
-    const std::vector<Texture>& buildingTextures,
+    const std::vector<ClientBuildingType>& buildingTypes,
     const std::vector<QRgb>& playerColors,
     SpriteShader* spriteShader,
     GLuint pointBuffer,
@@ -93,37 +110,42 @@ void ClientBuilding::Render(
     double elapsedSeconds,
     bool shadow,
     bool outline) {
-  const Sprite& sprite = buildingSprites[static_cast<int>(type)];
-  const Texture& texture = buildingTextures[static_cast<int>(type)];
+  const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
-  QSize size = GetBuildingSize(type);
+  const Sprite& sprite = buildingType.GetSprite();
+  const Texture& texture = shadow ? buildingType.GetShadowTexture() : buildingType.GetTexture();
+  
+  QSize size = buildingType.GetSize();
   QPointF centerMapCoord = QPointF(baseTileX + 0.5f * size.width(), baseTileY + 0.5f * size.height());
   QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(centerMapCoord);
   
-  int frameIndex = GetFrameIndex(sprite, elapsedSeconds);
+  int frameIndex = GetFrameIndex(buildingType, sprite, elapsedSeconds);
   
   if (type == BuildingType::TownCenter) {
     // Special case for town centers: Render all of their separate parts.
     // Main
+    const ClientBuildingType& helperType1 = buildingTypes[static_cast<int>(BuildingType::TownCenterMain)];
     DrawSprite(
-        buildingSprites[static_cast<int>(BuildingType::TownCenterMain)],
-        buildingTextures[static_cast<int>(BuildingType::TownCenterMain)],
+        helperType1.GetSprite(),
+        shadow ? helperType1.GetShadowTexture() : helperType1.GetTexture(),
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
         playerColors, playerIndex);
     
     // Back
+    const ClientBuildingType& helperType2 = buildingTypes[static_cast<int>(BuildingType::TownCenterBack)];
     DrawSprite(
-        buildingSprites[static_cast<int>(BuildingType::TownCenterBack)],
-        buildingTextures[static_cast<int>(BuildingType::TownCenterBack)],
+        helperType2.GetSprite(),
+        shadow ? helperType2.GetShadowTexture() : helperType2.GetTexture(),
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
         playerColors, playerIndex);
     
     // Center
+    const ClientBuildingType& helperType3 = buildingTypes[static_cast<int>(BuildingType::TownCenterCenter)];
     DrawSprite(
-        buildingSprites[static_cast<int>(BuildingType::TownCenterCenter)],
-        buildingTextures[static_cast<int>(BuildingType::TownCenterCenter)],
+        helperType3.GetSprite(),
+        shadow ? helperType3.GetShadowTexture() : helperType3.GetTexture(),
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
         playerColors, playerIndex);
@@ -147,17 +169,21 @@ void ClientBuilding::Render(
   
   if (type == BuildingType::TownCenter) {
     // Front
+    const ClientBuildingType& helperType4 = buildingTypes[static_cast<int>(BuildingType::TownCenterFront)];
     DrawSprite(
-        buildingSprites[static_cast<int>(BuildingType::TownCenterFront)],
-        buildingTextures[static_cast<int>(BuildingType::TownCenterFront)],
+        helperType4.GetSprite(),
+        shadow ? helperType4.GetShadowTexture() : helperType4.GetTexture(),
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
         playerColors, playerIndex);
   }
 }
 
-int ClientBuilding::GetFrameIndex(const Sprite& sprite, double elapsedSeconds) {
-  if (BuildingUsesRandomSpriteFrame(type)) {
+int ClientBuilding::GetFrameIndex(
+    const ClientBuildingType& buildingType,
+    const Sprite& sprite,
+    double elapsedSeconds) {
+  if (buildingType.UsesRandomSpriteFrame()) {
     if (fixedFrameIndex < 0) {
       fixedFrameIndex = rand() % sprite.NumFrames();
     }
