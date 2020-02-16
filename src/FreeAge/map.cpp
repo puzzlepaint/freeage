@@ -3,6 +3,7 @@
 #include <mango/image/image.hpp>
 
 #include "FreeAge/free_age.h"
+#include "FreeAge/health_bar.h"
 #include "FreeAge/logging.h"
 #include "FreeAge/opengl.h"
 
@@ -302,7 +303,7 @@ retryForest:  // TODO: Ugly implementation, improve this
         if (spawnLocTileX < 0 || spawnLocTileY < 0 ||
             spawnLocTileX >= width || spawnLocTileY >= height ||
             !occupiedAt(spawnLocTileX, spawnLocTileY)) {
-          units.insert(std::make_pair(nextUnitID++, ClientUnit(player, (rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, spawnLoc)));
+          units.insert(std::make_pair(nextObjectID++, ClientUnit(player, (rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, spawnLoc)));
           break;
         }
       }
@@ -324,7 +325,7 @@ retryForest:  // TODO: Ugly implementation, improve this
       if (spawnLocTileX < 0 || spawnLocTileY < 0 ||
           spawnLocTileX >= width || spawnLocTileY >= height ||
           !occupiedAt(spawnLocTileX, spawnLocTileY)) {
-        units.insert(std::make_pair(nextUnitID++, ClientUnit(player, UnitType::Scout, spawnLoc)));
+        units.insert(std::make_pair(nextObjectID++, ClientUnit(player, UnitType::Scout, spawnLoc)));
         break;
       }
     }
@@ -333,7 +334,7 @@ retryForest:  // TODO: Ugly implementation, improve this
 
 void Map::AddBuilding(int player, BuildingType type, int baseTileX, int baseTileY, const std::vector<ClientBuildingType>& buildingTypes) {
   // Insert into buildings map
-  buildings.insert(std::make_pair(nextBuildingID++, ClientBuilding(player, type, baseTileX, baseTileY)));
+  buildings.insert(std::make_pair(nextObjectID++, ClientBuilding(player, type, baseTileX, baseTileY)));
   
   // Mark the occupied tiles as such
   QSize size = buildingTypes[static_cast<int>(type)].GetSize();
@@ -524,6 +525,7 @@ void Map::LoadRenderResources() {
   CHECK_OPENGL_NO_ERROR();
   
   // Create shader program
+  // TODO: Put into a file shader_terrain.cpp
   program.reset(new ShaderProgram());
   
   CHECK(program->AttachShader(
@@ -570,6 +572,7 @@ void Map::Render(
     SpriteShader* shadowShader,
     SpriteShader* spriteShader,
     SpriteShader* outlineShader,
+    HealthBarShader* healthBarShader,
     GLuint spritePointBuffer,
     float zoom,
     int widgetWidth,
@@ -790,7 +793,7 @@ void Map::Render(
     }
   }
   
-  // Render the units.
+  // Render the unit outlines.
   // TODO: Sort to minmize texture switches.
   for (auto& item : units) {
     ClientUnit& unit = item.second;
@@ -821,5 +824,79 @@ void Map::Render(
     }
   }
   
+  // Render health bars.
   f->glDepthMask(GL_TRUE);
+  f->glDepthFunc(GL_LEQUAL);
+  f->glClear(GL_DEPTH_BUFFER_BIT);
+  f->glDisable(GL_BLEND);
+  
+  QRgb gaiaColor = qRgb(255, 255, 255);
+  
+  // Render health bars for buildings.
+  for (auto& buildingEntry : buildings) {
+    // TODO: Only render the health bar if the building is selected
+    
+    ClientBuilding& building = buildingEntry.second;
+    const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
+    
+    QPointF centerProjectedCoord = building.GetCenterProjectedCoord(this, buildingTypes);
+    QPointF healthBarCenter =
+        centerProjectedCoord +
+        QPointF(0, -1 * buildingType.GetHealthBarHeightAboveCenter(building.GetFrameIndex(buildingType, elapsedSeconds)));
+    
+    constexpr float kHealthBarWidth = 60;  // TODO: Smaller bar for trees
+    constexpr float kHealthBarHeight = 3;
+    QRectF barRect(
+        std::round(healthBarCenter.x() - 0.5f * kHealthBarWidth),
+        std::round(healthBarCenter.y() - 0.5f * kHealthBarHeight),
+        kHealthBarWidth,
+        kHealthBarHeight);
+    if (barRect.intersects(projectedCoordsViewRect)) {
+      RenderHealthBar(
+          barRect,
+          centerProjectedCoord.y(),
+          1.f,  // TODO: Determine fill amount based on HP
+          (building.GetPlayerIndex() < 0) ? gaiaColor : playerColors[building.GetPlayerIndex()],
+          healthBarShader,
+          spritePointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight);
+    }
+  }
+  
+  // Render health bars for units.
+  for (auto& item : units) {
+    // TODO: Only render the health bar if the unit is selected
+    
+    ClientUnit& unit = item.second;
+    const ClientUnitType& unitType = unitTypes[static_cast<int>(unit.GetType())];
+    
+    QPointF centerProjectedCoord = unit.GetCenterProjectedCoord(this);
+    QPointF healthBarCenter =
+        centerProjectedCoord +
+        QPointF(0, -1 * unitType.GetHealthBarHeightAboveCenter());
+    
+    constexpr float kHealthBarWidth = 30;
+    constexpr float kHealthBarHeight = 3;
+    QRectF barRect(
+        std::round(healthBarCenter.x() - 0.5f * kHealthBarWidth),
+        std::round(healthBarCenter.y() - 0.5f * kHealthBarHeight),
+        kHealthBarWidth,
+        kHealthBarHeight);
+    if (barRect.intersects(projectedCoordsViewRect)) {
+      RenderHealthBar(
+          barRect,
+          centerProjectedCoord.y(),
+          1.f,  // TODO: Determine fill amount based on HP
+          (unit.GetPlayerIndex() < 0) ? gaiaColor : playerColors[unit.GetPlayerIndex()],
+          healthBarShader,
+          spritePointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight);
+    }
+  }
 }

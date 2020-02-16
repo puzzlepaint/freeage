@@ -7,7 +7,7 @@
 bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes) {
   this->type = type;
   
-  return LoadSpriteAndTexture(
+  if (!LoadSpriteAndTexture(
       (graphicsPath / GetFilename().toStdString()).c_str(),
       (cachePath / GetFilename().toStdString()).c_str(),
       GL_CLAMP,
@@ -16,7 +16,16 @@ bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& gr
       &sprite,
       &texture,
       &shadowTexture,
-      palettes);
+      palettes)) {
+    return false;
+  }
+  
+  maxCenterY = 0;
+  for (int frame = 0; frame < sprite.NumFrames(); ++ frame) {
+    maxCenterY = std::max(maxCenterY, sprite.frame(frame).graphic.centerY);
+  }
+  
+  return true;
 }
 
 QSize ClientBuildingType::GetSize() const {
@@ -64,6 +73,16 @@ bool ClientBuildingType::UsesRandomSpriteFrame() const {
           static_cast<int>(type) <= static_cast<int>(BuildingType::LastTree));
 }
 
+float ClientBuildingType::GetHealthBarHeightAboveCenter(int frameIndex) const {
+  constexpr float kHealthBarOffset = 25;
+  
+  if (UsesRandomSpriteFrame()) {
+    return sprite.frame(frameIndex).graphic.centerY + kHealthBarOffset;
+  } else {
+    return maxCenterY + kHealthBarOffset;
+  }
+}
+
 
 ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY)
     : playerIndex(playerIndex),
@@ -71,6 +90,16 @@ ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX
       fixedFrameIndex(-1),
       baseTileX(baseTileX),
       baseTileY(baseTileY) {}
+
+QPointF ClientBuilding::GetCenterProjectedCoord(
+    Map* map,
+    const std::vector<ClientBuildingType>& buildingTypes) {
+  const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
+  
+  QSize size = buildingType.GetSize();
+  QPointF centerMapCoord = QPointF(baseTileX + 0.5f * size.width(), baseTileY + 0.5f * size.height());
+  return map->MapCoordToProjectedCoord(centerMapCoord);
+}
 
 QRectF ClientBuilding::GetRectInProjectedCoords(
     Map* map,
@@ -81,12 +110,8 @@ QRectF ClientBuilding::GetRectInProjectedCoords(
   const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
   const Sprite& sprite = buildingType.GetSprite();
-  
-  QSize size = buildingType.GetSize();
-  QPointF centerMapCoord = QPointF(baseTileX + 0.5f * size.width(), baseTileY + 0.5f * size.height());
-  QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(centerMapCoord);
-  
-  int frameIndex = GetFrameIndex(buildingType, sprite, elapsedSeconds);
+  QPointF centerProjectedCoord = GetCenterProjectedCoord(map, buildingTypes);
+  int frameIndex = GetFrameIndex(buildingType, elapsedSeconds);
   
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameIndex).shadow : sprite.frame(frameIndex).graphic;
   bool isGraphic = !shadow && !outline;
@@ -112,14 +137,9 @@ void ClientBuilding::Render(
     bool outline) {
   const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
-  const Sprite& sprite = buildingType.GetSprite();
   const Texture& texture = shadow ? buildingType.GetShadowTexture() : buildingType.GetTexture();
-  
-  QSize size = buildingType.GetSize();
-  QPointF centerMapCoord = QPointF(baseTileX + 0.5f * size.width(), baseTileY + 0.5f * size.height());
-  QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(centerMapCoord);
-  
-  int frameIndex = GetFrameIndex(buildingType, sprite, elapsedSeconds);
+  QPointF centerProjectedCoord = GetCenterProjectedCoord(map, buildingTypes);
+  int frameIndex = GetFrameIndex(buildingType, elapsedSeconds);
   
   if (type == BuildingType::TownCenter) {
     // Special case for town centers: Render all of their separate parts.
@@ -152,7 +172,7 @@ void ClientBuilding::Render(
   }
   
   DrawSprite(
-      sprite,
+      buildingType.GetSprite(),
       texture,
       spriteShader,
       centerProjectedCoord,
@@ -181,15 +201,14 @@ void ClientBuilding::Render(
 
 int ClientBuilding::GetFrameIndex(
     const ClientBuildingType& buildingType,
-    const Sprite& sprite,
     double elapsedSeconds) {
   if (buildingType.UsesRandomSpriteFrame()) {
     if (fixedFrameIndex < 0) {
-      fixedFrameIndex = rand() % sprite.NumFrames();
+      fixedFrameIndex = rand() % buildingType.GetSprite().NumFrames();
     }
     return fixedFrameIndex;
   } else {
     float framesPerSecond = 30.f;
-    return static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % sprite.NumFrames();
+    return static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % buildingType.GetSprite().NumFrames();
   }
 }

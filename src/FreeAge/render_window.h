@@ -7,6 +7,7 @@
 
 #include "FreeAge/client_unit.h"
 #include "FreeAge/map.h"
+#include "FreeAge/shader_health_bar.h"
 #include "FreeAge/shader_sprite.h"
 #include "FreeAge/sprite.h"
 #include "FreeAge/texture.h"
@@ -76,6 +77,7 @@ class RenderWindow : public QOpenGLWidget {
   std::shared_ptr<SpriteShader> spriteShader;
   std::shared_ptr<SpriteShader> shadowShader;
   std::shared_ptr<SpriteShader> outlineShader;
+  std::shared_ptr<HealthBarShader> healthBarShader;
   
   // Resources.
   GLuint pointBuffer;

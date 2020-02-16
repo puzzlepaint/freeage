@@ -42,6 +42,8 @@ class ClientUnitType {
   
   bool Load(UnitType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes);
   
+  int GetHealthBarHeightAboveCenter() const;
+  
   inline const std::vector<SpriteAndTextures>& GetAnimations(UnitAnimation type) const { return animations[static_cast<int>(type)]; }
   
  private:
@@ -49,6 +51,10 @@ class ClientUnitType {
   
   /// Indexed by: [static_cast<int>(UnitAnimation animation)][animation_variant]
   std::vector<std::vector<SpriteAndTextures>> animations;
+  
+  /// The maximum centerY value of any graphic frame of this unit type in the idle animation(s) when facing right.
+  /// This can be used to determine a reasonable height for the unit's health bar.
+  int maxCenterY;
 };
 
 
@@ -56,6 +62,9 @@ class ClientUnitType {
 class ClientUnit {
  public:
   ClientUnit(int playerIndex, UnitType type, const QPointF& mapCoord);
+  
+  /// Returns the projected coordinates of this unit's center point.
+  QPointF GetCenterProjectedCoord(Map* map);
   
   /// Computes the sprite rectangle for this unit in projected coordinates.
   QRectF GetRectInProjectedCoords(
@@ -79,6 +88,7 @@ class ClientUnit {
       bool shadow,
       bool outline);
   
+  inline int GetPlayerIndex() const { return playerIndex; }
   inline UnitType GetType() const { return type; }
   inline UnitAnimation GetCurrentAnimation() const { return currentAnimation; }
   

@@ -48,6 +48,7 @@ RenderWindow::~RenderWindow() {
   spriteShader.reset();
   shadowShader.reset();
   outlineShader.reset();
+  healthBarShader.reset();
   if (map) {
     delete map;
   }
@@ -147,6 +148,7 @@ void RenderWindow::initializeGL() {
   spriteShader.reset(new SpriteShader(false, false));
   shadowShader.reset(new SpriteShader(true, false));
   outlineShader.reset(new SpriteShader(false, true));
+  healthBarShader.reset(new HealthBarShader());
   
   // Create player color palette texture.
   CreatePlayerColorPaletteTexture();
@@ -240,6 +242,9 @@ void RenderWindow::paintGL() {
   outlineShader->GetProgram()->UseProgram();
   outlineShader->GetProgram()->setUniformMatrix2fv(outlineShader->GetViewMatrixLocation(), viewMatrix);
   
+  healthBarShader->GetProgram()->UseProgram();
+  healthBarShader->GetProgram()->setUniformMatrix2fv(healthBarShader->GetViewMatrixLocation(), viewMatrix);
+  
   // Set states for rendering.
   // f->glEnable(GL_MULTISAMPLE);
   // f->glEnable(GL_DEPTH_TEST);
@@ -260,6 +265,7 @@ void RenderWindow::paintGL() {
       shadowShader.get(),
       spriteShader.get(),
       outlineShader.get(),
+      healthBarShader.get(),
       pointBuffer,
       zoom,
       widgetWidth,

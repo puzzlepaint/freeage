@@ -11,6 +11,7 @@
 #include "FreeAge/sprite.h"
 #include "FreeAge/texture.h"
 
+class HealthBarShader;
 class SpriteShader;
 
 /// Stores the map (terrain type, elevation, ...).
@@ -89,6 +90,7 @@ class Map {
       SpriteShader* shadowShader,
       SpriteShader* spriteShader,
       SpriteShader* outlineShader,
+      HealthBarShader* healthBarShader,
       GLuint spritePointBuffer,
       float zoom,
       int widgetWidth,
@@ -123,15 +125,11 @@ class Map {
   /// Height of the map in tiles.
   int height;
   
-  /// The next building ID that will be given to the next added building.
-  int nextBuildingID = 0;
+  /// The next ID that will be given to the next added building or unit.
+  int nextObjectID = 0;
   
   /// Map of building ID -> ClientBuilding.
   std::unordered_map<int, ClientBuilding> buildings;
-  
-  /// The next unit ID that will be given to the next added unit.
-  /// TODO: Unify building and unit IDs?
-  int nextUnitID = 0;
   
   /// Map of unit ID -> ClientUnit.
   std::unordered_map<int, ClientUnit> units;

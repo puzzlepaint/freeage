@@ -39,6 +39,8 @@ class ClientBuildingType {
   
   QSize GetSize() const;
   bool UsesRandomSpriteFrame() const;
+  /// Returns the height (in projected coordinates) above the building's center at which the health bar should be displayed.
+  float GetHealthBarHeightAboveCenter(int frameIndex) const;
   
   inline const Sprite& GetSprite() const { return sprite; }
   inline const Texture& GetTexture() const { return texture; }
@@ -52,6 +54,11 @@ class ClientBuildingType {
   Sprite sprite;
   Texture texture;
   Texture shadowTexture;
+  
+  /// The maximum centerY value of any graphic frame of this building type.
+  /// For animated buildings such as mills, this can be used to determine a reasonable
+  /// height for the building's health bar.
+  int maxCenterY;
 };
 
 
@@ -59,6 +66,11 @@ class ClientBuildingType {
 class ClientBuilding {
  public:
   ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY);
+  
+  /// Returns the projected coordinates of this building's center point.
+  QPointF GetCenterProjectedCoord(
+      Map* map,
+      const std::vector<ClientBuildingType>& buildingTypes);
   
   /// Computes the sprite rectangle for this building in projected coordinates.
   /// If shadow is true, returns the rectangle for the shadow sprite.
@@ -68,6 +80,10 @@ class ClientBuilding {
       double elapsedSeconds,
       bool shadow,
       bool outline);
+  
+  int GetFrameIndex(
+      const ClientBuildingType& buildingType,
+      double elapsedSeconds);
   
   void Render(
       Map* map,
@@ -83,17 +99,12 @@ class ClientBuilding {
       bool shadow,
       bool outline);
   
+  inline int GetPlayerIndex() const { return playerIndex; }
   inline BuildingType GetType() const { return type; }
   
   inline QPoint GetBaseTile() const { return QPoint(baseTileX, baseTileY); }
   
  private:
-  int GetFrameIndex(
-      const ClientBuildingType& buildingType,
-      const Sprite& sprite,
-      double elapsedSeconds);
-  
-  
   int playerIndex;
   BuildingType type;
   

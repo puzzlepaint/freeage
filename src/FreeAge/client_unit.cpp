@@ -29,7 +29,25 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     break;
   }
   
-  return ok;
+  if (!ok) {
+    return false;
+  }
+  
+  maxCenterY = 0;
+  const auto& animationVariants = animations[static_cast<int>(UnitAnimation::Idle)];
+  for (usize variant = 0; variant < animationVariants.size(); ++ variant) {
+    const auto& animation = animationVariants[variant];
+    for (int frame = 0; frame < animation.sprite.NumFrames() / kNumFacingDirections; ++ frame) {
+      maxCenterY = std::max(maxCenterY, animation.sprite.frame(frame).graphic.centerY);
+    }
+  }
+  
+  return true;
+}
+
+int ClientUnitType::GetHealthBarHeightAboveCenter() const {
+  constexpr float kHealthBarOffset = 10;
+  return maxCenterY + kHealthBarOffset;
 }
 
 bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes, UnitAnimation type) {
@@ -58,12 +76,16 @@ ClientUnit::ClientUnit(int playerIndex, UnitType type, const QPointF& mapCoord)
       currentAnimationVariant(0),
       lastAnimationStartTime(-1) {}
 
+QPointF ClientUnit::GetCenterProjectedCoord(Map* map) {
+  return map->MapCoordToProjectedCoord(mapCoord);
+}
+
 QRectF ClientUnit::GetRectInProjectedCoords(Map* map, const std::vector<ClientUnitType>& unitTypes, double elapsedSeconds, bool shadow, bool outline) {
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
   const SpriteAndTextures& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
   const Sprite& sprite = animationSpriteAndTexture.sprite;
   
-  QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(mapCoord);
+  QPointF centerProjectedCoord = GetCenterProjectedCoord(map);
   
   float framesPerSecond = 30.f;
   int framesPerDirection = sprite.NumFrames() / kNumFacingDirections;
@@ -96,7 +118,7 @@ void ClientUnit::Render(
   const Sprite& sprite = animationSpriteAndTexture.sprite;
   const Texture& texture = shadow ? animationSpriteAndTexture.shadowTexture : animationSpriteAndTexture.graphicTexture;
   
-  QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(mapCoord);
+  QPointF centerProjectedCoord = GetCenterProjectedCoord(map);
   
   // Update the animation.
   float framesPerSecond = 30.f;
