@@ -73,6 +73,8 @@ class RenderWindow : public QOpenGLWidget {
   int widgetWidth;
   int widgetHeight;
   
+  float viewMatrix[4];  // column-major
+  
   // Shaders.
   std::shared_ptr<SpriteShader> spriteShader;
   std::shared_ptr<SpriteShader> shadowShader;
@@ -89,6 +91,11 @@ class RenderWindow : public QOpenGLWidget {
   
   std::vector<ClientUnitType> unitTypes;
   std::vector<ClientBuildingType> buildingTypes;
+  
+  std::shared_ptr<SpriteAndTextures> moveToSprite;
+  QPointF moveToMapCoord;
+  TimePoint moveToTime;
+  bool haveMoveTo = false;
   
   const Palettes& palettes;
   const std::filesystem::path& graphicsPath;

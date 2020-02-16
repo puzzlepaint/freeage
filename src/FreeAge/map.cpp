@@ -130,64 +130,102 @@ bool Map::ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCo
   // Clamp the initial map coordinate to be within the map
   // (while keeping the projected x coordinate constant).
   constexpr float kClampMargin = 0.001f;
-  if (mapCoord->x() < 0) {
-    // The coordinate is beyond the top-left map border. Move the coordinate down (in projected coordinates).
-    *mapCoord += -mapCoord->x() * QPointF(1, -1);
-  }
-  if (mapCoord->y() >= height) {
-    // The coordinate is beyond the top-right map border. Move the coordinate down (in projected coordinates).
-    *mapCoord += -(mapCoord->y() - height + kClampMargin) * QPointF(1, -1);
-  }
-  if (mapCoord->y() < 0) {
-    // The coordinate is beyond the bottom-left map border. Move the coordinate up (in projected coordinates)
-    *mapCoord += -mapCoord->y() * QPointF(-1, 1);
-  }
-  if (mapCoord->x() >= width) {
-    // The coordinate is beyond the bottom-right map border. Move the coordinate up (in projected coordinates)
-    *mapCoord += -(mapCoord->x() - width + kClampMargin) * QPointF(-1, 1);
-  }
+  // TODO: This did not work in all cases, there are cases where the result ends up outside of the map.
+  // if (mapCoord->x() < 0) {
+  //   // The coordinate is beyond the top-left map border. Move the coordinate down (in projected coordinates).
+  //   *mapCoord += -mapCoord->x() * QPointF(1, -1);
+  // }
+  // if (mapCoord->y() >= height) {
+  //   // The coordinate is beyond the top-right map border. Move the coordinate down (in projected coordinates).
+  //   *mapCoord += -(mapCoord->y() - height + kClampMargin) * QPointF(1, -1);
+  // }
+  // if (mapCoord->y() < 0) {
+  //   // The coordinate is beyond the bottom-left map border. Move the coordinate up (in projected coordinates)
+  //   *mapCoord += -mapCoord->y() * QPointF(-1, 1);
+  // }
+  // if (mapCoord->x() >= width) {
+  //   // The coordinate is beyond the bottom-right map border. Move the coordinate up (in projected coordinates)
+  //   *mapCoord += -(mapCoord->x() - width + kClampMargin) * QPointF(-1, 1);
+  // }
+  
+  // Safer approach: more straightforward clamping. The coordinate might not end up at the same projected x-coordinate,
+  // but that does not concern us.
+  *mapCoord = QPointF(
+      std::max<double>(0, std::min<double>(width - kClampMargin, mapCoord->x())),
+      std::max<double>(0, std::min<double>(height - kClampMargin, mapCoord->y())));
   
   // We use Gauss-Newton optimization (with coordinates clamped to the map) to do the search.
   // Note that we allow both coordinates to vary here, rather than constraining the movement
   // to be vertical, since this is easily possible, the performance difference should be completely
   // negligible, and it gives us a slightly more general implementation.
-  // TODO: Use Levenberg-Marquardt as it is safer
   bool converged = false;
   constexpr int kMaxNumIterations = 50;
+  double lambda = 0;
   for (int iteration = 0; iteration < kMaxNumIterations; ++ iteration) {
     QPointF jacCol0;
     QPointF jacCol1;
     QPointF currentProjectedCoord = MapCoordToProjectedCoord(*mapCoord, &jacCol0, &jacCol1);
     QPointF residual = currentProjectedCoord - projectedCoord;
-    if (residual.manhattanLength() < 1e-5f) {
+    double cost = residual.x() * residual.x() + residual.y() * residual.y();
+    if (cost < 1e-8f) {
       converged = true;
       break;
     }
     
-    // Compute Gauss-Newton update: - H^(-1) b
-    float H00 = jacCol0.x() * jacCol0.x() + jacCol0.y() * jacCol0.y();
-    float H01 = jacCol0.x() * jacCol1.x() + jacCol0.y() * jacCol1.y();  // = H10
-    float H11 = jacCol1.x() * jacCol1.x() + jacCol1.y() * jacCol1.y();
+    bool foundAnUpdate = false;
+    for (int lmIteration = 0; lmIteration < 8; ++ lmIteration) {
+      // Compute update: - (H + lambda I)^(-1) b
+      double H00 = jacCol0.x() * jacCol0.x() + jacCol0.y() * jacCol0.y() + lambda;
+      double H01 = jacCol0.x() * jacCol1.x() + jacCol0.y() * jacCol1.y();  // = H10
+      double H11 = jacCol1.x() * jacCol1.x() + jacCol1.y() * jacCol1.y() + lambda;
+      
+      double detH = H00 * H11 - H01 * H01;
+      double detH_inv = 1.f / detH;
+      double H00_inv = detH_inv * H11;
+      double H01_inv = detH_inv * -H01;  // = H10_inv
+      double H11_inv = detH_inv * H00;
+      
+      double b0 = - jacCol0.x() * residual.x() - jacCol0.y() * residual.y();
+      double b1 = - jacCol1.x() * residual.x() - jacCol1.y() * residual.y();
+      
+      QPointF testMapCoord(
+          mapCoord->x() + H00_inv * b0 + H01_inv * b1,
+          mapCoord->y() + H01_inv * b0 + H11_inv * b1);
+      // Clamp to map area.
+      testMapCoord = QPointF(
+          std::max<double>(0, std::min<double>(width - kClampMargin, testMapCoord.x())),
+          std::max<double>(0, std::min<double>(height - kClampMargin, testMapCoord.y())));
+      
+      // Check if the update made progress.
+      QPointF currentProjectedCoord = MapCoordToProjectedCoord(testMapCoord);
+      QPointF testResidual = currentProjectedCoord - projectedCoord;
+      double testCost = testResidual.x() * testResidual.x() + testResidual.y() * testResidual.y();
+      if (testCost < cost) {
+        *mapCoord = testMapCoord;
+        lambda *= 0.5;
+        foundAnUpdate = true;
+        break;
+      } else {
+        if (lambda == 0) {
+          lambda = 0.01f * 0.5f * (H00 + H11);
+        } else {
+          lambda *= 2;
+        }
+      }
+    }
     
-    float detH = H00 * H11 - H01 * H01;
-    float detH_inv = 1.f / detH;
-    float H00_inv = detH_inv * H11;
-    float H01_inv = detH_inv * -H01;  // = H10_inv
-    float H11_inv = detH_inv * H00;
-    
-    float b0 = - jacCol0.x() * residual.x() - jacCol0.y() * residual.y();
-    float b1 = - jacCol1.x() * residual.x() - jacCol1.y() * residual.y();
-    
-    float update0 = H00_inv * b0 + H01_inv * b1;
-    float update1 = H01_inv * b0 + H11_inv * b1;
-    *mapCoord += QPointF(update0, update1);
-    // Clamp to map area.
-    *mapCoord = QPointF(
-        std::max<float>(0, std::min<float>(width - kClampMargin, mapCoord->x())),
-        std::max<float>(0, std::min<float>(height - kClampMargin, mapCoord->y())));
+    if (!foundAnUpdate) {
+      break;
+    }
     
     // LOG(INFO) << "- currentMapCoordEstimate: " << mapCoord->x() << ", " << mapCoord->y();
   }
+  // Debug output:
+  // if (!converged) {
+  //   QPointF currentProjectedCoord = MapCoordToProjectedCoord(*mapCoord);
+  //   QPointF residual = currentProjectedCoord - projectedCoord;
+  //   LOG(WARNING) << "NOT CONVERGED; residual.manhattanLength(): " << residual.manhattanLength();
+  // }
   return converged;
 }
 
@@ -577,7 +615,10 @@ void Map::Render(
     float zoom,
     int widgetWidth,
     int widgetHeight,
-    double elapsedSeconds) {
+    double elapsedSeconds,
+    int moveToFrameIndex,
+    const QPointF& moveToMapCoord,
+    const SpriteAndTextures& moveToSprite) {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   // Determine the view rect in projected coordinates.
@@ -634,10 +675,9 @@ void Map::Render(
     }
   }
   for (auto& item : units) {
-    // TODO: Are there any units without shadow?
-    // if (!unitTypes[static_cast<int>(item.second.GetType())].HasShadow()) {
-    //   continue;
-    // }
+    if (!unitTypes[static_cast<int>(item.second.GetType())].GetAnimations(item.second.GetCurrentAnimation()).front().sprite.HasShadow()) {
+      continue;
+    }
     
     QRectF projectedCoordsRect = item.second.GetRectInProjectedCoords(
         this,
@@ -750,6 +790,26 @@ void Map::Render(
           false,
           false);
     }
+  }
+  
+  // Render the move-to marker.
+  if (moveToFrameIndex >= 0) {
+    QPointF projectedCoord = MapCoordToProjectedCoord(moveToMapCoord);
+    DrawSprite(
+        moveToSprite.sprite,
+        moveToSprite.graphicTexture,
+        spriteShader,
+        projectedCoord,
+        spritePointBuffer,
+        viewMatrix,
+        zoom,
+        widgetWidth,
+        widgetHeight,
+        moveToFrameIndex,
+        /*shadow*/ false,
+        /*outline*/ false,
+        playerColors,
+        /*playerIndex*/ 0);
   }
   
   // Render outlines.

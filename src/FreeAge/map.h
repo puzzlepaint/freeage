@@ -95,7 +95,10 @@ class Map {
       float zoom,
       int widgetWidth,
       int widgetHeight,
-      double elapsedSeconds);
+      double elapsedSeconds,
+      int moveToFrameIndex,
+      const QPointF& moveToMapCoord,
+      const SpriteAndTextures& moveToSprite);
   
   
   inline QPointF GetTownCenterLocation(int player) { return townCenterCenters[player]; }

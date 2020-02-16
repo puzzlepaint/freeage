@@ -55,6 +55,7 @@ RenderWindow::~RenderWindow() {
   unitTypes.clear();
   buildingTypes.clear();
   playerColorsTexture.reset();
+  moveToSprite.reset();
   doneCurrent();
 }
 
@@ -177,6 +178,20 @@ void RenderWindow::initializeGL() {
     }
   }
   
+  // Load "move to" sprite.
+  std::string filename = "MOVETO.smp";  // TODO: This is the old (non-DE) graphic. Use the new one instead.
+  moveToSprite.reset(new SpriteAndTextures());
+  LoadSpriteAndTexture(
+      (graphicsPath / filename).c_str(),
+      (cachePath / filename).c_str(),
+      GL_CLAMP,
+      GL_NEAREST,
+      GL_NEAREST,
+      &moveToSprite->sprite,
+      &moveToSprite->graphicTexture,
+      &moveToSprite->shadowTexture,
+      palettes);
+  
   // Create a buffer containing a single point for sprite rendering
   f->glGenBuffers(1, &pointBuffer);
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
@@ -225,7 +240,6 @@ void RenderWindow::paintGL() {
   float scalingX = zoom * 2.f / widgetWidth;
   float scalingY = zoom * -2.f / widgetHeight;
   
-  float viewMatrix[4];  // column-major
   viewMatrix[0] = scalingX;
   viewMatrix[1] = scalingY;
   viewMatrix[2] = -scalingX * projectedCoordAtScreenCenter.x();
@@ -256,6 +270,18 @@ void RenderWindow::paintGL() {
   
   CHECK_OPENGL_NO_ERROR();
   
+  // Update move-to sprite.
+  int moveToFrameIndex = -1;
+  if (haveMoveTo) {
+    double moveToAnimationTime = std::chrono::duration<double>(now - moveToTime).count();
+    float framesPerSecond = 15.f;  // TODO: This applies to the old (non-DE) graphic.
+    moveToFrameIndex = std::max(0, static_cast<int>(framesPerSecond * moveToAnimationTime + 0.5f));
+    if (moveToFrameIndex >= moveToSprite->sprite.NumFrames()) {
+      haveMoveTo = false;
+      moveToFrameIndex = -1;
+    }
+  }
+  
   // Draw the map.
   map->Render(
       viewMatrix,
@@ -270,7 +296,10 @@ void RenderWindow::paintGL() {
       zoom,
       widgetWidth,
       widgetHeight,
-      elapsedSeconds);
+      elapsedSeconds,
+      moveToFrameIndex,
+      moveToMapCoord,
+      *moveToSprite);
 }
 
 void RenderWindow::resizeGL(int width, int height) {
@@ -278,8 +307,18 @@ void RenderWindow::resizeGL(int width, int height) {
   widgetHeight = height;
 }
 
-void RenderWindow::mousePressEvent(QMouseEvent* /*event*/) {
-  // TODO
+void RenderWindow::mousePressEvent(QMouseEvent* event) {
+  if (event->button() == Qt::RightButton) {
+    // TODO: Only do that if units are selected
+    
+    QPointF projectedCoord(
+        ((-1 + 2 * event->x() / (1.f * width())) - viewMatrix[2]) / viewMatrix[0],
+        ((1 - 2 * event->y() / (1.f * height())) - viewMatrix[3]) / viewMatrix[1]);
+    if (map->ProjectedCoordToMapCoord(projectedCoord, &moveToMapCoord)) {
+      moveToTime = Clock::now();
+      haveMoveTo = true;
+    }
+  }
 }
 
 void RenderWindow::mouseMoveEvent(QMouseEvent* /*event*/) {

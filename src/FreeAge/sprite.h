@@ -68,6 +68,9 @@ class Sprite {
   inline const Frame& frame(int index) const { return frames[index]; }
   
  private:
+  bool LoadFromSMXFile(FILE* file, const Palettes& palettes);
+  bool LoadFromSMPFile(FILE* file, const Palettes& palettes);
+  
   std::vector<Frame> frames;
 };
 
@@ -93,17 +96,30 @@ void DrawSprite(
     int playerIndex);
 
 
-// Note: SMX parsing implemented according to:
-// https://github.com/SFTtech/openage/blob/master/doc/media/smx-files.md
+// Note: SMX / SMP parsing implemented according to:
+// https://github.com/SFTtech/openage/blob/master/doc/media/smx-files.md and
+// https://github.com/SFTtech/openage/blob/master/doc/media/smp-files.md
 
 #pragma pack(push, 1)
 struct SMXHeader {
-  char fileDescriptor[4];
   i16 version;
   i16 numFrames;
   i32 fileSizeComp;
   i32 fileSizeUncomp;
   char comment[16];
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct SMPHeader {
+  u32 version;
+  u32 numFrames;
+  u32 numAnimations;
+  u32 framesPerAnimation;
+  u32 checksum;
+  u32 fileSize;
+  u32 sourceFormat;
+  char comment[32];
 };
 #pragma pack(pop)
 
@@ -153,6 +169,19 @@ struct SMXLayerHeader {
 };
 #pragma pack(pop)
 
+#pragma pack(push, 1)
+struct SMPLayerHeader {
+  u32 width;
+  u32 height;
+  u32 hotspotX;
+  u32 hotspotY;
+  u32 layerType;
+  u32 outlineTableOffset;
+  u32 cmdTableOffset;
+  u32 flags;
+};
+#pragma pack(pop)
+
 enum class SMXLayerType {
   Graphic = 0,
   Shadow,
@@ -163,6 +192,14 @@ enum class SMXLayerType {
 struct SMPLayerRowEdge {
   u16 leftSpace;
   u16 rightSpace;
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct SMPPixel {
+  u8  index;
+  u8  palette;
+  u16 damageModifier;
 };
 #pragma pack(pop)
 
@@ -225,34 +262,6 @@ inline QRgb DecompressNextPixel4Plus1(const u8*& pixelPtr, int& decompressionSta
 }
 
 
-QImage LoadSMXGraphicLayer(
-    const SMXLayerHeader& layerHeader,
-    const std::vector<SMPLayerRowEdge>& rowEdges,
-    bool usesEightToFiveCompression,
-    const Palette& standardPalette,
-    const Palette& playerColorPalette,
-    FILE* file);
-
-QImage LoadSMXShadowLayer(
-    const SMXLayerHeader& layerHeader,
-    const std::vector<SMPLayerRowEdge>& rowEdges,
-    FILE* file);
-
-QImage LoadSMXOutlineLayer(
-    const SMXLayerHeader& layerHeader,
-    const std::vector<SMPLayerRowEdge>& rowEdges,
-    FILE* file);
-
-bool LoadSMXLayer(
-    bool usesEightToFiveCompression,
-    const Palette& standardPalette,
-    const Palette& playerColorPalette,
-    SMXLayerType layerType,
-    Sprite::Frame::Layer* layer,
-    FILE* file);
-
-
 Palette LoadPalette(const std::filesystem::path& path);
-
 
 bool ReadPalettesConf(const char* path, Palettes* palettes);

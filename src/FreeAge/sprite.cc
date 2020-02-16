@@ -324,7 +324,7 @@ bool LoadSMXLayer(
   if (layerType == SMXLayerType::Graphic) {
     layer->image = LoadSMXGraphicLayer(
         layerHeader,
-         rowEdges,
+        rowEdges,
         usesEightToFiveCompression,
         pixelBorder,
         standardPalette,
@@ -608,8 +608,6 @@ void PaintOutlineIntoGraphic(Sprite::Frame::Layer* graphic, const Sprite::Frame:
 }
 
 bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
-  // TODO: This only supports the .smx format at the moment. Also support .slp, for example.
-  
   FILE* file = fopen(path, "rb");
   if (!file) {
     LOG(ERROR) << "Cannot open file: " << path;
@@ -617,27 +615,40 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
   }
   std::shared_ptr<FILE> fileCloser(file, [&](FILE* file) { fclose(file); });
   
-  // Read the header and verify it.
-  SMXHeader header;
-  if (fread(&header, sizeof(SMXHeader), 1, file) != 1) {
+  // Read the file descriptor.
+  char fileDescriptor[4];
+  if (fread(fileDescriptor, sizeof(char), 4, file) != 4) {
+    LOG(ERROR) << "Unexpected EOF while trying to read file descriptor";
+    return false;
+  }
+  
+  if (fileDescriptor[0] == 'S' &&
+      fileDescriptor[1] == 'M' &&
+      fileDescriptor[2] == 'P' &&
+      fileDescriptor[3] == 'X') {
+    return LoadFromSMXFile(file, palettes);
+  } else if (fileDescriptor[0] == 'S' &&
+             fileDescriptor[1] == 'M' &&
+             fileDescriptor[2] == 'P' &&
+             fileDescriptor[3] == '$') {
+    return LoadFromSMPFile(file, palettes);
+  } else {
+    LOG(ERROR) << "Header file descriptor is not SMPX or SMP$\nActual data: "
+               << fileDescriptor[0] << fileDescriptor[1] << fileDescriptor[2] << fileDescriptor[3];
+    return false;
+  }
+}
+
+bool Sprite::LoadFromSMXFile(FILE* file, const Palettes& palettes) {
+  // Read the header.
+  SMXHeader smxHeader;
+  if (fread(&smxHeader, sizeof(SMXHeader), 1, file) != 1) {
     LOG(ERROR) << "Unexpected EOF while trying to read SMXHeader";
     return false;
   }
   
-  if (header.fileDescriptor[0] != 'S' ||
-      header.fileDescriptor[1] != 'M' ||
-      header.fileDescriptor[2] != 'P' ||
-      header.fileDescriptor[3] != 'X') {
-    LOG(ERROR) << "Header file descriptor is not SMPX\nActual data: "
-               << header.fileDescriptor[0] << header.fileDescriptor[1] << header.fileDescriptor[2] << header.fileDescriptor[3];
-    return false;
-  }
-  
-  // LOG(INFO) << "Version: " << header.version;
-  // LOG(INFO) << "Frame count: " << header.numFrames;
-  
-  frames.resize(header.numFrames);
-  for (int frameIdx = 0; frameIdx < header.numFrames; ++ frameIdx) {
+  frames.resize(smxHeader.numFrames);
+  for (int frameIdx = 0; frameIdx < smxHeader.numFrames; ++ frameIdx) {
     Frame& frame = frames[frameIdx];
     
     // Read the frame header.
@@ -700,6 +711,181 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
       
       PaintOutlineIntoGraphic(&frame.graphic, frame.outline);
       frame.outline.image = QImage();  // unload outline image data
+    }
+  }
+  
+  return true;
+}
+
+bool Sprite::LoadFromSMPFile(FILE* file, const Palettes& palettes) {
+  SMPHeader smpHeader;
+  if (fread(&smpHeader, sizeof(SMPHeader), 1, file) != 1) {
+    LOG(ERROR) << "Unexpected EOF while trying to read SMPHeader";
+    return false;
+  }
+  
+  // Read frame offsets.
+  std::vector<u32> frameOffsets(smpHeader.numFrames);
+  if (fread(frameOffsets.data(), sizeof(u32), smpHeader.numFrames, file) != smpHeader.numFrames) {
+    LOG(ERROR) << "Unexpected EOF while trying to read SMP frame offsets";
+    return false;
+  }
+  
+  frames.resize(smpHeader.numFrames);
+  for (usize frameIdx = 0; frameIdx < smpHeader.numFrames; ++ frameIdx) {
+    Frame& frame = frames[frameIdx];
+    fseek(file, frameOffsets[frameIdx], SEEK_SET);
+    
+    // Read frame header
+    u32 unused[7];
+    if (fread(unused, sizeof(u32), 7, file) != 7) {
+      LOG(ERROR) << "Unexpected EOF while trying to read unused data in SMP";
+      return false;
+    }
+    
+    u32 numLayers;
+    if (fread(&numLayers, sizeof(u32), 1, file) != 1) {
+      LOG(ERROR) << "Unexpected EOF while trying to read SMP frameHeader";
+      return false;
+    }
+    
+    // Read layer headers
+    std::vector<SMPLayerHeader> layerHeaders(numLayers);
+    if (fread(layerHeaders.data(), sizeof(SMPLayerHeader), numLayers, file) != numLayers) {
+      LOG(ERROR) << "Unexpected EOF while trying to read SMPLayerHeaders";
+      return false;
+    }
+    
+    for (usize layer = 0; layer < numLayers; ++ layer) {
+      const SMPLayerHeader& layerHeader = layerHeaders[layer];
+      fseek(file, frameOffsets[frameIdx] + layerHeader.outlineTableOffset, SEEK_SET);
+      
+      // LOG(WARNING) << "Layer width: " << layerHeader.width;
+      // LOG(WARNING) << "Layer height: " << layerHeader.height;
+      // LOG(WARNING) << "Layer hotspot x: " << layerHeader.hotspotX;
+      // LOG(WARNING) << "Layer hotspot y: " << layerHeader.hotspotY;
+      
+      // Read the row edge data.
+      constexpr int pixelBorder = 0;
+      std::vector<SMPLayerRowEdge> rowEdges(layerHeader.height);
+      for (int i = 0; i < pixelBorder; ++ i) {
+        rowEdges[i].leftSpace = 0xFFFF;
+        rowEdges[i].rightSpace = 0xFFFF;
+        rowEdges[rowEdges.size() - 1 - i].leftSpace = 0xFFFF;
+        rowEdges[rowEdges.size() - 1 - i].rightSpace = 0xFFFF;
+      }
+      for (usize row = 0; row < layerHeader.height - 2 * pixelBorder; ++ row) {
+        if (fread(&rowEdges[row + pixelBorder], sizeof(SMPLayerRowEdge), 1, file) != 1) {
+          LOG(ERROR) << "Unexpected EOF while trying to read SMPLayerRowEdge for row " << row;
+          return false;
+        }
+        // LOG(INFO) << "Row edge: L: " << rowEdges[row].leftSpace << " R: " << rowEdges[row].rightSpace;
+      }
+      
+      if (layerHeader.layerType == 0x02) {
+        // Graphic layer.
+        Sprite::Frame::Layer* layer = &frame.graphic;
+        
+        layer->centerX = layerHeader.hotspotX;
+        layer->centerY = layerHeader.hotspotY;
+        
+        // LOG(WARNING) << "Gfx layer sized " << layerHeader.width << " x " << layerHeader.height;
+        
+        fseek(file, frameOffsets[frameIdx] + layerHeader.cmdTableOffset, SEEK_SET);
+        
+        std::vector<u32> smpCommandOffsets(layerHeader.height);
+        if (fread(smpCommandOffsets.data(), sizeof(u32), layerHeader.height, file) != layerHeader.height) {
+          LOG(ERROR) << "Unexpected EOF while trying to read smpCommandOffsets";
+          return false;
+        }
+        
+        // NOTE: We only seek to the first offset and then assume that the following rows are stored sequentially.
+        fseek(file, frameOffsets[frameIdx] + smpCommandOffsets[0], SEEK_SET);
+        
+        constexpr bool ignoreAlpha = true;  /*layerType == SMXLayerType::Graphic*/
+        
+        // Build the image.
+        QImage graphic(layerHeader.width, layerHeader.height, QImage::Format_ARGB32);
+        
+        for (usize row = 0; row < layerHeader.height; ++ row) {
+          QRgb* out = reinterpret_cast<QRgb*>(graphic.scanLine(row));
+          
+          // Check for skipped rows
+          const SMPLayerRowEdge& edge = rowEdges[row];
+          if (edge.leftSpace == 0xFFFF || edge.rightSpace == 0xFFFF) {
+            // Row is completely transparent
+            for (usize col = 0; col < layerHeader.width; ++ col) {
+              *out++ = qRgba(0, 0, 0, 0);
+            }
+            continue;
+          }
+          
+          // Left edge skip
+          for (int col = 0; col < edge.leftSpace + pixelBorder; ++ col) {
+            *out++ = qRgba(0, 0, 0, 0);
+          }
+          u32 col = edge.leftSpace + pixelBorder;
+          
+          while (true) {
+            // Read the next command.
+            u8 command;
+            if (fread(&command, sizeof(u8), 1, file) != 1) {
+              LOG(ERROR) << "Unexpected EOF while trying to read SMP drawing command";
+              return false;
+            }
+            
+            u8 commandCode = command & 0b11;
+            if (commandCode == 0b00) {
+              // Draw *count* transparent pixels.
+              u8 count = (command >> 2) + 1;
+              for (int i = 0; i < count; ++ i) {
+                *out++ = qRgba(0, 0, 0, 0);
+              }
+              col += count;
+            } else if (commandCode == 0b01 || commandCode == 0b10) {
+              u8 count = (command >> 2) + 1;
+              
+              for (int i = 0; i < count; ++ i) {
+                SMPPixel pixel;
+                if (fread(&pixel, sizeof(SMPPixel), 1, file) != 1) {
+                  LOG(ERROR) << "Unexpected EOF while trying to read an SMPPixel";
+                  return false;
+                }
+                
+                int paletteIndex = pixel.palette >> 2;
+                int paletteSection = pixel.palette & 0b11;
+                
+                // TODO: If we load a lot of SMPs, we might want to optimize the unordered_map access here (cache the last used palette and re-use it if it is the same for the next pixel)
+                *out = GetPalettedPixel((commandCode == 0b01) ? &palettes.at(paletteIndex) : nullptr, paletteSection, pixel.index, ignoreAlpha);
+                ++ out;
+              }
+              col += count;
+            } else if (commandCode == 0b11) {
+              // End of row.
+              if (col + edge.rightSpace + pixelBorder != layerHeader.width) {
+                LOG(WARNING) << "Row " << row << ": Pixel count does not match expectation (col: " << col
+                              << ", edge.rightSpace: " << edge.rightSpace << ", layerHeader.width: " << layerHeader.width << ")";
+              }
+              for (; col < layerHeader.width; ++ col) {
+                *out++ = qRgba(0, 0, 0, 0);
+              }
+              break;
+            }
+          }
+        }
+        
+        layer->image = graphic;
+        layer->imageWidth = layer->image.width();
+        layer->imageHeight = layer->image.height();
+      } else if (layerHeader.layerType == 0x04) {
+        // Shadow layer.
+        // TODO: Not implemented yet.
+      } else if (layerHeader.layerType == 0x08 || layerHeader.layerType == 0x10) {
+        // Outline layer.
+        // TODO: Not implemented yet.
+      } else {
+        LOG(ERROR) << "Unknown layer type in SMP file: " << layerHeader.layerType;
+      }
     }
   }
   
