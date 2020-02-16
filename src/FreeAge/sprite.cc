@@ -484,6 +484,73 @@ bool ReadPalettesConf(const char* path, Palettes* palettes) {
   return true;
 }
 
+/// Performs a little inpainting in the shadow layer at pixels that are covered by the graphic layer.
+/// This makes sprites look a bit better when zoomed in, since there will be a shadow behind objects.
+/// Without the inpainting, there is no shadow behind objects, so the bilinear texture interpolation
+/// causes the shadow to fade out towards the object, making it have something like a bright halo artifact.
+void InpaintShadowBehindGraphic(Sprite::Frame::Layer* shadow, const Sprite::Frame::Layer& graphic) {
+  int offsetX = graphic.centerX - shadow->centerX;
+  int offsetY = graphic.centerY - shadow->centerY;
+  
+  for (int y = 0; y < shadow->imageHeight; ++ y) {
+    int graphicY = y + offsetY;
+    if (graphicY < 0 || graphicY >= graphic.imageHeight) {
+      continue;
+    }
+    const QRgb* graphicScanLine = reinterpret_cast<const QRgb*>(graphic.image.scanLine(graphicY));
+    u8* outputScanLine = reinterpret_cast<u8*>(shadow->image.scanLine(y));
+    
+    for (int x = 0; x < shadow->imageWidth; ++ x) {
+      // Get the corresponding pixel in the graphic sprite (may be out of bounds though).
+      int graphicX = x + offsetX;
+      if (graphicX < 0 || graphicX >= graphic.imageWidth) {
+        continue;
+      }
+      
+      // Check whether this pixel is opaque in the graphic sprite. If not, continue.
+      if (qAlpha(graphicScanLine[graphicX]) < 127) {
+        continue;
+      }
+      
+      // Inpaint this pixel in the shadow sprite.
+      // TODO: Use integral images for better performance
+      int minX = std::max(0, x - 1);
+      int minY = std::max(0, y - 1);
+      int maxX = std::min(shadow->imageWidth - 1, x + 1);
+      int maxY = std::min(shadow->imageHeight - 1, y + 1);
+      
+      int sum = 0;
+      int count = 0;
+      for (int sy = minY; sy <= maxY; ++ sy) {
+        int graphicSY = sy + offsetY;
+        if (graphicSY < 0 || graphicSY >= graphic.imageHeight) {
+          continue;
+        }
+        const QRgb* graphicScanLineS = reinterpret_cast<const QRgb*>(graphic.image.scanLine(graphicSY));
+        
+        for (int sx = minX; sx <= maxX; ++ sx) {
+          int graphicSX = sx + offsetX;
+          if (graphicSX < 0 || graphicSX >= graphic.imageWidth) {
+            continue;
+          }
+          
+          if (qAlpha(graphicScanLineS[graphicSX]) >= 127) {
+            continue;
+          }
+          
+          sum += shadow->image.scanLine(sy)[sx];
+          ++ count;
+        }
+      }
+      
+      if (count > 0) {
+        float factor = 1.f / count;
+        outputScanLine[x] = sum * factor + 0.5f;
+      }
+    }
+  }
+}
+
 bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
   // TODO: This only supports the .smx format at the moment. Also support .slp, for example.
   
@@ -560,6 +627,8 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
           file)) {
         return false;
       }
+      
+      InpaintShadowBehindGraphic(&frame.shadow, frame.graphic);
     }
     
     // Read outline layer
