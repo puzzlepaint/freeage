@@ -65,31 +65,16 @@ SpriteShader::SpriteShader(bool shadow) {
         "in vec2 texcoord;\n"
         "\n"
         "uniform sampler2D u_texture;\n"
+        "uniform sampler2D u_playerColorsTexture;\n"
         "uniform vec2 u_textureSize;\n"
-        "uniform float u_hueOffset;\n"
-        "\n"
-        "vec3 rgb2hsv(vec3 c) {\n"
-        "  vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);\n"
-        "  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));\n"
-        "  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));\n"
-        "\n"
-        "  float d = q.x - min(q.w, q.y);\n"
-        "  float e = 1.0e-10;\n"
-        "  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);\n"
-        "}\n"
-        "\n"
-        "vec3 hsv2rgb(vec3 c) {\n"
-        "  vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);\n"
-        "  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);\n"
-        "  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);\n"
-        "}\n"
+        "uniform vec2 u_playerColorsTextureSize;\n"
+        "uniform int u_playerIndex;\n"
         "\n"
         "vec4 AdjustPlayerColor(vec4 input) {\n"
-        "  if (input.a == 254.0 / 255.0) {\n"
-        "    // This is a player color pixel, change its hue to the actual player's color.\n"
-        "    vec3 hsv = rgb2hsv(input.rgb);\n"
-        "    hsv.r = mod(hsv.r + u_hueOffset, 1.0);\n"
-        "    return vec4(hsv2rgb(hsv), 1.0);\n"
+        "  if (round(255 * input.a) == 254) {\n"
+        "    // This is a player color pixel that is encoded as a palette index in the texture.\n"
+        "    int palIndex = int(round(256 * input.r)) + 256 * int(round(256 * input.g));\n"
+        "    return texture(u_playerColorsTexture, vec2((palIndex + 0.5) / u_playerColorsTextureSize.x, (u_playerIndex + 0.5) / u_playerColorsTextureSize.y));\n"
         "  } else {\n"
         "    return input;\n"
         "  }\n"
@@ -138,8 +123,12 @@ SpriteShader::SpriteShader(bool shadow) {
   if (!shadow) {
     textureSize_location =
         program->GetUniformLocationOrAbort("u_textureSize");
-    hueOffset_location =
-        program->GetUniformLocationOrAbort("u_hueOffset");
+    playerColorsTextureSize_location =
+        program->GetUniformLocationOrAbort("u_playerColorsTextureSize");
+    playerIndex_location =
+        program->GetUniformLocationOrAbort("u_playerIndex");
+    playerColorsTexture_location =
+        program->GetUniformLocationOrAbort("u_playerColorsTexture");
   }
   tex_topleft_location =
       program->GetUniformLocationOrAbort("u_tex_topleft");

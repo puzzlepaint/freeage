@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "FreeAge/free_age.h"
+#include "FreeAge/logging.h"
 
 class SpriteShader;
 class Texture;
@@ -87,7 +88,7 @@ void DrawSprite(
     int widgetHeight,
     int frameNumber,
     bool shadow,
-    float hueOffset = 0);
+    int playerIndex = 0);
 
 
 // Note: SMX parsing implemented according to:
@@ -164,19 +165,24 @@ struct SMPLayerRowEdge {
 #pragma pack(pop)
 
 
-inline QRgb GetPalettedPixel(const Palette& palette, u8 paletteSection, u8 colorIndex, bool ignoreAlpha) {
+inline QRgb GetPalettedPixel(const Palette* palette, u8 paletteSection, u8 colorIndex, bool ignoreAlpha) {
   std::size_t finalIndex = 256 * paletteSection + colorIndex;
   
-  if (finalIndex < palette.size()) {
-    const RGBA& rgba = palette[finalIndex];
+  if (palette == nullptr) {
+    // Encode the index in the pixel value.
+    // Set the alpha to the magic value of 254, which the shader will interpret as player color marking.
+    CHECK_LT(finalIndex, 65536);
+    return qRgba(finalIndex & 0xff, (finalIndex >> 8) & 0xff, 0, 254);
+  } else if (finalIndex < palette->size()) {
+    const RGBA& rgba = (*palette)[finalIndex];
     return qRgba(rgba.r, rgba.g, rgba.b, ignoreAlpha ? 255 : rgba.a);
   } else {
-    std::cout << "AddPalettedPixel(): Index (" << finalIndex << ") is larger than the palette size (" << palette.size() << ")\n";
+    std::cout << "AddPalettedPixel(): Index (" << finalIndex << ") is larger than the palette size (" << palette->size() << ")\n";
     return qRgba(0, 0, 0, 0);
   }
 }
 
-inline QRgb DecompressNextPixel8To5(const u8*& pixelPtr, int& decompressionState, const Palette& palette, bool ignoreAlpha) {
+inline QRgb DecompressNextPixel8To5(const u8*& pixelPtr, int& decompressionState, const Palette* palette, bool ignoreAlpha) {
   QRgb result;
   if (decompressionState == 0) {
     const u8& colorIndex = pixelPtr[0];
@@ -197,7 +203,7 @@ inline QRgb DecompressNextPixel8To5(const u8*& pixelPtr, int& decompressionState
   return result;
 }
 
-inline QRgb DecompressNextPixel4Plus1(const u8*& pixelPtr, int& decompressionState, const Palette& palette, bool ignoreAlpha) {
+inline QRgb DecompressNextPixel4Plus1(const u8*& pixelPtr, int& decompressionState, const Palette* palette, bool ignoreAlpha) {
   const u8& paletteSections = pixelPtr[4];
   
   QRgb result;

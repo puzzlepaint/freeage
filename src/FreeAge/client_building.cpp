@@ -106,7 +106,7 @@ void ClientBuilding::Render(
         buildingTextures[static_cast<int>(BuildingType::TownCenterMain)],
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow,
-        GetHueOffsetForPlayer(playerIndex));
+        playerIndex);
     
     // Back
     DrawSprite(
@@ -114,7 +114,7 @@ void ClientBuilding::Render(
         buildingTextures[static_cast<int>(BuildingType::TownCenterBack)],
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow,
-        GetHueOffsetForPlayer(playerIndex));
+        playerIndex);
     
     // Center
     DrawSprite(
@@ -122,7 +122,7 @@ void ClientBuilding::Render(
         buildingTextures[static_cast<int>(BuildingType::TownCenterCenter)],
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow,
-        GetHueOffsetForPlayer(playerIndex));
+        playerIndex);
   }
   
   DrawSprite(
@@ -137,7 +137,7 @@ void ClientBuilding::Render(
       widgetHeight,
       frameIndex,
       shadow,
-      GetHueOffsetForPlayer(playerIndex));
+      playerIndex);
   
   if (type == BuildingType::TownCenter) {
     // Front
@@ -146,7 +146,7 @@ void ClientBuilding::Render(
         buildingTextures[static_cast<int>(BuildingType::TownCenterFront)],
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow,
-        GetHueOffsetForPlayer(playerIndex));
+        playerIndex);
   }
 }
 

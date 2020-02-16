@@ -31,6 +31,8 @@ class RenderWindow : public QOpenGLWidget {
   inline void SetScroll(const QPointF& value) { scroll = value; }
   
  protected:
+  void CreatePlayerColorPaletteTexture();
+  
   virtual void initializeGL() override;
   virtual void paintGL() override;
   virtual void resizeGL(int width, int height) override;
@@ -78,6 +80,9 @@ class RenderWindow : public QOpenGLWidget {
   
   // Resources.
   GLuint pointBuffer;
+  std::shared_ptr<Texture> playerColorsTexture;
+  int playerColorsTextureWidth;
+  int playerColorsTextureHeight;
   
   std::vector<ClientUnitType> unitTypes;
   

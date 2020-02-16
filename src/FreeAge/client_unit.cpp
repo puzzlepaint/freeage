@@ -123,5 +123,5 @@ void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, 
       widgetHeight,
       frameIndex,
       shadow,
-      GetHueOffsetForPlayer(playerIndex));
+      playerIndex);
 }

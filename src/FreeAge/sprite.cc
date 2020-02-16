@@ -14,7 +14,6 @@ QImage LoadSMXGraphicLayer(
     const std::vector<SMPLayerRowEdge>& rowEdges,
     bool usesEightToFiveCompression,
     const Palette& standardPalette,
-    const Palette& playerColorPalette,
     FILE* file) {
   // Read the command and pixel array length
   u32 commandArrayLen;
@@ -82,7 +81,7 @@ QImage LoadSMXGraphicLayer(
         col += count;
       } else if (commandCode == 0b01 || commandCode == 0b10) {
         // Choose the normal or player-color palette depending on the command.
-        const Palette& palette = (commandCode == 0b01) ? standardPalette : playerColorPalette;
+        const Palette* palette = (commandCode == 0b01) ? &standardPalette : nullptr;
         
         // Draw *count* pixels from that palette.
         u8 count = (command >> 2) + 1;
@@ -92,11 +91,6 @@ QImage LoadSMXGraphicLayer(
             *out = DecompressNextPixel8To5(pixelPtr, decompressionState, palette, ignoreAlpha);
           } else {
             *out = DecompressNextPixel4Plus1(pixelPtr, decompressionState, palette, ignoreAlpha);
-          }
-          
-          if (commandCode == 0b10) {
-            // Set the alpha to the magic value of 254, which the shader will interpret as player color marking.
-            reinterpret_cast<u8*>(out)[3] = 254;
           }
           
           ++ out;
@@ -284,7 +278,6 @@ QImage LoadSMXOutlineLayer(
 bool LoadSMXLayer(
     bool usesEightToFiveCompression,
     const Palette& standardPalette,
-    const Palette& playerColorPalette,
     SMXLayerType layerType,
     Sprite::Frame::Layer* layer,
     FILE* file) {
@@ -321,7 +314,6 @@ bool LoadSMXLayer(
          rowEdges,
         usesEightToFiveCompression,
         standardPalette,
-        playerColorPalette,
         file);
   } else if (layerType == SMXLayerType::Shadow) {
     layer->image = LoadSMXShadowLayer(
@@ -545,14 +537,12 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
       return false;
     }
     const Palette& standardPalette = paletteIt->second;
-    const Palette& playerColorPalette = palettes.at(55);  // TODO: Hardcoded the blue player palette
     
     // Read graphic layer
     if (frameHeader.HasGraphicLayer()) {
       if (!LoadSMXLayer(
           frameHeader.UsesEightToFiveCompression(),
           standardPalette,
-          playerColorPalette,
           SMXLayerType::Graphic,
           &frame.graphic,
           file)) {
@@ -565,7 +555,6 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
       if (!LoadSMXLayer(
           frameHeader.UsesEightToFiveCompression(),
           standardPalette,
-          playerColorPalette,
           SMXLayerType::Shadow,
           &frame.shadow,
           file)) {
@@ -578,7 +567,6 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
       if (!LoadSMXLayer(
           frameHeader.UsesEightToFiveCompression(),
           standardPalette,
-          playerColorPalette,
           SMXLayerType::Outline,
           &frame.outline,
           file)) {
@@ -700,7 +688,7 @@ void DrawSprite(
     int widgetHeight,
     int frameNumber,
     bool shadow,
-    float hueOffset) {
+    int playerIndex) {
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameNumber).shadow : sprite.frame(frameNumber).graphic;
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
@@ -713,7 +701,7 @@ void DrawSprite(
   f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
   
   if (!shadow) {
-    program->SetUniform1f(spriteShader->GetHueOffsetLocation(), hueOffset);
+    program->SetUniform1i(spriteShader->GetPlayerIndexLocation(), playerIndex);
     program->SetUniform2f(spriteShader->GetTextureSizeLocation(), texture.GetWidth(), texture.GetHeight());
   }
   

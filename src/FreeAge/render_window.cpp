@@ -54,6 +54,7 @@ RenderWindow::~RenderWindow() {
   buildingShadowTextures.clear();
   buildingTextures.clear();
   buildingSprites.clear();
+  playerColorsTexture.reset();
   doneCurrent();
 }
 
@@ -91,12 +92,49 @@ QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime) {
   return result;
 }
 
+void RenderWindow::CreatePlayerColorPaletteTexture() {
+  constexpr int maxNumPlayers = 8;
+  
+  const Palette* playerColorPalettes[maxNumPlayers] = {
+    &palettes.at(55),  // blue,
+    &palettes.at(56),  // red,
+    &palettes.at(57),  // green,
+    &palettes.at(58),  // yellow,
+    &palettes.at(60),  // teal
+    &palettes.at(61),  // purple
+    &palettes.at(62),  // grey
+    &palettes.at(59)   // orange
+  };
+  
+  int maxNumColors = 0;
+  for (int i = 0; i < maxNumPlayers; ++ i) {
+    maxNumColors = std::max<int>(maxNumColors, playerColorPalettes[i]->size());
+  }
+  
+  // Each row contains the colors for one player.
+  playerColorsTextureWidth = maxNumColors;
+  playerColorsTextureHeight = maxNumPlayers;
+  QImage image(maxNumColors, maxNumPlayers, QImage::Format_ARGB32);
+  for (int i = 0; i < maxNumPlayers; ++ i) {
+    const Palette* palette = playerColorPalettes[i];
+    QRgb* ptr = reinterpret_cast<QRgb*>(image.scanLine(i));
+    
+    for (usize c = 0; c < palette->size(); ++ c) {
+      const auto& color = palette->at(c);
+      *ptr++ = qRgba(color.r, color.g, color.b, color.a);
+    }
+  }
+  
+  playerColorsTexture.reset(new Texture());
+  playerColorsTexture->Load(image, GL_CLAMP, GL_NEAREST, GL_NEAREST);
+}
+
 void RenderWindow::initializeGL() {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   CHECK_OPENGL_NO_ERROR();
   
   // Create a vertex array object (VAO).
-  // TODO: Handle this properly.
+  // TODO: Handle this properly instead of just creating a single global object at the start.
   GLuint vao;
   f->glGenVertexArrays(1, &vao);
   f->glBindVertexArray(vao);
@@ -105,6 +143,15 @@ void RenderWindow::initializeGL() {
   // Create shaders.
   shadowShader.reset(new SpriteShader(true));
   spriteShader.reset(new SpriteShader(false));
+  
+  // Create player color palette texture.
+  CreatePlayerColorPaletteTexture();
+  spriteShader->GetProgram()->UseProgram();
+  spriteShader->GetProgram()->SetUniform2f(spriteShader->GetPlayerColorsTextureSizeLocation(), playerColorsTextureWidth, playerColorsTextureHeight);
+  spriteShader->GetProgram()->SetUniform1i(spriteShader->GetPlayerColorsTextureLocation(), 1);  // use GL_TEXTURE1
+  f->glActiveTexture(GL_TEXTURE0 + 1);
+  f->glBindTexture(GL_TEXTURE_2D, playerColorsTexture->GetId());
+  f->glActiveTexture(GL_TEXTURE0);
   
   // Load unit resources.
   unitTypes.resize(static_cast<int>(UnitType::NumUnits));
