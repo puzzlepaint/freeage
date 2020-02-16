@@ -88,7 +88,9 @@ void DrawSprite(
     int widgetHeight,
     int frameNumber,
     bool shadow,
-    int playerIndex = 0);
+    bool outline,
+    const std::vector<QRgb>& playerColors,
+    int playerIndex);
 
 
 // Note: SMX parsing implemented according to:

@@ -58,7 +58,7 @@ ClientUnit::ClientUnit(int playerIndex, UnitType type, const QPointF& mapCoord)
       currentAnimationVariant(0),
       lastAnimationStartTime(-1) {}
 
-QRectF ClientUnit::GetRectInProjectedCoords(Map* map, const std::vector<ClientUnitType>& unitTypes, double elapsedSeconds, bool shadow) {
+QRectF ClientUnit::GetRectInProjectedCoords(Map* map, const std::vector<ClientUnitType>& unitTypes, double elapsedSeconds, bool shadow, bool outline) {
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
   const SpriteAndTextures& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
   const Sprite& sprite = animationSpriteAndTexture.sprite;
@@ -70,14 +70,27 @@ QRectF ClientUnit::GetRectInProjectedCoords(Map* map, const std::vector<ClientUn
   int frameIndex = direction * framesPerDirection + static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % framesPerDirection;
   
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameIndex).shadow : sprite.frame(frameIndex).graphic;
+  bool isGraphic = !shadow && !outline;
   return QRectF(
-      centerProjectedCoord.x() - layer.centerX,
-      centerProjectedCoord.y() - layer.centerY,
-      layer.imageWidth,
-      layer.imageHeight);
+      centerProjectedCoord.x() - layer.centerX + (isGraphic ? 1 : 0),
+      centerProjectedCoord.y() - layer.centerY + (isGraphic ? 1 : 0),
+      layer.imageWidth + (isGraphic ? -2 : 0),
+      layer.imageHeight + (isGraphic ? -2 : 0));
 }
 
-void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, SpriteShader* spriteShader, GLuint pointBuffer, float* viewMatrix, float zoom, int widgetWidth, int widgetHeight, double elapsedSeconds, bool shadow) {
+void ClientUnit::Render(
+    Map* map,
+    const std::vector<ClientUnitType>& unitTypes,
+    const std::vector<QRgb>& playerColors,
+    SpriteShader* spriteShader,
+    GLuint pointBuffer,
+    float* viewMatrix,
+    float zoom,
+    int widgetWidth,
+    int widgetHeight,
+    double elapsedSeconds,
+    bool shadow,
+    bool outline) {
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
   const SpriteAndTextures& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
   const Sprite& sprite = animationSpriteAndTexture.sprite;
@@ -123,5 +136,7 @@ void ClientUnit::Render(Map* map, const std::vector<ClientUnitType>& unitTypes, 
       widgetHeight,
       frameIndex,
       shadow,
+      outline,
+      playerColors,
       playerIndex);
 }

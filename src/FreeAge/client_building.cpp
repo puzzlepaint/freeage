@@ -60,7 +60,8 @@ QRectF ClientBuilding::GetRectInProjectedCoords(
     Map* map,
     const std::vector<Sprite>& buildingSprites,
     double elapsedSeconds,
-    bool shadow) {
+    bool shadow,
+    bool outline) {
   const Sprite& sprite = buildingSprites[static_cast<int>(type)];
   
   QSize size = GetBuildingSize(type);
@@ -70,17 +71,19 @@ QRectF ClientBuilding::GetRectInProjectedCoords(
   int frameIndex = GetFrameIndex(sprite, elapsedSeconds);
   
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameIndex).shadow : sprite.frame(frameIndex).graphic;
+  bool isGraphic = !shadow && !outline;
   return QRectF(
-      centerProjectedCoord.x() - layer.centerX,
-      centerProjectedCoord.y() - layer.centerY,
-      layer.imageWidth,
-      layer.imageHeight);
+      centerProjectedCoord.x() - layer.centerX + (isGraphic ? 1 : 0),
+      centerProjectedCoord.y() - layer.centerY + (isGraphic ? 1 : 0),
+      layer.imageWidth + (isGraphic ? -2 : 0),
+      layer.imageHeight + (isGraphic ? -2 : 0));
 }
 
 void ClientBuilding::Render(
     Map* map,
     const std::vector<Sprite>& buildingSprites,
     const std::vector<Texture>& buildingTextures,
+    const std::vector<QRgb>& playerColors,
     SpriteShader* spriteShader,
     GLuint pointBuffer,
     float* viewMatrix,
@@ -88,7 +91,8 @@ void ClientBuilding::Render(
     int widgetWidth,
     int widgetHeight,
     double elapsedSeconds,
-    bool shadow) {
+    bool shadow,
+    bool outline) {
   const Sprite& sprite = buildingSprites[static_cast<int>(type)];
   const Texture& texture = buildingTextures[static_cast<int>(type)];
   
@@ -105,24 +109,24 @@ void ClientBuilding::Render(
         buildingSprites[static_cast<int>(BuildingType::TownCenterMain)],
         buildingTextures[static_cast<int>(BuildingType::TownCenterMain)],
         spriteShader, centerProjectedCoord, pointBuffer,
-        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow,
-        playerIndex);
+        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
+        playerColors, playerIndex);
     
     // Back
     DrawSprite(
         buildingSprites[static_cast<int>(BuildingType::TownCenterBack)],
         buildingTextures[static_cast<int>(BuildingType::TownCenterBack)],
         spriteShader, centerProjectedCoord, pointBuffer,
-        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow,
-        playerIndex);
+        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
+        playerColors, playerIndex);
     
     // Center
     DrawSprite(
         buildingSprites[static_cast<int>(BuildingType::TownCenterCenter)],
         buildingTextures[static_cast<int>(BuildingType::TownCenterCenter)],
         spriteShader, centerProjectedCoord, pointBuffer,
-        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow,
-        playerIndex);
+        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
+        playerColors, playerIndex);
   }
   
   DrawSprite(
@@ -137,6 +141,8 @@ void ClientBuilding::Render(
       widgetHeight,
       frameIndex,
       shadow,
+      outline,
+      playerColors,
       playerIndex);
   
   if (type == BuildingType::TownCenter) {
@@ -145,8 +151,8 @@ void ClientBuilding::Render(
         buildingSprites[static_cast<int>(BuildingType::TownCenterFront)],
         buildingTextures[static_cast<int>(BuildingType::TownCenterFront)],
         spriteShader, centerProjectedCoord, pointBuffer,
-        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow,
-        playerIndex);
+        viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
+        playerColors, playerIndex);
   }
 }
 

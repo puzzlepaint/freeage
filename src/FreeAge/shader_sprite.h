@@ -9,7 +9,7 @@
 /// Shader for rendering sprites.
 class SpriteShader {
  public:
-  SpriteShader(bool shadow);
+  SpriteShader(bool shadow, bool outline);
   ~SpriteShader();
   
   inline ShaderProgram* GetProgram() { return program.get(); }
@@ -23,6 +23,7 @@ class SpriteShader {
   inline GLint GetPlayerIndexLocation() const { return playerIndex_location; }
   inline GLint GetTextTopLeftLocation() const { return tex_topleft_location; }
   inline GLint GetTexBottomRightLocation() const { return tex_bottomright_location; }
+  inline GLint GetPlayerColorLocation() const { return playerColor_location; }
   
  private:
   std::shared_ptr<ShaderProgram> program;
@@ -35,4 +36,5 @@ class SpriteShader {
   GLint playerIndex_location;
   GLint tex_topleft_location;
   GLint tex_bottomright_location;
+  GLint playerColor_location;
 };

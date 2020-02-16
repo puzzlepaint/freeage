@@ -62,11 +62,13 @@ class ClientUnit {
       Map* map,
       const std::vector<ClientUnitType>& unitTypes,
       double elapsedSeconds,
-      bool shadow);
+      bool shadow,
+      bool outline);
   
   void Render(
       Map* map,
       const std::vector<ClientUnitType>& unitTypes,
+      const std::vector<QRgb>& playerColors,
       SpriteShader* spriteShader,
       GLuint pointBuffer,
       float* viewMatrix,
@@ -74,9 +76,11 @@ class ClientUnit {
       int widgetWidth,
       int widgetHeight,
       double elapsedSeconds,
-      bool shadow);
+      bool shadow,
+      bool outline);
   
   inline UnitType GetType() const { return type; }
+  inline UnitAnimation GetCurrentAnimation() const { return currentAnimation; }
   
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   

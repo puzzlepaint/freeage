@@ -122,7 +122,9 @@ GLint ShaderProgram::GetUniformLocation(const char* name) const {
 GLint ShaderProgram::GetUniformLocationOrAbort(const char* name) const {
   QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
   GLint result = f->glGetUniformLocation(program_, name);
-  CHECK(result != -1) << "Uniform does not exist (might have been optimized out by the compiler): " << name;
+  if (result == -1) {
+    LOG(WARNING) << "Uniform does not exist (might have been optimized out by the compiler): " << name;
+  }
   return result;
 }
 

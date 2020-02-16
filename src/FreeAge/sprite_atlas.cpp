@@ -191,7 +191,8 @@ QImage SpriteAtlas::RenderAtlas() {
           QRgb* outputScanline = reinterpret_cast<QRgb*>(atlas.scanLine(packedRect.y + y));
           
           for (int x = 0; x < packedRect.width; ++ x) {
-            if (qAlpha(outputScanline[packedRect.x + x]) > 0) {
+            int alpha = qAlpha(outputScanline[packedRect.x + x]);
+            if (alpha > 1) {
               continue;
             }
             
@@ -207,7 +208,7 @@ QImage SpriteAtlas::RenderAtlas() {
             for (int sy = minY; sy <= maxY; ++ sy) {
               for (int sx = minX; sx <= maxX; ++ sx) {
                 QRgb rgba = *(reinterpret_cast<QRgb*>(atlas.scanLine(packedRect.y + sy)) + (packedRect.x + sx));
-                if (qAlpha(rgba) == 0) {
+                if (qAlpha(rgba) <= 1) {
                   continue;
                 }
                 
@@ -221,7 +222,7 @@ QImage SpriteAtlas::RenderAtlas() {
             if (count > 0) {
               float factor = 1.f / count;
               outputScanline[packedRect.x + x] =
-                  qRgba(redSum * factor + 0.5f, greenSum * factor + 0.5f, blueSum * factor + 0.5f, 0);
+                  qRgba(redSum * factor + 0.5f, greenSum * factor + 0.5f, blueSum * factor + 0.5f, alpha);
             }
           }
         }

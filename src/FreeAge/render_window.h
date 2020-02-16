@@ -75,14 +75,17 @@ class RenderWindow : public QOpenGLWidget {
   int widgetHeight;
   
   // Shaders.
-  std::shared_ptr<SpriteShader> shadowShader;
   std::shared_ptr<SpriteShader> spriteShader;
+  std::shared_ptr<SpriteShader> shadowShader;
+  std::shared_ptr<SpriteShader> outlineShader;
   
   // Resources.
   GLuint pointBuffer;
+  
   std::shared_ptr<Texture> playerColorsTexture;
   int playerColorsTextureWidth;
   int playerColorsTextureHeight;
+  std::vector<QRgb> playerColors;
   
   std::vector<ClientUnitType> unitTypes;
   

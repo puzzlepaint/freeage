@@ -45,12 +45,14 @@ class ClientBuilding {
       Map* map,
       const std::vector<Sprite>& buildingSprites,
       double elapsedSeconds,
-      bool shadow);
+      bool shadow,
+      bool outline);
   
   void Render(
       Map* map,
       const std::vector<Sprite>& buildingSprites,
       const std::vector<Texture>& buildingTextures,
+      const std::vector<QRgb>& playerColors,
       SpriteShader* spriteShader,
       GLuint pointBuffer,
       float* viewMatrix,
@@ -58,7 +60,8 @@ class ClientBuilding {
       int widgetWidth,
       int widgetHeight,
       double elapsedSeconds,
-      bool shadow);
+      bool shadow,
+      bool outline);
   
   inline BuildingType GetType() const { return type; }
   

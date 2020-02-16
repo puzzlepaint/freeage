@@ -568,8 +568,10 @@ void Map::Render(
     const std::vector<Sprite>& buildingSprites,
     const std::vector<Texture>& buildingTextures,
     const std::vector<Texture>& buildingShadowTextures,
+    const std::vector<QRgb>& playerColors,
     SpriteShader* shadowShader,
     SpriteShader* spriteShader,
+    SpriteShader* outlineShader,
     GLuint spritePointBuffer,
     float zoom,
     int widgetWidth,
@@ -612,12 +614,14 @@ void Map::Render(
         this,
         buildingSprites,
         elapsedSeconds,
-        true);
+        true,
+        false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
       building.Render(
           this,
           buildingSprites,
           buildingShadowTextures,  // using the shadow texture here
+          playerColors,
           shadowShader,
           spritePointBuffer,
           viewMatrix,
@@ -625,7 +629,8 @@ void Map::Render(
           widgetWidth,
           widgetHeight,
           elapsedSeconds,
-          true);
+          true,
+          false);
     }
   }
   for (auto& item : units) {
@@ -634,18 +639,27 @@ void Map::Render(
     //   continue;
     // }
     
-    // TODO: Clip
-    item.second.Render(
+    QRectF projectedCoordsRect = item.second.GetRectInProjectedCoords(
         this,
         unitTypes,
-        shadowShader,
-        spritePointBuffer,
-        viewMatrix,
-        zoom,
-        widgetWidth,
-        widgetHeight,
         elapsedSeconds,
-        true);
+        true,
+        false);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      item.second.Render(
+          this,
+          unitTypes,
+          playerColors,
+          shadowShader,
+          spritePointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          elapsedSeconds,
+          true,
+          false);
+    }
   }
   
   // Render the map.
@@ -690,6 +704,7 @@ void Map::Render(
         this,
         buildingSprites,
         elapsedSeconds,
+        false,
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
       // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
@@ -697,6 +712,7 @@ void Map::Render(
           this,
           buildingSprites,
           buildingTextures,
+          playerColors,
           spriteShader,
           spritePointBuffer,
           viewMatrix,
@@ -704,6 +720,7 @@ void Map::Render(
           widgetWidth,
           widgetHeight,
           elapsedSeconds,
+          false,
           false);
     }
   }
@@ -717,11 +734,13 @@ void Map::Render(
         this,
         unitTypes,
         elapsedSeconds,
+        false,
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
       unit.Render(
           this,
           unitTypes,
+          playerColors,
           spriteShader,
           spritePointBuffer,
           viewMatrix,
@@ -729,7 +748,83 @@ void Map::Render(
           widgetWidth,
           widgetHeight,
           elapsedSeconds,
+          false,
           false);
     }
   }
+  
+  // Render outlines.
+  // Disable depth writing.
+  f->glDepthMask(GL_FALSE);
+  // Let only pass through those fragments which are *behind* the depth values in the depth buffer.
+  // So we only render outlines in places where something is occluded.
+  f->glDepthFunc(GL_GREATER);
+  
+  // Render the building outlines.
+  // TODO: Sort to minmize texture switches.
+  // TODO: Does any building have an outline? Or can we delete this?
+  for (auto& buildingEntry : buildings) {
+    ClientBuilding& building = buildingEntry.second;
+    if (!buildingSprites[static_cast<int>(building.GetType())].HasOutline()) {
+      continue;
+    }
+    LOG(WARNING) << "DEBUG: Buildings with outline exist!";
+    
+    QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+        this,
+        buildingSprites,
+        elapsedSeconds,
+        false,
+        true);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
+      building.Render(
+          this,
+          buildingSprites,
+          buildingTextures,
+          playerColors,
+          outlineShader,
+          spritePointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          elapsedSeconds,
+          false,
+          true);
+    }
+  }
+  
+  // Render the units.
+  // TODO: Sort to minmize texture switches.
+  for (auto& item : units) {
+    ClientUnit& unit = item.second;
+    if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front().sprite.HasOutline()) {
+      continue;
+    }
+    
+    QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
+        this,
+        unitTypes,
+        elapsedSeconds,
+        false,
+        true);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      unit.Render(
+          this,
+          unitTypes,
+          playerColors,
+          outlineShader,
+          spritePointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          elapsedSeconds,
+          false,
+          true);
+    }
+  }
+  
+  f->glDepthMask(GL_TRUE);
 }

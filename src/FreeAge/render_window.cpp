@@ -45,8 +45,9 @@ RenderWindow::RenderWindow(const Palettes& palettes, const std::filesystem::path
 RenderWindow::~RenderWindow() {
   makeCurrent();
   // Destroy OpenGL resources here
-  shadowShader.reset();
   spriteShader.reset();
+  shadowShader.reset();
+  outlineShader.reset();
   if (map) {
     delete map;
   }
@@ -127,6 +128,14 @@ void RenderWindow::CreatePlayerColorPaletteTexture() {
   
   playerColorsTexture.reset(new Texture());
   playerColorsTexture->Load(image, GL_CLAMP, GL_NEAREST, GL_NEAREST);
+  
+  playerColors.resize(maxNumPlayers);
+  for (int i = 0; i < maxNumPlayers; ++ i) {
+    // NOTE: We simply use the first palette entry as the player color.
+    //       The player color is used for outlines.
+    const auto& color = playerColorPalettes[i]->at(0);
+    playerColors[i] = qRgba(color.r, color.g, color.b, color.a);
+  }
 }
 
 void RenderWindow::initializeGL() {
@@ -141,8 +150,9 @@ void RenderWindow::initializeGL() {
   CHECK_OPENGL_NO_ERROR();
   
   // Create shaders.
-  shadowShader.reset(new SpriteShader(true));
-  spriteShader.reset(new SpriteShader(false));
+  spriteShader.reset(new SpriteShader(false, false));
+  shadowShader.reset(new SpriteShader(true, false));
+  outlineShader.reset(new SpriteShader(false, true));
   
   // Create player color palette texture.
   CreatePlayerColorPaletteTexture();
@@ -238,11 +248,14 @@ void RenderWindow::paintGL() {
   
   // Apply the view transformation to all shaders.
   // TODO: Use a uniform buffer object for that.
+  spriteShader->GetProgram()->UseProgram();
+  spriteShader->GetProgram()->setUniformMatrix2fv(spriteShader->GetViewMatrixLocation(), viewMatrix);
+  
   shadowShader->GetProgram()->UseProgram();
   shadowShader->GetProgram()->setUniformMatrix2fv(shadowShader->GetViewMatrixLocation(), viewMatrix);
   
-  spriteShader->GetProgram()->UseProgram();
-  spriteShader->GetProgram()->setUniformMatrix2fv(spriteShader->GetViewMatrixLocation(), viewMatrix);
+  outlineShader->GetProgram()->UseProgram();
+  outlineShader->GetProgram()->setUniformMatrix2fv(outlineShader->GetViewMatrixLocation(), viewMatrix);
   
   // Set states for rendering.
   // f->glEnable(GL_MULTISAMPLE);
@@ -262,8 +275,10 @@ void RenderWindow::paintGL() {
       buildingSprites,
       buildingTextures,
       buildingShadowTextures,
+      playerColors,
       shadowShader.get(),
       spriteShader.get(),
+      outlineShader.get(),
       pointBuffer,
       zoom,
       widgetWidth,

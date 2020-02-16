@@ -13,6 +13,7 @@ QImage LoadSMXGraphicLayer(
     const SMXLayerHeader& layerHeader,
     const std::vector<SMPLayerRowEdge>& rowEdges,
     bool usesEightToFiveCompression,
+    int pixelBorder,
     const Palette& standardPalette,
     FILE* file) {
   // Read the command and pixel array length
@@ -61,10 +62,10 @@ QImage LoadSMXGraphicLayer(
     }
     
     // Left edge skip
-    for (int col = 0; col < edge.leftSpace; ++ col) {
+    for (int col = 0; col < edge.leftSpace + pixelBorder; ++ col) {
       *out++ = qRgba(0, 0, 0, 0);
     }
-    int col = edge.leftSpace;
+    int col = edge.leftSpace + pixelBorder;
     
     while (true) {
       // Check the next command.
@@ -98,7 +99,7 @@ QImage LoadSMXGraphicLayer(
         col += count;
       } else if (commandCode == 0b11) {
         // End of row.
-        if (col + edge.rightSpace != layerHeader.width) {
+        if (col + edge.rightSpace + pixelBorder != layerHeader.width) {
           LOG(WARNING) << "Row " << row << ": Pixel count does not match expectation (col: " << col
                        << ", edge.rightSpace: " << edge.rightSpace << ", layerHeader.width: " << layerHeader.width << ")";
         }
@@ -295,13 +296,25 @@ bool LoadSMXLayer(
   // LOG(INFO) << "Layer length: " << layerHeader.layerLen;
   // LOG(INFO) << "Layer unknown: " << layerHeader.unknown;
   
+  int pixelBorder = (layerType == SMXLayerType::Graphic) ? 1 : 0;
+  layerHeader.width += 2 * pixelBorder;
+  layerHeader.height += 2 * pixelBorder;
+  layerHeader.hotspotX += pixelBorder;
+  layerHeader.hotspotY += pixelBorder;
+  
   layer->centerX = layerHeader.hotspotX;
   layer->centerY = layerHeader.hotspotY;
   
   // Read the row edge data.
   std::vector<SMPLayerRowEdge> rowEdges(layerHeader.height);
-  for (int row = 0; row < layerHeader.height; ++ row) {
-    if (fread(&rowEdges[row], sizeof(SMPLayerRowEdge), 1, file) != 1) {
+  for (int i = 0; i < pixelBorder; ++ i) {
+    rowEdges[i].leftSpace = 0xFFFF;
+    rowEdges[i].rightSpace = 0xFFFF;
+    rowEdges[rowEdges.size() - 1 - i].leftSpace = 0xFFFF;
+    rowEdges[rowEdges.size() - 1 - i].rightSpace = 0xFFFF;
+  }
+  for (int row = 0; row < layerHeader.height - 2 * pixelBorder; ++ row) {
+    if (fread(&rowEdges[row + pixelBorder], sizeof(SMPLayerRowEdge), 1, file) != 1) {
       LOG(ERROR) << "Unexpected EOF while trying to read SMPLayerRowEdge for row " << row;
       return false;
     }
@@ -313,6 +326,7 @@ bool LoadSMXLayer(
         layerHeader,
          rowEdges,
         usesEightToFiveCompression,
+        pixelBorder,
         standardPalette,
         file);
   } else if (layerType == SMXLayerType::Shadow) {
@@ -551,6 +565,48 @@ void InpaintShadowBehindGraphic(Sprite::Frame::Layer* shadow, const Sprite::Fram
   }
 }
 
+/// Paints the outline data into the graphic layer, setting the alpha value of pixels with an outline to:
+/// * 1, if the pixel's actual alpha value was 0
+/// * 253, if the pixel's actual alpha value was 255
+/// * 252, if the pixel's actual alpha value was 254
+void PaintOutlineIntoGraphic(Sprite::Frame::Layer* graphic, const Sprite::Frame::Layer& outline) {
+  int offsetX = graphic->centerX - outline.centerX;
+  int offsetY = graphic->centerY - outline.centerY;
+  
+  for (int y = 0; y < outline.imageHeight; ++ y) {
+    int graphicY = y + offsetY;
+    if (graphicY < 0 || graphicY >= graphic->imageHeight) {
+      continue;
+    }
+    QRgb* graphicScanLine = reinterpret_cast<QRgb*>(graphic->image.scanLine(graphicY));
+    const u8* outlineScanLine = reinterpret_cast<const u8*>(outline.image.scanLine(y));
+    
+    for (int x = 0; x < outline.imageWidth; ++ x) {
+      if (outlineScanLine[x] != 255) {
+        continue;
+      }
+      
+      // Get the corresponding pixel in the graphic sprite (may be out of bounds though).
+      int graphicX = x + offsetX;
+      if (graphicX < 0 || graphicX >= graphic->imageWidth) {
+        continue;
+      }
+      
+      QRgb value = graphicScanLine[graphicX];
+      int alpha = qAlpha(value);
+      if (alpha == 0) {
+        alpha = 1;
+      } else if (alpha == 255) {
+        alpha = 253;
+      } else {  // if (alpha == 254) {
+        alpha = 252;
+      }
+      
+      graphicScanLine[graphicX] = qRgba(qRed(value), qGreen(value), qBlue(value), alpha);
+    }
+  }
+}
+
 bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
   // TODO: This only supports the .smx format at the moment. Also support .slp, for example.
   
@@ -641,6 +697,9 @@ bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
           file)) {
         return false;
       }
+      
+      PaintOutlineIntoGraphic(&frame.graphic, frame.outline);
+      frame.outline.image = QImage();  // unload outline image data
     }
   }
   
@@ -669,7 +728,7 @@ bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode,
     SpriteAtlas atlas(mode);
     atlas.AddSprite(sprite);
     
-    constexpr int pixelBorder = 1;
+    constexpr int pixelBorder = 0;
     
     std::string cacheFilePath = std::string(cachePath) + ((graphicOrShadow == 0) ? ".graphic" : ".shadow");
     bool loaded = false;
@@ -757,9 +816,13 @@ void DrawSprite(
     int widgetHeight,
     int frameNumber,
     bool shadow,
+    bool outline,
+    const std::vector<QRgb>& playerColors,
     int playerIndex) {
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameNumber).shadow : sprite.frame(frameNumber).graphic;
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
+  bool isGraphic = !shadow && !outline;
   
   f->glEnable(GL_BLEND);
   f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -769,16 +832,24 @@ void DrawSprite(
   program->SetUniform1i(spriteShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
   
-  if (!shadow) {
+  if (!shadow && !outline) {
     program->SetUniform1i(spriteShader->GetPlayerIndexLocation(), playerIndex);
+  }
+  if (!shadow) {
     program->SetUniform2f(spriteShader->GetTextureSizeLocation(), texture.GetWidth(), texture.GetHeight());
   }
+  if (outline) {
+    program->SetUniform3f(spriteShader->GetPlayerColorLocation(), qRed(playerColors[playerIndex]), qGreen(playerColors[playerIndex]), qBlue(playerColors[playerIndex]));
+  }
   
-  program->SetUniform2f(spriteShader->GetSizeLocation(), zoom * 2.f * layer.imageWidth / static_cast<float>(widgetWidth), zoom * 2.f * layer.imageHeight / static_cast<float>(widgetHeight));
-  float texLeftX = layer.atlasX / (1.f * texture.GetWidth());
-  float texTopY = layer.atlasY / (1.f * texture.GetHeight());
-  float texRightX = (layer.atlasX + layer.imageWidth) / (1.f * texture.GetWidth());
-  float texBottomY = (layer.atlasY + layer.imageHeight) / (1.f * texture.GetHeight());
+  program->SetUniform2f(
+      spriteShader->GetSizeLocation(),
+      zoom * 2.f * (layer.imageWidth + (isGraphic ? -2: 0)) / static_cast<float>(widgetWidth),
+      zoom * 2.f * (layer.imageHeight + (isGraphic ? -2: 0)) / static_cast<float>(widgetHeight));
+  float texLeftX = (layer.atlasX + (isGraphic ? 1 : 0)) / (1.f * texture.GetWidth());
+  float texTopY = (layer.atlasY + (isGraphic ? 1 : 0)) / (1.f * texture.GetHeight());
+  float texRightX = (layer.atlasX + layer.imageWidth + (isGraphic ? -1 : 0)) / (1.f * texture.GetWidth());
+  float texBottomY = (layer.atlasY + layer.imageHeight + (isGraphic ? -1 : 0)) / (1.f * texture.GetHeight());
   if (layer.rotated) {
     // TODO: Is this worth implementing? It will complicate the shader a little.
   }
@@ -788,8 +859,8 @@ void DrawSprite(
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   constexpr float kOffScreenDepthBufferExtent = 1000;
   float data[] = {
-      static_cast<float>(centerProjectedCoord.x() - layer.centerX),
-      static_cast<float>(centerProjectedCoord.y() - layer.centerY),
+      static_cast<float>(centerProjectedCoord.x() - layer.centerX + (isGraphic ? 1 : 0)),
+      static_cast<float>(centerProjectedCoord.y() - layer.centerY + (isGraphic ? 1 : 0)),
       static_cast<float>(1.f - 2.f * (kOffScreenDepthBufferExtent + viewMatrix[0] * centerProjectedCoord.y() + viewMatrix[2]) / (2.f * kOffScreenDepthBufferExtent + widgetHeight))};
   int elementSizeInBytes = 3 * sizeof(float);
   f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
