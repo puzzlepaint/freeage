@@ -411,7 +411,7 @@ void RenderWindow::RenderMoveToMarker(const TimePoint& now) {
 }
 
 void RenderWindow::RenderHealthBars(double elapsedSeconds) {
-QRgb gaiaColor = qRgb(255, 255, 255);
+  QRgb gaiaColor = qRgb(255, 255, 255);
   
   // Render health bars for buildings.
   for (auto& buildingEntry : map->GetBuildings()) {
@@ -480,6 +480,87 @@ QRgb gaiaColor = qRgb(255, 255, 255);
           widgetHeight);
     }
   }
+}
+
+struct PossibleSelectedObject {
+  inline PossibleSelectedObject(ClientUnit* unit, float score)
+      : unit(unit),
+        building(nullptr),
+        score(score) {}
+  
+  inline PossibleSelectedObject(ClientBuilding* building, float score)
+      : unit(nullptr),
+        building(building),
+        score(score) {}
+  
+  inline bool operator< (const PossibleSelectedObject& other) const {
+    return score > other.score;
+  }
+  
+  ClientUnit* unit;
+  ClientBuilding* building;
+  float score;
+};
+
+bool RenderWindow::GetObjectToSelectAt(float x, float y, int* objectId) {
+  TimePoint now = Clock::now();
+  double elapsedSeconds = std::chrono::duration<double>(now - gameStartTime).count();
+  
+  // First, collect all objects at the given position.
+  std::vector<PossibleSelectedObject> possibleSelectedObjects;
+  
+  QPointF projectedCoord = ScreenCoordToProjectedCoord(x, y);
+  QPointF mapCoord;
+  bool haveMapCoord = map->ProjectedCoordToMapCoord(projectedCoord, &mapCoord);
+  
+  // Check buildings.
+  for (auto& buildingEntry : map->GetBuildings()) {
+    ClientBuilding& building = buildingEntry.second;
+    
+    // Is the position within the tiles which the building stands on?
+    bool addToList = false;
+    if (haveMapCoord) {
+      QSize size = buildingTypes[static_cast<int>(building.GetType())].GetSize();
+      if (mapCoord.x() >= building.GetBaseTile().x() &&
+          mapCoord.y() >= building.GetBaseTile().y() &&
+          mapCoord.x() <= building.GetBaseTile().x() + size.width() &&
+          mapCoord.x() <= building.GetBaseTile().y() + size.height()) {
+        addToList = true;
+      }
+    }
+    
+    // Is the position within the building sprite?
+    if (!addToList) {
+      QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+        map,
+        buildingTypes,
+        elapsedSeconds,
+        true,
+        false);
+      if (projectedCoordsRect.contains(projectedCoord)) {
+        // TODO: Check sprite edges
+      }
+    }
+    
+    if (addToList) {
+      possibleSelectedObjects.emplace_back(building, 1.f);  // TODO: Compute score
+    }
+  }
+  
+  // Check units.
+  for (auto& item : map->GetUnits()) {
+    // TODO
+  }
+  
+  // Given the list of objects at the given position, and considering the current selection,
+  // return the next object to select.
+  // TODO
+}
+
+QPointF RenderWindow::ScreenCoordToProjectedCoord(float x, float y) {
+  return QPointF(
+      ((-1 + 2 * x / (1.f * width())) - viewMatrix[2]) / viewMatrix[0],
+      ((1 - 2 * y / (1.f * height())) - viewMatrix[3]) / viewMatrix[1]);
 }
 
 void RenderWindow::initializeGL() {
@@ -637,12 +718,12 @@ void RenderWindow::resizeGL(int width, int height) {
 }
 
 void RenderWindow::mousePressEvent(QMouseEvent* event) {
-  if (event->button() == Qt::RightButton) {
+  if (event->button() == Qt::LeftButton) {
+    // TODO: Remember position for dragging
+  } else if (event->button() == Qt::RightButton) {
     // TODO: Only do that if units are selected
     
-    QPointF projectedCoord(
-        ((-1 + 2 * event->x() / (1.f * width())) - viewMatrix[2]) / viewMatrix[0],
-        ((1 - 2 * event->y() / (1.f * height())) - viewMatrix[3]) / viewMatrix[1]);
+    QPointF projectedCoord = ScreenCoordToProjectedCoord(event->x(), event->y());
     if (map->ProjectedCoordToMapCoord(projectedCoord, &moveToMapCoord)) {
       moveToTime = Clock::now();
       haveMoveTo = true;
@@ -651,12 +732,19 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
 }
 
 void RenderWindow::mouseMoveEvent(QMouseEvent* /*event*/) {
-  // TODO
   // TODO: Possibly manually batch these events together, since we disabled event batching globally.
 }
 
-void RenderWindow::mouseReleaseEvent(QMouseEvent* /*event*/) {
-  // TODO
+void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
+  if (event->button() == Qt::LeftButton) {
+    // TODO: Only do this when not dragging
+    
+    int objectId;
+    if (GetObjectToSelectAt(event->x(), event->y(), &objectId)) {
+      selection.clear();
+      selection.push_back(objectId);
+    }
+  }
 }
 
 void RenderWindow::wheelEvent(QWheelEvent* event) {

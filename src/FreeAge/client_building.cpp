@@ -87,6 +87,7 @@ float ClientBuildingType::GetHealthBarHeightAboveCenter(int frameIndex) const {
 ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY)
     : playerIndex(playerIndex),
       type(type),
+      isSelected(false),
       fixedFrameIndex(-1),
       baseTileX(baseTileX),
       baseTileY(baseTileY) {}

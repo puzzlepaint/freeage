@@ -40,6 +40,13 @@ class RenderWindow : public QOpenGLWidget {
   void RenderMoveToMarker(const TimePoint& now);
   void RenderHealthBars(double elapsedSeconds);
   
+  /// Given screen-space coordinates (x, y), finds the next object to select at
+  /// this point. If an object is found, true is returned, and the object's ID is
+  /// returned in objectId.
+  bool GetObjectToSelectAt(float x, float y, int* objectId);
+  
+  QPointF ScreenCoordToProjectedCoord(float x, float y);
+  
   virtual void initializeGL() override;
   virtual void paintGL() override;
   virtual void resizeGL(int width, int height) override;
@@ -70,6 +77,9 @@ class RenderWindow : public QOpenGLWidget {
   
   /// Map data.
   Map* map;
+  
+  /// IDs of selected objects (units or buildings).
+  std::vector<int> selection;
   
   /// Current zoom factor. The default zoom is one, two would make everything twice as big, etc.
   float zoom;

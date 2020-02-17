@@ -108,6 +108,8 @@ class ClientBuilding {
   int playerIndex;
   BuildingType type;
   
+  bool isSelected;
+  
   /// In case the building uses a random but fixed frame index, it is stored here.
   int fixedFrameIndex;
   

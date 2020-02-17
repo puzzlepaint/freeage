@@ -98,6 +98,8 @@ class ClientUnit {
   int playerIndex;
   UnitType type;
   
+  bool isSelected;
+  
   /// Current position of the unit sprite's center on the map.
   QPointF mapCoord;
   
