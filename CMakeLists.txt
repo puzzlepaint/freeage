@@ -67,6 +67,7 @@ add_library(FreeAgeLib
   src/FreeAge/shader_health_bar.cpp
   src/FreeAge/shader_program.cpp
   src/FreeAge/shader_sprite.cpp
+  src/FreeAge/shader_terrain.cpp
   src/FreeAge/sprite.cc
   src/FreeAge/sprite_atlas.cpp
   src/FreeAge/texture.cpp

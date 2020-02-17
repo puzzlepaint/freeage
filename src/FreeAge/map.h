@@ -8,6 +8,7 @@
 #include "FreeAge/client_building.h"
 #include "FreeAge/client_unit.h"
 #include "FreeAge/shader_program.h"
+#include "FreeAge/shader_terrain.h"
 #include "FreeAge/sprite.h"
 #include "FreeAge/texture.h"
 
@@ -145,7 +146,5 @@ class Map {
   GLuint textureId;
   GLuint vertexBuffer;
   GLuint indexBuffer;
-  std::shared_ptr<ShaderProgram> program;
-  GLint program_u_texture_location;
-  GLint program_u_viewMatrix_location;
+  std::shared_ptr<TerrainShader> terrainShader;
 };
