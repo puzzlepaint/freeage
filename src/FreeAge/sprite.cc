@@ -2,6 +2,8 @@
 
 #include <filesystem>
 
+#include <mango/image/image.hpp>
+
 #include "FreeAge/logging.h"
 #include "FreeAge/opengl.h"
 #include "FreeAge/shader_program.h"
@@ -608,6 +610,14 @@ void PaintOutlineIntoGraphic(Sprite::Frame::Layer* graphic, const Sprite::Frame:
 }
 
 bool Sprite::LoadFromFile(const char* path, const Palettes& palettes) {
+  int pathLen = strlen(path);
+  if (pathLen > 3 &&
+      (path[pathLen - 3] == 'P' || path[pathLen - 3] == 'p') &&
+      (path[pathLen - 2] == 'N' || path[pathLen - 2] == 'n') &&
+      (path[pathLen - 1] == 'G' || path[pathLen - 1] == 'g')) {
+    return LoadFromPNGFiles(path);
+  }
+  
   FILE* file = fopen(path, "rb");
   if (!file) {
     LOG(ERROR) << "Cannot open file: " << path;
@@ -892,6 +902,72 @@ bool Sprite::LoadFromSMPFile(FILE* file, const Palettes& palettes) {
   return true;
 }
 
+bool Sprite::LoadFromPNGFiles(const char* path) {
+  int frameIdx = 0;
+  while (true) {
+    char pathBuffer[512];
+    sprintf(pathBuffer, path, frameIdx);
+    if (!std::filesystem::exists(pathBuffer)) {
+      break;
+    }
+    
+    // Load the frame from the PNG image.
+    // We assume that the sprite center is in the center of the image.
+    mango::Bitmap bitmap(pathBuffer, mango::Format(32, mango::Format::UNORM, mango::Format::BGRA, 8, 8, 8, 8));
+    
+    // Get the bounding rect of pixels having alpha > 0
+    int minX = std::numeric_limits<int>::max();
+    int minY = std::numeric_limits<int>::max();
+    int maxX = std::numeric_limits<int>::lowest();
+    int maxY = std::numeric_limits<int>::lowest();
+    
+    for (int y = 0; y < bitmap.height; ++ y) {
+      u8* rowPtr = reinterpret_cast<u8*>(bitmap.address<u32>(0, y));
+      for (int x = 0; x < bitmap.width; ++ x) {
+        int alpha = rowPtr[4 * x + 3];
+        if (alpha > 0) {
+          minX = std::min(minX, x);
+          minY = std::min(minY, y);
+          maxX = std::max(maxX, x);
+          maxY = std::max(maxY, y);
+        }
+      }
+    }
+    
+    // Extend the bounding rect by one pixel on each side to leave space for bilinear interpolation
+    minX = std::max(0, minX - 1);
+    minY = std::max(0, minY - 1);
+    maxX = std::min(bitmap.width - 1, maxX + 1);
+    maxY = std::min(bitmap.height - 1, maxY + 1);
+    
+    int width = maxX - minX + 1;
+    int height = maxY - minY + 1;
+    
+    // Create a sprite frame out of the pixels in the bounding rect
+    frames.emplace_back();
+    Frame& frame = frames.back();
+    Frame::Layer& graphic = frame.graphic;
+    
+    graphic.imageWidth = width;
+    graphic.imageHeight = height;
+    graphic.centerX = (bitmap.width / 2) - minX;
+    graphic.centerY = (bitmap.height / 2) - minY;
+    
+    graphic.image = QImage(width, height, QImage::Format_ARGB32);
+    for (int y = minY; y <= maxY; ++ y) {
+      u32* inRowPtr = bitmap.address<u32>(0, y);
+      u32* outRowPtr = reinterpret_cast<u32*>(graphic.image.scanLine(y - minY));
+      for (int x = minX; x <= maxX; ++ x) {
+        outRowPtr[x - minX] = inRowPtr[x];
+      }
+    }
+    
+    ++ frameIdx;
+  }
+  
+  return !frames.empty();
+}
+
 
 bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode, int /*magFilter*/, int /*minFilter*/, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes) {
   // TODO magFilter and minFilter are unused here
@@ -1004,7 +1080,8 @@ void DrawSprite(
     bool shadow,
     bool outline,
     const std::vector<QRgb>& playerColors,
-    int playerIndex) {
+    int playerIndex,
+    float scaling) {
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameNumber).shadow : sprite.frame(frameNumber).graphic;
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
@@ -1030,8 +1107,8 @@ void DrawSprite(
   
   program->SetUniform2f(
       spriteShader->GetSizeLocation(),
-      zoom * 2.f * (layer.imageWidth + (isGraphic ? -2: 0)) / static_cast<float>(widgetWidth),
-      zoom * 2.f * (layer.imageHeight + (isGraphic ? -2: 0)) / static_cast<float>(widgetHeight));
+      scaling * zoom * 2.f * (layer.imageWidth + (isGraphic ? -2: 0)) / static_cast<float>(widgetWidth),
+      scaling * zoom * 2.f * (layer.imageHeight + (isGraphic ? -2: 0)) / static_cast<float>(widgetHeight));
   float texLeftX = (layer.atlasX + (isGraphic ? 1 : 0)) / (1.f * texture.GetWidth());
   float texTopY = (layer.atlasY + (isGraphic ? 1 : 0)) / (1.f * texture.GetHeight());
   float texRightX = (layer.atlasX + layer.imageWidth + (isGraphic ? -1 : 0)) / (1.f * texture.GetWidth());
@@ -1045,8 +1122,8 @@ void DrawSprite(
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   constexpr float kOffScreenDepthBufferExtent = 1000;
   float data[] = {
-      static_cast<float>(centerProjectedCoord.x() - layer.centerX + (isGraphic ? 1 : 0)),
-      static_cast<float>(centerProjectedCoord.y() - layer.centerY + (isGraphic ? 1 : 0)),
+      static_cast<float>(centerProjectedCoord.x() - scaling * (layer.centerX + (isGraphic ? 1 : 0))),
+      static_cast<float>(centerProjectedCoord.y() - scaling * (layer.centerY + (isGraphic ? 1 : 0))),
       static_cast<float>(1.f - 2.f * (kOffScreenDepthBufferExtent + viewMatrix[0] * centerProjectedCoord.y() + viewMatrix[2]) / (2.f * kOffScreenDepthBufferExtent + widgetHeight))};
   int elementSizeInBytes = 3 * sizeof(float);
   f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);

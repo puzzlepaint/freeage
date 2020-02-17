@@ -868,6 +868,8 @@ void Map::Render(
   }
   
   // Render the move-to marker.
+  // This should be rendered after the last unit at the moment, since it contains semi-transparent
+  // pixels which do currenly write to the z-buffer.
   if (moveToFrameIndex >= 0) {
     QPointF projectedCoord = MapCoordToProjectedCoord(moveToMapCoord);
     DrawSprite(
@@ -884,7 +886,8 @@ void Map::Render(
         /*shadow*/ false,
         /*outline*/ false,
         playerColors,
-        /*playerIndex*/ 0);
+        /*playerIndex*/ 0,
+        /*scaling*/ 0.5f);
   }
   
   // Render health bars.

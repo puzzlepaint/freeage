@@ -70,6 +70,7 @@ class Sprite {
  private:
   bool LoadFromSMXFile(FILE* file, const Palettes& palettes);
   bool LoadFromSMPFile(FILE* file, const Palettes& palettes);
+  bool LoadFromPNGFiles(const char* path);
   
   std::vector<Frame> frames;
 };
@@ -93,7 +94,8 @@ void DrawSprite(
     bool shadow,
     bool outline,
     const std::vector<QRgb>& playerColors,
-    int playerIndex);
+    int playerIndex,
+    float scaling = 1);
 
 
 // Note: SMX / SMP parsing implemented according to:

@@ -179,11 +179,10 @@ void RenderWindow::initializeGL() {
   }
   
   // Load "move to" sprite.
-  std::string filename = "MOVETO.smp";  // TODO: This is the old (non-DE) graphic. Use the new one instead.
   moveToSprite.reset(new SpriteAndTextures());
   LoadSpriteAndTexture(
-      (graphicsPath / filename).c_str(),
-      (cachePath / filename).c_str(),
+      (graphicsPath.parent_path().parent_path() / "particles" / "textures" / "test_move" / "p_all_move_%04i.png").c_str(),
+      (cachePath / "p_all_move_0000.png").c_str(),
       GL_CLAMP,
       GL_NEAREST,
       GL_NEAREST,
@@ -274,7 +273,7 @@ void RenderWindow::paintGL() {
   int moveToFrameIndex = -1;
   if (haveMoveTo) {
     double moveToAnimationTime = std::chrono::duration<double>(now - moveToTime).count();
-    float framesPerSecond = 15.f;  // TODO: This applies to the old (non-DE) graphic.
+    float framesPerSecond = 30.f;
     moveToFrameIndex = std::max(0, static_cast<int>(framesPerSecond * moveToAnimationTime + 0.5f));
     if (moveToFrameIndex >= moveToSprite->sprite.NumFrames()) {
       haveMoveTo = false;
