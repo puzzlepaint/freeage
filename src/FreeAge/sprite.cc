@@ -1122,8 +1122,8 @@ void DrawSprite(
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   constexpr float kOffScreenDepthBufferExtent = 1000;
   float data[] = {
-      static_cast<float>(centerProjectedCoord.x() - scaling * (layer.centerX + (isGraphic ? 1 : 0))),
-      static_cast<float>(centerProjectedCoord.y() - scaling * (layer.centerY + (isGraphic ? 1 : 0))),
+      static_cast<float>(centerProjectedCoord.x() + scaling * (-layer.centerX + (isGraphic ? 1 : 0))),
+      static_cast<float>(centerProjectedCoord.y() + scaling * (-layer.centerY + (isGraphic ? 1 : 0))),
       static_cast<float>(1.f - 2.f * (kOffScreenDepthBufferExtent + viewMatrix[0] * centerProjectedCoord.y() + viewMatrix[2]) / (2.f * kOffScreenDepthBufferExtent + widgetHeight))};
   int elementSizeInBytes = 3 * sizeof(float);
   f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
