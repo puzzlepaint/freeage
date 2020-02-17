@@ -47,6 +47,9 @@ class RenderWindow : public QOpenGLWidget {
   
   QPointF ScreenCoordToProjectedCoord(float x, float y);
   
+  void ClearSelection();
+  void AddToSelection(int objectId);
+  
   virtual void initializeGL() override;
   virtual void paintGL() override;
   virtual void resizeGL(int width, int height) override;

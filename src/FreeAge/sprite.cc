@@ -283,6 +283,7 @@ bool LoadSMXLayer(
     const Palette& standardPalette,
     SMXLayerType layerType,
     Sprite::Frame::Layer* layer,
+    std::vector<SMPLayerRowEdge>* rowEdges,
     FILE* file) {
   // Read the layer header.
   SMXLayerHeader layerHeader;
@@ -308,15 +309,15 @@ bool LoadSMXLayer(
   layer->centerY = layerHeader.hotspotY;
   
   // Read the row edge data.
-  std::vector<SMPLayerRowEdge> rowEdges(layerHeader.height);
+  rowEdges->resize(layerHeader.height);
   for (int i = 0; i < pixelBorder; ++ i) {
-    rowEdges[i].leftSpace = 0xFFFF;
-    rowEdges[i].rightSpace = 0xFFFF;
-    rowEdges[rowEdges.size() - 1 - i].leftSpace = 0xFFFF;
-    rowEdges[rowEdges.size() - 1 - i].rightSpace = 0xFFFF;
+    (*rowEdges)[i].leftSpace = 0xFFFF;
+    (*rowEdges)[i].rightSpace = 0xFFFF;
+    (*rowEdges)[rowEdges->size() - 1 - i].leftSpace = 0xFFFF;
+    (*rowEdges)[rowEdges->size() - 1 - i].rightSpace = 0xFFFF;
   }
   for (int row = 0; row < layerHeader.height - 2 * pixelBorder; ++ row) {
-    if (fread(&rowEdges[row + pixelBorder], sizeof(SMPLayerRowEdge), 1, file) != 1) {
+    if (fread(&(*rowEdges)[row + pixelBorder], sizeof(SMPLayerRowEdge), 1, file) != 1) {
       LOG(ERROR) << "Unexpected EOF while trying to read SMPLayerRowEdge for row " << row;
       return false;
     }
@@ -326,7 +327,7 @@ bool LoadSMXLayer(
   if (layerType == SMXLayerType::Graphic) {
     layer->image = LoadSMXGraphicLayer(
         layerHeader,
-        rowEdges,
+        *rowEdges,
         usesEightToFiveCompression,
         pixelBorder,
         standardPalette,
@@ -334,12 +335,12 @@ bool LoadSMXLayer(
   } else if (layerType == SMXLayerType::Shadow) {
     layer->image = LoadSMXShadowLayer(
         layerHeader,
-        rowEdges,
+        *rowEdges,
         file);
   } else if (layerType == SMXLayerType::Outline) {
     layer->image = LoadSMXOutlineLayer(
         layerHeader,
-        rowEdges,
+        *rowEdges,
         file);
   }
   if (layer->image.isNull()) {
@@ -689,6 +690,7 @@ bool Sprite::LoadFromSMXFile(FILE* file, const Palettes& palettes) {
           standardPalette,
           SMXLayerType::Graphic,
           &frame.graphic,
+          &frame.rowEdges,
           file)) {
         return false;
       }
@@ -696,11 +698,13 @@ bool Sprite::LoadFromSMXFile(FILE* file, const Palettes& palettes) {
     
     // Read shadow layer
     if (frameHeader.HasShadowLayer()) {
+      std::vector<SMPLayerRowEdge> rowEdges;
       if (!LoadSMXLayer(
           frameHeader.UsesEightToFiveCompression(),
           standardPalette,
           SMXLayerType::Shadow,
           &frame.shadow,
+          &rowEdges,
           file)) {
         return false;
       }
@@ -710,11 +714,13 @@ bool Sprite::LoadFromSMXFile(FILE* file, const Palettes& palettes) {
     
     // Read outline layer
     if (frameHeader.HasOutlineLayer()) {
+      std::vector<SMPLayerRowEdge> rowEdges;
       if (!LoadSMXLayer(
           frameHeader.UsesEightToFiveCompression(),
           standardPalette,
           SMXLayerType::Outline,
           &frame.outline,
+          &rowEdges,
           file)) {
         return false;
       }

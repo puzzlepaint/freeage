@@ -104,6 +104,9 @@ class ClientBuilding {
   
   inline QPoint GetBaseTile() const { return QPoint(baseTileX, baseTileY); }
   
+  inline bool IsSelected() const { return isSelected; }
+  inline void SetIsSelected(bool selected) { isSelected = selected; }
+  
  private:
   int playerIndex;
   BuildingType type;

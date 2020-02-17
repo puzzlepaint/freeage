@@ -32,6 +32,14 @@ typedef std::vector<RGBA> Palette;
 typedef std::unordered_map<int, Palette> Palettes;
 
 
+#pragma pack(push, 1)
+struct SMPLayerRowEdge {
+  u16 leftSpace;
+  u16 rightSpace;
+};
+#pragma pack(pop)
+
+
 /// A sprite consisting of one or multiple frames, for example loaded from an .smx file.
 /// Each frame may have a main graphic, a shadow, and an outline.
 /// There is also some additional metadata such as the sprite's center point.
@@ -50,6 +58,10 @@ class Sprite {
       int atlasY;
       bool rotated;
     };
+    
+    /// Vector of size graphic.imageHeight, giving the row edges (distance from left/right
+    /// to first non-transparent pixel) for the graphic layer.
+    std::vector<SMPLayerRowEdge> rowEdges;
     
     Layer graphic;
     Layer shadow;
@@ -189,13 +201,6 @@ enum class SMXLayerType {
   Shadow,
   Outline
 };
-
-#pragma pack(push, 1)
-struct SMPLayerRowEdge {
-  u16 leftSpace;
-  u16 rightSpace;
-};
-#pragma pack(pop)
 
 #pragma pack(push, 1)
 struct SMPPixel {

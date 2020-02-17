@@ -283,37 +283,35 @@ void RenderWindow::RenderBuildings(double elapsedSeconds) {
 void RenderWindow::RenderOutlines(double elapsedSeconds) {
   // Render the building outlines.
   // TODO: Sort to minmize texture switches.
-  // TODO: Does any building have an outline? Or can we delete this?
-  // for (auto& buildingEntry : map->GetBuildings()) {
-  //   ClientBuilding& building = buildingEntry.second;
-  //   if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasOutline()) {
-  //     continue;
-  //   }
-  //   LOG(WARNING) << "DEBUG: Buildings with outline exist!";
-  //   
-  //   QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
-  //       map,
-  //       buildingTypes,
-  //       elapsedSeconds,
-  //       false,
-  //       true);
-  //   if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
-  //     // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
-  //     building.Render(
-  //         map,
-  //         buildingTypes,
-  //         playerColors,
-  //         outlineShader.get(),
-  //         pointBuffer,
-  //         viewMatrix,
-  //         zoom,
-  //         widgetWidth,
-  //         widgetHeight,
-  //         elapsedSeconds,
-  //         false,
-  //         true);
-  //   }
-  // }
+  for (auto& buildingEntry : map->GetBuildings()) {
+    ClientBuilding& building = buildingEntry.second;
+    if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasOutline()) {
+      continue;
+    }
+    LOG(WARNING) << "DEBUG: Buildings with outline exist!";
+    
+    QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+        map,
+        buildingTypes,
+        elapsedSeconds,
+        false,
+        true);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      building.Render(
+          map,
+          buildingTypes,
+          playerColors,
+          outlineShader.get(),
+          pointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          elapsedSeconds,
+          false,
+          true);
+    }
+  }
   
   // Render the unit outlines.
   // TODO: Sort to minmize texture switches.
@@ -415,9 +413,10 @@ void RenderWindow::RenderHealthBars(double elapsedSeconds) {
   
   // Render health bars for buildings.
   for (auto& buildingEntry : map->GetBuildings()) {
-    // TODO: Only render the health bar if the building is selected
-    
     ClientBuilding& building = buildingEntry.second;
+    if (!building.IsSelected()) {
+      continue;
+    }
     const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
     
     QPointF centerProjectedCoord = building.GetCenterProjectedCoord(map, buildingTypes);
@@ -449,9 +448,10 @@ void RenderWindow::RenderHealthBars(double elapsedSeconds) {
   
   // Render health bars for units.
   for (auto& item : map->GetUnits()) {
-    // TODO: Only render the health bar if the unit is selected
-    
     ClientUnit& unit = item.second;
+    if (!unit.IsSelected()) {
+      continue;
+    }
     const ClientUnitType& unitType = unitTypes[static_cast<int>(unit.GetType())];
     
     QPointF centerProjectedCoord = unit.GetCenterProjectedCoord(map);
@@ -483,22 +483,27 @@ void RenderWindow::RenderHealthBars(double elapsedSeconds) {
 }
 
 struct PossibleSelectedObject {
-  inline PossibleSelectedObject(ClientUnit* unit, float score)
+  inline PossibleSelectedObject(ClientUnit* unit, int id, float score)
       : unit(unit),
         building(nullptr),
+        id(id),
         score(score) {}
   
-  inline PossibleSelectedObject(ClientBuilding* building, float score)
+  inline PossibleSelectedObject(ClientBuilding* building, int id, float score)
       : unit(nullptr),
         building(building),
+        id(id),
         score(score) {}
   
   inline bool operator< (const PossibleSelectedObject& other) const {
-    return score > other.score;
+    return score < other.score;
   }
   
   ClientUnit* unit;
   ClientBuilding* building;
+  int id;
+  
+  /// The smaller, the better.
   float score;
 };
 
@@ -513,54 +518,142 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, int* objectId) {
   QPointF mapCoord;
   bool haveMapCoord = map->ProjectedCoordToMapCoord(projectedCoord, &mapCoord);
   
+  auto computeScore = [](const QRectF& rect, const QPointF& point) {
+    float area = rect.width() * rect.height();
+    QPointF offset = rect.center() - point;
+    float offsetLength = sqrtf(offset.x() * offset.x() + offset.y() * offset.y());
+    return area * std::min<float>(1.f, offsetLength / (0.5f * std::max(rect.width(), rect.height())));
+  };
+  
   // Check buildings.
   for (auto& buildingEntry : map->GetBuildings()) {
     ClientBuilding& building = buildingEntry.second;
+    const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
     
     // Is the position within the tiles which the building stands on?
     bool addToList = false;
     if (haveMapCoord) {
-      QSize size = buildingTypes[static_cast<int>(building.GetType())].GetSize();
+      QSize size = buildingType.GetSize();
       if (mapCoord.x() >= building.GetBaseTile().x() &&
           mapCoord.y() >= building.GetBaseTile().y() &&
           mapCoord.x() <= building.GetBaseTile().x() + size.width() &&
-          mapCoord.x() <= building.GetBaseTile().y() + size.height()) {
+          mapCoord.y() <= building.GetBaseTile().y() + size.height()) {
         addToList = true;
       }
     }
     
     // Is the position within the building sprite?
-    if (!addToList) {
-      QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+    QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
         map,
         buildingTypes,
         elapsedSeconds,
-        true,
+        false,
         false);
-      if (projectedCoordsRect.contains(projectedCoord)) {
-        // TODO: Check sprite edges
+    if (!addToList && projectedCoordsRect.contains(projectedCoord)) {
+      const Sprite::Frame& frame = buildingType.GetSprite().frame(building.GetFrameIndex(buildingType, elapsedSeconds));
+      // We add 1 here to account for the sprite border which is not included in projectedCoordsRect.
+      // We further add 0.5f for rounding during the cast to integer.
+      QPoint point(projectedCoord.x() - projectedCoordsRect.x() + 1 + 0.5f, projectedCoord.y() - projectedCoordsRect.y() + 1 + 0.5f);
+      point.setX(std::max(0, std::min(frame.graphic.imageWidth - 1, point.x())));
+      point.setY(std::max(0, std::min(frame.graphic.imageHeight - 1, point.y())));
+      const SMPLayerRowEdge& rowEdge = frame.rowEdges[point.y()];
+      if (point.x() >= rowEdge.leftSpace &&
+          frame.graphic.imageWidth - 1 - point.x() >= rowEdge.rightSpace) {
+        addToList = true;
       }
     }
     
     if (addToList) {
-      possibleSelectedObjects.emplace_back(building, 1.f);  // TODO: Compute score
+      // TODO: Also consider distance between given position and sprite center in score?
+      possibleSelectedObjects.emplace_back(&building, buildingEntry.first, computeScore(projectedCoordsRect, projectedCoord));
     }
   }
   
   // Check units.
   for (auto& item : map->GetUnits()) {
-    // TODO
+    ClientUnit& unit = item.second;
+    
+    // Is the position close to the unit sprite?
+    constexpr float kExtendSize = 8;
+    
+    bool addToList = false;
+    QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
+        map,
+        unitTypes,
+        elapsedSeconds,
+        false,
+        false);
+    projectedCoordsRect.adjust(-kExtendSize, -kExtendSize, kExtendSize, kExtendSize);
+    if (!addToList && projectedCoordsRect.contains(projectedCoord)) {
+      addToList = true;
+    }
+    
+    if (addToList) {
+      // TODO: Also consider distance between given position and sprite center in score?
+      possibleSelectedObjects.emplace_back(&unit, item.first, computeScore(projectedCoordsRect, projectedCoord));
+    }
   }
+  
+  // Sort the detected objects by score.
+  std::sort(possibleSelectedObjects.begin(), possibleSelectedObjects.end());
   
   // Given the list of objects at the given position, and considering the current selection,
   // return the next object to select.
-  // TODO
+  if (selection.size() == 1) {
+    // If the selection is in the list, select the next object.
+    for (usize i = 0; i < possibleSelectedObjects.size(); ++ i) {
+      if (possibleSelectedObjects[i].id == selection.front()) {
+        *objectId = possibleSelectedObjects[(i + 1) % possibleSelectedObjects.size()].id;
+        return true;
+      }
+    }
+  }
+  
+  if (!possibleSelectedObjects.empty()) {
+    // NOTE: In this case, we don't need to have all possibleSelectedObjects sorted.
+    //       We only need to get the one with the best score. However, it is not expected
+    //       to get lots of objects in this list, so it probably does not matter.
+    *objectId = possibleSelectedObjects.front().id;
+    return true;
+  }
+  
+  return false;
 }
 
 QPointF RenderWindow::ScreenCoordToProjectedCoord(float x, float y) {
   return QPointF(
       ((-1 + 2 * x / (1.f * width())) - viewMatrix[2]) / viewMatrix[0],
       ((1 - 2 * y / (1.f * height())) - viewMatrix[3]) / viewMatrix[1]);
+}
+
+void RenderWindow::ClearSelection() {
+  for (int id : selection) {
+    auto buildingIt = map->GetBuildings().find(id);
+    if (buildingIt != map->GetBuildings().end()) {
+      buildingIt->second.SetIsSelected(false);
+    } else {
+      auto unitIt = map->GetUnits().find(id);
+      if (unitIt != map->GetUnits().end()) {
+        unitIt->second.SetIsSelected(false);
+      }
+    }
+  }
+  
+  selection.clear();
+}
+
+void RenderWindow::AddToSelection(int objectId) {
+  selection.push_back(objectId);
+  
+  auto buildingIt = map->GetBuildings().find(objectId);
+  if (buildingIt != map->GetBuildings().end()) {
+    buildingIt->second.SetIsSelected(true);
+  } else {
+    auto unitIt = map->GetUnits().find(objectId);
+    if (unitIt != map->GetUnits().end()) {
+      unitIt->second.SetIsSelected(true);
+    }
+  }
 }
 
 void RenderWindow::initializeGL() {
@@ -721,12 +814,27 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
   if (event->button() == Qt::LeftButton) {
     // TODO: Remember position for dragging
   } else if (event->button() == Qt::RightButton) {
-    // TODO: Only do that if units are selected
+    bool haveUnitSelected = false;
+    bool haveBuildingSelected = false;
     
-    QPointF projectedCoord = ScreenCoordToProjectedCoord(event->x(), event->y());
-    if (map->ProjectedCoordToMapCoord(projectedCoord, &moveToMapCoord)) {
-      moveToTime = Clock::now();
-      haveMoveTo = true;
+    for (int id : selection) {
+      auto buildingIt = map->GetBuildings().find(id);
+      if (buildingIt != map->GetBuildings().end()) {
+        haveBuildingSelected = true;
+      } else {
+        auto unitIt = map->GetUnits().find(id);
+        if (unitIt != map->GetUnits().end()) {
+          haveUnitSelected = true;
+        }
+      }
+    }
+    
+    if (haveUnitSelected && !haveBuildingSelected) {
+      QPointF projectedCoord = ScreenCoordToProjectedCoord(event->x(), event->y());
+      if (map->ProjectedCoordToMapCoord(projectedCoord, &moveToMapCoord)) {
+        moveToTime = Clock::now();
+        haveMoveTo = true;
+      }
     }
   }
 }
@@ -741,8 +849,12 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
     
     int objectId;
     if (GetObjectToSelectAt(event->x(), event->y(), &objectId)) {
-      selection.clear();
-      selection.push_back(objectId);
+      // Note: We need to keep the selection during GetObjectToSelectAt() to make the
+      // mechanism work which selects the next object on repeated clicks.
+      ClearSelection();
+      AddToSelection(objectId);
+    } else {
+      ClearSelection();
     }
   }
 }

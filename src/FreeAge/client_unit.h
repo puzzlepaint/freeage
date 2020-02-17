@@ -94,6 +94,9 @@ class ClientUnit {
   
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   
+  inline bool IsSelected() const { return isSelected; }
+  inline void SetIsSelected(bool selected) { isSelected = selected; }
+  
  private:
   int playerIndex;
   UnitType type;
