@@ -32,6 +32,14 @@ class RenderWindow : public QOpenGLWidget {
  protected:
   void CreatePlayerColorPaletteTexture();
   
+  void UpdateView(const TimePoint& now);
+  void RenderShadows(double elapsedSeconds);
+  void RenderBuildings(double elapsedSeconds);
+  void RenderOutlines(double elapsedSeconds);
+  void RenderUnits(double elapsedSeconds);
+  void RenderMoveToMarker(const TimePoint& now);
+  void RenderHealthBars(double elapsedSeconds);
+  
   virtual void initializeGL() override;
   virtual void paintGL() override;
   virtual void resizeGL(int width, int height) override;
@@ -74,6 +82,7 @@ class RenderWindow : public QOpenGLWidget {
   int widgetHeight;
   
   float viewMatrix[4];  // column-major
+  QRectF projectedCoordsViewRect;
   
   // Shaders.
   std::shared_ptr<SpriteShader> spriteShader;

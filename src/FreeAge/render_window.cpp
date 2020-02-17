@@ -7,6 +7,7 @@
 #include <QOpenGLFunctions_3_2_Core>
 #include <QTimer>
 
+#include "FreeAge/health_bar.h"
 #include "FreeAge/logging.h"
 #include "FreeAge/opengl.h"
 #include "FreeAge/sprite.h"
@@ -134,6 +135,353 @@ void RenderWindow::CreatePlayerColorPaletteTexture() {
   }
 }
 
+void RenderWindow::UpdateView(const TimePoint& now) {
+  // Update scrolling state
+  scroll = GetCurrentScroll(now);
+  if (scrollRightPressed) { scrollRightPressTime = now; }
+  if (scrollLeftPressed) { scrollLeftPressTime = now; }
+  if (scrollUpPressed) { scrollUpPressTime = now; }
+  if (scrollDownPressed) { scrollDownPressTime = now; }
+  
+  // Compute the view (projected-to-OpenGL) transformation.
+  // Projected coordinates: arbitrary origin, +x goes right, +y goes down, scale is the default scale.
+  // OpenGL normalized device coordinates: top-left widget corner is (-1, 1), bottom-right widget corner is (1, -1).
+  // The transformation is stored as a matrix but applied as follows:
+  // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
+  // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
+  QPointF projectedCoordAtScreenCenter = map->MapCoordToProjectedCoord(scroll);
+  float scalingX = zoom * 2.f / widgetWidth;
+  float scalingY = zoom * -2.f / widgetHeight;
+  
+  viewMatrix[0] = scalingX;
+  viewMatrix[1] = scalingY;
+  viewMatrix[2] = -scalingX * projectedCoordAtScreenCenter.x();
+  viewMatrix[3] = -scalingY * projectedCoordAtScreenCenter.y();
+  
+  // Apply the view transformation to all shaders.
+  // TODO: Use a uniform buffer object for that.
+  spriteShader->GetProgram()->UseProgram();
+  spriteShader->GetProgram()->setUniformMatrix2fv(spriteShader->GetViewMatrixLocation(), viewMatrix);
+  
+  shadowShader->GetProgram()->UseProgram();
+  shadowShader->GetProgram()->setUniformMatrix2fv(shadowShader->GetViewMatrixLocation(), viewMatrix);
+  
+  outlineShader->GetProgram()->UseProgram();
+  outlineShader->GetProgram()->setUniformMatrix2fv(outlineShader->GetViewMatrixLocation(), viewMatrix);
+  
+  healthBarShader->GetProgram()->UseProgram();
+  healthBarShader->GetProgram()->setUniformMatrix2fv(healthBarShader->GetViewMatrixLocation(), viewMatrix);
+  
+  // Determine the view rect in projected coordinates.
+  // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
+  // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
+  // -->
+  // projected_x = (opengl_x - viewMatrix[2]) / viewMatrix[0]
+  // projected_y = (opengl_y - viewMatrix[3]) / viewMatrix[1];
+  float leftProjectedCoords = ((-1) - viewMatrix[2]) / viewMatrix[0];
+  float rightProjectedCoords = ((1) - viewMatrix[2]) / viewMatrix[0];
+  float topProjectedCoords = ((1) - viewMatrix[3]) / viewMatrix[1];
+  float bottomProjectedCoords = ((-1) - viewMatrix[3]) / viewMatrix[1];
+  projectedCoordsViewRect = QRectF(
+      leftProjectedCoords,
+      topProjectedCoords,
+      rightProjectedCoords - leftProjectedCoords,
+      bottomProjectedCoords - topProjectedCoords);
+}
+
+void RenderWindow::RenderShadows(double elapsedSeconds) {
+  // Building shadows.
+  for (auto& buildingEntry : map->GetBuildings()) {
+    ClientBuilding& building = buildingEntry.second;
+    if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasShadow()) {
+      continue;
+    }
+    
+    QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+        map,
+        buildingTypes,
+        elapsedSeconds,
+        true,
+        false);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      building.Render(
+          map,
+          buildingTypes,
+          playerColors,
+          shadowShader.get(),
+          pointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          elapsedSeconds,
+          true,
+          false);
+    }
+  }
+  
+  // Unit shadows.
+  for (auto& item : map->GetUnits()) {
+    if (!unitTypes[static_cast<int>(item.second.GetType())].GetAnimations(item.second.GetCurrentAnimation()).front().sprite.HasShadow()) {
+      continue;
+    }
+    
+    QRectF projectedCoordsRect = item.second.GetRectInProjectedCoords(
+        map,
+        unitTypes,
+        elapsedSeconds,
+        true,
+        false);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      item.second.Render(
+          map,
+          unitTypes,
+          playerColors,
+          shadowShader.get(),
+          pointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          elapsedSeconds,
+          true,
+          false);
+    }
+  }
+}
+
+void RenderWindow::RenderBuildings(double elapsedSeconds) {
+  // TODO: Sort to minmize texture switches.
+  for (auto& buildingEntry : map->GetBuildings()) {
+    ClientBuilding& building = buildingEntry.second;
+    
+    QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+        map,
+        buildingTypes,
+        elapsedSeconds,
+        false,
+        false);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
+      building.Render(
+          map,
+          buildingTypes,
+          playerColors,
+          spriteShader.get(),
+          pointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          elapsedSeconds,
+          false,
+          false);
+    }
+  }
+}
+
+void RenderWindow::RenderOutlines(double elapsedSeconds) {
+  // Render the building outlines.
+  // TODO: Sort to minmize texture switches.
+  // TODO: Does any building have an outline? Or can we delete this?
+  // for (auto& buildingEntry : map->GetBuildings()) {
+  //   ClientBuilding& building = buildingEntry.second;
+  //   if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasOutline()) {
+  //     continue;
+  //   }
+  //   LOG(WARNING) << "DEBUG: Buildings with outline exist!";
+  //   
+  //   QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+  //       map,
+  //       buildingTypes,
+  //       elapsedSeconds,
+  //       false,
+  //       true);
+  //   if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+  //     // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
+  //     building.Render(
+  //         map,
+  //         buildingTypes,
+  //         playerColors,
+  //         outlineShader.get(),
+  //         pointBuffer,
+  //         viewMatrix,
+  //         zoom,
+  //         widgetWidth,
+  //         widgetHeight,
+  //         elapsedSeconds,
+  //         false,
+  //         true);
+  //   }
+  // }
+  
+  // Render the unit outlines.
+  // TODO: Sort to minmize texture switches.
+  for (auto& item : map->GetUnits()) {
+    ClientUnit& unit = item.second;
+    if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front().sprite.HasOutline()) {
+      continue;
+    }
+    
+    QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
+        map,
+        unitTypes,
+        elapsedSeconds,
+        false,
+        true);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      unit.Render(
+          map,
+          unitTypes,
+          playerColors,
+          outlineShader.get(),
+          pointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          elapsedSeconds,
+          false,
+          true);
+    }
+  }
+}
+
+void RenderWindow::RenderUnits(double elapsedSeconds) {
+  // TODO: Sort to minmize texture switches.
+  for (auto& item : map->GetUnits()) {
+    ClientUnit& unit = item.second;
+    
+    QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
+        map,
+        unitTypes,
+        elapsedSeconds,
+        false,
+        false);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      unit.Render(
+          map,
+          unitTypes,
+          playerColors,
+          spriteShader.get(),
+          pointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          elapsedSeconds,
+          false,
+          false);
+    }
+  }
+}
+
+void RenderWindow::RenderMoveToMarker(const TimePoint& now) {
+  // Update move-to sprite.
+  int moveToFrameIndex = -1;
+  if (haveMoveTo) {
+    double moveToAnimationTime = std::chrono::duration<double>(now - moveToTime).count();
+    float framesPerSecond = 30.f;
+    moveToFrameIndex = std::max(0, static_cast<int>(framesPerSecond * moveToAnimationTime + 0.5f));
+    if (moveToFrameIndex >= moveToSprite->sprite.NumFrames()) {
+      haveMoveTo = false;
+      moveToFrameIndex = -1;
+    }
+  }
+  
+  if (moveToFrameIndex >= 0) {
+    QPointF projectedCoord = map->MapCoordToProjectedCoord(moveToMapCoord);
+    DrawSprite(
+        moveToSprite->sprite,
+        moveToSprite->graphicTexture,
+        spriteShader.get(),
+        projectedCoord,
+        pointBuffer,
+        viewMatrix,
+        zoom,
+        widgetWidth,
+        widgetHeight,
+        moveToFrameIndex,
+        /*shadow*/ false,
+        /*outline*/ false,
+        playerColors,
+        /*playerIndex*/ 0,
+        /*scaling*/ 0.5f);
+  }
+}
+
+void RenderWindow::RenderHealthBars(double elapsedSeconds) {
+QRgb gaiaColor = qRgb(255, 255, 255);
+  
+  // Render health bars for buildings.
+  for (auto& buildingEntry : map->GetBuildings()) {
+    // TODO: Only render the health bar if the building is selected
+    
+    ClientBuilding& building = buildingEntry.second;
+    const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
+    
+    QPointF centerProjectedCoord = building.GetCenterProjectedCoord(map, buildingTypes);
+    QPointF healthBarCenter =
+        centerProjectedCoord +
+        QPointF(0, -1 * buildingType.GetHealthBarHeightAboveCenter(building.GetFrameIndex(buildingType, elapsedSeconds)));
+    
+    constexpr float kHealthBarWidth = 60;  // TODO: Smaller bar for trees
+    constexpr float kHealthBarHeight = 3;
+    QRectF barRect(
+        std::round(healthBarCenter.x() - 0.5f * kHealthBarWidth),
+        std::round(healthBarCenter.y() - 0.5f * kHealthBarHeight),
+        kHealthBarWidth,
+        kHealthBarHeight);
+    if (barRect.intersects(projectedCoordsViewRect)) {
+      RenderHealthBar(
+          barRect,
+          centerProjectedCoord.y(),
+          1.f,  // TODO: Determine fill amount based on HP
+          (building.GetPlayerIndex() < 0) ? gaiaColor : playerColors[building.GetPlayerIndex()],
+          healthBarShader.get(),
+          pointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight);
+    }
+  }
+  
+  // Render health bars for units.
+  for (auto& item : map->GetUnits()) {
+    // TODO: Only render the health bar if the unit is selected
+    
+    ClientUnit& unit = item.second;
+    const ClientUnitType& unitType = unitTypes[static_cast<int>(unit.GetType())];
+    
+    QPointF centerProjectedCoord = unit.GetCenterProjectedCoord(map);
+    QPointF healthBarCenter =
+        centerProjectedCoord +
+        QPointF(0, -1 * unitType.GetHealthBarHeightAboveCenter());
+    
+    constexpr float kHealthBarWidth = 30;
+    constexpr float kHealthBarHeight = 3;
+    QRectF barRect(
+        std::round(healthBarCenter.x() - 0.5f * kHealthBarWidth),
+        std::round(healthBarCenter.y() - 0.5f * kHealthBarHeight),
+        kHealthBarWidth,
+        kHealthBarHeight);
+    if (barRect.intersects(projectedCoordsViewRect)) {
+      RenderHealthBar(
+          barRect,
+          centerProjectedCoord.y(),
+          1.f,  // TODO: Determine fill amount based on HP
+          (unit.GetPlayerIndex() < 0) ? gaiaColor : playerColors[unit.GetPlayerIndex()],
+          healthBarShader.get(),
+          pointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight);
+    }
+  }
+}
+
 void RenderWindow::initializeGL() {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   CHECK_OPENGL_NO_ERROR();
@@ -222,83 +570,65 @@ void RenderWindow::paintGL() {
   TimePoint now = Clock::now();
   double elapsedSeconds = std::chrono::duration<double>(now - gameStartTime).count();
   
-  // Update scrolling state
-  scroll = GetCurrentScroll(now);
-  if (scrollRightPressed) { scrollRightPressTime = now; }
-  if (scrollLeftPressed) { scrollLeftPressTime = now; }
-  if (scrollUpPressed) { scrollUpPressTime = now; }
-  if (scrollDownPressed) { scrollDownPressTime = now; }
-  
-  // Compute the view (projected-to-OpenGL) transformation.
-  // Projected coordinates: arbitrary origin, +x goes right, +y goes down, scale is the default scale.
-  // OpenGL normalized device coordinates: top-left widget corner is (-1, 1), bottom-right widget corner is (1, -1).
-  // The transformation is stored as a matrix but applied as follows:
-  // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
-  // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
-  QPointF projectedCoordAtScreenCenter = map->MapCoordToProjectedCoord(scroll);
-  float scalingX = zoom * 2.f / widgetWidth;
-  float scalingY = zoom * -2.f / widgetHeight;
-  
-  viewMatrix[0] = scalingX;
-  viewMatrix[1] = scalingY;
-  viewMatrix[2] = -scalingX * projectedCoordAtScreenCenter.x();
-  viewMatrix[3] = -scalingY * projectedCoordAtScreenCenter.y();
-  
-  // Apply the view transformation to all shaders.
-  // TODO: Use a uniform buffer object for that.
-  spriteShader->GetProgram()->UseProgram();
-  spriteShader->GetProgram()->setUniformMatrix2fv(spriteShader->GetViewMatrixLocation(), viewMatrix);
-  
-  shadowShader->GetProgram()->UseProgram();
-  shadowShader->GetProgram()->setUniformMatrix2fv(shadowShader->GetViewMatrixLocation(), viewMatrix);
-  
-  outlineShader->GetProgram()->UseProgram();
-  outlineShader->GetProgram()->setUniformMatrix2fv(outlineShader->GetViewMatrixLocation(), viewMatrix);
-  
-  healthBarShader->GetProgram()->UseProgram();
-  healthBarShader->GetProgram()->setUniformMatrix2fv(healthBarShader->GetViewMatrixLocation(), viewMatrix);
+  // Update scrolling and compute the view transformation.
+  UpdateView(now);
   
   // Set states for rendering.
-  // f->glEnable(GL_MULTISAMPLE);
-  // f->glEnable(GL_DEPTH_TEST);
   f->glDisable(GL_CULL_FACE);
   
   // Clear background.
   f->glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  
   CHECK_OPENGL_NO_ERROR();
   
-  // Update move-to sprite.
-  int moveToFrameIndex = -1;
-  if (haveMoveTo) {
-    double moveToAnimationTime = std::chrono::duration<double>(now - moveToTime).count();
-    float framesPerSecond = 30.f;
-    moveToFrameIndex = std::max(0, static_cast<int>(framesPerSecond * moveToAnimationTime + 0.5f));
-    if (moveToFrameIndex >= moveToSprite->sprite.NumFrames()) {
-      haveMoveTo = false;
-      moveToFrameIndex = -1;
-    }
-  }
+  // Render the shadows.
+  f->glEnable(GL_BLEND);
+  f->glDisable(GL_DEPTH_TEST);
+  // Set up blending such that colors are added (does not matter since we do not render colors),
+  // and for alpha values, the maximum is used.
+  f->glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
   
-  // Draw the map.
-  map->Render(
-      viewMatrix,
-      unitTypes,
-      buildingTypes,
-      playerColors,
-      shadowShader.get(),
-      spriteShader.get(),
-      outlineShader.get(),
-      healthBarShader.get(),
-      pointBuffer,
-      zoom,
-      widgetWidth,
-      widgetHeight,
-      elapsedSeconds,
-      moveToFrameIndex,
-      moveToMapCoord,
-      *moveToSprite);
+  RenderShadows(elapsedSeconds);
+  
+  // Render the map terrain.
+  f->glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);  // blend with the shadows
+  
+  map->Render(viewMatrix);
+  
+  f->glBlendFunc(GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA);  // reset the blend func to standard
+  
+  // Enable the depth buffer for sprite rendering.
+  f->glEnable(GL_DEPTH_TEST);
+  f->glDepthFunc(GL_LEQUAL);
+  
+  // Render buildings.
+  RenderBuildings(elapsedSeconds);
+  
+  // Render outlines.
+  // Disable depth writing.
+  f->glDepthMask(GL_FALSE);
+  // Let only pass through those fragments which are *behind* the depth values in the depth buffer.
+  // So we only render outlines in places where something is occluded.
+  f->glDepthFunc(GL_GREATER);
+  
+  RenderOutlines(elapsedSeconds);
+  
+  // Render units.
+  f->glDepthMask(GL_TRUE);
+  f->glDepthFunc(GL_LEQUAL);
+  
+  RenderUnits(elapsedSeconds);
+  
+  // Render move-to marker.
+  // This should be rendered after the last unit at the moment, since it contains semi-transparent
+  // pixels which do currenly write to the z-buffer.
+  RenderMoveToMarker(now);
+  
+  // Render health bars.
+  f->glClear(GL_DEPTH_BUFFER_BIT);
+  f->glDisable(GL_BLEND);
+  
+  RenderHealthBars(elapsedSeconds);
 }
 
 void RenderWindow::resizeGL(int width, int height) {

@@ -83,26 +83,16 @@ class Map {
   
   // TODO: Should this functionality be moved into its own class?
   void LoadRenderResources();
-  void Render(
-      float* viewMatrix,
-      const std::vector<ClientUnitType>& unitTypes,
-      const std::vector<ClientBuildingType>& buildingTypes,
-      const std::vector<QRgb>& playerColors,
-      SpriteShader* shadowShader,
-      SpriteShader* spriteShader,
-      SpriteShader* outlineShader,
-      HealthBarShader* healthBarShader,
-      GLuint spritePointBuffer,
-      float zoom,
-      int widgetWidth,
-      int widgetHeight,
-      double elapsedSeconds,
-      int moveToFrameIndex,
-      const QPointF& moveToMapCoord,
-      const SpriteAndTextures& moveToSprite);
+  void Render(float* viewMatrix);
   
   
   inline QPointF GetTownCenterLocation(int player) { return townCenterCenters[player]; }
+  
+  inline std::unordered_map<int, ClientBuilding>& GetBuildings() { return buildings; }
+  inline const std::unordered_map<int, ClientBuilding>& GetBuildings() const { return buildings; }
+  
+  inline std::unordered_map<int, ClientUnit>& GetUnits() { return units; }
+  inline const std::unordered_map<int, ClientUnit>& GetUnits() const { return units; }
   
   inline int GetWidth() const { return width; }
   inline int GetHeight() const { return height; }
