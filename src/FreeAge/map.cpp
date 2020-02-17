@@ -764,7 +764,82 @@ void Map::Render(
     }
   }
   
+  // Render outlines.
+  // Disable depth writing.
+  f->glDepthMask(GL_FALSE);
+  // Let only pass through those fragments which are *behind* the depth values in the depth buffer.
+  // So we only render outlines in places where something is occluded.
+  f->glDepthFunc(GL_GREATER);
+  
+  // Render the building outlines.
+  // TODO: Sort to minmize texture switches.
+  // TODO: Does any building have an outline? Or can we delete this?
+  // for (auto& buildingEntry : buildings) {
+  //   ClientBuilding& building = buildingEntry.second;
+  //   if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasOutline()) {
+  //     continue;
+  //   }
+  //   LOG(WARNING) << "DEBUG: Buildings with outline exist!";
+  //   
+  //   QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+  //       this,
+  //       buildingTypes,
+  //       elapsedSeconds,
+  //       false,
+  //       true);
+  //   if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+  //     // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
+  //     building.Render(
+  //         this,
+  //         buildingTypes,
+  //         playerColors,
+  //         outlineShader,
+  //         spritePointBuffer,
+  //         viewMatrix,
+  //         zoom,
+  //         widgetWidth,
+  //         widgetHeight,
+  //         elapsedSeconds,
+  //         false,
+  //         true);
+  //   }
+  // }
+  
+  // Render the unit outlines.
+  // TODO: Sort to minmize texture switches.
+  for (auto& item : units) {
+    ClientUnit& unit = item.second;
+    if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front().sprite.HasOutline()) {
+      continue;
+    }
+    
+    QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
+        this,
+        unitTypes,
+        elapsedSeconds,
+        false,
+        true);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      unit.Render(
+          this,
+          unitTypes,
+          playerColors,
+          outlineShader,
+          spritePointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          elapsedSeconds,
+          false,
+          true);
+    }
+  }
+  
   // Render the units.
+  f->glDepthMask(GL_TRUE);
+  f->glDepthFunc(GL_LEQUAL);
+  
   // TODO: Sort to minmize texture switches.
   for (auto& item : units) {
     ClientUnit& unit = item.second;
@@ -812,81 +887,7 @@ void Map::Render(
         /*playerIndex*/ 0);
   }
   
-  // Render outlines.
-  // Disable depth writing.
-  f->glDepthMask(GL_FALSE);
-  // Let only pass through those fragments which are *behind* the depth values in the depth buffer.
-  // So we only render outlines in places where something is occluded.
-  f->glDepthFunc(GL_GREATER);
-  
-  // Render the building outlines.
-  // TODO: Sort to minmize texture switches.
-  // TODO: Does any building have an outline? Or can we delete this?
-  for (auto& buildingEntry : buildings) {
-    ClientBuilding& building = buildingEntry.second;
-    if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasOutline()) {
-      continue;
-    }
-    LOG(WARNING) << "DEBUG: Buildings with outline exist!";
-    
-    QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
-        this,
-        buildingTypes,
-        elapsedSeconds,
-        false,
-        true);
-    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
-      // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
-      building.Render(
-          this,
-          buildingTypes,
-          playerColors,
-          outlineShader,
-          spritePointBuffer,
-          viewMatrix,
-          zoom,
-          widgetWidth,
-          widgetHeight,
-          elapsedSeconds,
-          false,
-          true);
-    }
-  }
-  
-  // Render the unit outlines.
-  // TODO: Sort to minmize texture switches.
-  for (auto& item : units) {
-    ClientUnit& unit = item.second;
-    if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front().sprite.HasOutline()) {
-      continue;
-    }
-    
-    QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
-        this,
-        unitTypes,
-        elapsedSeconds,
-        false,
-        true);
-    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
-      unit.Render(
-          this,
-          unitTypes,
-          playerColors,
-          outlineShader,
-          spritePointBuffer,
-          viewMatrix,
-          zoom,
-          widgetWidth,
-          widgetHeight,
-          elapsedSeconds,
-          false,
-          true);
-    }
-  }
-  
   // Render health bars.
-  f->glDepthMask(GL_TRUE);
-  f->glDepthFunc(GL_LEQUAL);
   f->glClear(GL_DEPTH_BUFFER_BIT);
   f->glDisable(GL_BLEND);
   
