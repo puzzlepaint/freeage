@@ -5,20 +5,42 @@
 #include <stdio.h>
 #include <vector>
 
+#include <mango/core/endian.hpp>
 #include <QApplication>
+#include <QDir>
 #include <QFontDatabase>
 #include <QImage>
 #include <QLabel>
 #include <QMessageBox>
 #include <QOpenGLWidget>
 #include <QPushButton>
+#include <QProcess>
+#include <QTcpSocket>
+#include <QThread>
 
 #include "FreeAge/free_age.h"
 #include "FreeAge/game_dialog.h"
 #include "FreeAge/logging.h"
 #include "FreeAge/map.h"
+#include "FreeAge/messages.h"
 #include "FreeAge/render_window.h"
 #include "FreeAge/settings_dialog.h"
+
+bool TryParseWelcomeMessage(QByteArray* buffer) {
+  if (buffer->size() < 3) {
+    return true;
+  }
+  
+  if (buffer->at(0) == static_cast<char>(ServerToClientMessage::Welcome)) {
+    u16 msgLength = mango::uload16(buffer->data() + 1);
+    if (msgLength == 3) {
+      buffer->remove(0, 3);
+      return true;
+    }
+  }
+  
+  return false;
+}
 
 int main(int argc, char** argv) {
   // Seed the random number generator.
@@ -54,6 +76,8 @@ int main(int argc, char** argv) {
   // Resources to be loaded later.
   std::filesystem::path commonResourcesPath;
   Palettes palettes;
+  QProcess serverProcess;
+  QByteArray unparsedReceivedBuffer;
   
   // Load settings.
   Settings settings;
@@ -100,18 +124,81 @@ int main(int argc, char** argv) {
     }
     QFont georgiaFont = QFont(QFontDatabase::applicationFontFamilies(georgiaFontID)[0]);
     
-    // Show the game dialog.
-    std::vector<PlayerInMatch> playersInMatch;
+    // Start the server respectively try to connect to it.
     if (isHost) {
-      playersInMatch.emplace_back(QString::fromStdString(settings.playerName), 0, 0);
+      // Start the server.
+      QByteArray hostToken;
+      hostToken.resize(hostTokenLength);
+      for (int i = 0; i < hostTokenLength; ++ i) {
+        hostToken[i] = 'a' + (rand() % ('z' + 1 - 'a'));
+      }
+      
+      QString serverPath = QDir(qapp.applicationDirPath()).filePath("FreeAgeServer");
+      serverProcess.start(serverPath, QStringList() << hostToken);
+      if (!serverProcess.waitForStarted(10000)) {
+        QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to start the server (path: %1). Exiting.").arg(serverPath));
+        return 1;
+      }
+      
+      // Connect to the server.
+      QTcpSocket socket;
+      socket.connectToHost("127.0.0.1", serverPort, QIODevice::ReadWrite);
+      // socket.setLocalPort(TODO);
+      TimePoint connectionStartTime = Clock::now();
+      constexpr int kConnectTimeout = 5000;
+      while (socket.state() != QAbstractSocket::ConnectedState &&
+             std::chrono::duration<double, std::milli>(Clock::now() - connectionStartTime).count() <= kConnectTimeout) {
+        qapp.processEvents(QEventLoop::AllEvents);
+        QThread::msleep(1);
+      }
+      if (socket.state() != QAbstractSocket::ConnectedState) {
+        QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to connect to the server. Exiting.").arg(serverPath));
+        return 1;
+      }
+      
+      // Send the HostConnect message.
+      socket.write(CreateHostConnectMessage(hostToken, settings.playerName));
+      
+      // Wait for the server's welcome message.
+      TimePoint welcomeWaitStartTime = Clock::now();
+      constexpr int kWelcomeWaitTimeout = 5000;
+      bool welcomeReceived = false;
+      while (std::chrono::duration<double, std::milli>(Clock::now() - welcomeWaitStartTime).count() <= kWelcomeWaitTimeout) {
+        unparsedReceivedBuffer += socket.readAll();
+        if (TryParseWelcomeMessage(&unparsedReceivedBuffer)) {
+          welcomeReceived = true;
+          break;
+        }
+        
+        qapp.processEvents(QEventLoop::AllEvents);
+        QThread::msleep(1);
+      }
+      if (!welcomeReceived) {
+        QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Did not receive the welcome message from the server. Exiting.").arg(serverPath));
+        return 1;
+      }
     } else {
-      // TODO: Get players in match
+      // Try to connect to the server.
+      // TODO
     }
     
-    GameDialog gameDialog(isHost, playersInMatch, georgiaFont, playerColors);
+    // Show the game dialog.
+    GameDialog gameDialog(isHost, georgiaFont, playerColors);
     if (gameDialog.exec() == QDialog::Accepted) {
       // The game has been started.
       break;
+    }
+    
+    // If we are the host, shut down the server.
+    if (isHost) {
+      // Send a leave message to the server first, which will make it notify all
+      // other clients that the match was aborted.
+      // TODO
+      
+      // If the server did not exit in time, terminate it.
+      if (serverProcess.state() != QProcess::NotRunning) {
+        serverProcess.terminate();
+      }
     }
   }
   

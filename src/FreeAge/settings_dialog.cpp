@@ -24,7 +24,7 @@ void Settings::InitializeWithDefaults() {
 #endif
   
   // Choose a random player name
-  std::string randomNames[5] = {
+  QString randomNames[5] = {
       "Alfred the Alpaca",
       "Bleda the Hun",
       "William Wallace",
@@ -37,15 +37,15 @@ void Settings::Save() {
   QSettings settings;
   settings.setValue("dataPath", QString::fromStdString(dataPath));
   settings.setValue("modsPath", QString::fromStdString(modsPath));
-  settings.setValue("playerName", QString::fromStdString(playerName));
+  settings.setValue("playerName", playerName);
 }
 
 bool Settings::TryLoad() {
   QSettings settings;
   dataPath = settings.value("dataPath").toString().toStdString();
   modsPath = settings.value("modsPath").toString().toStdString();
-  playerName = settings.value("playerName").toString().toStdString();
-  return !dataPath.empty() || !modsPath.empty() || !playerName.empty();
+  playerName = settings.value("playerName").toString();
+  return !dataPath.empty() || !modsPath.empty() || !playerName.isEmpty();
 }
 
 void Settings::TryToFindPathsOnWindows() {
@@ -206,7 +206,7 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   modsFolderEditLayout->addWidget(modsFolderButton);
   
   QLabel* playerNameLabel = new QLabel(tr("Player name: "));
-  playerNameEdit = new QLineEdit(QString::fromStdString(settings->playerName));
+  playerNameEdit = new QLineEdit(settings->playerName);
   
   QPushButton* exitButton = new QPushButton(tr("Exit"));
   QPushButton* hostButton = new QPushButton(tr("Host a game"));

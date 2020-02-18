@@ -12,7 +12,7 @@ struct Settings {
   
   std::filesystem::path dataPath;
   std::filesystem::path modsPath;
-  std::string playerName;
+  QString playerName;
   
  private:
   void TryToFindPathsOnWindows();

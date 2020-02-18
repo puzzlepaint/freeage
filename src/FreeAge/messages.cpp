@@ -1,0 +1,126 @@
+#include "FreeAge/messages.h"
+
+#include <mango/core/endian.hpp>
+#include <QString>
+
+QByteArray CreateHostConnectMessage(const QByteArray& hostToken, const QString& playerName) {
+  // Prepare
+  QByteArray playerNameUtf8 = playerName.toUtf8();
+  
+  // Create buffer
+  QByteArray msg(1 + 2 + hostToken.size() + playerNameUtf8.size(), Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ClientToServerMessage::HostConnect);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  memcpy(data + 3, hostToken.data(), hostToken.size());
+  memcpy(data + 3 + hostToken.size(), playerNameUtf8.data(), playerNameUtf8.size());
+  
+  return msg;
+}
+
+QByteArray CreateConnectMessage(const QString& playerName) {
+  // Prepare
+  QByteArray playerNameUtf8 = playerName.toUtf8();
+  
+  // Create buffer
+  QByteArray msg(1 + 2 + playerNameUtf8.size(), Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ClientToServerMessage::Connect);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  memcpy(data + 3, playerNameUtf8.data(), playerNameUtf8.size());
+  
+  return msg;
+}
+
+QByteArray CreateChatMessage(const QString& text) {
+  // Prepare
+  QByteArray textUtf8 = text.toUtf8();
+  
+  // Create buffer
+  QByteArray msg(1 + 2 + textUtf8.size(), Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ClientToServerMessage::Chat);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  memcpy(data + 3, textUtf8.data(), textUtf8.size());
+  
+  return msg;
+}
+
+QByteArray CreatePingMessage() {
+  // Create buffer
+  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ClientToServerMessage::Ping);
+  mango::ustore16(data + 1, msg.size());
+  
+  return msg;
+}
+
+QByteArray CreateLeaveMessage() {
+  // Create buffer
+  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ClientToServerMessage::Leave);
+  mango::ustore16(data + 1, msg.size());
+  
+  return msg;
+}
+
+
+QByteArray CreateWelcomeMessage() {
+  // Create buffer
+  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::Welcome);
+  mango::ustore16(data + 1, msg.size());
+  
+  return msg;
+}
+
+QByteArray CreateChatBroadcastMessage(const QString& text) {
+  // Prepare
+  QByteArray textUtf8 = text.toUtf8();
+  
+  // Create buffer
+  QByteArray msg(1 + 2 + textUtf8.size(), Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::ChatBroadcast);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  memcpy(data + 3, textUtf8.data(), textUtf8.size());
+  
+  return msg;
+}
+
+QByteArray CreatePingResponseMessage() {
+  // Create buffer
+  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::PingResponse);
+  mango::ustore16(data + 1, msg.size());
+  
+  return msg;
+}

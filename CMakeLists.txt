@@ -17,7 +17,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 # Instruct CMake to run rcc (resource compiler) automatically when needed.
 set(CMAKE_AUTORCC ON)
-find_package(Qt5 REQUIRED COMPONENTS Widgets)
+find_package(Qt5 REQUIRED COMPONENTS Widgets Network)
 
 
 # Packaged dependency: mango (for image loading, especially for the DDS format)
@@ -63,6 +63,7 @@ add_library(FreeAgeLib
   src/FreeAge/game_dialog.cpp
   src/FreeAge/health_bar.cpp
   src/FreeAge/map.cpp
+  src/FreeAge/messages.cpp
   src/FreeAge/opengl.cc
   src/FreeAge/render_window.cpp
   src/FreeAge/settings_dialog.cpp
@@ -93,6 +94,7 @@ target_include_directories(FreeAgeLib PUBLIC
 )
 target_link_libraries(FreeAgeLib PUBLIC
   Qt5::Widgets
+  Qt5::Network
   mango
   loguru
   Threads::Threads
@@ -105,6 +107,15 @@ add_executable(FreeAge
   src/FreeAge/main.cc
 )
 target_link_libraries(FreeAge
+  FreeAgeLib
+)
+
+
+# FreeAge server application
+add_executable(FreeAgeServer
+  src/FreeAge/main_server.cpp
+)
+target_link_libraries(FreeAgeServer
   FreeAgeLib
 )
 
