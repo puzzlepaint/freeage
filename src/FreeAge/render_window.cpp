@@ -118,8 +118,7 @@ void RenderWindow::CreatePlayerColorPaletteTexture() {
     QRgb* ptr = reinterpret_cast<QRgb*>(image.scanLine(i));
     
     for (usize c = 0; c < palette->size(); ++ c) {
-      const auto& color = palette->at(c);
-      *ptr++ = qRgba(color.r, color.g, color.b, color.a);
+      *ptr++ = palette->at(c);
     }
   }
   
@@ -130,8 +129,7 @@ void RenderWindow::CreatePlayerColorPaletteTexture() {
   for (int i = 0; i < maxNumPlayers; ++ i) {
     // NOTE: We simply use the first palette entry as the player color.
     //       The player color is used for outlines.
-    const auto& color = playerColorPalettes[i]->at(0);
-    playerColors[i] = qRgba(color.r, color.g, color.b, color.a);
+    playerColors[i] = playerColorPalettes[i]->at(0);
   }
 }
 

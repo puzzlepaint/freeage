@@ -6,18 +6,25 @@
 #include <vector>
 
 #include <QApplication>
+#include <QFontDatabase>
 #include <QImage>
 #include <QLabel>
+#include <QMessageBox>
 #include <QOpenGLWidget>
 #include <QPushButton>
 
 #include "FreeAge/free_age.h"
+#include "FreeAge/game_dialog.h"
 #include "FreeAge/logging.h"
 #include "FreeAge/map.h"
 #include "FreeAge/render_window.h"
+#include "FreeAge/settings_dialog.h"
 
 int main(int argc, char** argv) {
-  // Initialize loguru
+  // Seed the random number generator.
+  srand(time(nullptr));
+  
+  // Initialize loguru.
   loguru::g_preamble_date = false;
   loguru::g_preamble_thread = false;
   loguru::g_preamble_uptime = false;
@@ -25,20 +32,6 @@ int main(int argc, char** argv) {
   if (argc > 0) {
     loguru::init(argc, argv, /*verbosity_flag*/ nullptr);
   }
-  
-  // Parse the command-line arguments
-  if (argc != 2) {
-    // For example:
-    // ./FreeAge /home/thomas/.local/share/Steam/steamapps/common/AoE2DE/resources/_common
-    LOG(INFO) << "Usage: <Program> <common_resources_path>";
-    return 1;
-  }
-  std::string commonResourcesPathStr = argv[1];
-  // Account for the annoying behavior of Linux file managers to prepend copied paths with "file://"
-  if (commonResourcesPathStr.size() >= 8 && commonResourcesPathStr.substr(0, 7) == "file://") {
-    commonResourcesPathStr = commonResourcesPathStr.substr(7);
-  }
-  std::filesystem::path commonResourcesPath = commonResourcesPathStr;
   
   // Set the default OpenGL format *before* creating a QApplication.
   QSurfaceFormat format;
@@ -48,14 +41,82 @@ int main(int argc, char** argv) {
   format.setProfile(QSurfaceFormat::CoreProfile);
   QSurfaceFormat::setDefaultFormat(format);
   
-  // Initialize QApplication.
+  // Create and initialize a QApplication.
   QApplication qapp(argc, argv);
   QCoreApplication::setOrganizationName("FreeAge");
   QCoreApplication::setOrganizationDomain("free-age.org");
   QCoreApplication::setApplicationName("FreeAge");
-  
   // We would like to get all input events immediately to be able to react quickly.
+  // At least in Qt 5.12.0, there is some behavior that seems like a bug which sometimes
+  // groups together mouse wheel events that are far apart in time if this setting is at its default.
   qapp.setAttribute(Qt::AA_CompressHighFrequencyEvents, false);
+  
+  // Resources to be loaded later.
+  std::filesystem::path commonResourcesPath;
+  Palettes palettes;
+  
+  // Load settings.
+  Settings settings;
+  if (!settings.TryLoad()) {
+    settings.InitializeWithDefaults();
+  }
+  
+  // Settings loop.
+  while (true) {
+    // Show the settings dialog.
+    SettingsDialog settingsDialog(&settings);
+    if (settingsDialog.exec() == QDialog::Rejected) {
+      return 0;
+    }
+    settings.Save();
+    bool isHost = settingsDialog.HostGameChosen();
+    
+    // Load some initial basic game resources that are required for the game dialog.
+    commonResourcesPath = std::filesystem::path(settingsDialog.GetDataPath().toStdString()) / "resources" / "_common";
+    if (!std::filesystem::exists(commonResourcesPath)) {
+      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("The common resources path (%1) does not exist. Exiting.").arg(QString::fromStdString(commonResourcesPath)));
+      return 1;
+    }
+    
+    // Load palettes (to get the player colors).
+    if (!ReadPalettesConf((commonResourcesPath / "palettes" / "palettes.conf").c_str(), &palettes)) {
+      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to load palettes. Exiting."));
+      return 1;
+    }
+    
+    // Extract the player colors.
+    std::vector<QRgb> playerColors(8);
+    for (int i = 0; i < 8; ++ i) {
+      playerColors[i] = palettes.at(55 + i)[0];
+    }
+    
+    // Load fonts (to use them in the dialog).
+    std::filesystem::path fontsPath = commonResourcesPath / "fonts";
+    QString georgiaFontPath = QString::fromStdString((fontsPath / "georgia.ttf").string());
+    int georgiaFontID = QFontDatabase::addApplicationFont(georgiaFontPath);
+    if (georgiaFontID == -1) {
+      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to load the Georgia font from %1. Exiting.").arg(georgiaFontPath));
+      return 1;
+    }
+    QFont georgiaFont = QFont(QFontDatabase::applicationFontFamilies(georgiaFontID)[0]);
+    
+    // Show the game dialog.
+    std::vector<PlayerInMatch> playersInMatch;
+    if (isHost) {
+      playersInMatch.emplace_back(QString::fromStdString(settings.playerName), 0, 0);
+    } else {
+      // TODO: Get players in match
+    }
+    
+    GameDialog gameDialog(isHost, playersInMatch, georgiaFont, playerColors);
+    if (gameDialog.exec() == QDialog::Accepted) {
+      // The game has been started.
+      break;
+    }
+  }
+  
+  // Start the game.
+  // TODO
   
   // Get the graphics path
   std::filesystem::path graphicsPath = commonResourcesPath / "drs" / "graphics";
@@ -64,12 +125,6 @@ int main(int argc, char** argv) {
     std::filesystem::create_directories(cachePath);
   }
   
-  // Load palettes
-  Palettes palettes;
-  if (!ReadPalettesConf((commonResourcesPath / "palettes" / "palettes.conf").c_str(), &palettes)) {
-    std::cout << "Failed to load palettes. Exiting.\n";
-    return 1;
-  }
   
   // Create an OpenGL render window using Qt
   RenderWindow renderWindow(palettes, graphicsPath, cachePath);

@@ -60,10 +60,12 @@ set_target_properties(gtest gtest_main PROPERTIES FOLDER "third_party")
 add_library(FreeAgeLib
   src/FreeAge/client_building.cpp
   src/FreeAge/client_unit.cpp
+  src/FreeAge/game_dialog.cpp
   src/FreeAge/health_bar.cpp
   src/FreeAge/map.cpp
   src/FreeAge/opengl.cc
   src/FreeAge/render_window.cpp
+  src/FreeAge/settings_dialog.cpp
   src/FreeAge/shader_health_bar.cpp
   src/FreeAge/shader_program.cpp
   src/FreeAge/shader_sprite.cpp

@@ -15,19 +15,7 @@ class SpriteShader;
 class Texture;
 
 
-struct RGBA {
-  inline RGBA() = default;
-  
-  inline RGBA(u8 r, u8 g, u8 b, u8 a)
-      : r(r), g(g), b(b), a(a) {}
-  
-  u8 r;
-  u8 g;
-  u8 b;
-  u8 a;
-};
-
-typedef std::vector<RGBA> Palette;
+typedef std::vector<QRgb> Palette;
 
 typedef std::unordered_map<int, Palette> Palettes;
 
@@ -220,8 +208,8 @@ inline QRgb GetPalettedPixel(const Palette* palette, u8 paletteSection, u8 color
     CHECK_LT(finalIndex, 65536);
     return qRgba(finalIndex & 0xff, (finalIndex >> 8) & 0xff, 0, 254);
   } else if (finalIndex < palette->size()) {
-    const RGBA& rgba = (*palette)[finalIndex];
-    return qRgba(rgba.r, rgba.g, rgba.b, ignoreAlpha ? 255 : rgba.a);
+    const QRgb& rgba = (*palette)[finalIndex];
+    return qRgba(qRed(rgba), qGreen(rgba), qBlue(rgba), ignoreAlpha ? 255 : qAlpha(rgba));
   } else {
     std::cout << "AddPalettedPixel(): Index (" << finalIndex << ") is larger than the palette size (" << palette->size() << ")\n";
     return qRgba(0, 0, 0, 0);

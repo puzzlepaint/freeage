@@ -437,7 +437,7 @@ Palette LoadPalette(const std::filesystem::path& path) {
             LOG(ERROR) << "Too many colors in file: " << path;
             return result;
           }
-          result[currentColor] = RGBA(
+          result[currentColor] = qRgba(
               atoi(std::string(lineText, 0, spacePos).c_str()),
               atoi(std::string(lineText, spacePos + 1, secondSpacePos - spacePos - 1).c_str()),
               hasAlpha ? atoi(std::string(lineText, secondSpacePos + 1, thirdSpacePos - secondSpacePos - 1).c_str()) : atoi(std::string(lineText, secondSpacePos + 1).c_str()),
