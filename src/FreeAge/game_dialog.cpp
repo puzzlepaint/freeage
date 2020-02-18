@@ -1,18 +1,32 @@
 #include "FreeAge/game_dialog.h"
 
+#include <mango/core/endian.hpp>
 #include <QBoxLayout>
 #include <QCheckBox>
 #include <QGroupBox>
 #include <QIntValidator>
 #include <QLabel>
 #include <QLineEdit>
-#include <QTextEdit>
 #include <QPushButton>
+#include <QTcpSocket>
+#include <QTextEdit>
 
-GameDialog::GameDialog(bool isHost, QFont georgiaFont, const std::vector<QRgb>& playerColors, QWidget* parent)
+#include "FreeAge/free_age.h"
+#include "FreeAge/logging.h"
+#include "FreeAge/messages.h"
+
+GameDialog::GameDialog(
+    bool isHost,
+    QTcpSocket* socket,
+    QByteArray* unparsedReceivedBuffer,
+    QFont georgiaFont,
+    const std::vector<QRgb>& playerColors,
+    QWidget* parent)
     : QDialog(parent),
       georgiaFont(georgiaFont),
-      playerColors(playerColors) {
+      playerColors(playerColors),
+      socket(socket),
+      unparsedReceivedBuffer(unparsedReceivedBuffer) {
   // setWindowIcon(TODO);
   setWindowTitle(tr("FreeAge"));
   
@@ -21,7 +35,7 @@ GameDialog::GameDialog(bool isHost, QFont georgiaFont, const std::vector<QRgb>& 
   QGroupBox* playersGroup = new QGroupBox(tr("Players"));
   playersGroup->setLayout(playerListLayout);
   
-  QHBoxLayout* playerToolsLayout;
+  QHBoxLayout* playerToolsLayout = nullptr;
   if (isHost) {
     QCheckBox* allowJoinCheck = new QCheckBox(tr("Allow more players to join"));
     allowJoinCheck->setChecked(true);
@@ -42,7 +56,11 @@ GameDialog::GameDialog(bool isHost, QFont georgiaFont, const std::vector<QRgb>& 
   // Settings
   QLabel* mapSizeLabel = new QLabel(tr("Map size: "));
   QLineEdit* mapSizeEdit = new QLineEdit("50");
-  mapSizeEdit->setValidator(new QIntValidator(10, 99999, mapSizeEdit));
+  if (isHost) {
+    mapSizeEdit->setValidator(new QIntValidator(10, 99999, mapSizeEdit));
+  } else {
+    mapSizeEdit->setEnabled(false);
+  }
   QHBoxLayout* mapSizeLayout = new QHBoxLayout();
   mapSizeLayout->addWidget(mapSizeLabel);
   mapSizeLayout->addWidget(mapSizeEdit);
@@ -60,12 +78,13 @@ GameDialog::GameDialog(bool isHost, QFont georgiaFont, const std::vector<QRgb>& 
   mainLayout->addWidget(settingsGroup, 1);
   
   // Chat layout
-  QTextEdit* chatDisplay = new QTextEdit();
+  chatDisplay = new QTextEdit();
   chatDisplay->setReadOnly(true);
   
   QLabel* chatLabel = new QLabel(tr("Chat: "));
-  QLineEdit* chatEdit = new QLineEdit();
-  QPushButton* chatButton = new QPushButton(tr("Send"));
+  chatEdit = new QLineEdit();
+  chatButton = new QPushButton(tr("Send"));
+  chatButton->setEnabled(false);
   QHBoxLayout* chatLineLayout = new QHBoxLayout();
   chatLineLayout->addWidget(chatLabel);
   chatLineLayout->addWidget(chatEdit, 1);
@@ -76,7 +95,7 @@ GameDialog::GameDialog(bool isHost, QFont georgiaFont, const std::vector<QRgb>& 
   QLabel* pingLabel = new QLabel(tr("Ping to server: ___"));
   QCheckBox* readyCheck = new QCheckBox(tr("Ready"));
   
-  QPushButton* startButton;
+  QPushButton* startButton = nullptr;
   if (isHost) {
     startButton = new QPushButton(tr("Start"));
     startButton->setEnabled(false);
@@ -92,21 +111,25 @@ GameDialog::GameDialog(bool isHost, QFont georgiaFont, const std::vector<QRgb>& 
   }
   
   QVBoxLayout* layout = new QVBoxLayout();
-  layout->addLayout(mainLayout);
-  layout->addWidget(chatDisplay);
+  layout->addLayout(mainLayout, 2);
+  layout->addWidget(chatDisplay, 1);
   layout->addLayout(chatLineLayout);
   layout->addLayout(buttonsLayout);
   setLayout(layout);
   
-  resize(std::max(800, width()), std::max(480, height()));
+  resize(std::max(800, width()), std::max(600, height()));
   
   // --- Connections ---
-  connect(exitButton, &QPushButton::clicked, this, &QDialog::reject);
+  connect(socket, &QTcpSocket::readyRead, this, &GameDialog::TryParseServerMessages);
+  TryParseServerMessages();
   
-  // for (const auto& playerInMatch : playersInMatch) {
-  //   AddPlayerWidget(playerInMatch);
-  // }
-  // playerListLayout->addStretch(1);
+  connect(chatEdit, &QLineEdit::textChanged, [&]() {
+    chatButton->setEnabled(!chatEdit->text().isEmpty());
+  });
+  connect(chatEdit, &QLineEdit::returnPressed, this, &GameDialog::SendChat);
+  connect(chatButton, &QPushButton::clicked, this, &GameDialog::SendChat);
+  
+  connect(exitButton, &QPushButton::clicked, this, &QDialog::reject);
 }
 
 QString ColorToHTML(const QRgb& color) {
@@ -114,6 +137,60 @@ QString ColorToHTML(const QRgb& color) {
       .arg(static_cast<uint>(qRed(color)), 2, 16, QLatin1Char('0'))
       .arg(static_cast<uint>(qGreen(color)), 2, 16, QLatin1Char('0'))
       .arg(static_cast<uint>(qBlue(color)), 2, 16, QLatin1Char('0'));
+}
+
+void GameDialog::TryParseServerMessages() {
+  QByteArray& buffer = *unparsedReceivedBuffer;
+  buffer += socket->readAll();
+  
+  while (true) {
+    if (buffer.size() < 3) {
+      return;
+    }
+    
+    char* data = buffer.data();
+    u16 msgLength = mango::uload16(data + 1);
+    
+    if (buffer.size() < msgLength) {
+      return;
+    }
+    
+    ServerToClientMessage msgType = static_cast<ServerToClientMessage>(data[0]);
+    
+    switch (msgType) {
+    case ServerToClientMessage::Welcome:
+      // We do not expect to get a(nother) welcome message, but we do not
+      // treat it as an error either.
+      LOG(WARNING) << "Received an extra welcome message";
+      break;
+    case ServerToClientMessage::GameAborted:
+      LOG(INFO) << "Got game aborted message";
+      gameWasAborted = true;
+      reject();
+      break;
+    case ServerToClientMessage::PlayerList:
+      HandlePlayerListMessage(buffer, msgLength);
+      break;
+    case ServerToClientMessage::ChatBroadcast:
+      HandleChatBroadcastMessage(buffer, msgLength);
+      break;
+    case ServerToClientMessage::PingResponse:
+      // TODO
+      break;
+    }
+    
+    buffer.remove(0, msgLength);
+  }
+}
+
+void GameDialog::SendChat() {
+  if (chatEdit->text().isEmpty()) {
+    return;
+  }
+  
+  socket->write(CreateChatMessage(chatEdit->text()));
+  chatEdit->setText("");
+  chatButton->setEnabled(false);
 }
 
 void GameDialog::AddPlayerWidget(const PlayerInMatch& player) {
@@ -139,4 +216,63 @@ void GameDialog::AddPlayerWidget(const PlayerInMatch& player) {
   playerWidget->setLayout(layout);
   
   playerListLayout->addWidget(playerWidget);
+}
+
+void GameDialog::HandlePlayerListMessage(const QByteArray& msg, int len) {
+  LOG(INFO) << "Got player list message";
+  
+  // Parse the message to update playersInMatch
+  playersInMatch.clear();
+  int index = 3;
+  while (index < len) {
+    u16 nameLength = mango::uload16(msg.data() + index);
+    index += 2;
+    
+    QString name = QString::fromUtf8(msg.mid(index, nameLength));
+    index += nameLength;
+    
+    u16 playerColorIndex = mango::uload16(msg.data() + index);
+    index += 2;
+    
+    playersInMatch.emplace_back(name, playerColorIndex);
+  }
+  if (index != len) {
+    LOG(WARNING) << "index != len after parsing a PlayerList message";
+  }
+  
+  // Remove all items from playerListLayout
+  QLayoutItem* child;
+  while ((child = playerListLayout->takeAt(0)) != 0) {
+    delete child;
+  }
+  
+  // Create new items for all playersInMatch
+  for (const auto& playerInMatch : playersInMatch) {
+    AddPlayerWidget(playerInMatch);
+  }
+  playerListLayout->addStretch(1);
+}
+
+void GameDialog::HandleChatBroadcastMessage(const QByteArray& msg, int len) {
+  LOG(INFO) << "Got chat broadcast message";
+  
+  int index = 3;
+  u16 sendingPlayerIndex = mango::uload16(msg.data() + index);
+  index += 2;
+  
+  QString chatText = QString::fromUtf8(msg.mid(index, len - index));
+  
+  if (sendingPlayerIndex >= playersInMatch.size()) {
+    LOG(WARNING) << "Chat broadcast message has an out-of-bounds player index";
+    chatText = tr("???: %1").arg(chatText);
+  } else {
+    const PlayerInMatch& sendingPlayer = playersInMatch[sendingPlayerIndex];
+    chatText = tr("<span style=\"color:#%1\">[%2] %3: %4</span>")
+        .arg(ColorToHTML(playerColors[sendingPlayer.playerColorIndex]))
+        .arg(sendingPlayer.playerColorIndex + 1)
+        .arg(sendingPlayer.name)
+        .arg(chatText);
+  }
+  
+  chatDisplay->append(chatText);
 }

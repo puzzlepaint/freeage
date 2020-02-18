@@ -3,6 +3,8 @@
 #include <mango/core/endian.hpp>
 #include <QString>
 
+// TODO: Create a helper function to create the base of all of these similar messages
+
 QByteArray CreateHostConnectMessage(const QByteArray& hostToken, const QString& playerName) {
   // Prepare
   QByteArray playerNameUtf8 = playerName.toUtf8();
@@ -95,12 +97,24 @@ QByteArray CreateWelcomeMessage() {
   return msg;
 }
 
-QByteArray CreateChatBroadcastMessage(const QString& text) {
+QByteArray CreateGameAbortedMessage() {
+  // Create buffer
+  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::GameAborted);
+  mango::ustore16(data + 1, msg.size());
+  
+  return msg;
+}
+
+QByteArray CreateChatBroadcastMessage(u16 sendingPlayerIndex, const QString& text) {
   // Prepare
   QByteArray textUtf8 = text.toUtf8();
   
   // Create buffer
-  QByteArray msg(1 + 2 + textUtf8.size(), Qt::Initialization::Uninitialized);
+  QByteArray msg(1 + 2 + 2 + textUtf8.size(), Qt::Initialization::Uninitialized);
   char* data = msg.data();
   
   // Set buffer header (3 bytes)
@@ -108,7 +122,9 @@ QByteArray CreateChatBroadcastMessage(const QString& text) {
   mango::ustore16(data + 1, msg.size());
   
   // Fill buffer
-  memcpy(data + 3, textUtf8.data(), textUtf8.size());
+  mango::ustore16(data + 3, sendingPlayerIndex);
+  
+  memcpy(data + 3 + 2, textUtf8.data(), textUtf8.size());
   
   return msg;
 }

@@ -44,6 +44,9 @@ enum class ServerToClientMessage {
   /// ClientToServerMessage::Connect messages.
   Welcome = 0,
   
+  /// The game has been aborted because the host left.
+  GameAborted,
+  
   /// An update to the player list.
   PlayerList,
   
@@ -56,6 +59,8 @@ enum class ServerToClientMessage {
 
 QByteArray CreateWelcomeMessage();
 
-QByteArray CreateChatBroadcastMessage(const QString& text);
+QByteArray CreateGameAbortedMessage();
+
+QByteArray CreateChatBroadcastMessage(u16 sendingPlayerIndex, const QString& text);
 
 QByteArray CreatePingResponseMessage();

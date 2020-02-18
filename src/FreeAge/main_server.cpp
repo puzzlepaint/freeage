@@ -51,14 +51,18 @@ struct PlayerInMatch {
   State state;
 };
 
-QByteArray CreatePlayerListMessage(const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
+QByteArray CreatePlayerListMessage(const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch, PlayerInMatch* playerToExclude, PlayerInMatch* playerToInclude) {
   // Create buffer
   QByteArray msg(3, Qt::Initialization::Uninitialized);
   char* data = msg.data();
   data[0] = static_cast<char>(ServerToClientMessage::PlayerList);
   
   for (const auto& player : playersInMatch) {
-    if (player->state == PlayerInMatch::State::Joined) {
+    if (player.get() == playerToExclude) {
+      continue;
+    }
+    if (player->state == PlayerInMatch::State::Joined ||
+        player.get() == playerToInclude) {
       // Append player name length (u16) + player name (in UTF-8)
       QByteArray playerNameUtf8 = player->name.toUtf8();
       msg.append(2, 0);
@@ -75,7 +79,9 @@ QByteArray CreatePlayerListMessage(const std::vector<std::shared_ptr<PlayerInMat
   return msg;
 }
 
-bool HandleHostConnect(const QByteArray& msg, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
+bool HandleHostConnect(const QByteArray& msg, int len, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
+  LOG(INFO) << "Server: Received HostConnect";
+  
   if (msg.length() < 3 + hostTokenLength) {
     return false;
   }
@@ -94,39 +100,72 @@ bool HandleHostConnect(const QByteArray& msg, PlayerInMatch* player, const std::
   }
   player->isHost = true;
   
-  player->name = QString::fromUtf8(msg.mid(3 + hostTokenLength));
+  player->name = QString::fromUtf8(msg.mid(3 + hostTokenLength, len - (3 + hostTokenLength)));
+  player->playerColorIndex = 0;
   player->state = PlayerInMatch::State::Joined;
   
   player->socket->write(CreateWelcomeMessage());
-  QByteArray playerListMsg = CreatePlayerListMessage(playersInMatch);
+  QByteArray playerListMsg = CreatePlayerListMessage(playersInMatch, nullptr, player);
   for (const auto& otherPlayer : playersInMatch) {
-    if (otherPlayer->state == PlayerInMatch::State::Joined) {
+    if (otherPlayer->state == PlayerInMatch::State::Joined ||
+        otherPlayer.get() == player) {
       otherPlayer->socket->write(playerListMsg);
     }
   }
   return true;
 }
 
-void HandleConnect(const QByteArray& msg, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
-  player->name = QString::fromUtf8(msg.mid(3));
+void HandleConnect(const QByteArray& msg, int len, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
+  LOG(INFO) << "Server: Received Connect";
+  
+  player->name = QString::fromUtf8(msg.mid(3, len - 3));
+  // Find the lowest free player color index
+  int playerColorToTest = 0;
+  for (; playerColorToTest < 999; ++ playerColorToTest) {
+    bool isFree = true;
+    for (const auto& otherPlayer : playersInMatch) {
+      if (otherPlayer->state == PlayerInMatch::State::Joined &&
+          otherPlayer->playerColorIndex == playerColorToTest) {
+        isFree = false;
+        break;
+      }
+    }
+    if (isFree) {
+      break;
+    }
+  }
+  player->playerColorIndex = playerColorToTest;
   player->state = PlayerInMatch::State::Joined;
   
   player->socket->write(CreateWelcomeMessage());
-  QByteArray playerListMsg = CreatePlayerListMessage(playersInMatch);
+  QByteArray playerListMsg = CreatePlayerListMessage(playersInMatch, nullptr, player);
   for (const auto& otherPlayer : playersInMatch) {
-    if (otherPlayer->state == PlayerInMatch::State::Joined) {
+    if (otherPlayer->state == PlayerInMatch::State::Joined ||
+        otherPlayer.get() == player) {
       otherPlayer->socket->write(playerListMsg);
     }
   }
 }
 
-void HandleChat(const QByteArray& msg, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
-  QString text = QString::fromUtf8(msg.mid(3));
+void HandleChat(const QByteArray& msg, PlayerInMatch* player, int len, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
+  LOG(INFO) << "Server: Received Chat";
+  
+  QString text = QString::fromUtf8(msg.mid(3, len - 3));
+  
+  // Determine the index of the sending player.
+  int sendingPlayerIndex = 0;
+  for (usize i = 0; i < playersInMatch.size(); ++ i) {
+    if (playersInMatch[i].get() == player) {
+      break;
+    } else if (playersInMatch[i]->state == PlayerInMatch::State::Joined) {
+      ++ sendingPlayerIndex;
+    }
+  }
   
   // Broadcast the chat message to all clients.
   // Note that we even send it back to the original sender. This is such that all
   // clients receive the chat in the same order.
-  QByteArray chatBroadcastMsg = CreateChatBroadcastMessage(text);
+  QByteArray chatBroadcastMsg = CreateChatBroadcastMessage(sendingPlayerIndex, text);
   for (const auto& player : playersInMatch) {
     if (player->state == PlayerInMatch::State::Joined) {
       player->socket->write(chatBroadcastMsg);
@@ -135,11 +174,34 @@ void HandleChat(const QByteArray& msg, const std::vector<std::shared_ptr<PlayerI
 }
 
 void HandlePing(const QByteArray& /*msg*/, PlayerInMatch* player) {
+  LOG(INFO) << "Server: Received Ping";
+  
   player->socket->write(CreatePingResponseMessage());
 }
 
-void HandleLeave(const QByteArray& /*msg*/) {
-  // TODO: Notify other players about the leave
+void HandleLeave(const QByteArray& /*msg*/, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
+  if (player->isHost) {
+    LOG(INFO) << "Server: Received Leave by host";
+  } else {
+    LOG(INFO) << "Server: Received Leave by client";
+  }
+  
+  // If the host left, abort the game and exit.
+  // Else, notify the remaining players about the new player list.
+  QByteArray msg = player->isHost ? CreateGameAbortedMessage() : CreatePlayerListMessage(playersInMatch, player, nullptr);
+  
+  for (const auto& otherPlayer : playersInMatch) {
+    if (otherPlayer.get() == player) {
+      continue;
+    }
+    if (otherPlayer->state == PlayerInMatch::State::Joined) {
+      otherPlayer->socket->write(msg);
+      if (player->isHost) {
+        // Here, we have to ensure that everything gets sent before the server exits.
+        otherPlayer->socket->waitForBytesWritten(200);
+      }
+    }
+  }
 }
 
 /// Returns false if the player left the match or should be disconnected.
@@ -160,21 +222,21 @@ bool TryParseClientMessages(PlayerInMatch* player, const std::vector<std::shared
     
     switch (msgType) {
     case ClientToServerMessage::HostConnect:
-      if (!HandleHostConnect(player->unparsedBuffer, player, playersInMatch)) {
+      if (!HandleHostConnect(player->unparsedBuffer, msgLength, player, playersInMatch)) {
         return false;
       }
       break;
     case ClientToServerMessage::Connect:
-      HandleConnect(player->unparsedBuffer, player, playersInMatch);
+      HandleConnect(player->unparsedBuffer, msgLength, player, playersInMatch);
       break;
     case ClientToServerMessage::Chat:
-      HandleChat(player->unparsedBuffer, playersInMatch);
+      HandleChat(player->unparsedBuffer, player, msgLength, playersInMatch);
       break;
     case ClientToServerMessage::Ping:
       HandlePing(player->unparsedBuffer, player);
       break;
     case ClientToServerMessage::Leave:
-      HandleLeave(player->unparsedBuffer);
+      HandleLeave(player->unparsedBuffer, player, playersInMatch);
       return false;
     }
     
@@ -201,6 +263,8 @@ int main(int argc, char** argv) {
   QCoreApplication::setOrganizationDomain("free-age.org");
   QCoreApplication::setApplicationName("FreeAge");
   
+  LOG(INFO) << "Server: Start";
+  
   // Parse command line arguments.
   if (argc != 2) {
     LOG(INFO) << "Usage: FreeAgeServer <host_token>";
@@ -225,10 +289,12 @@ int main(int argc, char** argv) {
   while (true) {
     // Check for new connections
     bool timedOut = false;
-    if (server.waitForNewConnection(/*msec*/ 10, &timedOut) && !timedOut) {
+    if (server.waitForNewConnection(/*msec*/ 0, &timedOut) && !timedOut) {
       // A new connection is available, get a pointer to it (does not need to be freed).
       QTcpSocket* socket = server.nextPendingConnection();
       if (socket) {
+        LOG(INFO) << "Server: Got new connection";
+        
         std::shared_ptr<PlayerInMatch> newPlayer(new PlayerInMatch());
         newPlayer->socket = socket;
         newPlayer->isHost = false;
@@ -248,6 +314,10 @@ int main(int argc, char** argv) {
       player.unparsedBuffer += player.socket->readAll();
       if (player.unparsedBuffer.size() > prevSize) {
         if (!TryParseClientMessages(&player, playersInMatch)) {
+          if (player.isHost) {
+            // The host left and the game has been aborted as a result. Exit the server.
+            return 0;
+          }
           delete player.socket;
           it = playersInMatch.erase(it);
           continue;

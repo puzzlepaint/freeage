@@ -269,8 +269,8 @@ void SettingsDialog::JoinGame() {
     return;
   }
   
-   bool ok;
-  QString ipText = QInputDialog::getText(
+  bool ok;
+  ipText = QInputDialog::getText(
       this, tr("Enter IP to connect to"), tr("IP:"), QLineEdit::Normal, "127.0.0.1", &ok);
   if (ok && !ipText.isEmpty()) {
     hostGameChosen = false;

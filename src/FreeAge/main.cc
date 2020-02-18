@@ -28,7 +28,7 @@
 
 bool TryParseWelcomeMessage(QByteArray* buffer) {
   if (buffer->size() < 3) {
-    return true;
+    return false;
   }
   
   if (buffer->at(0) == static_cast<char>(ServerToClientMessage::Welcome)) {
@@ -77,6 +77,9 @@ int main(int argc, char** argv) {
   std::filesystem::path commonResourcesPath;
   Palettes palettes;
   QProcess serverProcess;
+  
+  // Socket for communicating with the server.
+  QTcpSocket socket;
   QByteArray unparsedReceivedBuffer;
   
   // Load settings.
@@ -98,14 +101,14 @@ int main(int argc, char** argv) {
     // Load some initial basic game resources that are required for the game dialog.
     commonResourcesPath = std::filesystem::path(settingsDialog.GetDataPath().toStdString()) / "resources" / "_common";
     if (!std::filesystem::exists(commonResourcesPath)) {
-      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("The common resources path (%1) does not exist. Exiting.").arg(QString::fromStdString(commonResourcesPath)));
-      return 1;
+      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("The common resources path (%1) does not exist.").arg(QString::fromStdString(commonResourcesPath)));
+      continue;
     }
     
     // Load palettes (to get the player colors).
     if (!ReadPalettesConf((commonResourcesPath / "palettes" / "palettes.conf").c_str(), &palettes)) {
-      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to load palettes. Exiting."));
-      return 1;
+      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to load palettes."));
+      continue;
     }
     
     // Extract the player colors.
@@ -119,12 +122,12 @@ int main(int argc, char** argv) {
     QString georgiaFontPath = QString::fromStdString((fontsPath / "georgia.ttf").string());
     int georgiaFontID = QFontDatabase::addApplicationFont(georgiaFontPath);
     if (georgiaFontID == -1) {
-      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to load the Georgia font from %1. Exiting.").arg(georgiaFontPath));
-      return 1;
+      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to load the Georgia font from %1.").arg(georgiaFontPath));
+      continue;
     }
     QFont georgiaFont = QFont(QFontDatabase::applicationFontFamilies(georgiaFontID)[0]);
     
-    // Start the server respectively try to connect to it.
+    // Start the server if being host, and in either case, try to connect to it.
     if (isHost) {
       // Start the server.
       QByteArray hostToken;
@@ -136,13 +139,45 @@ int main(int argc, char** argv) {
       QString serverPath = QDir(qapp.applicationDirPath()).filePath("FreeAgeServer");
       serverProcess.start(serverPath, QStringList() << hostToken);
       if (!serverProcess.waitForStarted(10000)) {
-        QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to start the server (path: %1). Exiting.").arg(serverPath));
-        return 1;
+        QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to start the server (path: %1).").arg(serverPath));
+        QFontDatabase::removeApplicationFont(georgiaFontID);
+        continue;
       }
       
+      // For debugging, forward the server's output to our stdout:
+      QObject::connect(&serverProcess, &QProcess::readyReadStandardOutput, [&]() {
+        std::cout << serverProcess.readAllStandardOutput().data();
+      });
+      QObject::connect(&serverProcess, &QProcess::readyReadStandardError, [&]() {
+        std::cout << serverProcess.readAllStandardError().data();
+      });
+      
       // Connect to the server.
-      QTcpSocket socket;
       socket.connectToHost("127.0.0.1", serverPort, QIODevice::ReadWrite);
+      // socket.setLocalPort(TODO);
+      TimePoint connectionStartTime = Clock::now();
+      constexpr int kConnectTimeout = 5000;
+      while (socket.state() != QAbstractSocket::ConnectedState &&
+             std::chrono::duration<double, std::milli>(Clock::now() - connectionStartTime).count() <= kConnectTimeout) {
+        qapp.processEvents(QEventLoop::AllEvents);
+        QThread::msleep(1);
+        
+        if (socket.state() == QAbstractSocket::UnconnectedState) {
+          // Retry connecting.
+          socket.connectToHost("127.0.0.1", serverPort, QIODevice::ReadWrite);
+        }
+      }
+      if (socket.state() != QAbstractSocket::ConnectedState) {
+        QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to connect to the server."));
+        QFontDatabase::removeApplicationFont(georgiaFontID);
+        continue;
+      }
+      
+      // Send the HostConnect message.
+      socket.write(CreateHostConnectMessage(hostToken, settings.playerName));
+    } else {
+      // Try to connect to the server.
+      socket.connectToHost(settingsDialog.GetIP(), serverPort, QIODevice::ReadWrite);
       // socket.setLocalPort(TODO);
       TimePoint connectionStartTime = Clock::now();
       constexpr int kConnectTimeout = 5000;
@@ -152,54 +187,72 @@ int main(int argc, char** argv) {
         QThread::msleep(1);
       }
       if (socket.state() != QAbstractSocket::ConnectedState) {
-        QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to connect to the server. Exiting.").arg(serverPath));
-        return 1;
+        QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to connect to the server."));
+        QFontDatabase::removeApplicationFont(georgiaFontID);
+        continue;
       }
       
-      // Send the HostConnect message.
-      socket.write(CreateHostConnectMessage(hostToken, settings.playerName));
+      // Send the Connect message.
+      socket.write(CreateConnectMessage(settings.playerName));
+    }
+    
+    // Wait for the server's welcome message.
+    TimePoint welcomeWaitStartTime = Clock::now();
+    constexpr int kWelcomeWaitTimeout = 5000;
+    bool welcomeReceived = false;
+    while (std::chrono::duration<double, std::milli>(Clock::now() - welcomeWaitStartTime).count() <= kWelcomeWaitTimeout) {
+      unparsedReceivedBuffer += socket.readAll();
+      if (TryParseWelcomeMessage(&unparsedReceivedBuffer)) {
+        welcomeReceived = true;
+        break;
+      }
       
-      // Wait for the server's welcome message.
-      TimePoint welcomeWaitStartTime = Clock::now();
-      constexpr int kWelcomeWaitTimeout = 5000;
-      bool welcomeReceived = false;
-      while (std::chrono::duration<double, std::milli>(Clock::now() - welcomeWaitStartTime).count() <= kWelcomeWaitTimeout) {
-        unparsedReceivedBuffer += socket.readAll();
-        if (TryParseWelcomeMessage(&unparsedReceivedBuffer)) {
-          welcomeReceived = true;
-          break;
-        }
-        
-        qapp.processEvents(QEventLoop::AllEvents);
-        QThread::msleep(1);
+      qapp.processEvents(QEventLoop::AllEvents);
+      QThread::msleep(1);
+    }
+    if (!welcomeReceived) {
+      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Did not receive the welcome message from the server."));
+      QFontDatabase::removeApplicationFont(georgiaFontID);
+      if (isHost) {
+        serverProcess.terminate();
       }
-      if (!welcomeReceived) {
-        QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Did not receive the welcome message from the server. Exiting.").arg(serverPath));
-        return 1;
-      }
-    } else {
-      // Try to connect to the server.
-      // TODO
+      continue;
     }
     
     // Show the game dialog.
-    GameDialog gameDialog(isHost, georgiaFont, playerColors);
+    GameDialog gameDialog(isHost, &socket, &unparsedReceivedBuffer, georgiaFont, playerColors);
     if (gameDialog.exec() == QDialog::Accepted) {
       // The game has been started.
       break;
     }
     
+    // The game dialog was canceled.
+    if (!gameDialog.GameWasAborted()) {
+      socket.write(CreateLeaveMessage());
+    }
+    
     // If we are the host, shut down the server.
     if (isHost) {
-      // Send a leave message to the server first, which will make it notify all
-      // other clients that the match was aborted.
-      // TODO
+      // The leave message to the server will make it notify all
+      // other clients that the match was aborted, and exit. Wait for this
+      // to happen.
+      TimePoint exitWaitStartTime = Clock::now();
+      constexpr int kExitWaitTimeout = 1000;
+      while (serverProcess.state() != QProcess::NotRunning &&
+             std::chrono::duration<double, std::milli>(Clock::now() - exitWaitStartTime).count() <= kExitWaitTimeout) {
+        qapp.processEvents(QEventLoop::AllEvents);
+        QThread::msleep(1);
+      }
       
       // If the server did not exit in time, terminate it.
       if (serverProcess.state() != QProcess::NotRunning) {
         serverProcess.terminate();
       }
+    } else if (gameDialog.GameWasAborted()) {
+      QMessageBox::information(nullptr, QObject::tr("Game cancelled"), QObject::tr("The game was cancelled by the host."));
     }
+    
+    QFontDatabase::removeApplicationFont(georgiaFontID);
   }
   
   // Start the game.

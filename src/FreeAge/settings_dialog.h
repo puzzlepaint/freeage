@@ -29,6 +29,7 @@ class SettingsDialog : public QDialog {
   inline QString GetModsPath() const { return modsFolderEdit->text(); }
   inline QString GetPlayerName() const { return playerNameEdit->text(); }
   inline bool HostGameChosen() const { return hostGameChosen; }
+  inline QString GetIP() const { return ipText; }
   
  private slots:
   void HostGame();
@@ -41,4 +42,5 @@ class SettingsDialog : public QDialog {
   QLineEdit* modsFolderEdit;
   QLineEdit* playerNameEdit;
   bool hostGameChosen;
+  QString ipText;
 };
