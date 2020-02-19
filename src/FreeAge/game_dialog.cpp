@@ -36,28 +36,35 @@ GameDialog::GameDialog(
   playersGroup->setLayout(playerListLayout);
   
   QHBoxLayout* playerToolsLayout = nullptr;
+  
+  allowJoinCheck = new QCheckBox(isHost ? tr("Allow more players to join") : tr("More players are allowed to join"));
+  allowJoinCheck->setChecked(true);
+  allowJoinCheck->setEnabled(isHost);
+  // TODO: Add AI button again
+  // QPushButton* addAIButton = new QPushButton(tr("Add AI"));
+  
+  playerToolsLayout = new QHBoxLayout();
+  playerToolsLayout->addWidget(allowJoinCheck);
+  playerToolsLayout->addStretch(1);
+  // playerToolsLayout->addWidget(addAIButton);
+  
   if (isHost) {
-    QCheckBox* allowJoinCheck = new QCheckBox(tr("Allow more players to join"));
-    allowJoinCheck->setChecked(true);
-    QPushButton* addAIButton = new QPushButton(tr("Add AI"));
-    
-    playerToolsLayout = new QHBoxLayout();
-    playerToolsLayout->addWidget(allowJoinCheck);
-    playerToolsLayout->addStretch(1);
-    playerToolsLayout->addWidget(addAIButton);
+    // --- Connections ---
+    connect(allowJoinCheck, &QCheckBox::stateChanged, this, &GameDialog::SendSettingsUpdate);
   }
   
   QVBoxLayout* playersLayout = new QVBoxLayout();
   playersLayout->addWidget(playersGroup);
-  if (isHost) {
-    playersLayout->addLayout(playerToolsLayout);
-  }
+  playersLayout->addLayout(playerToolsLayout);
   
   // Settings
   QLabel* mapSizeLabel = new QLabel(tr("Map size: "));
-  QLineEdit* mapSizeEdit = new QLineEdit("50");
+  mapSizeEdit = new QLineEdit("50");
   if (isHost) {
     mapSizeEdit->setValidator(new QIntValidator(10, 99999, mapSizeEdit));
+    
+    // --- Connections ---
+    connect(mapSizeEdit, &QLineEdit::textChanged, this, &GameDialog::SendSettingsUpdate);
   } else {
     mapSizeEdit->setEnabled(false);
   }
@@ -163,6 +170,9 @@ void GameDialog::TryParseServerMessages() {
       // treat it as an error either.
       LOG(WARNING) << "Received an extra welcome message";
       break;
+    case ServerToClientMessage::SettingsUpdateBroadcast:
+      HandleSettingsUpdateBroadcast(buffer);
+      break;
     case ServerToClientMessage::GameAborted:
       LOG(INFO) << "Got game aborted message";
       gameWasAborted = true;
@@ -181,6 +191,10 @@ void GameDialog::TryParseServerMessages() {
     
     buffer.remove(0, msgLength);
   }
+}
+
+void GameDialog::SendSettingsUpdate() {
+  socket->write(CreateSettingsUpdateMessage(allowJoinCheck->isChecked(), mapSizeEdit->text().toInt(), false));
 }
 
 void GameDialog::SendChat() {
@@ -218,6 +232,14 @@ void GameDialog::AddPlayerWidget(const PlayerInMatch& player) {
   playerListLayout->addWidget(playerWidget);
 }
 
+void GameDialog::HandleSettingsUpdateBroadcast(const QByteArray& msg) {
+  bool allowMorePlayersToJoin = msg.data()[3] > 0;
+  u16 mapSize = mango::uload16(msg.data() + 4);
+  
+  allowJoinCheck->setChecked(allowMorePlayersToJoin);
+  mapSizeEdit->setText(QString::number(mapSize));
+}
+
 void GameDialog::HandlePlayerListMessage(const QByteArray& msg, int len) {
   LOG(INFO) << "Got player list message";
   
@@ -241,10 +263,13 @@ void GameDialog::HandlePlayerListMessage(const QByteArray& msg, int len) {
   }
   
   // Remove all items from playerListLayout
-  QLayoutItem* child;
-  while ((child = playerListLayout->takeAt(0)) != 0) {
-    delete child;
+  while (QLayoutItem* item = playerListLayout->takeAt(0)) {
+    Q_ASSERT(!item->layout());  // otherwise the layout will leak
+    delete item->widget();
+    delete item;
   }
+  
+  LOG(INFO) << "- number of players in list: " << playersInMatch.size();
   
   // Create new items for all playersInMatch
   for (const auto& playerInMatch : playersInMatch) {
@@ -262,7 +287,9 @@ void GameDialog::HandleChatBroadcastMessage(const QByteArray& msg, int len) {
   
   QString chatText = QString::fromUtf8(msg.mid(index, len - index));
   
-  if (sendingPlayerIndex >= playersInMatch.size()) {
+  if (sendingPlayerIndex == std::numeric_limits<u16>::max()) {
+    // Use the chatText without modification.
+  } else if (sendingPlayerIndex >= playersInMatch.size()) {
     LOG(WARNING) << "Chat broadcast message has an out-of-bounds player index";
     chatText = tr("???: %1").arg(chatText);
   } else {

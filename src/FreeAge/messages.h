@@ -16,6 +16,9 @@ enum class ClientToServerMessage {
   /// Initial message sent by a non-host to the server.
   Connect,
   
+  /// A message that contains the latest game settings set by the host.
+  SettingsUpdate,
+  
   /// A chat message.
   Chat,
   
@@ -31,6 +34,8 @@ QByteArray CreateHostConnectMessage(const QByteArray& hostToken, const QString& 
 
 QByteArray CreateConnectMessage(const QString& playerName);
 
+QByteArray CreateSettingsUpdateMessage(bool allowMorePlayersToJoin, u16 mapSize, bool isBroadcast);
+
 QByteArray CreateChatMessage(const QString& text);
 
 QByteArray CreatePingMessage();
@@ -43,6 +48,9 @@ enum class ServerToClientMessage {
   /// A response to the ClientToServerMessage::HostConnect and
   /// ClientToServerMessage::Connect messages.
   Welcome = 0,
+  
+  /// A message that the server sends to all non-host clients after the host changed a setting.
+  SettingsUpdateBroadcast,
   
   /// The game has been aborted because the host left.
   GameAborted,

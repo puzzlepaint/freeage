@@ -1,4 +1,5 @@
 #include <chrono>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -79,6 +80,57 @@ QByteArray CreatePlayerListMessage(const std::vector<std::shared_ptr<PlayerInMat
   return msg;
 }
 
+void SendChatBroadcast(u16 sendingPlayerIndex, const QString& text, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
+  // Broadcast the chat message to all clients.
+  // Note that we even send it back to the original sender. This is such that all
+  // clients receive the chat in the same order.
+  QByteArray chatBroadcastMsg = CreateChatBroadcastMessage(sendingPlayerIndex, text);
+  for (const auto& player : playersInMatch) {
+    if (player->state == PlayerInMatch::State::Joined) {
+      player->socket->write(chatBroadcastMsg);
+    }
+  }
+}
+
+void SendWelcomeAndJoinMessage(PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
+  // Send the new player the welcome message.
+  player->socket->write(CreateWelcomeMessage());
+  
+  // Notify all players about the new player list.
+  QByteArray playerListMsg = CreatePlayerListMessage(playersInMatch, nullptr, player);
+  for (const auto& otherPlayer : playersInMatch) {
+    if (otherPlayer->state == PlayerInMatch::State::Joined ||
+        otherPlayer.get() == player) {
+      otherPlayer->socket->write(playerListMsg);
+    }
+  }
+  
+  // If a player joins, send a random join message.
+  if (!player->isHost) {
+    constexpr int kJoinMessagesCount = 8;
+    QString joinMessages[kJoinMessagesCount] = {
+        QObject::tr("[%1 joined the game room. Wololo!]"),
+        QObject::tr("[%1 joined the game room, exclaims \"Nice town!\", and takes it.]"),
+        QObject::tr("[%1 joined the game room. 105]"),
+        QObject::tr("[%1 joined the game room, let the siege begin!]"),
+        QObject::tr("[%1 joined the game room and fast-castles into knights.]"),
+        QObject::tr("[%1 joined the game room and goes for monks & siege.]"),
+        QObject::tr("[%1 joined the game room, time to hide your villagers in the corners!]"),
+        QObject::tr("[%1 joined the game room and insta-converts the enemy's army.]")};
+    
+    // Prevent using the same message two times in a row.
+    // TODO: Avoid static?
+    static int lastJoinMessage = -1;
+    int messageIndex = (rand() % kJoinMessagesCount);
+    if (messageIndex == lastJoinMessage) {
+      messageIndex = (messageIndex + 1) % kJoinMessagesCount;
+    }
+    lastJoinMessage = messageIndex;
+    
+    SendChatBroadcast(std::numeric_limits<u16>::max(), joinMessages[messageIndex].arg(player->name), playersInMatch);
+  }
+}
+
 bool HandleHostConnect(const QByteArray& msg, int len, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
   LOG(INFO) << "Server: Received HostConnect";
   
@@ -104,14 +156,7 @@ bool HandleHostConnect(const QByteArray& msg, int len, PlayerInMatch* player, co
   player->playerColorIndex = 0;
   player->state = PlayerInMatch::State::Joined;
   
-  player->socket->write(CreateWelcomeMessage());
-  QByteArray playerListMsg = CreatePlayerListMessage(playersInMatch, nullptr, player);
-  for (const auto& otherPlayer : playersInMatch) {
-    if (otherPlayer->state == PlayerInMatch::State::Joined ||
-        otherPlayer.get() == player) {
-      otherPlayer->socket->write(playerListMsg);
-    }
-  }
+  SendWelcomeAndJoinMessage(player, playersInMatch);
   return true;
 }
 
@@ -137,12 +182,21 @@ void HandleConnect(const QByteArray& msg, int len, PlayerInMatch* player, const 
   player->playerColorIndex = playerColorToTest;
   player->state = PlayerInMatch::State::Joined;
   
-  player->socket->write(CreateWelcomeMessage());
-  QByteArray playerListMsg = CreatePlayerListMessage(playersInMatch, nullptr, player);
-  for (const auto& otherPlayer : playersInMatch) {
-    if (otherPlayer->state == PlayerInMatch::State::Joined ||
-        otherPlayer.get() == player) {
-      otherPlayer->socket->write(playerListMsg);
+  SendWelcomeAndJoinMessage(player, playersInMatch);
+}
+
+void HandleSettingsUpdate(const QByteArray& msg, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
+  LOG(INFO) << "Server: Received SettingsUpdate";
+  
+  bool allowMorePlayersToJoin = msg.data()[3] > 0;
+  u16 mapSize = mango::uload16(msg.data() + 4);
+  
+  // NOTE: Since the messages are identical apart from the message type, we could actually directly take
+  // the received message data and just exchange the message type.
+  QByteArray broadcastMsg = CreateSettingsUpdateMessage(allowMorePlayersToJoin, mapSize, true);
+  for (const auto& player : playersInMatch) {
+    if (!player->isHost && player->state == PlayerInMatch::State::Joined) {
+      player->socket->write(broadcastMsg);
     }
   }
 }
@@ -162,15 +216,7 @@ void HandleChat(const QByteArray& msg, PlayerInMatch* player, int len, const std
     }
   }
   
-  // Broadcast the chat message to all clients.
-  // Note that we even send it back to the original sender. This is such that all
-  // clients receive the chat in the same order.
-  QByteArray chatBroadcastMsg = CreateChatBroadcastMessage(sendingPlayerIndex, text);
-  for (const auto& player : playersInMatch) {
-    if (player->state == PlayerInMatch::State::Joined) {
-      player->socket->write(chatBroadcastMsg);
-    }
-  }
+  SendChatBroadcast(sendingPlayerIndex, text, playersInMatch);
 }
 
 void HandlePing(const QByteArray& /*msg*/, PlayerInMatch* player) {
@@ -189,6 +235,9 @@ void HandleLeave(const QByteArray& /*msg*/, PlayerInMatch* player, const std::ve
   // If the host left, abort the game and exit.
   // Else, notify the remaining players about the new player list.
   QByteArray msg = player->isHost ? CreateGameAbortedMessage() : CreatePlayerListMessage(playersInMatch, player, nullptr);
+  if (!player->isHost) {
+    msg += CreateChatBroadcastMessage(std::numeric_limits<u16>::max(), QObject::tr("[%1 left the game room.]").arg(player->name));
+  }
   
   for (const auto& otherPlayer : playersInMatch) {
     if (otherPlayer.get() == player) {
@@ -228,6 +277,9 @@ bool TryParseClientMessages(PlayerInMatch* player, const std::vector<std::shared
       break;
     case ClientToServerMessage::Connect:
       HandleConnect(player->unparsedBuffer, msgLength, player, playersInMatch);
+      break;
+    case ClientToServerMessage::SettingsUpdate:
+      HandleSettingsUpdate(player->unparsedBuffer, playersInMatch);
       break;
     case ClientToServerMessage::Chat:
       HandleChat(player->unparsedBuffer, player, msgLength, playersInMatch);

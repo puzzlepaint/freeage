@@ -2,10 +2,11 @@
 
 #include <QDialog>
 
+class QCheckBox;
 class QLineEdit;
-class QVBoxLayout;
 class QTcpSocket;
 class QTextEdit;
+class QVBoxLayout;
 
 struct PlayerInMatch {
   inline PlayerInMatch(const QString& name, int playerColorIndex)
@@ -33,17 +34,22 @@ class GameDialog : public QDialog {
  private slots:
   void TryParseServerMessages();
   
+  void SendSettingsUpdate();
   void SendChat();
   
  private:
   void AddPlayerWidget(const PlayerInMatch& player);
   
+  void HandleSettingsUpdateBroadcast(const QByteArray& msg);
   void HandlePlayerListMessage(const QByteArray& msg, int len);
   void HandleChatBroadcastMessage(const QByteArray& msg, int len);
   
   std::vector<PlayerInMatch> playersInMatch;
   
   QVBoxLayout* playerListLayout;
+  
+  QCheckBox* allowJoinCheck;
+  QLineEdit* mapSizeEdit;
   
   QTextEdit* chatDisplay;
   QLineEdit* chatEdit;

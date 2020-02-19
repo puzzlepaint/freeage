@@ -102,6 +102,15 @@ target_link_libraries(FreeAgeLib PUBLIC
 )
 
 
+# FreeAge server application
+add_executable(FreeAgeServer
+  src/FreeAge/main_server.cpp
+)
+target_link_libraries(FreeAgeServer
+  FreeAgeLib
+)
+
+
 # FreeAge application
 add_executable(FreeAge
   src/FreeAge/main.cc
@@ -109,14 +118,8 @@ add_executable(FreeAge
 target_link_libraries(FreeAge
   FreeAgeLib
 )
-
-
-# FreeAge server application
-add_executable(FreeAgeServer
-  src/FreeAge/main_server.cpp
-)
-target_link_libraries(FreeAgeServer
-  FreeAgeLib
+add_dependencies(FreeAge
+  FreeAgeServer
 )
 
 

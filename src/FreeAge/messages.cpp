@@ -42,6 +42,22 @@ QByteArray CreateConnectMessage(const QString& playerName) {
   return msg;
 }
 
+QByteArray CreateSettingsUpdateMessage(bool allowMorePlayersToJoin, u16 mapSize, bool isBroadcast) {
+  // Create buffer
+  QByteArray msg(1 + 2 + 1 + 2, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = isBroadcast ? static_cast<char>(ServerToClientMessage::SettingsUpdateBroadcast) : static_cast<char>(ClientToServerMessage::SettingsUpdate);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  data[3] = allowMorePlayersToJoin ? 1 : 0;
+  mango::ustore16(data + 4, mapSize);
+  
+  return msg;
+}
+
 QByteArray CreateChatMessage(const QString& text) {
   // Prepare
   QByteArray textUtf8 = text.toUtf8();
