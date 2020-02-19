@@ -80,6 +80,7 @@ int main(int argc, char** argv) {
   
   // Socket for communicating with the server.
   QTcpSocket socket;
+  socket.setSocketOption(QAbstractSocket::LowDelayOption, 1);
   QByteArray unparsedReceivedBuffer;
   
   // Load settings.
@@ -196,6 +197,8 @@ int main(int argc, char** argv) {
       socket.write(CreateConnectMessage(settings.playerName));
     }
     
+    socket.setSocketOption(QAbstractSocket::LowDelayOption, 1);
+    
     // Wait for the server's welcome message.
     TimePoint welcomeWaitStartTime = Clock::now();
     constexpr int kWelcomeWaitTimeout = 5000;
@@ -250,6 +253,10 @@ int main(int argc, char** argv) {
       }
     } else if (gameDialog.GameWasAborted()) {
       QMessageBox::information(nullptr, QObject::tr("Game cancelled"), QObject::tr("The game was cancelled by the host."));
+    }
+    
+    if (gameDialog.ConnectionToServerLost()) {
+      QMessageBox::information(nullptr, QObject::tr("Game cancelled"), QObject::tr("The connection to the server was lost."));
     }
     
     QFontDatabase::removeApplicationFont(georgiaFontID);

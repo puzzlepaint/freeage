@@ -182,7 +182,7 @@ void Settings::TryToFindPathsOnLinux() {
 
 SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
     : QDialog(parent) {
-  // setWindowIcon(TODO);
+  setWindowIcon(QIcon(":/free_age/free_age.png"));
   setWindowTitle(tr("FreeAge - Setup"));
   
   QLabel* dataFolderLabel = new QLabel(tr("AoE2DE folder path: "));

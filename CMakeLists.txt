@@ -58,22 +58,8 @@ set_target_properties(gtest gtest_main PROPERTIES FOLDER "third_party")
 # FreeAge base library, used by both the application and the test
 # TODO: Unify cpp / cc spelling. Maybe also use hpp to make it clear for headers too that they are C++ code, not C code.
 add_library(FreeAgeLib
-  src/FreeAge/client_building.cpp
-  src/FreeAge/client_unit.cpp
-  src/FreeAge/game_dialog.cpp
-  src/FreeAge/health_bar.cpp
   src/FreeAge/map.cpp
   src/FreeAge/messages.cpp
-  src/FreeAge/opengl.cc
-  src/FreeAge/render_window.cpp
-  src/FreeAge/settings_dialog.cpp
-  src/FreeAge/shader_health_bar.cpp
-  src/FreeAge/shader_program.cpp
-  src/FreeAge/shader_sprite.cpp
-  src/FreeAge/shader_terrain.cpp
-  src/FreeAge/sprite.cc
-  src/FreeAge/sprite_atlas.cpp
-  src/FreeAge/texture.cpp
   src/FreeAge/timing.cpp
   
   src/RectangleBinPack/MaxRectsBinPack.cpp
@@ -112,12 +98,37 @@ target_link_libraries(FreeAgeServer
 
 
 # FreeAge application
-add_executable(FreeAge
+set(FREEAGE_SRCS
+  resources/resources.qrc
+  src/FreeAge/client_building.cpp
+  src/FreeAge/client_unit.cpp
+  src/FreeAge/game_dialog.cpp
+  src/FreeAge/health_bar.cpp
   src/FreeAge/main.cc
+  src/FreeAge/opengl.cc
+  src/FreeAge/render_window.cpp
+  src/FreeAge/shader_health_bar.cpp
+  src/FreeAge/shader_program.cpp
+  src/FreeAge/shader_sprite.cpp
+  src/FreeAge/shader_terrain.cpp
+  src/FreeAge/sprite.cc
+  src/FreeAge/sprite_atlas.cpp
+  src/FreeAge/settings_dialog.cpp
+  src/FreeAge/texture.cpp
+)
+if (WIN32)
+  set(FREEAGE_SRCS
+    ${FREEAGE_SRCS}
+    resources/free_age.rc
+  )
+endif()
+add_executable(FreeAge WIN32
+  ${FREEAGE_SRCS}
 )
 target_link_libraries(FreeAge
   FreeAgeLib
 )
+# There is a runtime dependency on FreeAgeServer.
 add_dependencies(FreeAge
   FreeAgeServer
 )

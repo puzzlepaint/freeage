@@ -1,20 +1,26 @@
 #pragma once
 
 #include <QDialog>
+#include <QTimer>
+
+#include "FreeAge/free_age.h"
 
 class QCheckBox;
+class QLabel;
 class QLineEdit;
 class QTcpSocket;
 class QTextEdit;
 class QVBoxLayout;
 
 struct PlayerInMatch {
-  inline PlayerInMatch(const QString& name, int playerColorIndex)
+  inline PlayerInMatch(const QString& name, int playerColorIndex, bool isReady)
       : name(name),
-        playerColorIndex(playerColorIndex) {}
+        playerColorIndex(playerColorIndex),
+        isReady(isReady) {}
   
   QString name;
   int playerColorIndex;
+  bool isReady;
 };
 
 /// Dialog showing the players that joined the match, the map type, etc.,
@@ -29,17 +35,24 @@ class GameDialog : public QDialog {
       const std::vector<QRgb>& playerColors,
       QWidget* parent = nullptr);
   
+  inline bool ConnectionToServerLost() const { return connectionToServerLost; };
   inline bool GameWasAborted() const { return gameWasAborted; }
   
  private slots:
   void TryParseServerMessages();
   
+  void CheckConnection();
+  void SendPingResponse(u64 number);
   void SendSettingsUpdate();
   void SendChat();
+  
+  void ReadyCheckChanged();
   
  private:
   void AddPlayerWidget(const PlayerInMatch& player);
   
+  void HandlePingMessage(const QByteArray& msg);
+  void HandlePingNotifyMessage(const QByteArray& msg);
   void HandleSettingsUpdateBroadcast(const QByteArray& msg);
   void HandlePlayerListMessage(const QByteArray& msg, int len);
   void HandleChatBroadcastMessage(const QByteArray& msg, int len);
@@ -55,6 +68,15 @@ class GameDialog : public QDialog {
   QLineEdit* chatEdit;
   QPushButton* chatButton;
   
+  QLabel* pingLabel;
+  typedef std::chrono::steady_clock Clock;
+  typedef Clock::time_point TimePoint;
+  TimePoint lastPingTime;
+  QTimer connectionCheckTimer;
+  
+  QCheckBox* readyCheck;
+  
+  bool connectionToServerLost = false;
   bool gameWasAborted = false;
   
   // Resources

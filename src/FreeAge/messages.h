@@ -19,12 +19,14 @@ enum class ClientToServerMessage {
   /// A message that contains the latest game settings set by the host.
   SettingsUpdate,
   
+  /// Sent when the ready state of the client changes.
+  ReadyUp,
+  
   /// A chat message.
   Chat,
   
-  /// A regularly sent message to indicate that the client is still
-  /// connected and to measure the current ping.
-  Ping,
+  /// A response to a Ping message.
+  PingResponse,
   
   /// Sent by the player upon leaving the match.
   Leave,
@@ -36,9 +38,11 @@ QByteArray CreateConnectMessage(const QString& playerName);
 
 QByteArray CreateSettingsUpdateMessage(bool allowMorePlayersToJoin, u16 mapSize, bool isBroadcast);
 
+QByteArray CreateReadyUpMessage(bool clientIsReady);
+
 QByteArray CreateChatMessage(const QString& text);
 
-QByteArray CreatePingMessage();
+QByteArray CreatePingResponseMessage(u64 number);
 
 QByteArray CreateLeaveMessage();
 
@@ -61,8 +65,12 @@ enum class ServerToClientMessage {
   /// A chat message.
   ChatBroadcast,
   
-  /// A respose to the ClientToServerMessage::Ping message.
-  PingResponse,
+  /// A regularly sent message to check whether the client is still
+  /// connected and to measure the current ping.
+  Ping,
+  
+  /// Notification about the client's ping (which is only measured on the server)
+  PingNotify,
 };
 
 QByteArray CreateWelcomeMessage();
@@ -71,4 +79,6 @@ QByteArray CreateGameAbortedMessage();
 
 QByteArray CreateChatBroadcastMessage(u16 sendingPlayerIndex, const QString& text);
 
-QByteArray CreatePingResponseMessage();
+QByteArray CreatePingMessage(u64 number);
+
+QByteArray CreatePingNotifyMessage(u16 milliseconds);

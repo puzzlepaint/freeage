@@ -27,11 +27,13 @@ GameDialog::GameDialog(
       playerColors(playerColors),
       socket(socket),
       unparsedReceivedBuffer(unparsedReceivedBuffer) {
-  // setWindowIcon(TODO);
+  setWindowIcon(QIcon(":/free_age/free_age.png"));
   setWindowTitle(tr("FreeAge"));
   
   // Players
   playerListLayout = new QVBoxLayout();
+  playerListLayout->setContentsMargins(0, 0, 0, 0);
+  playerListLayout->setSpacing(2);
   QGroupBox* playersGroup = new QGroupBox(tr("Players"));
   playersGroup->setLayout(playerListLayout);
   
@@ -98,9 +100,14 @@ GameDialog::GameDialog(
   chatLineLayout->addWidget(chatButton);
   
   // Bottom row with buttons, ping label and ready check
+  lastPingTime = Clock::now();
+  
+  connect(&connectionCheckTimer, &QTimer::timeout, this, &GameDialog::CheckConnection);
+  connectionCheckTimer.start(500);
+  
   QPushButton* exitButton = new QPushButton(isHost ? tr("Abort game") : tr("Leave game"));
-  QLabel* pingLabel = new QLabel(tr("Ping to server: ___"));
-  QCheckBox* readyCheck = new QCheckBox(tr("Ready"));
+  pingLabel = new QLabel("");
+  readyCheck = new QCheckBox(tr("Ready"));
   
   QPushButton* startButton = nullptr;
   if (isHost) {
@@ -137,6 +144,7 @@ GameDialog::GameDialog(
   connect(chatButton, &QPushButton::clicked, this, &GameDialog::SendChat);
   
   connect(exitButton, &QPushButton::clicked, this, &QDialog::reject);
+  connect(readyCheck, &QCheckBox::stateChanged, this, &GameDialog::ReadyCheckChanged);
 }
 
 QString ColorToHTML(const QRgb& color) {
@@ -176,6 +184,8 @@ void GameDialog::TryParseServerMessages() {
     case ServerToClientMessage::GameAborted:
       LOG(INFO) << "Got game aborted message";
       gameWasAborted = true;
+      connectionCheckTimer.stop();
+      connectionToServerLost = false;
       reject();
       break;
     case ServerToClientMessage::PlayerList:
@@ -184,13 +194,29 @@ void GameDialog::TryParseServerMessages() {
     case ServerToClientMessage::ChatBroadcast:
       HandleChatBroadcastMessage(buffer, msgLength);
       break;
-    case ServerToClientMessage::PingResponse:
-      // TODO
+    case ServerToClientMessage::Ping:
+      HandlePingMessage(buffer);
+      break;
+    case ServerToClientMessage::PingNotify:
+      HandlePingNotifyMessage(buffer);
       break;
     }
     
     buffer.remove(0, msgLength);
   }
+}
+
+void GameDialog::CheckConnection() {
+  constexpr int kNoPingTimeout = 5000;
+  if (socket->state() != QTcpSocket::ConnectedState ||
+      std::chrono::duration<double, std::milli>(Clock::now() - lastPingTime).count() > kNoPingTimeout) {
+    connectionToServerLost = true;
+    reject();
+  }
+}
+
+void GameDialog::SendPingResponse(u64 number) {
+  socket->write(CreatePingResponseMessage(number));
 }
 
 void GameDialog::SendSettingsUpdate() {
@@ -205,6 +231,10 @@ void GameDialog::SendChat() {
   socket->write(CreateChatMessage(chatEdit->text()));
   chatEdit->setText("");
   chatButton->setEnabled(false);
+}
+
+void GameDialog::ReadyCheckChanged() {
+  socket->write(CreateReadyUpMessage(readyCheck->isChecked()));
 }
 
 void GameDialog::AddPlayerWidget(const PlayerInMatch& player) {
@@ -227,9 +257,25 @@ void GameDialog::AddPlayerWidget(const PlayerInMatch& player) {
   layout->addWidget(playerColorLabel);
   layout->addWidget(playerNameLabel);
   layout->addStretch(1);
+  if (player.isReady) {
+    QLabel* readyLabel = new QLabel(QChar(0x2713));
+    layout->addWidget(readyLabel);
+  }
   playerWidget->setLayout(layout);
   
   playerListLayout->addWidget(playerWidget);
+}
+
+void GameDialog::HandlePingMessage(const QByteArray& msg) {
+  lastPingTime = Clock::now();
+  
+  u64 number = mango::uload64(msg.data() + 3);
+  SendPingResponse(number);
+}
+
+void GameDialog::HandlePingNotifyMessage(const QByteArray& msg) {
+  u16 milliseconds = mango::uload16(msg.data() + 3);
+  pingLabel->setText(tr("Ping to server: %1").arg(milliseconds));
 }
 
 void GameDialog::HandleSettingsUpdateBroadcast(const QByteArray& msg) {
@@ -256,7 +302,10 @@ void GameDialog::HandlePlayerListMessage(const QByteArray& msg, int len) {
     u16 playerColorIndex = mango::uload16(msg.data() + index);
     index += 2;
     
-    playersInMatch.emplace_back(name, playerColorIndex);
+    bool playerIsReady = msg.data()[index] > 0;
+    ++ index;
+    
+    playersInMatch.emplace_back(name, playerColorIndex, playerIsReady);
   }
   if (index != len) {
     LOG(WARNING) << "index != len after parsing a PlayerList message";

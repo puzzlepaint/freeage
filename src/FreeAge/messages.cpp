@@ -58,6 +58,21 @@ QByteArray CreateSettingsUpdateMessage(bool allowMorePlayersToJoin, u16 mapSize,
   return msg;
 }
 
+QByteArray CreateReadyUpMessage(bool clientIsReady) {
+  // Create buffer
+  QByteArray msg(1 + 2 + 1, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ClientToServerMessage::ReadyUp);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  data[3] = clientIsReady ? 1 : 0;
+  
+  return msg;
+}
+
 QByteArray CreateChatMessage(const QString& text) {
   // Prepare
   QByteArray textUtf8 = text.toUtf8();
@@ -76,14 +91,17 @@ QByteArray CreateChatMessage(const QString& text) {
   return msg;
 }
 
-QByteArray CreatePingMessage() {
+QByteArray CreatePingResponseMessage(u64 number) {
   // Create buffer
-  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
+  QByteArray msg(1 + 2 + 8, Qt::Initialization::Uninitialized);
   char* data = msg.data();
   
   // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::Ping);
+  data[0] = static_cast<char>(ClientToServerMessage::PingResponse);
   mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore64(data + 3, number);
   
   return msg;
 }
@@ -145,14 +163,32 @@ QByteArray CreateChatBroadcastMessage(u16 sendingPlayerIndex, const QString& tex
   return msg;
 }
 
-QByteArray CreatePingResponseMessage() {
+QByteArray CreatePingMessage(u64 number) {
   // Create buffer
-  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
+  QByteArray msg(1 + 2 + 8, Qt::Initialization::Uninitialized);
   char* data = msg.data();
   
   // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::PingResponse);
+  data[0] = static_cast<char>(ServerToClientMessage::Ping);
   mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore64(data + 3, number);
+  
+  return msg;
+}
+
+QByteArray CreatePingNotifyMessage(u16 milliseconds) {
+  // Create buffer
+  QByteArray msg(1 + 2 + 2, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::PingNotify);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore16(data + 3, milliseconds);
   
   return msg;
 }

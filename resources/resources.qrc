@@ -1,0 +1,5 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource prefix="/free_age">
+  <file>free_age.png</file>
+</qresource>
+</RCC>
