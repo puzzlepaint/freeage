@@ -5,6 +5,7 @@
 
 #include <mango/core/endian.hpp>
 #include <QApplication>
+#include <QByteArray>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QThread>

@@ -194,8 +194,8 @@ void GameDialog::TryParseServerMessages() {
     case ServerToClientMessage::ChatBroadcast:
       HandleChatBroadcastMessage(buffer, msgLength);
       break;
-    case ServerToClientMessage::Ping:
-      HandlePingMessage(buffer);
+    case ServerToClientMessage::PingResponse:
+      HandlePingResponseMessage(buffer);
       break;
     case ServerToClientMessage::PingNotify:
       HandlePingNotifyMessage(buffer);
@@ -215,8 +215,8 @@ void GameDialog::CheckConnection() {
   }
 }
 
-void GameDialog::SendPingResponse(u64 number) {
-  socket->write(CreatePingResponseMessage(number));
+void GameDialog::SendPing(u64 number) {
+  socket->write(CreatePingMessage(number));
 }
 
 void GameDialog::SendSettingsUpdate() {
@@ -266,11 +266,14 @@ void GameDialog::AddPlayerWidget(const PlayerInMatch& player) {
   playerListLayout->addWidget(playerWidget);
 }
 
-void GameDialog::HandlePingMessage(const QByteArray& msg) {
+void GameDialog::HandlePingResponseMessage(const QByteArray& msg) {
   lastPingTime = Clock::now();
   
   u64 number = mango::uload64(msg.data() + 3);
-  SendPingResponse(number);
+  double serverTimeSeconds;
+  memcpy(&serverTimeSeconds, msg.data() + 3 + 8, 8);
+  
+  // TODO
 }
 
 void GameDialog::HandlePingNotifyMessage(const QByteArray& msg) {

@@ -25,8 +25,9 @@ enum class ClientToServerMessage {
   /// A chat message.
   Chat,
   
-  /// A response to a Ping message.
-  PingResponse,
+  /// A regularly sent message to check whether the client is still
+  /// connected and to measure the current ping.
+  Ping,
   
   /// Sent by the player upon leaving the match.
   Leave,
@@ -42,7 +43,7 @@ QByteArray CreateReadyUpMessage(bool clientIsReady);
 
 QByteArray CreateChatMessage(const QString& text);
 
-QByteArray CreatePingResponseMessage(u64 number);
+QByteArray CreatePingMessage(u64 number);
 
 QByteArray CreateLeaveMessage();
 
@@ -65,12 +66,9 @@ enum class ServerToClientMessage {
   /// A chat message.
   ChatBroadcast,
   
-  /// A regularly sent message to check whether the client is still
-  /// connected and to measure the current ping.
-  Ping,
-  
-  /// Notification about the client's ping (which is only measured on the server)
-  PingNotify,
+  /// A response to a ping message, containing the value of the server time at the time
+  /// the response message was sent.
+  PingResponse,
 };
 
 QByteArray CreateWelcomeMessage();
@@ -79,6 +77,4 @@ QByteArray CreateGameAbortedMessage();
 
 QByteArray CreateChatBroadcastMessage(u16 sendingPlayerIndex, const QString& text);
 
-QByteArray CreatePingMessage(u64 number);
-
-QByteArray CreatePingNotifyMessage(u16 milliseconds);
+QByteArray CreatePingResponseMessage(u64 number, double serverTimeSeconds);

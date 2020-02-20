@@ -42,7 +42,7 @@ class GameDialog : public QDialog {
   void TryParseServerMessages();
   
   void CheckConnection();
-  void SendPingResponse(u64 number);
+  void SendPing(u64 number);
   void SendSettingsUpdate();
   void SendChat();
   
@@ -51,7 +51,7 @@ class GameDialog : public QDialog {
  private:
   void AddPlayerWidget(const PlayerInMatch& player);
   
-  void HandlePingMessage(const QByteArray& msg);
+  void HandlePingResponseMessage(const QByteArray& msg);
   void HandlePingNotifyMessage(const QByteArray& msg);
   void HandleSettingsUpdateBroadcast(const QByteArray& msg);
   void HandlePlayerListMessage(const QByteArray& msg, int len);

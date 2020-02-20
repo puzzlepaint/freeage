@@ -91,13 +91,13 @@ QByteArray CreateChatMessage(const QString& text) {
   return msg;
 }
 
-QByteArray CreatePingResponseMessage(u64 number) {
+QByteArray CreatePingMessage(u64 number) {
   // Create buffer
   QByteArray msg(1 + 2 + 8, Qt::Initialization::Uninitialized);
   char* data = msg.data();
   
   // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::PingResponse);
+  data[0] = static_cast<char>(ClientToServerMessage::Ping);
   mango::ustore16(data + 1, msg.size());
   
   // Fill buffer
@@ -163,32 +163,18 @@ QByteArray CreateChatBroadcastMessage(u16 sendingPlayerIndex, const QString& tex
   return msg;
 }
 
-QByteArray CreatePingMessage(u64 number) {
+QByteArray CreatePingResponseMessage(u64 number, double serverTimeSeconds) {
   // Create buffer
-  QByteArray msg(1 + 2 + 8, Qt::Initialization::Uninitialized);
+  QByteArray msg(1 + 2 + 8 + 8, Qt::Initialization::Uninitialized);
   char* data = msg.data();
   
   // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::Ping);
+  data[0] = static_cast<char>(ServerToClientMessage::PingResponse);
   mango::ustore16(data + 1, msg.size());
   
   // Fill buffer
   mango::ustore64(data + 3, number);
-  
-  return msg;
-}
-
-QByteArray CreatePingNotifyMessage(u16 milliseconds) {
-  // Create buffer
-  QByteArray msg(1 + 2 + 2, Qt::Initialization::Uninitialized);
-  char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::PingNotify);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
-  mango::ustore16(data + 3, milliseconds);
+  memcpy(data + 3 + 8, &serverTimeSeconds, 8);
   
   return msg;
 }
