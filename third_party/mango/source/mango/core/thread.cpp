@@ -1,10 +1,11 @@
 /*
     MANGO Multimedia Development Platform
-    Copyright (C) 2012-2018 Twilight Finland 3D Oy Ltd. All rights reserved.
+    Copyright (C) 2012-2020 Twilight Finland 3D Oy Ltd. All rights reserved.
 */
 #include <chrono>
 #include <mango/core/thread.hpp>
 #include "../../external/concurrentqueue/concurrentqueue.h"
+#include "../../external/concurrentqueue/readerwriterqueue.h"
 
 using std::chrono::high_resolution_clock;
 using std::chrono::duration_cast;
@@ -89,18 +90,14 @@ namespace mango
 {
 
     // ------------------------------------------------------------
-    // TaskQueue
+    // ThreadPool
     // ------------------------------------------------------------
 
-    struct TaskQueue
+    struct ThreadPool::TaskQueue
     {
         using Task = ThreadPool::Task;
         moodycamel::ConcurrentQueue<Task> tasks;
     };
-
-    // ------------------------------------------------------------
-    // ThreadPool
-    // ------------------------------------------------------------
 
     ThreadPool::ThreadPool(size_t size)
         : m_queues(nullptr)
@@ -183,7 +180,7 @@ namespace mango
                     // sleep but check what's happening after a while unless signaled
                     ++m_sleep_count;
                     std::unique_lock<std::mutex> lock(m_queue_mutex);
-                    m_condition.wait_for(lock, milliseconds(200));
+                    m_condition.wait_for(lock, milliseconds(20));
                     --m_sleep_count;
                 }
                 else
@@ -199,9 +196,9 @@ namespace mango
     {
         Task task;
         task.queue = queue;
-        task.stamp = queue->task_input_count++;
         task.func = std::move(func);
 
+        queue->task_input_count++;
         m_queues[queue->priority].tasks.enqueue(std::move(task));
 
         if (m_sleep_count > 0)
@@ -221,7 +218,7 @@ namespace mango
                 Queue* queue = task.queue;
 
                 // check if the task is cancelled
-                if (task.stamp > queue->stamp_cancel)
+                if (!queue->cancelled)
                 {
                     // process task
                     task.func();
@@ -249,7 +246,9 @@ namespace mango
 
     void ThreadPool::cancel(Queue* queue)
     {
-        queue->stamp_cancel = queue->task_input_count.load() - 1;
+        queue->cancelled = true;
+        wait(queue);
+        queue->cancelled = false;
     }
 
     // ------------------------------------------------------------
@@ -312,7 +311,10 @@ namespace mango
     {
         wait();
 
+        std::unique_lock<std::mutex> queue_lock(m_queue_mutex);
         m_stop = true;
+        queue_lock.unlock();
+
         m_task_condition.notify_one();
         m_thread.join();
     }
@@ -322,19 +324,21 @@ namespace mango
         while (!m_stop.load(std::memory_order_relaxed))
         {
             std::unique_lock<std::mutex> queue_lock(m_queue_mutex);
-            if (!m_task_queue.empty())
+            if (m_task_counter > 0)
             {
                 auto task = std::move(m_task_queue.front());
                 m_task_queue.pop_front();
                 queue_lock.unlock();
 
                 task();
+
+                std::unique_lock<std::mutex> wait_lock(m_wait_mutex);
                 --m_task_counter;
             }
             else
             {
-                m_wait_condition.notify_one();
-                m_task_condition.wait_for(queue_lock, milliseconds(4));
+                m_wait_condition.notify_all();
+                m_task_condition.wait(queue_lock, [this] { return m_stop || m_task_counter; });
             }
         }
     }
@@ -350,7 +354,122 @@ namespace mango
     {
         std::unique_lock<std::mutex> wait_lock(m_wait_mutex);
         m_wait_condition.wait(wait_lock, [this] { return !m_task_counter.load(std::memory_order_relaxed); });
-        m_task_condition.notify_one();
+    }
+
+    // ------------------------------------------------------------
+    // TicketQueue::Ticket
+    // ------------------------------------------------------------
+
+    TicketQueue::Ticket::Ticket()
+        : task(std::make_shared<Task>())
+    {
+    }
+
+    TicketQueue::Ticket::~Ticket()
+    {
+        if (!--task->count)
+        {
+            if (!task->func)
+            {
+                task->promise.set_value();
+            }
+        }
+    }
+
+    TicketQueue::Ticket::Ticket(const Ticket& ticket)
+    {
+        task = ticket.task;
+        task->count++;
+    }
+
+    const TicketQueue::Ticket& TicketQueue::Ticket::operator = (const Ticket& ticket)
+    {
+        task = ticket.task;
+        task->count++;
+        return *this;
+    }
+
+    // ------------------------------------------------------------
+    // TicketQueue
+    // ------------------------------------------------------------
+
+    struct TicketQueue::TaskQueue
+    {
+        using Task = TicketQueue::SharedTask;
+        moodycamel::ReaderWriterQueue<Task> tasks;
+    };
+
+    TicketQueue::TicketQueue()
+        : m_queue(nullptr)
+    {
+        m_queue = new TaskQueue();
+        m_thread = std::thread([this]
+        {
+            while (!m_stop.load(std::memory_order_relaxed))
+            {
+                if (!dequeue_and_process())
+                {
+                    std::unique_lock<std::mutex> lock(m_consume_mutex);
+                    m_consume_condition.wait(lock, [this] { return m_stop || m_queue->tasks.peek(); });
+                }
+            }
+        });
+    }
+
+    TicketQueue::~TicketQueue()
+    {
+        wait();
+
+        std::unique_lock<std::mutex> lock(m_consume_mutex);
+        m_stop = true;
+        lock.unlock();
+        m_consume_condition.notify_one();
+
+        m_thread.join();
+        delete m_queue;
+    }
+
+    bool TicketQueue::dequeue_and_process()
+    {
+        bool processed = false;
+
+        SharedTask task;
+        if (m_queue->tasks.try_dequeue(task))
+        {
+            std::future<void> future = task->promise.get_future();
+            future.wait();
+
+            if (task->func)
+            {
+                task->func();
+            }
+
+            std::unique_lock<std::mutex> wait_lock(m_wait_mutex);
+            if (!--m_ticket_counter)
+            {
+                m_wait_condition.notify_one();
+            }
+
+            processed = true;
+        }
+
+        return processed;
+    }
+
+    TicketQueue::Ticket TicketQueue::acquire()
+    {
+        std::unique_lock<std::mutex> wait_lock(m_wait_mutex);
+        ++m_ticket_counter;
+        Ticket ticket;
+        m_queue->tasks.enqueue(ticket.task);
+        m_consume_condition.notify_one();
+        return ticket;
+    }
+
+    void TicketQueue::wait()
+    {
+        std::unique_lock<std::mutex> wait_lock(m_wait_mutex);
+        m_wait_condition.wait(wait_lock, [this] { return !m_ticket_counter.load(std::memory_order_relaxed); });
     }
 
 } // namespace mango

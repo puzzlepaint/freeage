@@ -208,8 +208,9 @@ namespace
      3       32 bit unorm colors
      4       16 bit half components
      5       32 bit float components
-     6       16 bit unorm components
-     7       32 bit unorm components
+     6       64 bit double components
+     7       16 bit unorm components
+     8       32 bit unorm components
 
     Colors store all components in the specified number of bits, for example, 16 bit unorm color will pack
     the red, green, blue and alpha into 16 bit unsigned integer. The component formats use exactly specified
@@ -220,14 +221,18 @@ namespace
 
     */
 
-	// TODO: support FP64 in the blitter
+    constexpr u32 BITS_FP16 = (8 * 5);
+    constexpr u32 BITS_FP32 = (8 * 6);
+    constexpr u32 BITS_FP64 = (8 * 7);
+    //constexpr u32 BITS_UI16 = (8 * 8);
+    //constexpr u32 BITS_UI32 = (8 * 9);
 
-#define BITS_FP16 40  /* (32 + 8), half is at index 4    */
-#define BITS_FP32 48  /* (32 + 16), float is at index 5  */
-#define BITS_UI16  56 /* (32 + 24), u16 is at index 6 */
-#define BITS_UI32  64 /* (32 + 32), u32 is at index 7 */
-#define MAKE_MODEMASK(destBits, sourceBits) \
-    ((((destBits - 8) / 8) * 8) + ((sourceBits - 8) / 8))
+    constexpr u32 MAKE_MODEMASK(u32 destBits, u32 sourceBits)
+    {
+        u32 destIndex = (destBits / 8) - 1;
+        u32 sourceIndex = (sourceBits / 8) - 1;
+        return (destIndex << 4) | sourceIndex;
+    }
 
     int modeBits(const Format& format)
     {
@@ -236,9 +241,9 @@ namespace
         switch (format.type)
         {
 			case Format::UNORM:
-				bits = format.bits;
+				bits = format.bits; // 8, 16, 24, 32
 				break;
-		
+
 			case Format::FLOAT16:
 				bits = BITS_FP16;
 				break;
@@ -248,7 +253,7 @@ namespace
 				break;
 
 			case Format::FLOAT64:
-				// TODO: support FP64
+                bits = BITS_FP64;
 				break;
 
             default:
@@ -477,10 +482,22 @@ namespace
             {
                 switch (components)
                 {
-                    case 4: dst[3] = *input[3]; input[3] += stride[3];
-                    case 3: dst[2] = *input[2]; input[2] += stride[2];
-                    case 2: dst[1] = *input[1]; input[1] += stride[1];
-                    case 1: dst[0] = *input[0]; input[0] += stride[0];
+                    case 4:
+                        dst[3] = DestType(*input[3]);
+                        input[3] += stride[3];
+                        // fall-through
+                    case 3:
+                        dst[2] = DestType(*input[2]);
+                        input[2] += stride[2];
+                        // fall-through
+                    case 2:
+                        dst[1] = DestType(*input[1]);
+                        input[1] += stride[1];
+                        // fall-through
+                    case 1:
+                        dst[0] = DestType(*input[0]);
+                        input[0] += stride[0];
+                        // fall-through
                 }
                 dst += components;
             }
@@ -529,9 +546,14 @@ namespace
             case MAKE_MODEMASK(BITS_FP32, 24): func = convert_template_fp_unorm_fpu<float, u24>; break;
             case MAKE_MODEMASK(BITS_FP32, 32): func = convert_template_fp_unorm_fpu<float, u32>; break;
             case MAKE_MODEMASK(BITS_FP16, BITS_FP16): func = convert_template_fp_fp_fpu<float16, float16>; break;
-            case MAKE_MODEMASK(BITS_FP16, BITS_FP32): func = convert_template_fp_fp_fpu<float16, float>; break;
-            case MAKE_MODEMASK(BITS_FP32, BITS_FP16): func = convert_template_fp_fp_fpu<float, float16>; break;
-            case MAKE_MODEMASK(BITS_FP32, BITS_FP32): func = convert_template_fp_fp_fpu<float, float>; break;
+            case MAKE_MODEMASK(BITS_FP16, BITS_FP32): func = convert_template_fp_fp_fpu<float16, float32>; break;
+            case MAKE_MODEMASK(BITS_FP16, BITS_FP64): func = convert_template_fp_fp_fpu<float16, float64>; break;
+            case MAKE_MODEMASK(BITS_FP32, BITS_FP16): func = convert_template_fp_fp_fpu<float32, float16>; break;
+            case MAKE_MODEMASK(BITS_FP32, BITS_FP32): func = convert_template_fp_fp_fpu<float32, float32>; break;
+            case MAKE_MODEMASK(BITS_FP32, BITS_FP64): func = convert_template_fp_fp_fpu<float32, float64>; break;
+            case MAKE_MODEMASK(BITS_FP64, BITS_FP16): func = convert_template_fp_fp_fpu<float64, float16>; break;
+            case MAKE_MODEMASK(BITS_FP64, BITS_FP32): func = convert_template_fp_fp_fpu<float64, float32>; break;
+            case MAKE_MODEMASK(BITS_FP64, BITS_FP64): func = convert_template_fp_fp_fpu<float64, float64>; break;
         }
 
         return func;

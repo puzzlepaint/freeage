@@ -1,6 +1,6 @@
 /*
     MANGO Multimedia Development Platform
-    Copyright (C) 2012-2018 Twilight Finland 3D Oy Ltd. All rights reserved.
+    Copyright (C) 2012-2020 Twilight Finland 3D Oy Ltd. All rights reserved.
 */
 #pragma once
 
@@ -19,19 +19,22 @@
 namespace mango
 {
 
+    // ----------------------------------------------------------------------------------
+    // ThreadPool
+    // ----------------------------------------------------------------------------------
+
     class ThreadPool : private NonCopyable
     {
     private:
-        friend struct TaskQueue;
         friend class ConcurrentQueue;
 
         struct Queue
         {
             ThreadPool* pool;
             int priority;
-            std::atomic<int> task_input_count { 0 };
-            std::atomic<int> task_complete_count { 0 };
-            std::atomic<int> stamp_cancel { -1 };
+            alignas(64) std::atomic<int> task_input_count { 0 };
+            alignas(64) std::atomic<int> task_complete_count { 0 };
+            alignas(64) std::atomic<bool> cancelled { false };
             std::string name;
 
             Queue(ThreadPool* pool, int priority, const std::string& name)
@@ -50,7 +53,6 @@ namespace mango
         struct Task
         {
             Queue* queue;
-            int stamp;
             std::function<void()> func;
         };
 
@@ -77,10 +79,11 @@ namespace mango
         void wait(Queue* queue);
 
     private:
-        alignas(64) struct TaskQueue* m_queues;
+        struct TaskQueue;
+        alignas(64) TaskQueue* m_queues;
 
-        std::atomic<bool> m_stop { false };
-        std::atomic<int> m_sleep_count { 0 };
+        alignas(64) std::atomic<bool> m_stop { false };
+        alignas(64) std::atomic<int> m_sleep_count { 0 };
         std::mutex m_queue_mutex;
         std::condition_variable m_condition;
 
@@ -94,6 +97,10 @@ namespace mango
         NORMAL = 1,
         LOW = 2
     };
+
+    // ----------------------------------------------------------------------------------
+    // ConcurrentQueue
+    // ----------------------------------------------------------------------------------
 
     /*
         ConcurrentQueue is API to submit work into the ThreadPool. The tasks have no
@@ -114,7 +121,7 @@ namespace mango
         });
 
         // wait until the queue is drained
-        q.wait();
+        q.wait(); // cooperative, blocking (helps pool until all tasks are complete)
 
     */
 
@@ -140,6 +147,10 @@ namespace mango
         void wait();
     };
 
+    // ----------------------------------------------------------------------------------
+    // SerialQueue
+    // ----------------------------------------------------------------------------------
+
     /*
         SerialQueue is API to serialize tasks to be executed after previous task
         in the queue has completed. The tasks are NOT executed in the ThreadPool; each
@@ -160,7 +171,7 @@ namespace mango
         });
 
         // wait until the queue is drained
-        s.wait(); // non-cooperative, CPU-sink
+        s.wait(); // non-cooperative, blocking (CPU sleeps until queue is drained)
 
     */
 
@@ -171,8 +182,8 @@ namespace mango
 
         std::string m_name;
         std::thread m_thread;
-        std::atomic<bool> m_stop { false };
-        std::atomic<int> m_task_counter { 0 };
+        alignas(64) std::atomic<bool> m_stop { false };
+        alignas(64) std::atomic<int> m_task_counter { 0 };
 
         std::deque<Task> m_task_queue;
         std::mutex m_queue_mutex;
@@ -200,6 +211,106 @@ namespace mango
         void wait();
     };
 
+    // ----------------------------------------------------------------------------------
+    // TicketQueue
+    // ----------------------------------------------------------------------------------
+
+    /*
+        TicketQueue is a non-blocking serialization mechanism which allows to schedule work
+        from ANY thread with deterministic order. The order is determined by a ticket based
+        system; tickets are consumed in the same order they are acquired.
+
+        Usage example:
+
+        ConcurrentQueue q;
+        TicketQueue tk;
+
+        for (int i = 0; i < 10; ++i)
+        {
+            auto ticket = tk.acquire();
+
+            q.enqueue([ticket]
+            {
+                // do your heavy calculation here..
+
+                ticket.consume([]
+                {
+                    // this work is serialized and executed in the order the tickets were acquired
+                });
+            });
+        }
+
+        // wait until the queue is drained
+        q.wait();
+
+        // we know all workers have completed -> no more tickets will be consumed
+        // now we wait until ticket queue is finished
+        tk.wait();
+
+    */
+
+    class TicketQueue : private NonCopyable
+    {
+    protected:
+        struct Task
+        {
+            std::atomic<int> count { 1 };
+            std::function<void()> func;
+            std::promise<void> promise;
+        };
+
+    public:
+        using SharedTask = std::shared_ptr<Task>;
+
+        class Ticket
+        {
+        protected:
+            friend class TicketQueue;
+
+            SharedTask task;
+
+        public:
+            Ticket();
+            ~Ticket();
+
+            Ticket(const Ticket& ticket);
+            const Ticket& operator = (const Ticket& ticket);
+
+            template <class F, class... Args>
+            void consume(F&& f, Args&&... args) const
+            {
+                task->func = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
+                task->promise.set_value();
+            }
+        };
+
+        TicketQueue();
+        ~TicketQueue();
+
+        Ticket acquire();
+        void wait();
+
+    protected:
+        std::thread m_thread;
+
+        alignas(64) std::atomic<bool> m_stop { false };
+        alignas(64) std::atomic<int> m_ticket_counter { 0 };
+
+        std::mutex m_wait_mutex;
+        std::mutex m_consume_mutex;
+        std::condition_variable m_wait_condition;
+        std::condition_variable m_consume_condition;
+
+        struct TaskQueue;
+        alignas(64) TaskQueue* m_queue;
+
+        bool dequeue_and_process();
+    };
+
+    // ----------------------------------------------------------------------------------
+    // Task
+    // ----------------------------------------------------------------------------------
+
     /*
         Task is a simple queue-less convenience object to enqueue work into the ThreadPool.
         Synchronization must be done manually.
@@ -215,6 +326,10 @@ namespace mango
             pool.enqueue(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
         }
     };
+
+    // ----------------------------------------------------------------------------------
+    // FutureTask
+    // ----------------------------------------------------------------------------------
 
     /*
         FutureTask is an asynchronous API to submit tasks into the ThreadPool.
