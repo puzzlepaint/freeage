@@ -100,10 +100,10 @@ GameDialog::GameDialog(
   chatLineLayout->addWidget(chatButton);
   
   // Bottom row with buttons, ping label and ready check
-  lastPingTime = Clock::now();
+  lastPingResponseTime = Clock::now();
   
-  connect(&connectionCheckTimer, &QTimer::timeout, this, &GameDialog::CheckConnection);
-  connectionCheckTimer.start(500);
+  connect(&pingAndConnectionCheckTimer, &QTimer::timeout, this, &GameDialog::PingAndCheckConnection);
+  pingAndConnectionCheckTimer.start(500);
   
   QPushButton* exitButton = new QPushButton(isHost ? tr("Abort game") : tr("Leave game"));
   pingLabel = new QLabel("");
@@ -184,7 +184,7 @@ void GameDialog::TryParseServerMessages() {
     case ServerToClientMessage::GameAborted:
       LOG(INFO) << "Got game aborted message";
       gameWasAborted = true;
-      connectionCheckTimer.stop();
+      pingAndConnectionCheckTimer.stop();
       connectionToServerLost = false;
       reject();
       break;
@@ -197,22 +197,26 @@ void GameDialog::TryParseServerMessages() {
     case ServerToClientMessage::PingResponse:
       HandlePingResponseMessage(buffer);
       break;
-    case ServerToClientMessage::PingNotify:
-      HandlePingNotifyMessage(buffer);
-      break;
     }
     
     buffer.remove(0, msgLength);
   }
 }
 
-void GameDialog::CheckConnection() {
+void GameDialog::PingAndCheckConnection() {
+  // If we did not receive a ping response in some time, assume that the connection dropped.
   constexpr int kNoPingTimeout = 5000;
   if (socket->state() != QTcpSocket::ConnectedState ||
-      std::chrono::duration<double, std::milli>(Clock::now() - lastPingTime).count() > kNoPingTimeout) {
+      std::chrono::duration<double, std::milli>(Clock::now() - lastPingResponseTime).count() > kNoPingTimeout) {
     connectionToServerLost = true;
     reject();
+    return;
   }
+  
+  // Send a ping message.
+  sentPings.emplace_back(nextPingNumber, Clock::now());
+  socket->write(CreatePingMessage(nextPingNumber));
+  ++ nextPingNumber;
 }
 
 void GameDialog::SendPing(u64 number) {
@@ -267,18 +271,29 @@ void GameDialog::AddPlayerWidget(const PlayerInMatch& player) {
 }
 
 void GameDialog::HandlePingResponseMessage(const QByteArray& msg) {
-  lastPingTime = Clock::now();
+  lastPingResponseTime = Clock::now();
   
   u64 number = mango::uload64(msg.data() + 3);
   double serverTimeSeconds;
   memcpy(&serverTimeSeconds, msg.data() + 3 + 8, 8);
   
-  // TODO
-}
-
-void GameDialog::HandlePingNotifyMessage(const QByteArray& msg) {
-  u16 milliseconds = mango::uload16(msg.data() + 3);
-  pingLabel->setText(tr("Ping to server: %1").arg(milliseconds));
+  for (usize i = 0; i < sentPings.size(); ++ i) {
+    const auto& item = sentPings[i];
+    if (item.first == number) {
+      float elapsedMilliseconds = std::chrono::duration<float, std::milli>(Clock::now() - item.second).count();
+      sentPings.erase(sentPings.begin() + i);
+      
+      // Update ping label
+      pingLabel->setText(tr("Ping to server: %1").arg(static_cast<int>(elapsedMilliseconds + 0.5f)));
+      
+      // Compute time difference, adjust time synchronization
+      // TODO
+      
+      return;
+    }
+  }
+  
+  LOG(ERROR) << "Received a ping response for a ping number that is not in sentPings";
 }
 
 void GameDialog::HandleSettingsUpdateBroadcast(const QByteArray& msg) {

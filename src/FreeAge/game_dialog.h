@@ -41,7 +41,7 @@ class GameDialog : public QDialog {
  private slots:
   void TryParseServerMessages();
   
-  void CheckConnection();
+  void PingAndCheckConnection();
   void SendPing(u64 number);
   void SendSettingsUpdate();
   void SendChat();
@@ -52,7 +52,6 @@ class GameDialog : public QDialog {
   void AddPlayerWidget(const PlayerInMatch& player);
   
   void HandlePingResponseMessage(const QByteArray& msg);
-  void HandlePingNotifyMessage(const QByteArray& msg);
   void HandleSettingsUpdateBroadcast(const QByteArray& msg);
   void HandlePlayerListMessage(const QByteArray& msg, int len);
   void HandleChatBroadcastMessage(const QByteArray& msg, int len);
@@ -71,8 +70,12 @@ class GameDialog : public QDialog {
   QLabel* pingLabel;
   typedef std::chrono::steady_clock Clock;
   typedef Clock::time_point TimePoint;
-  TimePoint lastPingTime;
-  QTimer connectionCheckTimer;
+  TimePoint lastPingResponseTime;
+  /// Numbers and times of previously sent ping messages.
+  std::vector<std::pair<u64, TimePoint>> sentPings;
+  /// Number of the next ping message to send.
+  u64 nextPingNumber;
+  QTimer pingAndConnectionCheckTimer;
   
   QCheckBox* readyCheck;
   

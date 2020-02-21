@@ -6,8 +6,6 @@
 
 static constexpr int hostTokenLength = 6;
 
-static constexpr quint16 serverPort = 49100;  // TODO: Make configurable
-
 /// Types of messages sent by clients to the server.
 enum class ClientToServerMessage {
   /// Initial message sent by the host to the server.

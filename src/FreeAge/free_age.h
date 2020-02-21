@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -16,3 +17,9 @@ typedef int16_t i16;
 typedef uint16_t u16;
 typedef int8_t i8;
 typedef uint8_t u8;
+
+/// Shorthands for the used time types
+typedef std::chrono::steady_clock Clock;
+typedef Clock::time_point TimePoint;
+typedef std::chrono::duration<double, std::milli> MillisecondsDuration;
+typedef std::chrono::duration<double> SecondsDuration;

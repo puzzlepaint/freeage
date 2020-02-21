@@ -6,14 +6,12 @@
 #include <QOpenGLWidget>
 
 #include "FreeAge/client_unit.h"
+#include "FreeAge/free_age.h"
 #include "FreeAge/map.h"
 #include "FreeAge/shader_health_bar.h"
 #include "FreeAge/shader_sprite.h"
 #include "FreeAge/sprite.h"
 #include "FreeAge/texture.h"
-
-typedef std::chrono::steady_clock Clock;
-typedef Clock::time_point TimePoint;
 
 class RenderWindow : public QOpenGLWidget {
  Q_OBJECT

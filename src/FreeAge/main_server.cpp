@@ -3,12 +3,14 @@
 #include <memory>
 #include <vector>
 
-#include <mango/core/endian.hpp>
 #include <QApplication>
 #include <QByteArray>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QThread>
+// TODO (puzzlepaint): For some reason, this include needed to be after the Qt includes on my laptop
+// in order for CIDE not to show some errors. Compiling always worked. Check the reason for the errors.
+#include <mango/core/endian.hpp>
 
 #include "FreeAge/free_age.h"
 #include "FreeAge/logging.h"
@@ -18,6 +20,10 @@ typedef std::chrono::steady_clock Clock;
 typedef Clock::time_point TimePoint;
 
 struct ServerSettings {
+  /// Time point at which the server was started. This serves as the reference time point
+  /// for the server time, which the clients attempt to synchronize to.
+  TimePoint serverStartTime;
+  
   /// Token with which the server was started. This is used by the host
   /// to authorize itself when making the TCP connection to the server.
   QByteArray hostToken;
@@ -67,14 +73,8 @@ struct PlayerInMatch {
   /// Current state of the connection.
   State state;
   
-  /// Numbers and times of previously sent ping messages.
-  std::vector<std::pair<u64, TimePoint>> sentPings;
-  
-  /// Number of the next ping message to send.
-  u64 nextPingNumber;
-  
-  /// The last point in time at which a ping response was received from this player.
-  TimePoint lastPingResponseTime;
+  /// The last point in time at which a ping was received from this player.
+  TimePoint lastPingTime;
 };
 
 QByteArray CreatePlayerListMessage(const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch, PlayerInMatch* playerToExclude, PlayerInMatch* playerToInclude) {
@@ -291,28 +291,14 @@ void HandleChat(const QByteArray& msg, PlayerInMatch* player, int len, const std
   SendChatBroadcast(sendingPlayerIndex, text, playersInMatch);
 }
 
-void HandlePingResponse(const QByteArray& msg, PlayerInMatch* player) {
+void HandlePing(const QByteArray& msg, PlayerInMatch* player, const ServerSettings& settings) {
   u64 number = mango::uload64(msg.data() + 3);
   
-  for (usize i = 0; i < player->sentPings.size(); ++ i) {
-    const auto& item = player->sentPings[i];
-    if (item.first == number) {
-      float elapsedMilliseconds = std::chrono::duration<float, std::milli>(Clock::now() - item.second).count();
-      player->sentPings.erase(player->sentPings.begin() + i);
-      
-      player->lastPingResponseTime = Clock::now();
-      
-      // From time to time, notify the client about its ping
-      // NOTE: We could average the pings over the timespan since the last notification here
-      if (number % 2 == 0) {
-        player->socket->write(CreatePingNotifyMessage(static_cast<int>(elapsedMilliseconds + 0.5f)));
-      }
-      
-      return;
-    }
-  }
+  TimePoint pingHandleTime = Clock::now();
+  player->lastPingTime = pingHandleTime;
   
-  LOG(ERROR) << "Received a ping response for a ping number that is not in sentPings";
+  double serverTimeSeconds = std::chrono::duration<double>(pingHandleTime - settings.serverStartTime).count();
+  player->socket->write(CreatePingResponseMessage(number, serverTimeSeconds));
 }
 
 void HandleLeave(const QByteArray& /*msg*/, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
@@ -377,8 +363,8 @@ bool TryParseClientMessages(PlayerInMatch* player, const std::vector<std::shared
     case ClientToServerMessage::Chat:
       HandleChat(player->unparsedBuffer, player, msgLength, playersInMatch);
       break;
-    case ClientToServerMessage::PingResponse:
-      HandlePingResponse(player->unparsedBuffer, player);
+    case ClientToServerMessage::Ping:
+      HandlePing(player->unparsedBuffer, player, *settings);
       break;
     case ClientToServerMessage::Leave:
       HandleLeave(player->unparsedBuffer, player, playersInMatch);
@@ -412,6 +398,7 @@ int main(int argc, char** argv) {
   
   // Parse command line arguments.
   ServerSettings settings;
+  settings.serverStartTime = Clock::now();
   
   if (argc != 2) {
     LOG(INFO) << "Usage: FreeAgeServer <host_token>";
@@ -434,23 +421,7 @@ int main(int argc, char** argv) {
   std::vector<std::shared_ptr<PlayerInMatch>> playersInMatch;
   
   LOG(INFO) << "Server: Entering match setup phase";
-  TimePoint lastPingTime = Clock::now();
-  constexpr int kPingInterval = 500;
   while (true) {
-    // Regularly send out ping messages to all joined players to check that they are
-    // still connected and to measure the current ping.
-    TimePoint now = Clock::now();
-    if (std::chrono::duration<double, std::milli>(now - lastPingTime).count() > kPingInterval) {
-      lastPingTime = now;
-      for (const auto& player : playersInMatch) {
-        if (player->state == PlayerInMatch::State::Joined) {
-          player->sentPings.emplace_back(player->nextPingNumber, Clock::now());
-          player->socket->write(CreatePingMessage(player->nextPingNumber));
-          ++ player->nextPingNumber;
-        }
-      }
-    }
-    
     // Check for new connections
     bool timedOut = false;
     if (server.waitForNewConnection(/*msec*/ 0, &timedOut) && !timedOut) {
@@ -467,8 +438,7 @@ int main(int argc, char** argv) {
         newPlayer->isReady = false;
         newPlayer->connectionTime = Clock::now();
         newPlayer->state = PlayerInMatch::State::Connected;
-        newPlayer->nextPingNumber = 0;
-        newPlayer->lastPingResponseTime = Clock::now();
+        newPlayer->lastPingTime = Clock::now();
         playersInMatch.push_back(newPlayer);
       }
     }
@@ -492,11 +462,11 @@ int main(int argc, char** argv) {
         }
       }
       
-      // Time out connections which did not send ping responses in time, or if the connection was lost.
+      // Time out connections which did not send pings in time, or if the connection was lost.
       constexpr int kNoPingTimeout = 5000;
       if (player.state == PlayerInMatch::State::Joined &&
           (player.socket->state() != QAbstractSocket::ConnectedState ||
-           std::chrono::duration<double, std::milli>(Clock::now() - player.lastPingResponseTime).count() > kNoPingTimeout)) {
+           std::chrono::duration<double, std::milli>(Clock::now() - player.lastPingTime).count() > kNoPingTimeout)) {
         delete player.socket;
         it = playersInMatch.erase(it);
         

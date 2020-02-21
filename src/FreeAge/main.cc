@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <vector>
 
-#include <mango/core/endian.hpp>
 #include <QApplication>
 #include <QDir>
 #include <QFontDatabase>
@@ -24,7 +23,11 @@
 #include "FreeAge/map.h"
 #include "FreeAge/messages.h"
 #include "FreeAge/render_window.h"
+#include "FreeAge/server_connection.h"
 #include "FreeAge/settings_dialog.h"
+
+// TODO (puzzlepaint): For some reason, this include needed to be at the end using clang-10-rc2 on my laptop to not cause weird errors in CIDE. Why?
+#include <mango/core/endian.hpp>
 
 bool TryParseWelcomeMessage(QByteArray* buffer) {
   if (buffer->size() < 3) {
@@ -78,10 +81,8 @@ int main(int argc, char** argv) {
   Palettes palettes;
   QProcess serverProcess;
   
-  // Socket for communicating with the server.
-  QTcpSocket socket;
-  socket.setSocketOption(QAbstractSocket::LowDelayOption, 1);
-  QByteArray unparsedReceivedBuffer;
+  // Communication with the server.
+  ServerConnection connection;
   
   // Load settings.
   Settings settings;
