@@ -58,12 +58,8 @@ set_target_properties(gtest gtest_main PROPERTIES FOLDER "third_party")
 # FreeAge base library, used by both the application and the test
 # TODO: Unify cpp / cc spelling. Maybe also use hpp to make it clear for headers too that they are C++ code, not C code.
 add_library(FreeAgeLib
-  src/FreeAge/map.cpp
-  src/FreeAge/messages.cpp
-  src/FreeAge/timing.cpp
-  
-  src/RectangleBinPack/MaxRectsBinPack.cpp
-  src/RectangleBinPack/Rect.cpp
+  src/FreeAge/common/messages.cpp
+  src/FreeAge/common/timing.cpp
 )
 target_compile_options(FreeAgeLib PUBLIC
   "$<$<COMPILE_LANGUAGE:CXX>:-Wall>"
@@ -90,7 +86,7 @@ target_link_libraries(FreeAgeLib PUBLIC
 
 # FreeAge server application
 add_executable(FreeAgeServer
-  src/FreeAge/main_server.cpp
+  src/FreeAge/server/main.cpp
 )
 target_link_libraries(FreeAgeServer
   FreeAgeLib
@@ -100,22 +96,26 @@ target_link_libraries(FreeAgeServer
 # FreeAge application
 set(FREEAGE_SRCS
   resources/resources.qrc
-  src/FreeAge/client_building.cpp
-  src/FreeAge/client_unit.cpp
-  src/FreeAge/game_dialog.cpp
-  src/FreeAge/health_bar.cpp
-  src/FreeAge/main.cc
-  src/FreeAge/opengl.cc
-  src/FreeAge/render_window.cpp
-  src/FreeAge/server_connection.cpp
-  src/FreeAge/shader_health_bar.cpp
-  src/FreeAge/shader_program.cpp
-  src/FreeAge/shader_sprite.cpp
-  src/FreeAge/shader_terrain.cpp
-  src/FreeAge/sprite.cc
-  src/FreeAge/sprite_atlas.cpp
-  src/FreeAge/settings_dialog.cpp
-  src/FreeAge/texture.cpp
+  src/FreeAge/client/building.cpp
+  src/FreeAge/client/game_dialog.cpp
+  src/FreeAge/client/health_bar.cpp
+  src/FreeAge/client/main.cpp
+  src/FreeAge/client/map.cpp
+  src/FreeAge/client/opengl.cpp
+  src/FreeAge/client/render_window.cpp
+  src/FreeAge/client/server_connection.cpp
+  src/FreeAge/client/shader_health_bar.cpp
+  src/FreeAge/client/shader_program.cpp
+  src/FreeAge/client/shader_sprite.cpp
+  src/FreeAge/client/shader_terrain.cpp
+  src/FreeAge/client/sprite.cpp
+  src/FreeAge/client/sprite_atlas.cpp
+  src/FreeAge/client/settings_dialog.cpp
+  src/FreeAge/client/texture.cpp
+  src/FreeAge/client/unit.cpp
+  
+  src/RectangleBinPack/MaxRectsBinPack.cpp
+  src/RectangleBinPack/Rect.cpp
 )
 if (WIN32)
   set(FREEAGE_SRCS
@@ -137,7 +137,7 @@ add_dependencies(FreeAge
 
 # FreeAge test
 add_executable(FreeAgeTest
-  src/FreeAge/test.cpp
+  src/FreeAge/test/test.cpp
 )
 target_link_libraries(FreeAgeTest
   FreeAgeLib
