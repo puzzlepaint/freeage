@@ -131,7 +131,7 @@ void ServerConnection::PingAndCheckConnection() {
   
   // Send a ping message.
   sentPings.emplace_back(nextPingNumber, Clock::now());
-  socket.write(CreatePingMessage(nextPingNumber));
+  Write(CreatePingMessage(nextPingNumber));
   ++ nextPingNumber;
 }
 

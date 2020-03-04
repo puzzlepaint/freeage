@@ -224,7 +224,7 @@ int main(int argc, char** argv) {
   }
   
   // Create an OpenGL render window using Qt.
-  RenderWindow renderWindow(palettes, graphicsPath, cachePath);
+  RenderWindow renderWindow(&connection, palettes, graphicsPath, cachePath);
   renderWindow.show();
   
   // Run the Qt event loop.

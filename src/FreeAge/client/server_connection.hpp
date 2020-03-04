@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include <QObject>
 #include <QTcpSocket>
 #include <QTimer>
@@ -25,7 +27,12 @@ class ServerConnection : public QObject {
   /// Make sure that a suitable message receiver exists to prevent the messages from getting lost.
   void SetParseMessages(bool enable);
   
-  inline void Write(const QByteArray& message) { socket.write(message); }
+  /// Thread-safe writing to the connection's socket.
+  inline void Write(const QByteArray& message) {
+    socketMutex.lock();
+    socket.write(message);
+    socketMutex.unlock();
+  }
   
   inline bool ConnectionToServerLost() const { return connectionToServerLost; }
   
@@ -45,8 +52,13 @@ class ServerConnection : public QObject {
   void HandlePingResponseMessage(const QByteArray& msg, const TimePoint& receiveTime);
   
  private:
+  // -- Connection --
+  
   /// Socket which is connected to the server.
   QTcpSocket socket;
+  
+  /// Mutex for thread-safe access to the socket.
+  std::mutex socketMutex;
   
   /// Contains data which has been received from the server but was not parsed yet.
   QByteArray unparsedReceivedBuffer;

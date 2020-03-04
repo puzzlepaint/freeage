@@ -3,8 +3,10 @@
 #include <math.h>
 
 #include <QKeyEvent>
+#include <QOffscreenSurface>
 #include <QOpenGLContext>
 #include <QOpenGLFunctions_3_2_Core>
+#include <QThread>
 #include <QTimer>
 
 #include "FreeAge/client/health_bar.hpp"
@@ -14,8 +16,32 @@
 #include "FreeAge/client/sprite_atlas.hpp"
 #include "FreeAge/common/timing.hpp"
 
-RenderWindow::RenderWindow(const Palettes& palettes, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, QWidget* parent)
+
+class LoadingThread : public QThread {
+ Q_OBJECT
+ public:
+  inline LoadingThread(RenderWindow* window, QOpenGLContext* loadingContext, QOffscreenSurface* loadingSurface)
+      : window(window),
+        loadingContext(loadingContext),
+        loadingSurface(loadingSurface) {}
+  
+  void run() override {
+    loadingContext->makeCurrent(loadingSurface);
+    window->LoadResources();
+    loadingContext->doneCurrent();
+    delete loadingContext;
+  }
+  
+ private:
+  RenderWindow* window;
+  QOpenGLContext* loadingContext;
+  QOffscreenSurface* loadingSurface;
+};
+
+
+RenderWindow::RenderWindow(ServerConnection* connection, const Palettes& palettes, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, QWidget* parent)
     : QOpenGLWidget(parent),
+      connection(connection),
       palettes(palettes),
       graphicsPath(graphicsPath),
       cachePath(cachePath) {
@@ -60,6 +86,100 @@ RenderWindow::~RenderWindow() {
   doneCurrent();
 }
 
+void RenderWindow::LoadResources() {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
+  auto didLoadingStep = [&]() {
+    ++ loadingStep;
+    connection->Write(CreateLoadingProgressMessage(static_cast<int>(100 * loadingStep / static_cast<float>(maxLoadingStep) + 0.5f)));
+  };
+  
+  // Create shaders.
+  spriteShader.reset(new SpriteShader(false, false));
+  didLoadingStep();
+  
+  shadowShader.reset(new SpriteShader(true, false));
+  didLoadingStep();
+  
+  outlineShader.reset(new SpriteShader(false, true));
+  didLoadingStep();
+  
+  healthBarShader.reset(new HealthBarShader());
+  didLoadingStep();
+  
+  // Create player color palette texture.
+  CreatePlayerColorPaletteTexture();
+  spriteShader->GetProgram()->UseProgram();
+  spriteShader->GetProgram()->SetUniform2f(spriteShader->GetPlayerColorsTextureSizeLocation(), playerColorsTextureWidth, playerColorsTextureHeight);
+  spriteShader->GetProgram()->SetUniform1i(spriteShader->GetPlayerColorsTextureLocation(), 1);  // use GL_TEXTURE1
+  f->glActiveTexture(GL_TEXTURE0 + 1);
+  f->glBindTexture(GL_TEXTURE_2D, playerColorsTexture->GetId());
+  f->glActiveTexture(GL_TEXTURE0);
+  didLoadingStep();
+  
+  // Load unit resources.
+  unitTypes.resize(static_cast<int>(UnitType::NumUnits));
+  for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
+    if (!unitTypes[unitType].Load(static_cast<UnitType>(unitType), graphicsPath, cachePath, palettes)) {
+      LOG(ERROR) << "Exiting because of a resource load error for unit " << unitType << ".";
+      exit(1);  // TODO: Exit gracefully
+    }
+    
+    didLoadingStep();
+  }
+  
+  // Load building resources.
+  buildingTypes.resize(static_cast<int>(BuildingType::NumBuildings));
+  for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
+    if (!buildingTypes[buildingType].Load(static_cast<BuildingType>(buildingType), graphicsPath, cachePath, palettes)) {
+      LOG(ERROR) << "Exiting because of a resource load error for building " << buildingType << ".";
+      exit(1);  // TODO: Exit gracefully
+    }
+    
+    didLoadingStep();
+  }
+  
+  // Load "move to" sprite.
+  moveToSprite.reset(new SpriteAndTextures());
+  LoadSpriteAndTexture(
+      (graphicsPath.parent_path().parent_path() / "particles" / "textures" / "test_move" / "p_all_move_%04i.png").c_str(),
+      (cachePath / "p_all_move_0000.png").c_str(),
+      GL_CLAMP,
+      GL_NEAREST,
+      GL_NEAREST,
+      &moveToSprite->sprite,
+      &moveToSprite->graphicTexture,
+      &moveToSprite->shadowTexture,
+      palettes);
+  didLoadingStep();
+  
+  // Create a buffer containing a single point for sprite rendering
+  f->glGenBuffers(1, &pointBuffer);
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+  int elementSizeInBytes = 3 * sizeof(float);
+  float data[] = {
+      0.f, 0.f, 0};
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
+  CHECK_OPENGL_NO_ERROR();
+  didLoadingStep();
+  
+  // Output timings of the resource loading processes.
+  Timing::print(std::cout);
+  
+  // Check that the value of maxLoadingStep is correct.
+  if (loadingStep != maxLoadingStep) {
+    LOG(ERROR) << "DEBUG: After loading, loadingStep (" << loadingStep << ") != maxLoadingStep (" << maxLoadingStep << "). Please set the value of maxLoadingStep to " << loadingStep << " in render_window.cpp.";
+  }
+  
+  
+  // Generate a map
+  // TODO: Do this on the server.
+  map = new Map(50, 50);
+  map->GenerateRandomMap(buildingTypes);
+  SetScroll(map->GetTownCenterLocation(0));
+  map->LoadRenderResources();
+}
+
 void RenderWindow::Scroll(float x, float y, QPointF* mapCoord) {
   QPointF projectedCoord = map->MapCoordToProjectedCoord(*mapCoord);
   projectedCoord += QPointF(x, y);
@@ -88,6 +208,11 @@ QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime) {
   QPointF result;
   map->ProjectedCoordToMapCoord(projectedCoord, &result);
   return result;
+}
+
+void RenderWindow::LoadingFinished() {
+  delete loadingSurface;
+  delete loadingThread;
 }
 
 void RenderWindow::CreatePlayerColorPaletteTexture() {
@@ -507,7 +632,7 @@ struct PossibleSelectedObject {
 
 bool RenderWindow::GetObjectToSelectAt(float x, float y, int* objectId) {
   TimePoint now = Clock::now();
-  double elapsedSeconds = std::chrono::duration<double>(now - gameStartTime).count();
+  double elapsedSeconds = std::chrono::duration<double>(now - renderStartTime).count();
   
   // First, collect all objects at the given position.
   std::vector<PossibleSelectedObject> possibleSelectedObjects;
@@ -665,72 +790,38 @@ void RenderWindow::initializeGL() {
   f->glBindVertexArray(vao);
   CHECK_OPENGL_NO_ERROR();
   
-  // Create shaders.
-  spriteShader.reset(new SpriteShader(false, false));
-  shadowShader.reset(new SpriteShader(true, false));
-  outlineShader.reset(new SpriteShader(false, true));
-  healthBarShader.reset(new HealthBarShader());
-  
-  // Create player color palette texture.
-  CreatePlayerColorPaletteTexture();
-  spriteShader->GetProgram()->UseProgram();
-  spriteShader->GetProgram()->SetUniform2f(spriteShader->GetPlayerColorsTextureSizeLocation(), playerColorsTextureWidth, playerColorsTextureHeight);
-  spriteShader->GetProgram()->SetUniform1i(spriteShader->GetPlayerColorsTextureLocation(), 1);  // use GL_TEXTURE1
-  f->glActiveTexture(GL_TEXTURE0 + 1);
-  f->glBindTexture(GL_TEXTURE_2D, playerColorsTexture->GetId());
-  f->glActiveTexture(GL_TEXTURE0);
-  
-  // Load unit resources.
-  unitTypes.resize(static_cast<int>(UnitType::NumUnits));
-  for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
-    if (!unitTypes[unitType].Load(static_cast<UnitType>(unitType), graphicsPath, cachePath, palettes)) {
-      LOG(ERROR) << "Exiting because of a resource load error for unit " << unitType << ".";
-      exit(1);  // TODO: Exit gracefully
-    }
+  // Create a second OpenGL context that shares names with the rendering context.
+  // This can then be used to load resources in the background.
+  QOpenGLContext* loadingContext = new QOpenGLContext();
+  loadingContext->setScreen(context()->screen());
+  loadingContext->setFormat(context()->format());
+  loadingContext->setShareContext(context());
+  if (!loadingContext->create()) {
+    LOG(ERROR) << "Failed to create an OpenGL context for resource loading";
+    // TODO: Exit gracefully
   }
   
-  // Load building resources.
-  buildingTypes.resize(static_cast<int>(BuildingType::NumBuildings));
-  for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
-    if (!buildingTypes[buildingType].Load(static_cast<BuildingType>(buildingType), graphicsPath, cachePath, palettes)) {
-      LOG(ERROR) << "Exiting because of a resource load error for building " << buildingType << ".";
-      exit(1);  // TODO: Exit gracefully
-    }
+  // Create the offscreen surface for resource loading. Note that for compatibility, this must
+  // be created and destroyed in the main thread.
+  loadingSurface = new QOffscreenSurface(loadingContext->screen());
+  loadingSurface->setFormat(loadingContext->format());
+  loadingSurface->create();
+  if (!loadingSurface->isValid()) {
+    LOG(ERROR) << "Failed to create a QOffscreenSurface for resource loading";
+    // TODO: Exit gracefully
   }
   
-  // Load "move to" sprite.
-  moveToSprite.reset(new SpriteAndTextures());
-  LoadSpriteAndTexture(
-      (graphicsPath.parent_path().parent_path() / "particles" / "textures" / "test_move" / "p_all_move_%04i.png").c_str(),
-      (cachePath / "p_all_move_0000.png").c_str(),
-      GL_CLAMP,
-      GL_NEAREST,
-      GL_NEAREST,
-      &moveToSprite->sprite,
-      &moveToSprite->graphicTexture,
-      &moveToSprite->shadowTexture,
-      palettes);
+  // Create the resource loading thread.
+  loadingThread = new LoadingThread(this, loadingContext, loadingSurface);
+  loadingContext->moveToThread(loadingThread);
+  connect(loadingThread, &LoadingThread::finished, this, &RenderWindow::LoadingFinished);
   
-  // Create a buffer containing a single point for sprite rendering
-  f->glGenBuffers(1, &pointBuffer);
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
-  int elementSizeInBytes = 3 * sizeof(float);
-  float data[] = {
-      0.f, 0.f, 0};
-  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
-  CHECK_OPENGL_NO_ERROR();
+  loadingStep = 0;
+  maxLoadingStep = 40;
+  loadingThread->start();
   
-  // Output timings of the resource loading processes.
-  Timing::print(std::cout);
-  
-  // Generate a map
-  map = new Map(50, 50);
-  map->GenerateRandomMap(buildingTypes);
-  SetScroll(map->GetTownCenterLocation(0));
-  map->LoadRenderResources();
-  
-  // Remember the game start time.
-  gameStartTime = Clock::now();
+  // Remember the render start time.
+  renderStartTime = Clock::now();
 }
 
 void RenderWindow::paintGL() {
@@ -740,7 +831,7 @@ void RenderWindow::paintGL() {
   // Get the time for which to render the game state.
   // TODO: Predict the time at which the rendered frame will be displayed rather than taking the current time.
   TimePoint now = Clock::now();
-  double elapsedSeconds = std::chrono::duration<double>(now - gameStartTime).count();
+  double elapsedSeconds = std::chrono::duration<double>(now - renderStartTime).count();
   
   // Update scrolling and compute the view transformation.
   UpdateView(now);

@@ -86,7 +86,9 @@ target_link_libraries(FreeAgeLib PUBLIC
 
 # FreeAge server application
 add_executable(FreeAgeServer
+  src/FreeAge/server/game.cpp
   src/FreeAge/server/main.cpp
+  src/FreeAge/server/match_setup.cpp
 )
 target_link_libraries(FreeAgeServer
   FreeAgeLib

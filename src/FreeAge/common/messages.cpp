@@ -130,6 +130,21 @@ QByteArray CreateStartGameMessage() {
   return msg;
 }
 
+QByteArray CreateLoadingProgressMessage(u8 percentage) {
+  // Create buffer
+  QByteArray msg(1 + 2 + 1, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ClientToServerMessage::Ping);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  data[3] = percentage;
+  
+  return msg;
+}
+
 
 QByteArray CreateWelcomeMessage() {
   // Create buffer
@@ -191,14 +206,30 @@ QByteArray CreatePingResponseMessage(u64 number, double serverTimeSeconds) {
   return msg;
 }
 
-QByteArray CreateStartGameNotifyMessage() {
+QByteArray CreateStartGameBroadcastMessage() {
   // Create buffer
   QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
   char* data = msg.data();
   
   // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::StartGameNotify);
+  data[0] = static_cast<char>(ServerToClientMessage::StartGameBroadcast);
   mango::ustore16(data + 1, msg.size());
+  
+  return msg;
+}
+
+QByteArray CreateLoadingProgressBroadcastMessage(u8 playerIndex, u8 percentage) {
+  // Create buffer
+  QByteArray msg(1 + 2 + 1 + 1, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::LoadingProgressBroadcast);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  data[3] = playerIndex;
+  data[4] = percentage;
   
   return msg;
 }

@@ -32,6 +32,9 @@ enum class ClientToServerMessage {
   
   /// Sent by the host to the server to start the game.
   StartGame,
+  
+  /// Sent by a client to update its game loading progress.
+  LoadingProgress,
 };
 
 QByteArray CreateHostConnectMessage(const QByteArray& hostToken, const QString& playerName);
@@ -49,6 +52,8 @@ QByteArray CreatePingMessage(u64 number);
 QByteArray CreateLeaveMessage();
 
 QByteArray CreateStartGameMessage();
+
+QByteArray CreateLoadingProgressMessage(u8 percentage);
 
 
 /// Types of messages sent by the server to clients.
@@ -75,7 +80,10 @@ enum class ServerToClientMessage {
   
   /// A message that gets broadcast to all clients to notify them that the host has
   /// started the game.
-  StartGameNotify,
+  StartGameBroadcast,
+  
+  /// The game loading progress state of a player getting broadcast to all players.
+  LoadingProgressBroadcast,
 };
 
 QByteArray CreateWelcomeMessage();
@@ -86,4 +94,6 @@ QByteArray CreateChatBroadcastMessage(u16 sendingPlayerIndex, const QString& tex
 
 QByteArray CreatePingResponseMessage(u64 number, double serverTimeSeconds);
 
-QByteArray CreateStartGameNotifyMessage();
+QByteArray CreateStartGameBroadcastMessage();
+
+QByteArray CreateLoadingProgressBroadcastMessage(u8 playerIndex, u8 percentage);

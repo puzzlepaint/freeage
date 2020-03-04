@@ -3,6 +3,7 @@
 #include <chrono>
 #include <memory>
 
+#include <QOffscreenSurface>
 #include <QOpenGLWidget>
 
 #include "FreeAge/client/unit.hpp"
@@ -10,14 +11,20 @@
 #include "FreeAge/client/map.hpp"
 #include "FreeAge/client/shader_health_bar.hpp"
 #include "FreeAge/client/shader_sprite.hpp"
+#include "FreeAge/client/server_connection.hpp"
 #include "FreeAge/client/sprite.hpp"
 #include "FreeAge/client/texture.hpp"
+
+class LoadingThread;
 
 class RenderWindow : public QOpenGLWidget {
  Q_OBJECT
  public:
-  RenderWindow(const Palettes& palettes, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, QWidget* parent = nullptr);
+  RenderWindow(ServerConnection* connection, const Palettes& palettes, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, QWidget* parent = nullptr);
   ~RenderWindow();
+  
+  /// Called from the loading thread to load the game resources in the background.
+  void LoadResources();
   
   /// Scrolls the given map coordinates by the given amount in projected coordinates.
   void Scroll(float x, float y, QPointF* mapCoord);
@@ -26,6 +33,9 @@ class RenderWindow : public QOpenGLWidget {
   QPointF GetCurrentScroll(const TimePoint& atTime);
   
   inline void SetScroll(const QPointF& value) { scroll = value; }
+  
+ private slots:
+  void LoadingFinished();
   
  protected:
   void CreatePlayerColorPaletteTexture();
@@ -86,7 +96,7 @@ class RenderWindow : public QOpenGLWidget {
   float zoom;
   
   /// Game start time.
-  TimePoint gameStartTime;
+  TimePoint renderStartTime;
   
   /// Cached widget size.
   int widgetWidth;
@@ -100,6 +110,13 @@ class RenderWindow : public QOpenGLWidget {
   std::shared_ptr<SpriteShader> shadowShader;
   std::shared_ptr<SpriteShader> outlineShader;
   std::shared_ptr<HealthBarShader> healthBarShader;
+  
+  // Loading thread.
+  QOffscreenSurface* loadingSurface;
+  LoadingThread* loadingThread;
+  
+  std::atomic<int> loadingStep;
+  int maxLoadingStep;
   
   // Resources.
   GLuint pointBuffer;
@@ -117,6 +134,7 @@ class RenderWindow : public QOpenGLWidget {
   TimePoint moveToTime;
   bool haveMoveTo = false;
   
+  ServerConnection* connection;  // not owned
   const Palettes& palettes;
   const std::filesystem::path& graphicsPath;
   const std::filesystem::path& cachePath;

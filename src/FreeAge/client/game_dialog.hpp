@@ -79,5 +79,5 @@ class GameDialog : public QDialog {
   QFont georgiaFont;
   std::vector<QRgb> playerColors;
   
-  ServerConnection* connection;
+  ServerConnection* connection;  // not owned
 };
