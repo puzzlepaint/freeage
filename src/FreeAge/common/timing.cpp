@@ -27,7 +27,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 
-#include "FreeAge/timing.h"
+#include "FreeAge/common/timing.hpp"
 
 #include <algorithm>
 #include <limits>

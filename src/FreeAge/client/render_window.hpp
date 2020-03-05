@@ -11,6 +11,7 @@
 #include "FreeAge/client/map.hpp"
 #include "FreeAge/client/shader_health_bar.hpp"
 #include "FreeAge/client/shader_sprite.hpp"
+#include "FreeAge/client/shader_ui.hpp"
 #include "FreeAge/client/server_connection.hpp"
 #include "FreeAge/client/sprite.hpp"
 #include "FreeAge/client/texture.hpp"
@@ -20,7 +21,7 @@ class LoadingThread;
 class RenderWindow : public QOpenGLWidget {
  Q_OBJECT
  public:
-  RenderWindow(ServerConnection* connection, const Palettes& palettes, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, QWidget* parent = nullptr);
+  RenderWindow(ServerConnection* connection, int georgiaFontID, const Palettes& palettes, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, QWidget* parent = nullptr);
   ~RenderWindow();
   
   /// Called from the loading thread to load the game resources in the background.
@@ -57,6 +58,8 @@ class RenderWindow : public QOpenGLWidget {
   
   void ClearSelection();
   void AddToSelection(int objectId);
+  
+  void RenderLoadingScreen();
   
   virtual void initializeGL() override;
   virtual void paintGL() override;
@@ -106,6 +109,7 @@ class RenderWindow : public QOpenGLWidget {
   QRectF projectedCoordsViewRect;
   
   // Shaders.
+  std::shared_ptr<UIShader> uiShader;
   std::shared_ptr<SpriteShader> spriteShader;
   std::shared_ptr<SpriteShader> shadowShader;
   std::shared_ptr<SpriteShader> outlineShader;
@@ -117,6 +121,12 @@ class RenderWindow : public QOpenGLWidget {
   
   std::atomic<int> loadingStep;
   int maxLoadingStep;
+  
+  // Loading screen.
+  bool isLoading;
+  
+  bool loadingTextInitialized = false;
+  GLuint loadingTextTextureId;
   
   // Resources.
   GLuint pointBuffer;
@@ -135,6 +145,7 @@ class RenderWindow : public QOpenGLWidget {
   bool haveMoveTo = false;
   
   ServerConnection* connection;  // not owned
+  int georgiaFontID;
   const Palettes& palettes;
   const std::filesystem::path& graphicsPath;
   const std::filesystem::path& cachePath;

@@ -37,10 +37,13 @@ class SettingsDialog : public QDialog {
   
  private:
   bool CheckSettings();
+  void SaveSettings();
   
   QLineEdit* dataFolderEdit;
   QLineEdit* modsFolderEdit;
   QLineEdit* playerNameEdit;
   bool hostGameChosen;
   QString ipText;
+  
+  Settings* settings;
 };

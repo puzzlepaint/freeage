@@ -181,7 +181,8 @@ void Settings::TryToFindPathsOnLinux() {
 
 
 SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
-    : QDialog(parent) {
+    : QDialog(parent),
+      settings(settings) {
   setWindowIcon(QIcon(":/free_age/free_age.png"));
   setWindowTitle(tr("FreeAge - Setup"));
   
@@ -259,6 +260,7 @@ void SettingsDialog::HostGame() {
   if (!CheckSettings()) {
     return;
   }
+  SaveSettings();
   
   hostGameChosen = true;
   accept();
@@ -268,6 +270,7 @@ void SettingsDialog::JoinGame() {
   if (!CheckSettings()) {
     return;
   }
+  SaveSettings();
   
   bool ok;
   ipText = QInputDialog::getText(
@@ -298,4 +301,11 @@ bool SettingsDialog::CheckSettings() {
   }
   
   return true;
+}
+
+void SettingsDialog::SaveSettings() {
+  // TODO: Is Utf8 the right encoding here? What does std::filesystem::path expect?
+  settings->dataPath = dataFolderEdit->text().toUtf8().data();
+  settings->modsPath = modsFolderEdit->text().toUtf8().data();
+  settings->playerName = playerNameEdit->text();
 }

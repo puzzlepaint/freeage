@@ -64,6 +64,7 @@ int main(int argc, char** argv) {
   std::filesystem::path commonResourcesPath;
   Palettes palettes;
   QProcess serverProcess;
+  int georgiaFontID;
   
   // Communication with the server.
   ServerConnection connection;
@@ -106,7 +107,7 @@ int main(int argc, char** argv) {
     // Load fonts (to use them in the dialog).
     std::filesystem::path fontsPath = commonResourcesPath / "fonts";
     QString georgiaFontPath = QString::fromStdString((fontsPath / "georgia.ttf").string());
-    int georgiaFontID = QFontDatabase::addApplicationFont(georgiaFontPath);
+    georgiaFontID = QFontDatabase::addApplicationFont(georgiaFontPath);
     if (georgiaFontID == -1) {
       QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to load the Georgia font from %1.").arg(georgiaFontPath));
       continue;
@@ -224,7 +225,7 @@ int main(int argc, char** argv) {
   }
   
   // Create an OpenGL render window using Qt.
-  RenderWindow renderWindow(&connection, palettes, graphicsPath, cachePath);
+  RenderWindow renderWindow(&connection, georgiaFontID, palettes, graphicsPath, cachePath);
   renderWindow.show();
   
   // Run the Qt event loop.

@@ -72,6 +72,7 @@ class GameDialog : public QDialog {
   QLabel* pingLabel;
   
   QCheckBox* readyCheck;
+  QPushButton* startButton;
   
   bool gameWasAborted = false;
   

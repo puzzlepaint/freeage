@@ -2,10 +2,12 @@
 
 #include <math.h>
 
+#include <QFontDatabase>
 #include <QKeyEvent>
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
 #include <QOpenGLFunctions_3_2_Core>
+#include <QPainter>
 #include <QThread>
 #include <QTimer>
 
@@ -39,9 +41,10 @@ class LoadingThread : public QThread {
 };
 
 
-RenderWindow::RenderWindow(ServerConnection* connection, const Palettes& palettes, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, QWidget* parent)
+RenderWindow::RenderWindow(ServerConnection* connection, int georgiaFontID, const Palettes& palettes, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, QWidget* parent)
     : QOpenGLWidget(parent),
       connection(connection),
+      georgiaFontID(georgiaFontID),
       palettes(palettes),
       graphicsPath(graphicsPath),
       cachePath(cachePath) {
@@ -72,6 +75,7 @@ RenderWindow::RenderWindow(ServerConnection* connection, const Palettes& palette
 RenderWindow::~RenderWindow() {
   makeCurrent();
   // Destroy OpenGL resources here
+  uiShader.reset();
   spriteShader.reset();
   shadowShader.reset();
   outlineShader.reset();
@@ -153,16 +157,6 @@ void RenderWindow::LoadResources() {
       palettes);
   didLoadingStep();
   
-  // Create a buffer containing a single point for sprite rendering
-  f->glGenBuffers(1, &pointBuffer);
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
-  int elementSizeInBytes = 3 * sizeof(float);
-  float data[] = {
-      0.f, 0.f, 0};
-  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
-  CHECK_OPENGL_NO_ERROR();
-  didLoadingStep();
-  
   // Output timings of the resource loading processes.
   Timing::print(std::cout);
   
@@ -213,6 +207,10 @@ QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime) {
 void RenderWindow::LoadingFinished() {
   delete loadingSurface;
   delete loadingThread;
+  
+  // TODO: Only do this upon game start
+  LOG(INFO) << "DEBUG: Loading finished.";
+  // isLoading = false;
 }
 
 void RenderWindow::CreatePlayerColorPaletteTexture() {
@@ -265,6 +263,16 @@ void RenderWindow::UpdateView(const TimePoint& now) {
   if (scrollLeftPressed) { scrollLeftPressTime = now; }
   if (scrollUpPressed) { scrollUpPressTime = now; }
   if (scrollDownPressed) { scrollDownPressTime = now; }
+  
+  // Compute the pixel-to-OpenGL transformation for the UI shader.
+  float pixelToOpenGLMatrix[4];
+  pixelToOpenGLMatrix[0] = 2.f / widgetWidth;
+  pixelToOpenGLMatrix[1] = -2.f / widgetHeight;
+  pixelToOpenGLMatrix[2] = -pixelToOpenGLMatrix[0] * 0.5f * widgetWidth;
+  pixelToOpenGLMatrix[3] = -pixelToOpenGLMatrix[1] * 0.5f * widgetHeight;
+  
+  uiShader->GetProgram()->UseProgram();
+  uiShader->GetProgram()->setUniformMatrix2fv(uiShader->GetViewMatrixLocation(), pixelToOpenGLMatrix);
   
   // Compute the view (projected-to-OpenGL) transformation.
   // Projected coordinates: arbitrary origin, +x goes right, +y goes down, scale is the default scale.
@@ -779,6 +787,115 @@ void RenderWindow::AddToSelection(int objectId) {
   }
 }
 
+void RenderWindow::RenderLoadingScreen() {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  CHECK_OPENGL_NO_ERROR();
+  
+  // TODO: This transformation computation is duplicated with the other rendering code.
+  // Compute the pixel-to-OpenGL transformation for the UI shader.
+  float pixelToOpenGLMatrix[4];
+  pixelToOpenGLMatrix[0] = 2.f / widgetWidth;
+  pixelToOpenGLMatrix[1] = -2.f / widgetHeight;
+  pixelToOpenGLMatrix[2] = -pixelToOpenGLMatrix[0] * 0.5f * widgetWidth;
+  pixelToOpenGLMatrix[3] = -pixelToOpenGLMatrix[1] * 0.5f * widgetHeight;
+  
+  uiShader->GetProgram()->UseProgram();
+  uiShader->GetProgram()->setUniformMatrix2fv(uiShader->GetViewMatrixLocation(), pixelToOpenGLMatrix);
+  
+  // Clear background.
+  f->glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
+  f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  CHECK_OPENGL_NO_ERROR();
+  
+  // Render loading state text.
+  // TODO: Cache the text rendering as long as the text does not change, and put all of the text rendering code into a helper class.
+  
+  // Build the text.
+  QString text = tr("Loading\n\n");
+  // TODO: Add percentages of other players
+  text += tr("Percentage: %1%").arg(static_cast<int>(100 * loadingStep / static_cast<float>(maxLoadingStep) + 0.5f));
+  
+  // Get the font.
+  QFont georgiaFont = QFont(QFontDatabase::applicationFontFamilies(georgiaFontID)[0]);
+  
+  // Compute the text size.
+  QImage dummyImage(1, 1, QImage::Format_RGBA8888);
+  QPainter dummyPainter(&dummyImage);
+  dummyPainter.setFont(georgiaFont);
+  QFontMetrics georgiaMetrics = dummyPainter.fontMetrics();
+  QRect constrainRect(0, 0, 0, 0);
+  QRect boundingRect = georgiaMetrics.boundingRect(constrainRect, Qt::AlignHCenter | Qt::AlignTop, text);
+  int width = std::ceil(boundingRect.width());
+  int height = std::ceil(boundingRect.height());
+  dummyPainter.end();
+  
+  // Render the text into an image with that size.
+  QImage textImage(width, height, QImage::Format_RGBA8888);
+  textImage.fill(qRgba(0, 0, 0, 0));
+  QPainter painter(&textImage);
+  painter.setPen(qRgba(255, 255, 255, 255));
+  painter.setFont(georgiaFont);
+  painter.fontMetrics();
+  painter.drawText(textImage.rect(), Qt::AlignHCenter | Qt::AlignTop, text);
+  painter.end();
+  
+  // Upload the rendered image to a texture.
+  if (!loadingTextInitialized) {
+    f->glGenTextures(1, &loadingTextTextureId);
+    f->glBindTexture(GL_TEXTURE_2D, loadingTextTextureId);
+    
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    
+    loadingTextInitialized = true;
+  }
+  
+  f->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+  f->glTexImage2D(
+      GL_TEXTURE_2D,
+      0, GL_RGBA,
+      textImage.width(), textImage.height(),
+      0, GL_BGRA, GL_UNSIGNED_BYTE,
+      textImage.scanLine(0));
+  
+  // Render the texture.
+  f->glEnable(GL_BLEND);
+  f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  f->glDisable(GL_DEPTH_TEST);
+  
+  ShaderProgram* program = uiShader->GetProgram();
+  program->UseProgram();
+  program->SetUniform1i(uiShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
+  f->glBindTexture(GL_TEXTURE_2D, loadingTextTextureId);
+  
+  program->SetUniform2f(uiShader->GetTextTopLeftLocation(), 0, 0);
+  program->SetUniform2f(uiShader->GetTexBottomRightLocation(), 1, 1);
+  
+  program->SetUniform2f(
+      uiShader->GetSizeLocation(),
+      2.f * width / static_cast<float>(widgetWidth),
+      2.f * height / static_cast<float>(widgetHeight));
+  
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+  float data[] = {
+      0.5f * widgetWidth - 0.5f * width,
+      0.5f * widgetHeight - 0.5f * height,
+      0.f};
+  int elementSizeInBytes = 3 * sizeof(float);
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
+  program->SetPositionAttribute(
+      3,
+      GetGLType<float>::value,
+      3 * sizeof(float),
+      0);
+  
+  f->glDrawArrays(GL_POINTS, 0, 1);
+  
+  CHECK_OPENGL_NO_ERROR();
+}
+
 void RenderWindow::initializeGL() {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   CHECK_OPENGL_NO_ERROR();
@@ -816,15 +933,35 @@ void RenderWindow::initializeGL() {
   loadingContext->moveToThread(loadingThread);
   connect(loadingThread, &LoadingThread::finished, this, &RenderWindow::LoadingFinished);
   
+  isLoading = true;
   loadingStep = 0;
-  maxLoadingStep = 40;
+  maxLoadingStep = 16;
   loadingThread->start();
+  
+  // Create resources right now which are required for rendering the loading screen:
+  
+  // Load the UI shader.
+  uiShader.reset(new UIShader());
+  
+  // Create a buffer containing a single point for sprite rendering.
+  f->glGenBuffers(1, &pointBuffer);
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+  int elementSizeInBytes = 3 * sizeof(float);
+  float data[] = {
+      0.f, 0.f, 0};
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
+  CHECK_OPENGL_NO_ERROR();
   
   // Remember the render start time.
   renderStartTime = Clock::now();
 }
 
 void RenderWindow::paintGL() {
+  if (isLoading) {
+    RenderLoadingScreen();
+    return;
+  }
+  
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   CHECK_OPENGL_NO_ERROR();
   
@@ -858,7 +995,7 @@ void RenderWindow::paintGL() {
   
   map->Render(viewMatrix);
   
-  f->glBlendFunc(GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA);  // reset the blend func to standard
+  f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // reset the blend func to standard
   
   // Enable the depth buffer for sprite rendering.
   f->glEnable(GL_DEPTH_TEST);
@@ -995,3 +1132,5 @@ void RenderWindow::keyReleaseEvent(QKeyEvent* event) {
     Scroll(0, scrollDistancePerSecond / zoom * seconds, &scroll);
   }
 }
+
+#include "render_window.moc"

@@ -110,6 +110,7 @@ set(FREEAGE_SRCS
   src/FreeAge/client/shader_program.cpp
   src/FreeAge/client/shader_sprite.cpp
   src/FreeAge/client/shader_terrain.cpp
+  src/FreeAge/client/shader_ui.cpp
   src/FreeAge/client/sprite.cpp
   src/FreeAge/client/sprite_atlas.cpp
   src/FreeAge/client/settings_dialog.cpp

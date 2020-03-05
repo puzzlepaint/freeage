@@ -12,7 +12,7 @@
 
 void HandleLoadingProgress(const QByteArray& msg, PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players) {
   if (msg.size() < 4) {
-    LOG(ERROR) << "Received LoadingProgress message which is too short";
+    LOG(ERROR) << "Server: Received LoadingProgress message which is too short";
     return;
   }
   
@@ -95,12 +95,13 @@ static ParseMessagesResult TryParseClientMessages(PlayerInGame* player, const st
       HandlePing(player->unparsedBuffer, player, *settings);
       break;
     case ClientToServerMessage::Leave:
+      LOG(INFO) << "Server: Got leave message from player " << player->name.toStdString() << " (index " << player->index << ")";
       return ParseMessagesResult::PlayerLeftOrShouldBeDisconnected;
     case ClientToServerMessage::LoadingProgress:
       HandleLoadingProgress(player->unparsedBuffer, player, players);
       break;
     default:
-      LOG(ERROR) << "Received a message in the game phase that cannot be parsed in this phase: " << static_cast<int>(msgType);
+      LOG(ERROR) << "Server: Received a message in the game phase that cannot be parsed in this phase: " << static_cast<int>(msgType);
       break;
     }
     
@@ -127,9 +128,12 @@ void RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame, Serv
       // Remove connections which got ParseMessagesResult::PlayerLeftOrShouldBeDisconnected,
       // which did not send pings in time, or if the connection was lost.
       constexpr int kNoPingTimeout = 5000;
-      if (removePlayer ||
-          player.socket->state() != QAbstractSocket::ConnectedState ||
-          MillisecondsDuration(Clock::now() - player.lastPingTime).count() > kNoPingTimeout) {
+      bool socketDisconnected = player.socket->state() != QAbstractSocket::ConnectedState;
+      bool pingTimeout = MillisecondsDuration(Clock::now() - player.lastPingTime).count() > kNoPingTimeout;
+      if (removePlayer || socketDisconnected || pingTimeout) {
+        LOG(WARNING) << "Removing player " << player.name.toStdString() << " (index " << player.index << "). Reason: "
+                     << (removePlayer ? "handled message" : (socketDisconnected ? "socket disconnected" : "ping timeout"));
+        
         delete player.socket;
         it = playersInGame->erase(it);
         if (playersInGame->empty()) {

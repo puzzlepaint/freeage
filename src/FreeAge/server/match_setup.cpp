@@ -262,12 +262,20 @@ void HandleLeave(const QByteArray& /*msg*/, PlayerInMatch* player, const std::ve
   }
 }
 
-bool HandleStartGame(const QByteArray& /*msg*/, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& /*playersInMatch*/) {
+bool HandleStartGame(const QByteArray& /*msg*/, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
   if (player->isHost) {
     LOG(INFO) << "Server: Received StartGame by host";
   } else {
     LOG(ERROR) << "Server: Received StartGame by a client! Clients are not permitted to send this message.";
     return false;
+  }
+  
+  for (const auto& otherPlayer : playersInMatch) {
+    if (otherPlayer->state == PlayerInMatch::State::Joined &&
+        !otherPlayer->isReady) {
+      LOG(WARNING) << "Server: Received StartGame by host, but not all players are ready. This can happen in case of delays.";
+      return false;
+    }
   }
   
   // Stop accepting new connections and drop all players in non-joined state.

@@ -102,7 +102,7 @@ GameDialog::GameDialog(
   pingLabel = new QLabel("");
   readyCheck = new QCheckBox(tr("Ready"));
   
-  QPushButton* startButton = nullptr;
+  startButton = nullptr;
   if (isHost) {
     startButton = new QPushButton(tr("Start"));
     startButton->setEnabled(false);
@@ -177,7 +177,7 @@ void GameDialog::TryParseServerMessage(const QByteArray& buffer, ServerToClientM
   case ServerToClientMessage::ChatBroadcast:
     HandleChatBroadcastMessage(buffer, msgLength);
     break;
-  case ServerToClientMessage::StartGameNotify:
+  case ServerToClientMessage::StartGameBroadcast:
     accept();
     break;
   default:;
@@ -255,6 +255,7 @@ void GameDialog::HandlePlayerListMessage(const QByteArray& msg, int len) {
   LOG(INFO) << "Got player list message";
   
   // Parse the message to update playersInMatch
+  bool allPlayersAreReady = true;
   playersInMatch.clear();
   int index = 3;
   while (index < len) {
@@ -268,6 +269,7 @@ void GameDialog::HandlePlayerListMessage(const QByteArray& msg, int len) {
     index += 2;
     
     bool playerIsReady = msg.data()[index] > 0;
+    allPlayersAreReady &= playerIsReady;
     ++ index;
     
     playersInMatch.emplace_back(name, playerColorIndex, playerIsReady);
@@ -290,6 +292,11 @@ void GameDialog::HandlePlayerListMessage(const QByteArray& msg, int len) {
     AddPlayerWidget(playerInMatch);
   }
   playerListLayout->addStretch(1);
+  
+  // For the host, enable the start button if all players are ready
+  if (startButton) {
+    startButton->setEnabled(allPlayersAreReady);
+  }
 }
 
 void GameDialog::HandleChatBroadcastMessage(const QByteArray& msg, int len) {
