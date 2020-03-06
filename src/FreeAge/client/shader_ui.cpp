@@ -1,6 +1,7 @@
 #include "FreeAge/client/shader_ui.hpp"
 
 #include "FreeAge/common/logging.hpp"
+#include "FreeAge/client/opengl.hpp"
 
 UIShader::UIShader() {
   program.reset(new ShaderProgram());
@@ -70,4 +71,40 @@ UIShader::UIShader() {
 
 UIShader::~UIShader() {
   program.reset();
+}
+
+
+void RenderUIGraphic(int x, int y, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer) {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
+  f->glEnable(GL_BLEND);
+  f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  f->glDisable(GL_DEPTH_TEST);
+  
+  ShaderProgram* program = uiShader->GetProgram();
+  program->UseProgram();
+  program->SetUniform1i(uiShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
+  f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
+  
+  program->SetUniform2f(uiShader->GetTextTopLeftLocation(), 0, 0);
+  program->SetUniform2f(uiShader->GetTexBottomRightLocation(), 1, 1);
+  
+  program->SetUniform2f(
+      uiShader->GetSizeLocation(),
+      2.f * texture.GetWidth() / static_cast<float>(widgetWidth),
+      2.f * texture.GetHeight() / static_cast<float>(widgetHeight));
+  
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+  float data[] = {1.f * x, 1.f * y, 0.f};
+  int elementSizeInBytes = 3 * sizeof(float);
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
+  program->SetPositionAttribute(
+      3,
+      GetGLType<float>::value,
+      3 * sizeof(float),
+      0);
+  
+  f->glDrawArrays(GL_POINTS, 0, 1);
+  
+  CHECK_OPENGL_NO_ERROR();
 }

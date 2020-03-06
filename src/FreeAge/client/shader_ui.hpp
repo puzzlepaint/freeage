@@ -5,6 +5,7 @@
 #include <QOpenGLFunctions_3_2_Core>
 
 #include "FreeAge/client/shader_program.hpp"
+#include "FreeAge/client/texture.hpp"
 
 /// Shader for rendering user interface (UI) elements.
 class UIShader {
@@ -29,3 +30,6 @@ class UIShader {
   GLint tex_topleft_location;
   GLint tex_bottomright_location;
 };
+
+/// Simple helper function to render a UI element.
+void RenderUIGraphic(int x, int y, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer);

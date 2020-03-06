@@ -10,9 +10,12 @@
 // in order for CIDE not to show some errors. Compiling always worked. Check the reason for the errors.
 #include <mango/core/endian.hpp>
 
+/// Creates a ServerToClientMessage::PlayerList message. Note that SetPlayerListMessagePlayerIndex()
+/// has to be called on the created message in addition to finish its construction (and can be called
+/// again to update the player index).
 QByteArray CreatePlayerListMessage(const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch, PlayerInMatch* playerToExclude, PlayerInMatch* playerToInclude) {
   // Create buffer
-  QByteArray msg(3, Qt::Initialization::Uninitialized);
+  QByteArray msg(4, Qt::Initialization::Uninitialized);
   char* data = msg.data();
   data[0] = static_cast<char>(ServerToClientMessage::PlayerList);
   
@@ -41,6 +44,28 @@ QByteArray CreatePlayerListMessage(const std::vector<std::shared_ptr<PlayerInMat
   return msg;
 }
 
+/// For a given player list message created by CreatePlayerListMessage(),
+/// sets the index of the player that the message is sent to. This tells the
+/// player about which of the players in the list is him/herself.
+void SetPlayerListMessagePlayerIndex(QByteArray* msg, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch, PlayerInMatch* playerToExclude, PlayerInMatch* playerToInclude) {
+  int index = 0;
+  for (const auto& listedPlayer : playersInMatch) {
+    if (listedPlayer.get() == playerToExclude) {
+      continue;
+    }
+    if (listedPlayer->state == PlayerInMatch::State::Joined ||
+        listedPlayer.get() == playerToInclude) {
+      if (listedPlayer.get() == player) {
+        msg->data()[3] = index;
+        return;
+      }
+      ++ index;
+    }
+  }
+  
+  LOG(ERROR) << "Server: SetPlayerListMessagePlayerIndex() could not determine the player's index.";
+}
+
 static void SendChatBroadcast(u16 sendingPlayerIndex, const QString& text, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
   // Broadcast the chat message to all clients.
   // Note that we even send it back to the original sender. This is such that all
@@ -62,6 +87,7 @@ void SendWelcomeAndJoinMessage(PlayerInMatch* player, const std::vector<std::sha
   for (const auto& otherPlayer : playersInMatch) {
     if (otherPlayer->state == PlayerInMatch::State::Joined ||
         otherPlayer.get() == player) {
+      SetPlayerListMessagePlayerIndex(&playerListMsg, otherPlayer.get(), playersInMatch, nullptr, player);
       otherPlayer->socket->write(playerListMsg);
     }
   }
@@ -201,6 +227,7 @@ void HandleReadyUp(const QByteArray& msg, PlayerInMatch* player, const std::vect
   QByteArray playerListMsg = CreatePlayerListMessage(playersInMatch, nullptr, nullptr);
   for (const auto& otherPlayer : playersInMatch) {
     if (otherPlayer->state == PlayerInMatch::State::Joined) {
+      SetPlayerListMessagePlayerIndex(&playerListMsg, otherPlayer.get(), playersInMatch, nullptr, nullptr);
       otherPlayer->socket->write(playerListMsg);
     }
   }
@@ -253,6 +280,9 @@ void HandleLeave(const QByteArray& /*msg*/, PlayerInMatch* player, const std::ve
       continue;
     }
     if (otherPlayer->state == PlayerInMatch::State::Joined) {
+      if (!player->isHost) {
+        SetPlayerListMessagePlayerIndex(&msg, otherPlayer.get(), playersInMatch, player, nullptr);
+      }
       otherPlayer->socket->write(msg);
       if (player->isHost) {
         // Here, we have to ensure that everything gets sent before the server exits.
@@ -329,6 +359,7 @@ static ParseMessagesResult TryParseClientMessages(PlayerInMatch* player, const s
       return ParseMessagesResult::PlayerLeftOrShouldBeDisconnected;
     case ClientToServerMessage::StartGame:
       HandleStartGame(player->unparsedBuffer, player, playersInMatch);
+      player->unparsedBuffer.remove(0, msgLength);
       return ParseMessagesResult::GameStarted;
     default:
       LOG(ERROR) << "Received a message in the match setup phase that cannot be parsed in this phase: " << static_cast<int>(msgType);
@@ -398,6 +429,7 @@ bool RunMatchSetupLoop(QTcpServer* server, std::vector<std::shared_ptr<PlayerInM
             CreateChatBroadcastMessage(std::numeric_limits<u16>::max(), QObject::tr("[The connection to %1 was lost.]"));
         for (const auto& otherPlayer : *playersInMatch) {
           if (otherPlayer->state == PlayerInMatch::State::Joined) {
+            SetPlayerListMessagePlayerIndex(&playerListMsg, otherPlayer.get(), *playersInMatch, nullptr, nullptr);
             otherPlayer->socket->write(playerListMsg);
           }
         }

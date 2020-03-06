@@ -19,8 +19,10 @@
 
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/client/game_dialog.hpp"
+#include "FreeAge/client/game_controller.hpp"
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/client/map.hpp"
+#include "FreeAge/client/match.hpp"
 #include "FreeAge/common/messages.hpp"
 #include "FreeAge/client/render_window.hpp"
 #include "FreeAge/client/server_connection.hpp"
@@ -67,13 +69,16 @@ int main(int argc, char** argv) {
   int georgiaFontID;
   
   // Communication with the server.
-  ServerConnection connection;
+  std::shared_ptr<ServerConnection> connection(new ServerConnection());
   
   // Load settings.
   Settings settings;
   if (!settings.TryLoad()) {
     settings.InitializeWithDefaults();
   }
+  
+  // Match info, later returned by the game dialog.
+  std::shared_ptr<Match> match(new Match());
   
   // Settings loop.
   while (true) {
@@ -141,30 +146,30 @@ int main(int argc, char** argv) {
       
       // Connect to the server.
       constexpr int kConnectTimeout = 5000;
-      if (!connection.ConnectToServer("127.0.0.1", kConnectTimeout, /*retryUntilTimeout*/ true)) {
+      if (!connection->ConnectToServer("127.0.0.1", kConnectTimeout, /*retryUntilTimeout*/ true)) {
         QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to connect to the server."));
         QFontDatabase::removeApplicationFont(georgiaFontID);
         continue;
       }
       
       // Send the HostConnect message.
-      connection.Write(CreateHostConnectMessage(hostToken, settings.playerName));
+      connection->Write(CreateHostConnectMessage(hostToken, settings.playerName));
     } else {
       // Try to connect to the server.
       constexpr int kConnectTimeout = 5000;
-      if (!connection.ConnectToServer(settingsDialog.GetIP(), kConnectTimeout, /*retryUntilTimeout*/ false)) {
+      if (!connection->ConnectToServer(settingsDialog.GetIP(), kConnectTimeout, /*retryUntilTimeout*/ false)) {
         QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to connect to the server."));
         QFontDatabase::removeApplicationFont(georgiaFontID);
         continue;
       }
       
       // Send the Connect message.
-      connection.Write(CreateConnectMessage(settings.playerName));
+      connection->Write(CreateConnectMessage(settings.playerName));
     }
     
     // Wait for the server's welcome message.
     constexpr int kWelcomeWaitTimeout = 5000;
-    if (!connection.WaitForWelcomeMessage(kWelcomeWaitTimeout)) {
+    if (!connection->WaitForWelcomeMessage(kWelcomeWaitTimeout)) {
       QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Did not receive a welcome message from the server."));
       QFontDatabase::removeApplicationFont(georgiaFontID);
       if (isHost) {
@@ -175,17 +180,18 @@ int main(int argc, char** argv) {
     
     // Show the game dialog.
     // Note that the GameDialog object will parse ServerConnection messages as long as it exists.
-    GameDialog gameDialog(isHost, &connection, georgiaFont, playerColors);
+    GameDialog gameDialog(isHost, connection.get(), georgiaFont, playerColors);
     if (gameDialog.exec() == QDialog::Accepted) {
       // The game has been started.
+      gameDialog.GetPlayerList(match.get());
       break;
     }
     
     // The game dialog was canceled.
     if (!gameDialog.GameWasAborted()) {
-      connection.Write(CreateLeaveMessage());
+      connection->Write(CreateLeaveMessage());
     }
-    connection.Shutdown();
+    connection->Shutdown();
     
     // If we are the host, shut down the server.
     if (isHost) {
@@ -208,14 +214,15 @@ int main(int argc, char** argv) {
       QMessageBox::information(nullptr, QObject::tr("Game cancelled"), QObject::tr("The game was cancelled by the host."));
     }
     
-    if (connection.ConnectionToServerLost()) {
+    if (connection->ConnectionToServerLost()) {
       QMessageBox::information(nullptr, QObject::tr("Game cancelled"), QObject::tr("The connection to the server was lost."));
     }
     
     QFontDatabase::removeApplicationFont(georgiaFontID);
   }
   
-  // Start the game.
+  // Create the game controller. It will start listening for network messages.
+  std::shared_ptr<GameController> gameController(new GameController(match, connection));
   
   // Get the graphics path.
   std::filesystem::path graphicsPath = commonResourcesPath / "drs" / "graphics";
@@ -225,7 +232,7 @@ int main(int argc, char** argv) {
   }
   
   // Create an OpenGL render window using Qt.
-  RenderWindow renderWindow(&connection, georgiaFontID, palettes, graphicsPath, cachePath);
+  RenderWindow renderWindow(match, gameController, connection, georgiaFontID, palettes, graphicsPath, cachePath);
   renderWindow.show();
   
   // Run the Qt event loop.

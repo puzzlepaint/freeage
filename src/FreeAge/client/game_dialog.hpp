@@ -4,6 +4,7 @@
 #include <QTimer>
 
 #include "FreeAge/common/free_age.hpp"
+#include "FreeAge/client/match.hpp"
 #include "FreeAge/client/server_connection.hpp"
 
 class QCheckBox;
@@ -37,6 +38,8 @@ class GameDialog : public QDialog {
   
   ~GameDialog();
   
+  void GetPlayerList(Match* match);
+  
   inline bool GameWasAborted() const { return gameWasAborted; }
   
  private slots:
@@ -59,6 +62,7 @@ class GameDialog : public QDialog {
   void HandleChatBroadcastMessage(const QByteArray& msg, int len);
   
   std::vector<PlayerInMatch> playersInMatch;
+  int playerIndexInList = -1;
   
   QVBoxLayout* playerListLayout;
   

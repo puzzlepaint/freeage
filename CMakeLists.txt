@@ -99,10 +99,12 @@ target_link_libraries(FreeAgeServer
 set(FREEAGE_SRCS
   resources/resources.qrc
   src/FreeAge/client/building.cpp
+  src/FreeAge/client/game_controller.cpp
   src/FreeAge/client/game_dialog.cpp
   src/FreeAge/client/health_bar.cpp
   src/FreeAge/client/main.cpp
   src/FreeAge/client/map.cpp
+  src/FreeAge/client/match.cpp
   src/FreeAge/client/opengl.cpp
   src/FreeAge/client/render_window.cpp
   src/FreeAge/client/server_connection.cpp
@@ -113,6 +115,7 @@ set(FREEAGE_SRCS
   src/FreeAge/client/shader_ui.cpp
   src/FreeAge/client/sprite.cpp
   src/FreeAge/client/sprite_atlas.cpp
+  src/FreeAge/client/text_display.cpp
   src/FreeAge/client/settings_dialog.cpp
   src/FreeAge/client/texture.cpp
   src/FreeAge/client/unit.cpp

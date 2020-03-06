@@ -28,6 +28,7 @@ class ServerConnection : public QObject {
   void SetParseMessages(bool enable);
   
   /// Thread-safe writing to the connection's socket.
+  /// TODO: We can probably drop this, since a QTcpSocket can only be accessed from one thread anyway, otherwise it breaks.
   inline void Write(const QByteArray& message) {
     socketMutex.lock();
     socket.write(message);

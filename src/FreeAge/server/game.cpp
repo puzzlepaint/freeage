@@ -110,6 +110,8 @@ static ParseMessagesResult TryParseClientMessages(PlayerInGame* player, const st
 }
 
 void RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame, ServerSettings* settings) {
+  bool firstLoopIteration = true;
+  
   while (true) {
     // Communicate with player connections.
     for (auto it = playersInGame->begin(); it != playersInGame->end(); ) {
@@ -120,7 +122,8 @@ void RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame, Serv
       player.unparsedBuffer += player.socket->readAll();
       
       bool removePlayer = false;
-      if (player.unparsedBuffer.size() > prevSize) {
+      if (player.unparsedBuffer.size() > prevSize ||
+          (firstLoopIteration && !player.unparsedBuffer.isEmpty())) {
         ParseMessagesResult parseResult = TryParseClientMessages(&player, *playersInGame, settings);
         removePlayer = parseResult == ParseMessagesResult::PlayerLeftOrShouldBeDisconnected;
       }
@@ -149,6 +152,8 @@ void RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame, Serv
     }
     
     qApp->processEvents(QEventLoop::AllEvents);
-    QThread::msleep(1);
+    QThread::msleep(1);  // TODO: Change this once we also compute the game loop
+    
+    firstLoopIteration = false;
   }
 }

@@ -148,6 +148,17 @@ GameDialog::~GameDialog() {
   connection->SetParseMessages(false);
 }
 
+void GameDialog::GetPlayerList(Match* match) {
+  std::vector<Match::Player> players;
+  for (const auto& player : playersInMatch) {
+    players.emplace_back();
+    auto& newPlayer = players.back();
+    newPlayer.name = player.name;
+    newPlayer.playerColorIndex = player.playerColorIndex;
+  }
+  match->SetPlayerInfo(players, playerIndexInList);
+}
+
 QString ColorToHTML(const QRgb& color) {
   return QStringLiteral("%1%2%3")
       .arg(static_cast<uint>(qRed(color)), 2, 16, QLatin1Char('0'))
@@ -257,7 +268,7 @@ void GameDialog::HandlePlayerListMessage(const QByteArray& msg, int len) {
   // Parse the message to update playersInMatch
   bool allPlayersAreReady = true;
   playersInMatch.clear();
-  int index = 3;
+  int index = 4;
   while (index < len) {
     u16 nameLength = mango::uload16(msg.data() + index);
     index += 2;
@@ -277,6 +288,8 @@ void GameDialog::HandlePlayerListMessage(const QByteArray& msg, int len) {
   if (index != len) {
     LOG(WARNING) << "index != len after parsing a PlayerList message";
   }
+  
+  playerIndexInList = std::min<int>(msg.data()[3], playersInMatch.size() - 1);
   
   // Remove all items from playerListLayout
   while (QLayoutItem* item = playerListLayout->takeAt(0)) {

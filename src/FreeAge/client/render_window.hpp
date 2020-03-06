@@ -8,12 +8,15 @@
 
 #include "FreeAge/client/unit.hpp"
 #include "FreeAge/common/free_age.hpp"
+#include "FreeAge/client/game_controller.hpp"
 #include "FreeAge/client/map.hpp"
+#include "FreeAge/client/match.hpp"
 #include "FreeAge/client/shader_health_bar.hpp"
 #include "FreeAge/client/shader_sprite.hpp"
 #include "FreeAge/client/shader_ui.hpp"
 #include "FreeAge/client/server_connection.hpp"
 #include "FreeAge/client/sprite.hpp"
+#include "FreeAge/client/text_display.hpp"
 #include "FreeAge/client/texture.hpp"
 
 class LoadingThread;
@@ -21,7 +24,15 @@ class LoadingThread;
 class RenderWindow : public QOpenGLWidget {
  Q_OBJECT
  public:
-  RenderWindow(ServerConnection* connection, int georgiaFontID, const Palettes& palettes, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, QWidget* parent = nullptr);
+  RenderWindow(
+      const std::shared_ptr<Match>& match,
+      const std::shared_ptr<GameController>& gameController,
+      const std::shared_ptr<ServerConnection>& connection,
+      int georgiaFontID,
+      const Palettes& palettes,
+      const std::filesystem::path& graphicsPath,
+      const std::filesystem::path& cachePath,
+      QWidget* parent = nullptr);
   ~RenderWindow();
   
   /// Called from the loading thread to load the game resources in the background.
@@ -35,12 +46,17 @@ class RenderWindow : public QOpenGLWidget {
   
   inline void SetScroll(const QPointF& value) { scroll = value; }
   
+ signals:
+  void LoadingProgressUpdated(int progress);
+  
  private slots:
+  void SendLoadingProgress(int progress);
   void LoadingFinished();
   
  protected:
   void CreatePlayerColorPaletteTexture();
   
+  void ComputePixelToOpenGLMatrix();
   void UpdateView(const TimePoint& now);
   void RenderShadows(double elapsedSeconds);
   void RenderBuildings(double elapsedSeconds);
@@ -125,8 +141,8 @@ class RenderWindow : public QOpenGLWidget {
   // Loading screen.
   bool isLoading;
   
-  bool loadingTextInitialized = false;
-  GLuint loadingTextTextureId;
+  std::shared_ptr<Texture> loadingIcon;
+  std::shared_ptr<TextDisplay> loadingTextDisplay;
   
   // Resources.
   GLuint pointBuffer;
@@ -144,8 +160,10 @@ class RenderWindow : public QOpenGLWidget {
   TimePoint moveToTime;
   bool haveMoveTo = false;
   
-  ServerConnection* connection;  // not owned
-  int georgiaFontID;
+  std::shared_ptr<Match> match;
+  std::shared_ptr<GameController> gameController;
+  std::shared_ptr<ServerConnection> connection;
+  QFont georgiaFont;
   const Palettes& palettes;
   const std::filesystem::path& graphicsPath;
   const std::filesystem::path& cachePath;

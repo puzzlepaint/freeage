@@ -87,6 +87,8 @@ int main(int argc, char** argv) {
       newPlayer->playerColorIndex = player->playerColorIndex;
       newPlayer->lastPingTime = player->lastPingTime;
       playersInGame.emplace_back(newPlayer);
+    } else {
+      delete player->socket;
     }
   }
   

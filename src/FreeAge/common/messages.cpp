@@ -3,6 +3,8 @@
 #include <mango/core/endian.hpp>
 #include <QString>
 
+#include "FreeAge/common/logging.hpp"
+
 // TODO: Create a helper function to create the base of all of these similar messages
 
 QByteArray CreateHostConnectMessage(const QByteArray& hostToken, const QString& playerName) {
@@ -136,7 +138,7 @@ QByteArray CreateLoadingProgressMessage(u8 percentage) {
   char* data = msg.data();
   
   // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::Ping);
+  data[0] = static_cast<char>(ClientToServerMessage::LoadingProgress);
   mango::ustore16(data + 1, msg.size());
   
   // Fill buffer
