@@ -29,24 +29,7 @@ bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& gr
 }
 
 QSize ClientBuildingType::GetSize() const {
-  // TODO: Load this from some data file?
-  
-  if (static_cast<int>(type) >= static_cast<int>(BuildingType::FirstTree) &&
-      static_cast<int>(type) <= static_cast<int>(BuildingType::LastTree)) {
-    return QSize(1, 1);
-  }
-  
-  switch (type) {
-  case BuildingType::TownCenter:
-    return QSize(4, 4);
-  case BuildingType::House:
-    return QSize(2, 2);
-  default:
-    LOG(ERROR) << "Invalid type given: " << static_cast<int>(type);
-    break;
-  }
-  
-  return QSize(0, 0);
+  return GetBuildingSize(type);
 }
 
 QString ClientBuildingType::GetFilename() const {
@@ -85,9 +68,8 @@ float ClientBuildingType::GetHealthBarHeightAboveCenter(int frameIndex) const {
 
 
 ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY)
-    : playerIndex(playerIndex),
+    : ClientObject(ObjectType::Building, playerIndex),
       type(type),
-      isSelected(false),
       fixedFrameIndex(-1),
       baseTileX(baseTileX),
       baseTileY(baseTileY) {}

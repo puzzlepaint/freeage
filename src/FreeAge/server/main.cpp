@@ -44,7 +44,11 @@ int main(int argc, char** argv) {
     LOG(INFO) << "Usage: FreeAgeServer <host_token>";
     return 1;
   }
-  settings.hostToken = argv[1];
+  if (argv[1] == std::string("--no-token")) {
+    settings.hostToken = "aaaaaa";
+  } else {
+    settings.hostToken = argv[1];
+  }
   if (settings.hostToken.size() != hostTokenLength) {
     LOG(ERROR) << "The provided host token has an incorrect length. Required length: " << hostTokenLength << ", actual length: " << settings.hostToken.size();
     return 1;
@@ -106,7 +110,8 @@ int main(int argc, char** argv) {
   
   // Main loop for game loading and game play state
   LOG(INFO) << "Server: Entering game loop";
-  RunGameLoop(&playersInGame, &settings);
+  Game game(&settings);
+  game.RunGameLoop(&playersInGame);
   
   // Clean up: delete the player sockets.
   for (const auto& player : playersInGame) {

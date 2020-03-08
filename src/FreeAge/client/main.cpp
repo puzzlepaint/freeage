@@ -72,6 +72,8 @@ int main(int argc, char** argv) {
   std::shared_ptr<ServerConnection> connection(new ServerConnection());
   
   // Load settings.
+  bool noServer = argc >= 2 && argv[1] == std::string("--no-server");  // TODO: For debugging. This allows starting the server separately in gdb.
+  
   Settings settings;
   if (!settings.TryLoad()) {
     settings.InitializeWithDefaults();
@@ -123,26 +125,30 @@ int main(int argc, char** argv) {
     if (isHost) {
       // Start the server.
       QByteArray hostToken;
-      hostToken.resize(hostTokenLength);
-      for (int i = 0; i < hostTokenLength; ++ i) {
-        hostToken[i] = 'a' + (rand() % ('z' + 1 - 'a'));
+      if (noServer) {
+        hostToken = "aaaaaa";
+      } else {
+        hostToken.resize(hostTokenLength);
+        for (int i = 0; i < hostTokenLength; ++ i) {
+          hostToken[i] = 'a' + (rand() % ('z' + 1 - 'a'));
+        }
+        
+        QString serverPath = QDir(qapp.applicationDirPath()).filePath("FreeAgeServer");
+        serverProcess.start(serverPath, QStringList() << hostToken);
+        if (!serverProcess.waitForStarted(10000)) {
+          QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to start the server (path: %1).").arg(serverPath));
+          QFontDatabase::removeApplicationFont(georgiaFontID);
+          continue;
+        }
+        
+        // For debugging, forward the server's output to our stdout:
+        QObject::connect(&serverProcess, &QProcess::readyReadStandardOutput, [&]() {
+          std::cout << serverProcess.readAllStandardOutput().data();
+        });
+        QObject::connect(&serverProcess, &QProcess::readyReadStandardError, [&]() {
+          std::cout << serverProcess.readAllStandardError().data();
+        });
       }
-      
-      QString serverPath = QDir(qapp.applicationDirPath()).filePath("FreeAgeServer");
-      serverProcess.start(serverPath, QStringList() << hostToken);
-      if (!serverProcess.waitForStarted(10000)) {
-        QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to start the server (path: %1).").arg(serverPath));
-        QFontDatabase::removeApplicationFont(georgiaFontID);
-        continue;
-      }
-      
-      // For debugging, forward the server's output to our stdout:
-      QObject::connect(&serverProcess, &QProcess::readyReadStandardOutput, [&]() {
-        std::cout << serverProcess.readAllStandardOutput().data();
-      });
-      QObject::connect(&serverProcess, &QProcess::readyReadStandardError, [&]() {
-        std::cout << serverProcess.readAllStandardError().data();
-      });
       
       // Connect to the server.
       constexpr int kConnectTimeout = 5000;
@@ -232,8 +238,9 @@ int main(int argc, char** argv) {
   }
   
   // Create an OpenGL render window using Qt.
-  RenderWindow renderWindow(match, gameController, connection, georgiaFontID, palettes, graphicsPath, cachePath);
-  renderWindow.show();
+  std::shared_ptr<RenderWindow> renderWindow(new RenderWindow(match, gameController, connection, georgiaFontID, palettes, graphicsPath, cachePath));
+  gameController->SetRenderWindow(renderWindow);
+  renderWindow->show();
   
   // Run the Qt event loop.
   qapp.exec();

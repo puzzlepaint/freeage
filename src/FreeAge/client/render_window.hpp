@@ -8,7 +8,6 @@
 
 #include "FreeAge/client/unit.hpp"
 #include "FreeAge/common/free_age.hpp"
-#include "FreeAge/client/game_controller.hpp"
 #include "FreeAge/client/map.hpp"
 #include "FreeAge/client/match.hpp"
 #include "FreeAge/client/shader_health_bar.hpp"
@@ -19,6 +18,7 @@
 #include "FreeAge/client/text_display.hpp"
 #include "FreeAge/client/texture.hpp"
 
+class GameController;
 class LoadingThread;
 
 class RenderWindow : public QOpenGLWidget {
@@ -45,6 +45,7 @@ class RenderWindow : public QOpenGLWidget {
   QPointF GetCurrentScroll(const TimePoint& atTime);
   
   inline void SetScroll(const QPointF& value) { scroll = value; }
+  inline void SetMap(const std::shared_ptr<Map>& map) { this->map = map; map->SetNeedsRenderResourcesUpdate(true); }
   
  signals:
   void LoadingProgressUpdated(int progress);
@@ -106,7 +107,7 @@ class RenderWindow : public QOpenGLWidget {
   static constexpr const float scrollDistancePerSecond = 2000;  // TODO: Make configurable
   
   /// Map data.
-  Map* map;
+  std::shared_ptr<Map> map;
   
   /// IDs of selected objects (units or buildings).
   std::vector<int> selection;

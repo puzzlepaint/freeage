@@ -46,6 +46,7 @@ class Map {
   /// Creates a new map with the given size in tiles.
   Map(int width, int height);
   
+  /// This deletes OpenGL objects, so an OpenGL context must be current.
   ~Map();
   
   /// Computes the projected coordinates for a map corner.
@@ -64,40 +65,22 @@ class Map {
   inline int& elevationAt(int cornerX, int cornerY) { return elevation[cornerY * (width + 1) + cornerX]; }
   inline const int& elevationAt(int cornerX, int cornerY) const { return elevation[cornerY * (width + 1) + cornerX]; }
   
-  /// Returns the occupancy state at the given tile.
-  inline bool& occupiedAt(int tileX, int tileY) { return occupied[tileY * width + tileX]; }
-  inline const bool& occupiedAt(int tileX, int tileY) const { return occupied[tileY * width + tileX]; }
-  
-  
-  /// For testing, generates some kind of random map.
-  void GenerateRandomMap(const std::vector<ClientBuildingType>& buildingTypes);
-  
-  /// Adds a building to the map.
-  void AddBuilding(int player, BuildingType type, int baseTileX, int baseTileY, const std::vector<ClientBuildingType>& buildingTypes);
-  
-  /// Sets the given tile's elevation to the given value,
-  /// while ensuring that the maximum slope of 1 is not exceeded
-  /// (i.e., neighboring tiles may be modified as well).
-  void PlaceElevation(int tileX, int tileY, int elevationValue);
-  
   
   // TODO: Should this functionality be moved into its own class?
-  void LoadRenderResources();
+  inline void SetNeedsRenderResourcesUpdate(bool needsUpdate) { needsRenderResourcesUpdate = needsUpdate; }
   void Render(float* viewMatrix);
+  void UnloadRenderResources();
   
   
-  inline QPointF GetTownCenterLocation(int player) { return townCenterCenters[player]; }
-  
-  inline std::unordered_map<int, ClientBuilding>& GetBuildings() { return buildings; }
-  inline const std::unordered_map<int, ClientBuilding>& GetBuildings() const { return buildings; }
-  
-  inline std::unordered_map<int, ClientUnit>& GetUnits() { return units; }
-  inline const std::unordered_map<int, ClientUnit>& GetUnits() const { return units; }
+  inline std::unordered_map<int, ClientObject*>& GetObjects() { return objects; }
+  inline const std::unordered_map<int, ClientObject*>& GetObjects() const { return objects; }
   
   inline int GetWidth() const { return width; }
   inline int GetHeight() const { return height; }
   
  private:
+  void UpdateRenderResources();
+  
   /// The maximum possible elevation level (the lowest is zero).
   /// This may be higher than the maximum actually existing
   /// elevation level (but never lower).
@@ -106,12 +89,9 @@ class Map {
   /// 2D array storing the elevation level for each tile corner.
   /// The array size is thus: (width + 1) times (height + 1).
   /// An element (x, y) has index: [y * (width + 1) + x].
+  /// The special value of -1 means that the elevation at a corner is unknown
+  /// (since it has not been uncovered yet).
   int* elevation;
-  
-  /// 2D array storing whether each tile is occupied (for example,
-  /// by a building). The array size is width times height.
-  /// An element (x, y) has index: [y * width + x].
-  bool* occupied;
   
   /// Width of the map in tiles.
   int width;
@@ -119,21 +99,16 @@ class Map {
   /// Height of the map in tiles.
   int height;
   
-  /// The next ID that will be given to the next added building or unit.
-  int nextObjectID = 0;
-  
-  /// Map of building ID -> ClientBuilding.
-  std::unordered_map<int, ClientBuilding> buildings;
-  
-  /// Map of unit ID -> ClientUnit.
-  std::unordered_map<int, ClientUnit> units;
-  
-  /// Initial town center center locations of all players.
-  std::vector<QPointF> townCenterCenters;
+  /// Map of building ID -> ClientObject.
+  std::unordered_map<int, ClientObject*> objects;
   
   // TODO: Should this functionality be moved into its own class?
   // --- Rendering attributes ---
+  bool needsRenderResourcesUpdate = true;
+  
+  bool hasTextureBeenLoaded = false;
   GLuint textureId;
+  bool haveGeometryBuffersBeenInitialized = false;
   GLuint vertexBuffer;
   GLuint indexBuffer;
   std::shared_ptr<TerrainShader> terrainShader;

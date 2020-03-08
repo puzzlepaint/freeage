@@ -21,22 +21,18 @@ Map::Map(int width, int height)
   maxElevation = 7;  // TODO: Make configurable
   elevation = new int[(width + 1) * (height + 1)];
   
-  occupied = new bool[width * height];
-  
-  // Initialize the elevation to zero everywhere, and the occupancy to free.
+  // Initialize the elevation to "unknown" everywhere.
   for (int y = 0; y <= height; ++ y) {
     for (int x = 0; x <= width; ++ x) {
-      elevationAt(x, y) = 0;
-      if (x < width && y < height) {
-        occupiedAt(x, y) = false;
-      }
+      elevationAt(x, y) = -1;
     }
   }
 }
 
 Map::~Map() {
+  UnloadRenderResources();
+  
   delete[] elevation;
-  delete[] occupied;
 }
 
 QPointF Map::TileCornerToProjectedCoord(int cornerX, int cornerY) const {
@@ -228,247 +224,88 @@ bool Map::ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCo
   return converged;
 }
 
+void Map::Render(float* viewMatrix) {
+  if (needsRenderResourcesUpdate) {
+    UpdateRenderResources();
+    needsRenderResourcesUpdate = false;
+  }
+  
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
+  ShaderProgram* terrainProgram = terrainShader->GetProgram();
+  terrainProgram->UseProgram();
+  
+  terrainProgram->SetUniform1i(terrainShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
+  f->glBindTexture(GL_TEXTURE_2D, textureId);
+  
+  terrainProgram->setUniformMatrix2fv(terrainShader->GetViewMatrixLocation(), viewMatrix);
+  
+  f->glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+  terrainProgram->SetPositionAttribute(
+      2,
+      GetGLType<float>::value,
+      5 * sizeof(float),
+      0);
+  
+  f->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+  terrainProgram->SetTexCoordAttribute(
+      3,
+      GetGLType<float>::value,
+      5 * sizeof(float),
+      2 * sizeof(float));
+  
+  f->glDrawElements(GL_TRIANGLES, width * height * 6, GL_UNSIGNED_INT, 0);
+  CHECK_OPENGL_NO_ERROR();
+}
 
-void Map::GenerateRandomMap(const std::vector<ClientBuildingType>& buildingTypes) {
-  // Generate town centers
-  // TODO: Currently we randomly determine the leftmost tile; use the center instead for even distribution
-  QPoint townCenterLocations[2];
-  townCenterLocations[0] = QPoint(1 * width / 4 + (rand() % (width / 8)),
-                                  1 * width / 4 + (rand() % (width / 8)));
-  AddBuilding(0, BuildingType::TownCenter, townCenterLocations[0].x(), townCenterLocations[0].y(), buildingTypes);
-  townCenterLocations[1] = QPoint(3 * width / 4 + (rand() % (width / 8)),
-                                  3 * width / 4 + (rand() % (width / 8)));
-  AddBuilding(1, BuildingType::TownCenter, townCenterLocations[1].x(), townCenterLocations[1].y(), buildingTypes);
+void Map::UnloadRenderResources() {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
-  townCenterCenters.resize(2);
-  for (int player = 0; player < 2; ++ player) {
-    townCenterCenters[player] = QPointF(
-        townCenterLocations[player].x() + 0.5f * buildingTypes[static_cast<int>(BuildingType::TownCenter)].GetSize().width(),
-        townCenterLocations[player].y() + 0.5f * buildingTypes[static_cast<int>(BuildingType::TownCenter)].GetSize().height());
+  if (hasTextureBeenLoaded) {
+    f->glDeleteTextures(1, &textureId);
+    hasTextureBeenLoaded = false;
   }
-  
-  auto getRandomLocation = [&](float minDistanceToTCs, int* tileX, int* tileY) {
-    bool ok;
-    for (int attempt = 0; attempt < 1000; ++ attempt) {
-      *tileX = rand() % width;
-      *tileY = rand() % height;
-      ok = true;
-      for (int i = 0; i < 2; ++ i) {
-        float distanceX = townCenterCenters[i].x() - *tileX;
-        float distanceY = townCenterCenters[i].y() - *tileY;
-        float distance = sqrtf(distanceX * distanceX + distanceY * distanceY);
-        if (distance < minDistanceToTCs) {
-          ok = false;
-          break;
-        }
-      }
-      if (ok) {
-        break;
-      }
-    }
-    return ok;
-  };
-  
-  // Generate forests
-  constexpr int kForestMinDistanceFromTCs = 10;  // TODO: Make configurable
-  constexpr float kForestMinDistanceFromOtherForests = 10;
-  constexpr int kNumForests = 11;  // TODO: Make configurable
-  QPointF forestCenters[kNumForests];
-  for (int forest = 0; forest < kNumForests; ++ forest) {
-    int tileX;
-    int tileY;
-retryForest:  // TODO: Ugly implementation, improve this
-    if (getRandomLocation(kForestMinDistanceFromTCs, &tileX, &tileY)) {
-      for (int otherForest = 0; otherForest < forest; ++ otherForest) {
-        float distanceX = forestCenters[otherForest].x() - tileX;
-        float distanceY = forestCenters[otherForest].y() - tileY;
-        float distance = sqrtf(distanceX * distanceX + distanceY * distanceY);
-        if (distance < kForestMinDistanceFromOtherForests) {
-          goto retryForest;
-        }
-      }
-      
-      forestCenters[forest] = QPointF(tileX + 0.5f, tileY + 0.5f);
-      
-      // Place the forest.
-      // TODO: For now, we just place very simple circles.
-      int forestRadius = 4 + rand() % 3;
-      
-      int minX = std::max(0, tileX - forestRadius);
-      int maxX = std::min(width - 1, tileX + forestRadius);
-      int minY = std::max(0, tileY - forestRadius);
-      int maxY = std::min(height - 1, tileY + forestRadius);
-      
-      for (int y = minY; y <= maxY; ++ y) {
-        for (int x = minX; x <= maxX; ++ x) {
-          int diffX = x - tileX;
-          int diffY = y - tileY;
-          float radius = sqrtf(diffX * diffX + diffY * diffY);
-          if (radius <= forestRadius && !occupiedAt(x, y)) {
-            AddBuilding(-1, BuildingType::TreeOak, x, y, buildingTypes);
-          }
-        }
-      }
-    }
-  }
-  
-  // Generate hills
-  const int kHillMinDistanceFromTCs = maxElevation + 2 + 8;  // TODO: Make configurable
-  constexpr int numHills = 40;  // TODO: Make configurable
-  for (int hill = 0; hill < numHills; ++ hill) {
-    int tileX;
-    int tileY;
-    if (getRandomLocation(kHillMinDistanceFromTCs, &tileX, &tileY)) {
-      int elevationValue = rand() % maxElevation;
-      PlaceElevation(tileX, tileY, elevationValue);
-    }
-  }
-  
-  // Generate villagers
-  for (int player = 0; player < 2; ++ player) {
-    for (int villager = 0; villager < 3; ++ villager) {
-      while (true) {
-        // TODO: Account for collisions with other units too.
-        // TODO: Prevent this from potentially being an endless loop
-        float radius = 4 + 2 * ((rand() % 10000) / 10000.f);
-        float angle = 2 * M_PI * ((rand() % 10000) / 10000.f);
-        QPointF spawnLoc(
-            townCenterCenters[player].x() + radius * sin(angle),
-            townCenterCenters[player].y() + radius * cos(angle));
-        int spawnLocTileX = static_cast<int>(spawnLoc.x());
-        int spawnLocTileY = static_cast<int>(spawnLoc.y());
-        if (spawnLocTileX < 0 || spawnLocTileY < 0 ||
-            spawnLocTileX >= width || spawnLocTileY >= height ||
-            !occupiedAt(spawnLocTileX, spawnLocTileY)) {
-          units.insert(std::make_pair(nextObjectID++, ClientUnit(player, (rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, spawnLoc)));
-          break;
-        }
-      }
-    }
-  }
-  
-  // Generate scouts
-  for (int player = 0; player < 2; ++ player) {
-    while (true) {
-      // TODO: Account for collisions with other units too.
-      // TODO: Prevent this from potentially being an endless loop
-      float radius = 6 + 2 * ((rand() % 10000) / 10000.f);
-      float angle = 2 * M_PI * ((rand() % 10000) / 10000.f);
-      QPointF spawnLoc(
-          townCenterCenters[player].x() + radius * sin(angle),
-          townCenterCenters[player].y() + radius * cos(angle));
-      int spawnLocTileX = static_cast<int>(spawnLoc.x());
-      int spawnLocTileY = static_cast<int>(spawnLoc.y());
-      if (spawnLocTileX < 0 || spawnLocTileY < 0 ||
-          spawnLocTileX >= width || spawnLocTileY >= height ||
-          !occupiedAt(spawnLocTileX, spawnLocTileY)) {
-        units.insert(std::make_pair(nextObjectID++, ClientUnit(player, UnitType::Scout, spawnLoc)));
-        break;
-      }
-    }
+  if (haveGeometryBuffersBeenInitialized) {
+    f->glDeleteBuffers(1, &vertexBuffer);
+    f->glDeleteBuffers(1, &indexBuffer);
+    haveGeometryBuffersBeenInitialized = false;
   }
 }
 
-void Map::AddBuilding(int player, BuildingType type, int baseTileX, int baseTileY, const std::vector<ClientBuildingType>& buildingTypes) {
-  // Insert into buildings map
-  buildings.insert(std::make_pair(nextObjectID++, ClientBuilding(player, type, baseTileX, baseTileY)));
-  
-  // Mark the occupied tiles as such
-  QSize size = buildingTypes[static_cast<int>(type)].GetSize();
-  for (int y = baseTileY; y < baseTileY + size.height(); ++ y) {
-    for (int x = baseTileX; x < baseTileX + size.width(); ++ x) {
-      occupiedAt(x, y) = true;
-    }
-  }
-}
-
-void Map::PlaceElevation(int tileX, int tileY, int elevationValue) {
-  int currentMinElev = elevationValue;
-  int currentMaxElev = elevationValue;
-  
-  int minX = tileX;
-  int minY = tileY;
-  int maxX = tileX + 1;
-  int maxY = tileY + 1;
-  
-  while (true) {
-    // Set the current ring.
-    bool anyChangeDone = false;
-    
-    for (int x = std::max(0, minX); x <= std::min(width, maxX); ++ x) {
-      if (minY >= 0) {
-        int& elev = elevationAt(x, minY);
-        int newElev = std::min(currentMaxElev, std::max(currentMinElev, elev));
-        anyChangeDone |= newElev != elev;
-        elev = newElev;
-      }
-      if (maxY <= height) {
-        int& elev = elevationAt(x, maxY);
-        int newElev = std::min(currentMaxElev, std::max(currentMinElev, elev));
-        anyChangeDone |= newElev != elev;
-        elev = newElev;
-      }
-    }
-    for (int y = std::max(0, minY + 1); y <= std::min(height, maxY - 1); ++ y) {
-      if (minX >= 0) {
-        int& elev = elevationAt(minX, y);
-        int newElev = std::min(currentMaxElev, std::max(currentMinElev, elev));
-        anyChangeDone |= newElev != elev;
-        elev = newElev;
-      }
-      if (maxX <= width) {
-        int& elev = elevationAt(maxX, y);
-        int newElev = std::min(currentMaxElev, std::max(currentMinElev, elev));
-        anyChangeDone |= newElev != elev;
-        elev = newElev;
-      }
-    }
-    
-    if (!anyChangeDone) {
-      break;
-    }
-    
-    // Go to the next ring.
-    -- currentMinElev;
-    ++ currentMaxElev;
-    if (currentMinElev <= 0 && currentMaxElev >= maxElevation) {
-      break;
-    }
-    
-    -- minX;
-    -- minY;
-    ++ maxX;
-    ++ maxY;
-  }
-}
-
-
-void Map::LoadRenderResources() {
+void Map::UpdateRenderResources() {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   // Load texture
-  const char* texturePath = "/home/thomas/.local/share/Steam/steamapps/compatdata/813780/pfx/drive_c/users/steamuser/Games/Age of Empires 2 DE/76561197995377131/mods/subscribed/812_Zetnus Improved Grid Mod/resources/_common/terrain/textures/2x/g_gr2.dds";
-  mango::Bitmap textureBitmap(texturePath, mango::Format(32, mango::Format::UNORM, mango::Format::BGRA, 8, 8, 8, 8));
-  
-  f->glGenTextures(1, &textureId);
-  f->glBindTexture(GL_TEXTURE_2D, textureId);
-  
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-  
-  f->glTexImage2D(
-      GL_TEXTURE_2D,
-      0, GL_RGBA,
-      textureBitmap.width, textureBitmap.height,
-      0, GL_BGRA, GL_UNSIGNED_BYTE,
-      textureBitmap.address<u32>(0, 0));
-  f->glGenerateMipmap(GL_TEXTURE_2D);
-  
-  CHECK_OPENGL_NO_ERROR();
+  if (!hasTextureBeenLoaded) {
+    const char* texturePath = "/home/thomas/.local/share/Steam/steamapps/compatdata/813780/pfx/drive_c/users/steamuser/Games/Age of Empires 2 DE/76561197995377131/mods/subscribed/812_Zetnus Improved Grid Mod/resources/_common/terrain/textures/2x/g_gr2.dds";
+    mango::Bitmap textureBitmap(texturePath, mango::Format(32, mango::Format::UNORM, mango::Format::BGRA, 8, 8, 8, 8));
+    
+    f->glGenTextures(1, &textureId);
+    f->glBindTexture(GL_TEXTURE_2D, textureId);
+    
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    
+    f->glTexImage2D(
+        GL_TEXTURE_2D,
+        0, GL_RGBA,
+        textureBitmap.width, textureBitmap.height,
+        0, GL_BGRA, GL_UNSIGNED_BYTE,
+        textureBitmap.address<u32>(0, 0));
+    f->glGenerateMipmap(GL_TEXTURE_2D);
+    
+    CHECK_OPENGL_NO_ERROR();
+    hasTextureBeenLoaded = true;
+  }
   
   // Build geometry buffer
+  if (haveGeometryBuffersBeenInitialized) {
+    f->glDeleteBuffers(1, &vertexBuffer);
+    f->glDeleteBuffers(1, &indexBuffer);
+  }
+  
   int elementSizeInBytes = 5 * sizeof(float);
   u8* data = new u8[(width + 1) * (height + 1) * elementSizeInBytes];
   u8* ptr = data;
@@ -561,36 +398,9 @@ void Map::LoadRenderResources() {
   delete[] indexData;
   CHECK_OPENGL_NO_ERROR();
   
+  haveGeometryBuffersBeenInitialized = true;
+  
   terrainShader.reset(new TerrainShader());
   
   // TODO: Un-load the render resources again on destruction
-}
-
-void Map::Render(float* viewMatrix) {
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
-  
-  ShaderProgram* terrainProgram = terrainShader->GetProgram();
-  terrainProgram->UseProgram();
-  
-  terrainProgram->SetUniform1i(terrainShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
-  f->glBindTexture(GL_TEXTURE_2D, textureId);
-  
-  terrainProgram->setUniformMatrix2fv(terrainShader->GetViewMatrixLocation(), viewMatrix);
-  
-  f->glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-  terrainProgram->SetPositionAttribute(
-      2,
-      GetGLType<float>::value,
-      5 * sizeof(float),
-      0);
-  
-  f->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-  terrainProgram->SetTexCoordAttribute(
-      3,
-      GetGLType<float>::value,
-      5 * sizeof(float),
-      2 * sizeof(float));
-  
-  f->glDrawElements(GL_TRIANGLES, width * height * 6, GL_UNSIGNED_INT, 0);
-  CHECK_OPENGL_NO_ERROR();
 }

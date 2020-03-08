@@ -177,7 +177,7 @@ void HandleSettingsUpdate(const QByteArray& msg, const std::vector<std::shared_p
   
   settings->allowNewConnections = msg.data()[3] > 0;
   
-  u16 mapSize = mango::uload16(msg.data() + 4);
+  settings->mapSize = mango::uload16(msg.data() + 4);
   
   // Check whether accepting new connections needs to be paused/resumed
   bool isHostReady = false;
@@ -198,7 +198,7 @@ void HandleSettingsUpdate(const QByteArray& msg, const std::vector<std::shared_p
   
   // NOTE: Since the messages are identical apart from the message type, we could actually directly take
   // the received message data and just exchange the message type.
-  QByteArray broadcastMsg = CreateSettingsUpdateMessage(settings->allowNewConnections, mapSize, true);
+  QByteArray broadcastMsg = CreateSettingsUpdateMessage(settings->allowNewConnections, settings->mapSize, true);
   for (const auto& player : playersInMatch) {
     if (!player->isHost && player->state == PlayerInMatch::State::Joined) {
       player->socket->write(broadcastMsg);

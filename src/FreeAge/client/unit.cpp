@@ -68,9 +68,8 @@ bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::f
 
 
 ClientUnit::ClientUnit(int playerIndex, UnitType type, const QPointF& mapCoord)
-    : playerIndex(playerIndex),
+    : ClientObject(ObjectType::Unit, playerIndex),
       type(type),
-      isSelected(false),
       mapCoord(mapCoord),
       direction(rand() % kNumFacingDirections),
       currentAnimation(UnitAnimation::Idle),

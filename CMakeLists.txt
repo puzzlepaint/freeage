@@ -58,8 +58,10 @@ set_target_properties(gtest gtest_main PROPERTIES FOLDER "third_party")
 # FreeAge base library, used by both the application and the test
 # TODO: Unify cpp / cc spelling. Maybe also use hpp to make it clear for headers too that they are C++ code, not C code.
 add_library(FreeAgeLib
+  src/FreeAge/common/building_types.cpp
   src/FreeAge/common/messages.cpp
   src/FreeAge/common/timing.cpp
+  src/FreeAge/common/unit_types.cpp
 )
 target_compile_options(FreeAgeLib PUBLIC
   "$<$<COMPILE_LANGUAGE:CXX>:-Wall>"
@@ -86,9 +88,13 @@ target_link_libraries(FreeAgeLib PUBLIC
 
 # FreeAge server application
 add_executable(FreeAgeServer
+  src/FreeAge/server/building.cpp
   src/FreeAge/server/game.cpp
   src/FreeAge/server/main.cpp
+  src/FreeAge/server/map.cpp
   src/FreeAge/server/match_setup.cpp
+  src/FreeAge/server/object.cpp
+  src/FreeAge/server/unit.cpp
 )
 target_link_libraries(FreeAgeServer
   FreeAgeLib
@@ -105,6 +111,7 @@ set(FREEAGE_SRCS
   src/FreeAge/client/main.cpp
   src/FreeAge/client/map.cpp
   src/FreeAge/client/match.cpp
+  src/FreeAge/client/object.cpp
   src/FreeAge/client/opengl.cpp
   src/FreeAge/client/render_window.cpp
   src/FreeAge/client/server_connection.cpp

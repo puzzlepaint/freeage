@@ -8,6 +8,7 @@
 #include <QTcpSocket>
 
 #include "FreeAge/common/free_age.hpp"
+#include "FreeAge/server/map.hpp"
 #include "FreeAge/server/settings.hpp"
 
 /// Represents a player in a game.
@@ -30,6 +31,39 @@ struct PlayerInGame {
   
   /// The last point in time at which a ping was received from this player.
   TimePoint lastPingTime;
+  
+  /// Whether the player finished loading the game resources.
+  bool finishedLoading = false;
 };
 
-void RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame, ServerSettings* settings);
+class Game {
+ public:
+  Game(ServerSettings* settings);
+  
+  void RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame);
+  
+ private:
+  enum class ParseMessagesResult {
+    NoAction = 0,
+    PlayerLeftOrShouldBeDisconnected
+  };
+  
+  void HandleLoadingProgress(const QByteArray& msg, PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players);
+  void SendChatBroadcast(u16 sendingPlayerIndex, const QString& text, const std::vector<std::shared_ptr<PlayerInGame>>& players);
+  void HandleChat(const QByteArray& msg, PlayerInGame* player, int len, const std::vector<std::shared_ptr<PlayerInGame>>& players);
+  void HandlePing(const QByteArray& msg, PlayerInGame* player);
+  ParseMessagesResult TryParseClientMessages(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players);
+  
+  // TODO: Right now, this creates a message containing the whole map content.
+  //       Later, only the areas seen by a client (and a small border around them)
+  //       should be sent to the client.
+  QByteArray CreateMapUncoverMessage();
+  QByteArray CreateAddObjectMessage(u32 objectId, ServerObject* object);
+  
+  void StartGame();
+  
+  std::shared_ptr<ServerMap> map;
+  
+  std::vector<std::shared_ptr<PlayerInGame>>* playersInGame;
+  ServerSettings* settings;  // not owned
+};

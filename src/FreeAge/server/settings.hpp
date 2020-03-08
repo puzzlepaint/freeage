@@ -20,4 +20,7 @@ struct ServerSettings {
   /// even if allowNewConnections is true, which happens when the host readied up while
   /// not unchecking the allowNewConnections setting.
   bool acceptingConnectionsPaused = false;
+  
+  /// The map size chosen by the host.
+  u16 mapSize = 50;  // TODO: Make sure that this is the same default as on the client (or make the host send a settings update right at the start)
 };

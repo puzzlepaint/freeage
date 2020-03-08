@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QPointF>
 
 #include "FreeAge/common/free_age.hpp"
 
@@ -34,6 +35,11 @@ enum class ClientToServerMessage {
   StartGame,
   
   /// Sent by a client to update its game loading progress.
+  /// As a special case, loading progress messages with a progress state
+  /// starting from 101% are interpreted by the server as the loading
+  /// process being finished. (100% is *not* counted as finished to
+  /// prevent this from happening early when the number is rounded up
+  /// from 99.5% on).
   LoadingProgress,
 };
 
@@ -84,6 +90,22 @@ enum class ServerToClientMessage {
   
   /// The game loading progress state of a player getting broadcast to all players.
   LoadingProgressBroadcast,
+  
+  /// Contains:
+  /// * The server time at which the game starts,
+  /// * The initial center of the view for the client,
+  /// * The initial resources of the client,
+  /// * The map size.
+  GameBegin,
+  
+  // --- In-game messages ---
+  
+  /// A portion of the map is uncovered. The server tells the client about the map content there.
+  MapUncover,
+  
+  /// A new map object (building or unit) is created respectively enters the client's view.
+  /// TODO: TCP messages have quite some overhead. Add an option to batch such messages together with other in-game messages?
+  AddObject,
 };
 
 QByteArray CreateWelcomeMessage();
@@ -97,3 +119,13 @@ QByteArray CreatePingResponseMessage(u64 number, double serverTimeSeconds);
 QByteArray CreateStartGameBroadcastMessage();
 
 QByteArray CreateLoadingProgressBroadcastMessage(u8 playerIndex, u8 percentage);
+
+QByteArray CreateGameBeginMessage(
+    double gameStartServerTimeSeconds,
+    const QPointF& initialViewCenterMapCoord,
+    u32 initialFood,
+    u32 initialWood,
+    u32 initialGold,
+    u32 initialStone,
+    u16 mapWidth,
+    u16 mapHeight);

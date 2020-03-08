@@ -27,6 +27,22 @@ class ServerConnection : public QObject {
   /// Make sure that a suitable message receiver exists to prevent the messages from getting lost.
   void SetParseMessages(bool enable);
   
+  /// Returns the server time at which the game state should be displayed by the client right now.
+  inline double GetDisplayedServerTime() {
+    double clientTimeSeconds = SecondsDuration(Clock::now() - connectionStartTime).count();
+    
+    // TODO: Drop ping outliers
+    // TODO: Change the offset on the client time *smoothly* once new measurements come in and
+    //       old ones are dropped to prevent visual jumps.
+    double offsetSum = 0;
+    for (double offset : lastTimeOffsets) {
+      offsetSum += offset;
+    }
+    double filteredOffset = offsetSum / lastTimeOffsets.size();
+    
+    return clientTimeSeconds + filteredOffset;
+  }
+  
   /// Thread-safe writing to the connection's socket.
   /// TODO: We can probably drop this, since a QTcpSocket can only be accessed from one thread anyway, otherwise it breaks.
   inline void Write(const QByteArray& message) {

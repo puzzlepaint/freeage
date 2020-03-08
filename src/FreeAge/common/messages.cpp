@@ -235,3 +235,34 @@ QByteArray CreateLoadingProgressBroadcastMessage(u8 playerIndex, u8 percentage) 
   
   return msg;
 }
+
+QByteArray CreateGameBeginMessage(
+    double gameStartServerTimeSeconds,
+    const QPointF& initialViewCenterMapCoord,
+    u32 initialFood,
+    u32 initialWood,
+    u32 initialGold,
+    u32 initialStone,
+    u16 mapWidth,
+    u16 mapHeight) {
+  // Create buffer
+  QByteArray msg(39, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::GameBegin);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  memcpy(data + 3, &gameStartServerTimeSeconds, 8);
+  *reinterpret_cast<float*>(data + 11) = initialViewCenterMapCoord.x();
+  *reinterpret_cast<float*>(data + 15) = initialViewCenterMapCoord.y();
+  mango::ustore32(data + 19, initialFood);
+  mango::ustore32(data + 23, initialWood);
+  mango::ustore32(data + 27, initialGold);
+  mango::ustore32(data + 31, initialStone);
+  mango::ustore16(data + 35, mapWidth);
+  mango::ustore16(data + 37, mapHeight);
+  
+  return msg;
+}

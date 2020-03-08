@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include "FreeAge/common/unit_types.hpp"
+#include "FreeAge/client/object.hpp"
 #include "FreeAge/client/sprite.hpp"
 #include "FreeAge/client/shader_sprite.hpp"
 #include "FreeAge/client/texture.hpp"
@@ -10,17 +12,6 @@ class Map;
 
 
 constexpr int kNumFacingDirections = 16;
-
-/// Unit types. The numbers must be sequential, starting from zero,
-/// since they are used to index into a std::vector.
-enum class UnitType {
-  FemaleVillager,
-  MaleVillager,
-  Scout,
-  
-  NumUnits
-};
-
 
 enum class UnitAnimation {
   Idle = 0,
@@ -59,7 +50,7 @@ class ClientUnitType {
 
 
 /// Represents a unit on the client side.
-class ClientUnit {
+class ClientUnit : public ClientObject {
  public:
   ClientUnit(int playerIndex, UnitType type, const QPointF& mapCoord);
   
@@ -88,20 +79,13 @@ class ClientUnit {
       bool shadow,
       bool outline);
   
-  inline int GetPlayerIndex() const { return playerIndex; }
   inline UnitType GetType() const { return type; }
   inline UnitAnimation GetCurrentAnimation() const { return currentAnimation; }
   
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   
-  inline bool IsSelected() const { return isSelected; }
-  inline void SetIsSelected(bool selected) { isSelected = selected; }
-  
  private:
-  int playerIndex;
   UnitType type;
-  
-  bool isSelected;
   
   /// Current position of the unit sprite's center on the map.
   QPointF mapCoord;

@@ -11,6 +11,7 @@
 #include <QThread>
 #include <QTimer>
 
+#include "FreeAge/client/game_controller.hpp"
 #include "FreeAge/client/health_bar.hpp"
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/client/opengl.hpp"
@@ -98,7 +99,8 @@ RenderWindow::~RenderWindow() {
   healthBarShader.reset();
   
   if (map) {
-    delete map;
+    map->UnloadRenderResources();
+    map.reset();
   }
   
   unitTypes.clear();
@@ -186,14 +188,6 @@ void RenderWindow::LoadResources() {
   if (loadingStep != maxLoadingStep) {
     LOG(ERROR) << "DEBUG: After loading, loadingStep (" << loadingStep << ") != maxLoadingStep (" << maxLoadingStep << "). Please set the value of maxLoadingStep to " << loadingStep << " in render_window.cpp.";
   }
-  
-  
-  // Generate a map
-  // TODO: Do this on the server.
-  map = new Map(50, 50);
-  map->GenerateRandomMap(buildingTypes);
-  SetScroll(map->GetTownCenterLocation(0));
-  map->LoadRenderResources();
 }
 
 void RenderWindow::Scroll(float x, float y, QPointF* mapCoord) {
@@ -234,11 +228,11 @@ void RenderWindow::LoadingFinished() {
   delete loadingSurface;
   delete loadingThread;
   
-  // TODO: Only do this upon game start
+  // Notify the server about the loading being finished by sending a
+  // loading progress message with the progress above 100%.
+  SendLoadingProgress(101);
+  
   LOG(INFO) << "DEBUG: Loading finished.";
-  // isLoading = false;
-  // loadingIcon.reset();
-  // loadingTextDisplay.reset();
 }
 
 void RenderWindow::CreatePlayerColorPaletteTexture() {
@@ -297,129 +291,137 @@ void RenderWindow::ComputePixelToOpenGLMatrix() {
 
 void RenderWindow::UpdateView(const TimePoint& now) {
   // Update scrolling state
-  scroll = GetCurrentScroll(now);
-  if (scrollRightPressed) { scrollRightPressTime = now; }
-  if (scrollLeftPressed) { scrollLeftPressTime = now; }
-  if (scrollUpPressed) { scrollUpPressTime = now; }
-  if (scrollDownPressed) { scrollDownPressTime = now; }
+  if (map) {
+    scroll = GetCurrentScroll(now);
+    if (scrollRightPressed) { scrollRightPressTime = now; }
+    if (scrollLeftPressed) { scrollLeftPressTime = now; }
+    if (scrollUpPressed) { scrollUpPressTime = now; }
+    if (scrollDownPressed) { scrollDownPressTime = now; }
+  }
   
   // Compute the pixel-to-OpenGL transformation for the UI shader.
   ComputePixelToOpenGLMatrix();
   
   // Compute the view (projected-to-OpenGL) transformation.
-  // Projected coordinates: arbitrary origin, +x goes right, +y goes down, scale is the default scale.
-  // OpenGL normalized device coordinates: top-left widget corner is (-1, 1), bottom-right widget corner is (1, -1).
-  // The transformation is stored as a matrix but applied as follows:
-  // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
-  // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
-  QPointF projectedCoordAtScreenCenter = map->MapCoordToProjectedCoord(scroll);
-  float scalingX = zoom * 2.f / widgetWidth;
-  float scalingY = zoom * -2.f / widgetHeight;
-  
-  viewMatrix[0] = scalingX;
-  viewMatrix[1] = scalingY;
-  viewMatrix[2] = -scalingX * projectedCoordAtScreenCenter.x();
-  viewMatrix[3] = -scalingY * projectedCoordAtScreenCenter.y();
-  
-  // Apply the view transformation to all shaders.
-  // TODO: Use a uniform buffer object for that.
-  spriteShader->GetProgram()->UseProgram();
-  spriteShader->GetProgram()->setUniformMatrix2fv(spriteShader->GetViewMatrixLocation(), viewMatrix);
-  
-  shadowShader->GetProgram()->UseProgram();
-  shadowShader->GetProgram()->setUniformMatrix2fv(shadowShader->GetViewMatrixLocation(), viewMatrix);
-  
-  outlineShader->GetProgram()->UseProgram();
-  outlineShader->GetProgram()->setUniformMatrix2fv(outlineShader->GetViewMatrixLocation(), viewMatrix);
-  
-  healthBarShader->GetProgram()->UseProgram();
-  healthBarShader->GetProgram()->setUniformMatrix2fv(healthBarShader->GetViewMatrixLocation(), viewMatrix);
-  
-  // Determine the view rect in projected coordinates.
-  // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
-  // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
-  // -->
-  // projected_x = (opengl_x - viewMatrix[2]) / viewMatrix[0]
-  // projected_y = (opengl_y - viewMatrix[3]) / viewMatrix[1];
-  float leftProjectedCoords = ((-1) - viewMatrix[2]) / viewMatrix[0];
-  float rightProjectedCoords = ((1) - viewMatrix[2]) / viewMatrix[0];
-  float topProjectedCoords = ((1) - viewMatrix[3]) / viewMatrix[1];
-  float bottomProjectedCoords = ((-1) - viewMatrix[3]) / viewMatrix[1];
-  projectedCoordsViewRect = QRectF(
-      leftProjectedCoords,
-      topProjectedCoords,
-      rightProjectedCoords - leftProjectedCoords,
-      bottomProjectedCoords - topProjectedCoords);
+  if (map) {
+    // Projected coordinates: arbitrary origin, +x goes right, +y goes down, scale is the default scale.
+    // OpenGL normalized device coordinates: top-left widget corner is (-1, 1), bottom-right widget corner is (1, -1).
+    // The transformation is stored as a matrix but applied as follows:
+    // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
+    // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
+    QPointF projectedCoordAtScreenCenter = map->MapCoordToProjectedCoord(scroll);
+    float scalingX = zoom * 2.f / widgetWidth;
+    float scalingY = zoom * -2.f / widgetHeight;
+    
+    viewMatrix[0] = scalingX;
+    viewMatrix[1] = scalingY;
+    viewMatrix[2] = -scalingX * projectedCoordAtScreenCenter.x();
+    viewMatrix[3] = -scalingY * projectedCoordAtScreenCenter.y();
+    
+    // Apply the view transformation to all shaders.
+    // TODO: Use a uniform buffer object for that.
+    spriteShader->GetProgram()->UseProgram();
+    spriteShader->GetProgram()->setUniformMatrix2fv(spriteShader->GetViewMatrixLocation(), viewMatrix);
+    
+    shadowShader->GetProgram()->UseProgram();
+    shadowShader->GetProgram()->setUniformMatrix2fv(shadowShader->GetViewMatrixLocation(), viewMatrix);
+    
+    outlineShader->GetProgram()->UseProgram();
+    outlineShader->GetProgram()->setUniformMatrix2fv(outlineShader->GetViewMatrixLocation(), viewMatrix);
+    
+    healthBarShader->GetProgram()->UseProgram();
+    healthBarShader->GetProgram()->setUniformMatrix2fv(healthBarShader->GetViewMatrixLocation(), viewMatrix);
+    
+    // Determine the view rect in projected coordinates.
+    // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
+    // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
+    // -->
+    // projected_x = (opengl_x - viewMatrix[2]) / viewMatrix[0]
+    // projected_y = (opengl_y - viewMatrix[3]) / viewMatrix[1];
+    float leftProjectedCoords = ((-1) - viewMatrix[2]) / viewMatrix[0];
+    float rightProjectedCoords = ((1) - viewMatrix[2]) / viewMatrix[0];
+    float topProjectedCoords = ((1) - viewMatrix[3]) / viewMatrix[1];
+    float bottomProjectedCoords = ((-1) - viewMatrix[3]) / viewMatrix[1];
+    projectedCoordsViewRect = QRectF(
+        leftProjectedCoords,
+        topProjectedCoords,
+        rightProjectedCoords - leftProjectedCoords,
+        bottomProjectedCoords - topProjectedCoords);
+  }
 }
 
 void RenderWindow::RenderShadows(double elapsedSeconds) {
-  // Building shadows.
-  for (auto& buildingEntry : map->GetBuildings()) {
-    ClientBuilding& building = buildingEntry.second;
-    if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasShadow()) {
-      continue;
-    }
+  for (auto& object : map->GetObjects()) {
+    // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
-    QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
-        map,
-        buildingTypes,
-        elapsedSeconds,
-        true,
-        false);
-    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
-      building.Render(
-          map,
+    if (object.second->isBuilding()) {
+      ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
+      if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasShadow()) {
+        continue;
+      }
+      
+      QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+          map.get(),
           buildingTypes,
-          playerColors,
-          shadowShader.get(),
-          pointBuffer,
-          viewMatrix,
-          zoom,
-          widgetWidth,
-          widgetHeight,
           elapsedSeconds,
           true,
           false);
-    }
-  }
-  
-  // Unit shadows.
-  for (auto& item : map->GetUnits()) {
-    if (!unitTypes[static_cast<int>(item.second.GetType())].GetAnimations(item.second.GetCurrentAnimation()).front().sprite.HasShadow()) {
-      continue;
-    }
-    
-    QRectF projectedCoordsRect = item.second.GetRectInProjectedCoords(
-        map,
-        unitTypes,
-        elapsedSeconds,
-        true,
-        false);
-    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
-      item.second.Render(
-          map,
+      if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+        building.Render(
+            map.get(),
+            buildingTypes,
+            playerColors,
+            shadowShader.get(),
+            pointBuffer,
+            viewMatrix,
+            zoom,
+            widgetWidth,
+            widgetHeight,
+            elapsedSeconds,
+            true,
+            false);
+      }
+    } else {  // if (object.second->isUnit()) {
+      ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
+      if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front().sprite.HasShadow()) {
+        continue;
+      }
+      
+      QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
+          map.get(),
           unitTypes,
-          playerColors,
-          shadowShader.get(),
-          pointBuffer,
-          viewMatrix,
-          zoom,
-          widgetWidth,
-          widgetHeight,
           elapsedSeconds,
           true,
           false);
+      if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+        unit.Render(
+            map.get(),
+            unitTypes,
+            playerColors,
+            shadowShader.get(),
+            pointBuffer,
+            viewMatrix,
+            zoom,
+            widgetWidth,
+            widgetHeight,
+            elapsedSeconds,
+            true,
+            false);
+      }
     }
   }
 }
 
 void RenderWindow::RenderBuildings(double elapsedSeconds) {
   // TODO: Sort to minmize texture switches.
-  for (auto& buildingEntry : map->GetBuildings()) {
-    ClientBuilding& building = buildingEntry.second;
+  for (auto& object : map->GetObjects()) {
+    if (!object.second->isBuilding()) {
+      continue;
+    }
+    ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
     
     QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
-        map,
+        map.get(),
         buildingTypes,
         elapsedSeconds,
         false,
@@ -427,7 +429,7 @@ void RenderWindow::RenderBuildings(double elapsedSeconds) {
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
       // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
       building.Render(
-          map,
+          map.get(),
           buildingTypes,
           playerColors,
           spriteShader.get(),
@@ -444,84 +446,86 @@ void RenderWindow::RenderBuildings(double elapsedSeconds) {
 }
 
 void RenderWindow::RenderOutlines(double elapsedSeconds) {
-  // Render the building outlines.
   // TODO: Sort to minmize texture switches.
-  for (auto& buildingEntry : map->GetBuildings()) {
-    ClientBuilding& building = buildingEntry.second;
-    if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasOutline()) {
-      continue;
-    }
-    LOG(WARNING) << "DEBUG: Buildings with outline exist!";
+  for (auto& object : map->GetObjects()) {
+    // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
-    QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
-        map,
-        buildingTypes,
-        elapsedSeconds,
-        false,
-        true);
-    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
-      building.Render(
-          map,
+    if (object.second->isBuilding()) {
+      ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
+      if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasOutline()) {
+        continue;
+      }
+      LOG(WARNING) << "DEBUG: Buildings with outline exist!";
+      
+      QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+          map.get(),
           buildingTypes,
-          playerColors,
-          outlineShader.get(),
-          pointBuffer,
-          viewMatrix,
-          zoom,
-          widgetWidth,
-          widgetHeight,
           elapsedSeconds,
           false,
           true);
-    }
-  }
-  
-  // Render the unit outlines.
-  // TODO: Sort to minmize texture switches.
-  for (auto& item : map->GetUnits()) {
-    ClientUnit& unit = item.second;
-    if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front().sprite.HasOutline()) {
-      continue;
-    }
-    
-    QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
-        map,
-        unitTypes,
-        elapsedSeconds,
-        false,
-        true);
-    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
-      unit.Render(
-          map,
+      if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+        building.Render(
+            map.get(),
+            buildingTypes,
+            playerColors,
+            outlineShader.get(),
+            pointBuffer,
+            viewMatrix,
+            zoom,
+            widgetWidth,
+            widgetHeight,
+            elapsedSeconds,
+            false,
+            true);
+      }
+    } else {  // if (object.second->isUnit()) {
+      ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
+      if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front().sprite.HasOutline()) {
+        continue;
+      }
+      
+      QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
+          map.get(),
           unitTypes,
-          playerColors,
-          outlineShader.get(),
-          pointBuffer,
-          viewMatrix,
-          zoom,
-          widgetWidth,
-          widgetHeight,
           elapsedSeconds,
           false,
           true);
+      if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+        unit.Render(
+            map.get(),
+            unitTypes,
+            playerColors,
+            outlineShader.get(),
+            pointBuffer,
+            viewMatrix,
+            zoom,
+            widgetWidth,
+            widgetHeight,
+            elapsedSeconds,
+            false,
+            true);
+      }
     }
   }
 }
 
 void RenderWindow::RenderUnits(double elapsedSeconds) {
   // TODO: Sort to minmize texture switches.
-  for (auto& item : map->GetUnits()) {
-    ClientUnit& unit = item.second;
+  for (auto& object : map->GetObjects()) {
+    if (!object.second->isUnit()) {
+      continue;
+    }
+    ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
     
     QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
-        map,
+        map.get(),
         unitTypes,
         elapsedSeconds,
         false,
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
       unit.Render(
-          map,
+          map.get(),
           unitTypes,
           playerColors,
           spriteShader.get(),
@@ -574,96 +578,84 @@ void RenderWindow::RenderMoveToMarker(const TimePoint& now) {
 void RenderWindow::RenderHealthBars(double elapsedSeconds) {
   QRgb gaiaColor = qRgb(255, 255, 255);
   
-  // Render health bars for buildings.
-  for (auto& buildingEntry : map->GetBuildings()) {
-    ClientBuilding& building = buildingEntry.second;
-    if (!building.IsSelected()) {
+  for (auto& object : map->GetObjects()) {
+    if (!object.second->IsSelected()) {
       continue;
     }
-    const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
     
-    QPointF centerProjectedCoord = building.GetCenterProjectedCoord(map, buildingTypes);
-    QPointF healthBarCenter =
-        centerProjectedCoord +
-        QPointF(0, -1 * buildingType.GetHealthBarHeightAboveCenter(building.GetFrameIndex(buildingType, elapsedSeconds)));
+    // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
-    constexpr float kHealthBarWidth = 60;  // TODO: Smaller bar for trees
-    constexpr float kHealthBarHeight = 3;
-    QRectF barRect(
-        std::round(healthBarCenter.x() - 0.5f * kHealthBarWidth),
-        std::round(healthBarCenter.y() - 0.5f * kHealthBarHeight),
-        kHealthBarWidth,
-        kHealthBarHeight);
-    if (barRect.intersects(projectedCoordsViewRect)) {
-      RenderHealthBar(
-          barRect,
-          centerProjectedCoord.y(),
-          1.f,  // TODO: Determine fill amount based on HP
-          (building.GetPlayerIndex() < 0) ? gaiaColor : playerColors[building.GetPlayerIndex()],
-          healthBarShader.get(),
-          pointBuffer,
-          viewMatrix,
-          zoom,
-          widgetWidth,
-          widgetHeight);
-    }
-  }
-  
-  // Render health bars for units.
-  for (auto& item : map->GetUnits()) {
-    ClientUnit& unit = item.second;
-    if (!unit.IsSelected()) {
-      continue;
-    }
-    const ClientUnitType& unitType = unitTypes[static_cast<int>(unit.GetType())];
-    
-    QPointF centerProjectedCoord = unit.GetCenterProjectedCoord(map);
-    QPointF healthBarCenter =
-        centerProjectedCoord +
-        QPointF(0, -1 * unitType.GetHealthBarHeightAboveCenter());
-    
-    constexpr float kHealthBarWidth = 30;
-    constexpr float kHealthBarHeight = 3;
-    QRectF barRect(
-        std::round(healthBarCenter.x() - 0.5f * kHealthBarWidth),
-        std::round(healthBarCenter.y() - 0.5f * kHealthBarHeight),
-        kHealthBarWidth,
-        kHealthBarHeight);
-    if (barRect.intersects(projectedCoordsViewRect)) {
-      RenderHealthBar(
-          barRect,
-          centerProjectedCoord.y(),
-          1.f,  // TODO: Determine fill amount based on HP
-          (unit.GetPlayerIndex() < 0) ? gaiaColor : playerColors[unit.GetPlayerIndex()],
-          healthBarShader.get(),
-          pointBuffer,
-          viewMatrix,
-          zoom,
-          widgetWidth,
-          widgetHeight);
+    if (object.second->isBuilding()) {
+      ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
+      const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
+      
+      QPointF centerProjectedCoord = building.GetCenterProjectedCoord(map.get(), buildingTypes);
+      QPointF healthBarCenter =
+          centerProjectedCoord +
+          QPointF(0, -1 * buildingType.GetHealthBarHeightAboveCenter(building.GetFrameIndex(buildingType, elapsedSeconds)));
+      
+      constexpr float kHealthBarWidth = 60;  // TODO: Smaller bar for trees
+      constexpr float kHealthBarHeight = 3;
+      QRectF barRect(
+          std::round(healthBarCenter.x() - 0.5f * kHealthBarWidth),
+          std::round(healthBarCenter.y() - 0.5f * kHealthBarHeight),
+          kHealthBarWidth,
+          kHealthBarHeight);
+      if (barRect.intersects(projectedCoordsViewRect)) {
+        RenderHealthBar(
+            barRect,
+            centerProjectedCoord.y(),
+            1.f,  // TODO: Determine fill amount based on HP
+            (building.GetPlayerIndex() < 0) ? gaiaColor : playerColors[building.GetPlayerIndex()],
+            healthBarShader.get(),
+            pointBuffer,
+            viewMatrix,
+            zoom,
+            widgetWidth,
+            widgetHeight);
+      }
+    } else {  // if (object.second->isUnit()) {
+      ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
+      const ClientUnitType& unitType = unitTypes[static_cast<int>(unit.GetType())];
+      
+      QPointF centerProjectedCoord = unit.GetCenterProjectedCoord(map.get());
+      QPointF healthBarCenter =
+          centerProjectedCoord +
+          QPointF(0, -1 * unitType.GetHealthBarHeightAboveCenter());
+      
+      constexpr float kHealthBarWidth = 30;
+      constexpr float kHealthBarHeight = 3;
+      QRectF barRect(
+          std::round(healthBarCenter.x() - 0.5f * kHealthBarWidth),
+          std::round(healthBarCenter.y() - 0.5f * kHealthBarHeight),
+          kHealthBarWidth,
+          kHealthBarHeight);
+      if (barRect.intersects(projectedCoordsViewRect)) {
+        RenderHealthBar(
+            barRect,
+            centerProjectedCoord.y(),
+            1.f,  // TODO: Determine fill amount based on HP
+            (unit.GetPlayerIndex() < 0) ? gaiaColor : playerColors[unit.GetPlayerIndex()],
+            healthBarShader.get(),
+            pointBuffer,
+            viewMatrix,
+            zoom,
+            widgetWidth,
+            widgetHeight);
+      }
     }
   }
 }
 
 struct PossibleSelectedObject {
-  inline PossibleSelectedObject(ClientUnit* unit, int id, float score)
-      : unit(unit),
-        building(nullptr),
-        id(id),
-        score(score) {}
-  
-  inline PossibleSelectedObject(ClientBuilding* building, int id, float score)
-      : unit(nullptr),
-        building(building),
-        id(id),
+  inline PossibleSelectedObject(int id, float score)
+      : id(id),
         score(score) {}
   
   inline bool operator< (const PossibleSelectedObject& other) const {
     return score < other.score;
   }
   
-  ClientUnit* unit;
-  ClientBuilding* building;
   int id;
   
   /// The smaller, the better.
@@ -688,72 +680,72 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, int* objectId) {
     return area * std::min<float>(1.f, offsetLength / (0.5f * std::max(rect.width(), rect.height())));
   };
   
-  // Check buildings.
-  for (auto& buildingEntry : map->GetBuildings()) {
-    ClientBuilding& building = buildingEntry.second;
-    const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
+  for (auto& object : map->GetObjects()) {
+    // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
-    // Is the position within the tiles which the building stands on?
-    bool addToList = false;
-    if (haveMapCoord) {
-      QSize size = buildingType.GetSize();
-      if (mapCoord.x() >= building.GetBaseTile().x() &&
-          mapCoord.y() >= building.GetBaseTile().y() &&
-          mapCoord.x() <= building.GetBaseTile().x() + size.width() &&
-          mapCoord.y() <= building.GetBaseTile().y() + size.height()) {
+    if (object.second->isBuilding()) {
+      ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
+      const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
+      
+      // Is the position within the tiles which the building stands on?
+      bool addToList = false;
+      if (haveMapCoord) {
+        QSize size = buildingType.GetSize();
+        if (mapCoord.x() >= building.GetBaseTile().x() &&
+            mapCoord.y() >= building.GetBaseTile().y() &&
+            mapCoord.x() <= building.GetBaseTile().x() + size.width() &&
+            mapCoord.y() <= building.GetBaseTile().y() + size.height()) {
+          addToList = true;
+        }
+      }
+      
+      // Is the position within the building sprite?
+      QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+          map.get(),
+          buildingTypes,
+          elapsedSeconds,
+          false,
+          false);
+      if (!addToList && projectedCoordsRect.contains(projectedCoord)) {
+        const Sprite::Frame& frame = buildingType.GetSprite().frame(building.GetFrameIndex(buildingType, elapsedSeconds));
+        // We add 1 here to account for the sprite border which is not included in projectedCoordsRect.
+        // We further add 0.5f for rounding during the cast to integer.
+        QPoint point(projectedCoord.x() - projectedCoordsRect.x() + 1 + 0.5f, projectedCoord.y() - projectedCoordsRect.y() + 1 + 0.5f);
+        point.setX(std::max(0, std::min(frame.graphic.imageWidth - 1, point.x())));
+        point.setY(std::max(0, std::min(frame.graphic.imageHeight - 1, point.y())));
+        const SMPLayerRowEdge& rowEdge = frame.rowEdges[point.y()];
+        if (point.x() >= rowEdge.leftSpace &&
+            frame.graphic.imageWidth - 1 - point.x() >= rowEdge.rightSpace) {
+          addToList = true;
+        }
+      }
+      
+      if (addToList) {
+        // TODO: Also consider distance between given position and sprite center in score?
+        possibleSelectedObjects.emplace_back(object.first, computeScore(projectedCoordsRect, projectedCoord));
+      }
+    } else {  // if (object.second->isUnit()) {
+      ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
+      
+      // Is the position close to the unit sprite?
+      constexpr float kExtendSize = 8;
+      
+      bool addToList = false;
+      QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
+          map.get(),
+          unitTypes,
+          elapsedSeconds,
+          false,
+          false);
+      projectedCoordsRect.adjust(-kExtendSize, -kExtendSize, kExtendSize, kExtendSize);
+      if (!addToList && projectedCoordsRect.contains(projectedCoord)) {
         addToList = true;
       }
-    }
-    
-    // Is the position within the building sprite?
-    QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
-        map,
-        buildingTypes,
-        elapsedSeconds,
-        false,
-        false);
-    if (!addToList && projectedCoordsRect.contains(projectedCoord)) {
-      const Sprite::Frame& frame = buildingType.GetSprite().frame(building.GetFrameIndex(buildingType, elapsedSeconds));
-      // We add 1 here to account for the sprite border which is not included in projectedCoordsRect.
-      // We further add 0.5f for rounding during the cast to integer.
-      QPoint point(projectedCoord.x() - projectedCoordsRect.x() + 1 + 0.5f, projectedCoord.y() - projectedCoordsRect.y() + 1 + 0.5f);
-      point.setX(std::max(0, std::min(frame.graphic.imageWidth - 1, point.x())));
-      point.setY(std::max(0, std::min(frame.graphic.imageHeight - 1, point.y())));
-      const SMPLayerRowEdge& rowEdge = frame.rowEdges[point.y()];
-      if (point.x() >= rowEdge.leftSpace &&
-          frame.graphic.imageWidth - 1 - point.x() >= rowEdge.rightSpace) {
-        addToList = true;
+      
+      if (addToList) {
+        // TODO: Also consider distance between given position and sprite center in score?
+        possibleSelectedObjects.emplace_back(object.first, computeScore(projectedCoordsRect, projectedCoord));
       }
-    }
-    
-    if (addToList) {
-      // TODO: Also consider distance between given position and sprite center in score?
-      possibleSelectedObjects.emplace_back(&building, buildingEntry.first, computeScore(projectedCoordsRect, projectedCoord));
-    }
-  }
-  
-  // Check units.
-  for (auto& item : map->GetUnits()) {
-    ClientUnit& unit = item.second;
-    
-    // Is the position close to the unit sprite?
-    constexpr float kExtendSize = 8;
-    
-    bool addToList = false;
-    QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
-        map,
-        unitTypes,
-        elapsedSeconds,
-        false,
-        false);
-    projectedCoordsRect.adjust(-kExtendSize, -kExtendSize, kExtendSize, kExtendSize);
-    if (!addToList && projectedCoordsRect.contains(projectedCoord)) {
-      addToList = true;
-    }
-    
-    if (addToList) {
-      // TODO: Also consider distance between given position and sprite center in score?
-      possibleSelectedObjects.emplace_back(&unit, item.first, computeScore(projectedCoordsRect, projectedCoord));
     }
   }
   
@@ -790,15 +782,12 @@ QPointF RenderWindow::ScreenCoordToProjectedCoord(float x, float y) {
 }
 
 void RenderWindow::ClearSelection() {
-  for (int id : selection) {
-    auto buildingIt = map->GetBuildings().find(id);
-    if (buildingIt != map->GetBuildings().end()) {
-      buildingIt->second.SetIsSelected(false);
+  for (int objectId : selection) {
+    auto objectIt = map->GetObjects().find(objectId);
+    if (objectIt == map->GetObjects().end()) {
+      LOG(ERROR) << "Selected object ID not found in map->GetObjects().";
     } else {
-      auto unitIt = map->GetUnits().find(id);
-      if (unitIt != map->GetUnits().end()) {
-        unitIt->second.SetIsSelected(false);
-      }
+      objectIt->second->SetIsSelected(false);
     }
   }
   
@@ -808,14 +797,11 @@ void RenderWindow::ClearSelection() {
 void RenderWindow::AddToSelection(int objectId) {
   selection.push_back(objectId);
   
-  auto buildingIt = map->GetBuildings().find(objectId);
-  if (buildingIt != map->GetBuildings().end()) {
-    buildingIt->second.SetIsSelected(true);
+  auto objectIt = map->GetObjects().find(objectId);
+  if (objectIt == map->GetObjects().end()) {
+    LOG(ERROR) << "Selected object ID not found in map->GetObjects().";
   } else {
-    auto unitIt = map->GetUnits().find(objectId);
-    if (unitIt != map->GetUnits().end()) {
-      unitIt->second.SetIsSelected(true);
-    }
+    objectIt->second->SetIsSelected(true);
   }
 }
 
@@ -936,8 +922,17 @@ void RenderWindow::initializeGL() {
 
 void RenderWindow::paintGL() {
   if (isLoading) {
-    RenderLoadingScreen();
-    return;
+    // Switch to the game once it starts.
+    if (connection->GetDisplayedServerTime() >= gameController->GetGameStartServerTimeSeconds()) {
+      isLoading = false;
+      
+      // Unload loading screen resources
+      loadingIcon.reset();
+      loadingTextDisplay.reset();
+    } else {
+      RenderLoadingScreen();
+      return;
+    }
   }
   
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
@@ -1015,6 +1010,10 @@ void RenderWindow::resizeGL(int width, int height) {
 }
 
 void RenderWindow::mousePressEvent(QMouseEvent* event) {
+  if (!map) {
+    return;
+  }
+  
   if (event->button() == Qt::LeftButton) {
     // TODO: Remember position for dragging
   } else if (event->button() == Qt::RightButton) {
@@ -1022,14 +1021,12 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
     bool haveBuildingSelected = false;
     
     for (int id : selection) {
-      auto buildingIt = map->GetBuildings().find(id);
-      if (buildingIt != map->GetBuildings().end()) {
-        haveBuildingSelected = true;
+      auto objectIt = map->GetObjects().find(id);
+      if (objectIt == map->GetObjects().end()) {
+        LOG(ERROR) << "Selected object ID not found in map->GetObjects().";
       } else {
-        auto unitIt = map->GetUnits().find(id);
-        if (unitIt != map->GetUnits().end()) {
-          haveUnitSelected = true;
-        }
+        haveBuildingSelected |= objectIt->second->isBuilding();
+        haveUnitSelected |= objectIt->second->isUnit();
       }
     }
     
@@ -1044,10 +1041,18 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
 }
 
 void RenderWindow::mouseMoveEvent(QMouseEvent* /*event*/) {
+  if (!map) {
+    return;
+  }
+  
   // TODO: Possibly manually batch these events together, since we disabled event batching globally.
 }
 
 void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
+  if (!map) {
+    return;
+  }
+  
   if (event->button() == Qt::LeftButton) {
     // TODO: Only do this when not dragging
     
@@ -1064,6 +1069,10 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
 }
 
 void RenderWindow::wheelEvent(QWheelEvent* event) {
+  if (!map) {
+    return;
+  }
+  
   double degrees = event->angleDelta().y() / 8.0;
   double numSteps = degrees / 15.0;
   
@@ -1072,6 +1081,10 @@ void RenderWindow::wheelEvent(QWheelEvent* event) {
 }
 
 void RenderWindow::keyPressEvent(QKeyEvent* event) {
+  if (!map) {
+    return;
+  }
+  
   if (event->key() == Qt::Key_Right) {
     scrollRightPressed = true;
     scrollRightPressTime = Clock::now();
@@ -1088,6 +1101,10 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
 }
 
 void RenderWindow::keyReleaseEvent(QKeyEvent* event) {
+  if (!map) {
+    return;
+  }
+  
   if (event->key() == Qt::Key_Right) {
     scrollRightPressed = false;
     TimePoint now = Clock::now();

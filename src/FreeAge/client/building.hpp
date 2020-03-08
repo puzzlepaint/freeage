@@ -3,31 +3,13 @@
 #include <QSize>
 #include <QString>
 
+#include "FreeAge/common/building_types.hpp"
+#include "FreeAge/client/object.hpp"
 #include "FreeAge/client/shader_sprite.hpp"
 #include "FreeAge/client/sprite.hpp"
 #include "FreeAge/client/texture.hpp"
 
 class Map;
-
-
-/// Building types. The numbers must be sequential, starting from zero,
-/// since they are used to index into a std::vector of Sprite.
-enum class BuildingType {
-  // Player buildings
-  TownCenter = 0,
-  TownCenterBack,    // Not used as building, just for loading the sprite
-  TownCenterCenter,  // Not used as building, just for loading the sprite
-  TownCenterFront,   // Not used as building, just for loading the sprite
-  TownCenterMain,    // Not used as building, just for loading the sprite
-  House,
-  
-  // Gaia "buildings"
-  TreeOak,
-  FirstTree = TreeOak,
-  LastTree = TreeOak,
-  
-  NumBuildings
-};
 
 
 /// Stores client-side data for building types (i.e., their graphics).
@@ -63,7 +45,7 @@ class ClientBuildingType {
 
 
 /// Represents a building on the client side.
-class ClientBuilding {
+class ClientBuilding : public ClientObject {
  public:
   ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY);
   
@@ -104,14 +86,9 @@ class ClientBuilding {
   
   inline QPoint GetBaseTile() const { return QPoint(baseTileX, baseTileY); }
   
-  inline bool IsSelected() const { return isSelected; }
-  inline void SetIsSelected(bool selected) { isSelected = selected; }
-  
  private:
   int playerIndex;
   BuildingType type;
-  
-  bool isSelected;
   
   /// In case the building uses a random but fixed frame index, it is stored here.
   int fixedFrameIndex;
