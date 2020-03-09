@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include <QByteArray>
 #include <QPointF>
 
@@ -41,6 +43,25 @@ enum class ClientToServerMessage {
   /// prevent this from happening early when the number is rounded up
   /// from 99.5% on).
   LoadingProgress,
+  
+  // --- In-game messages ---
+  
+  /// A move command for some selected units to a given position.
+  /// The units will try to move as close as possible to this position.
+  MoveToMapCoord,
+  
+  /// A command for some selected units pointing to a given target object (building or unit).
+  /// This can actually invoke a variety of actions:
+  /// * Moving a villager or fishing ship to a resource / farm / fish trap lets it collect the resource.
+  /// * Moving a military unit to an enemy unit or building attacks it.
+  /// * Pointing a building that can shoot projectiles to an enemy unit or building sets the
+  ///   attack focus on that object if it is within range.
+  /// * Moving a unit to a transport ship / siege tower garrisons it into the ship / tower.
+  /// * Moving a unit to a building in which it can be garrisoned performs the garrisoning.
+  /// * Moving a monk with a relic to a monastery drops off the relic in the monastery.
+  /// * Moving a trade cart / cog to an allied market / dock starts trading with it.
+  /// TODO: Implement this message
+  SetTarget,
 };
 
 QByteArray CreateHostConnectMessage(const QByteArray& hostToken, const QString& playerName);
@@ -60,6 +81,10 @@ QByteArray CreateLeaveMessage();
 QByteArray CreateStartGameMessage();
 
 QByteArray CreateLoadingProgressMessage(u8 percentage);
+
+QByteArray CreateMoveToMapCoordMessage(
+    const std::vector<u32>& selectedUnitIds,
+    const QPointF& targetMapCoord);
 
 
 /// Types of messages sent by the server to clients.
@@ -107,6 +132,14 @@ enum class ServerToClientMessage {
   /// TODO: TCP messages have quite some overhead. Add an option to batch such messages together with other in-game messages?
   ///       Especially trees could be added quite frequently.
   AddObject,
+  
+  /// Tells the client that all messages following this one belong to the given game
+  /// step time, until the next GameStepTime message is received.
+  GameStepTime,
+  
+  /// Tells the client about the start point and speed of a unit's movement.
+  /// The speed may be zero, which indicates that the unit has stopped moving.
+  UnitMovement,
 };
 
 QByteArray CreateWelcomeMessage();
@@ -130,3 +163,10 @@ QByteArray CreateGameBeginMessage(
     u32 initialStone,
     u16 mapWidth,
     u16 mapHeight);
+
+QByteArray CreateGameStepTimeMessage(double gameStepServerTime);
+
+QByteArray CreateUnitMovementMessage(
+    u32 unitId,
+    const QPointF& startPoint,
+    const QPointF& speed);

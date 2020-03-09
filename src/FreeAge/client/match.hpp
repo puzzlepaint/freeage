@@ -22,6 +22,8 @@ class Match {
   
   inline const std::vector<Player>& GetPlayers() const { return players; }
   inline void SetPlayerLoadingPercentage(int playerIndex, int percentage) { players[playerIndex].loadingPercentage = percentage; }
+  
+  /// Returns the index of this client's player in the player list.
   inline int GetPlayerIndex() const { return playerIndexInList; }
   
  private:

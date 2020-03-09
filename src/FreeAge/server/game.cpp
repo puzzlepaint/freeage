@@ -16,6 +16,9 @@ Game::Game(ServerSettings* settings)
     : settings(settings) {}
 
 void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame) {
+  constexpr float kTargetFPS = 30;
+  constexpr float kSimulationTimeInterval = 1 / kTargetFPS;
+  
   this->playersInGame = playersInGame;
   bool firstLoopIteration = true;
   
@@ -58,8 +61,32 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
       ++ it;
     }
     
+    // Handle Qt events.
     qApp->processEvents(QEventLoop::AllEvents);
-    QThread::msleep(1);  // TODO: Change this once we also compute the game loop
+    
+    // Simulate the game.
+    // TODO: Do we need to consider the possibility of falling behind more and more with the simulation?
+    //       I guess that the game would break anyway then.
+    if (map) {
+      double serverTime = GetCurrentServerTime();
+      while (serverTime >= lastSimulationTime + kSimulationTimeInterval) {
+        /// Simulate one game step.
+        SimulateGameStep(lastSimulationTime + kSimulationTimeInterval, kSimulationTimeInterval);
+        
+        lastSimulationTime += kSimulationTimeInterval;
+      }
+      
+      // Sleep until the next simulation iteration is due (in case it is due in the future).
+      double nextIterationTime = lastSimulationTime + kSimulationTimeInterval;
+      serverTime = GetCurrentServerTime();
+      double sleepTimeSeconds = nextIterationTime - serverTime;
+      if (sleepTimeSeconds > 0) {
+        constexpr double kSecondsToMicroseconds = 1000 * 1000;
+        QThread::usleep(kSecondsToMicroseconds * sleepTimeSeconds + 0.5);
+      }
+    } else {
+      QThread::msleep(1);
+    }
     
     firstLoopIteration = false;
   }
@@ -115,7 +142,7 @@ void Game::SendChatBroadcast(u16 sendingPlayerIndex, const QString& text, const 
 }
 
 // TODO: This is duplicated from match_setup.cpp, de-duplicate this
-void Game::HandleChat(const QByteArray& msg, PlayerInGame* player, int len, const std::vector<std::shared_ptr<PlayerInGame>>& players) {
+void Game::HandleChat(const QByteArray& msg, PlayerInGame* player, u32 len, const std::vector<std::shared_ptr<PlayerInGame>>& players) {
   LOG(INFO) << "Server: Received Chat";
   
   QString text = QString::fromUtf8(msg.mid(3, len - 3));
@@ -144,6 +171,42 @@ void Game::HandlePing(const QByteArray& msg, PlayerInGame* player) {
   player->socket->write(CreatePingResponseMessage(number, serverTimeSeconds));
 }
 
+void Game::HandleMoveToMapCoordMessage(const QByteArray& msg, PlayerInGame* player, u32 len) {
+  // Parse message
+  if (len < 13 + 4) {
+    return;
+  }
+  const char* data = msg.data();
+  
+  QPointF targetMapCoord(
+      *reinterpret_cast<const float*>(data + 3),
+      *reinterpret_cast<const float*>(data + 7));
+  
+  usize selectedUnitIdsSize = mango::uload16(data + 11);
+  if (len != 13 + 4 * selectedUnitIdsSize) {
+    return;
+  }
+  std::vector<u32> selectedUnitIds(selectedUnitIdsSize);
+  int offset = 13;
+  for (usize i = 0; i < selectedUnitIdsSize; ++ i) {
+    selectedUnitIds[i] = mango::uload32(data + offset);
+    offset += 4;
+  }
+  
+  // Handle move command (for all IDs which are actually units of the sending client)
+  for (u32 id : selectedUnitIds) {
+    auto it = map->GetObjects().find(id);
+    if (it == map->GetObjects().end() ||
+        !it->second->isUnit() ||
+        it->second->GetPlayerIndex() != player->index) {
+      continue;
+    }
+    
+    ServerUnit* unit = static_cast<ServerUnit*>(it->second);
+    unit->SetMoveToTarget(targetMapCoord);
+  }
+}
+
 Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players) {
   while (true) {
     if (player->unparsedBuffer.size() < 3) {
@@ -160,6 +223,9 @@ Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, con
     ClientToServerMessage msgType = static_cast<ClientToServerMessage>(data[0]);
     
     switch (msgType) {
+    case ClientToServerMessage::MoveToMapCoord:
+      HandleMoveToMapCoordMessage(player->unparsedBuffer, player, msgLength);
+      break;
     case ClientToServerMessage::Chat:
       HandleChat(player->unparsedBuffer, player, msgLength, players);
       break;
@@ -248,7 +314,10 @@ void Game::StartGame() {
   // including the initial view center for each player (on its initial TC),
   // the player's initial resources, and the map size.
   constexpr double kGameBeginOffsetSeconds = 1.0;  // give some time for the initial messages to arrive and be processed
-  double serverTimeSeconds = SecondsDuration(Clock::now() - settings->serverStartTime).count();
+  double serverTime = GetCurrentServerTime();
+  gameBeginServerTime = serverTime + kGameBeginOffsetSeconds;
+  lastSimulationTime = gameBeginServerTime;
+  
   for (auto& player : *playersInGame) {
     // Find the player's town center and start with it in the center of the view.
     // If the player does not have a town center, find any villager and center on it instead.
@@ -278,7 +347,7 @@ void Game::StartGame() {
     
     // Send message.
     QByteArray gameBeginMsg = CreateGameBeginMessage(
-        serverTimeSeconds + kGameBeginOffsetSeconds,
+        gameBeginServerTime,
         initialViewCenter,
         /*initialFood*/ 200,  // TODO: do not hardcode here
         /*initialWood*/ 200,  // TODO: do not hardcode here
@@ -306,4 +375,88 @@ void Game::StartGame() {
   }
   
   LOG(INFO) << "Server: Game start prepared";
+}
+
+void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds) {
+  std::vector<QByteArray> accumulatedMessages(playersInGame->size());
+  for (usize playerIndex = 0; playerIndex < playersInGame->size(); ++ playerIndex) {
+    accumulatedMessages[playerIndex].reserve(1024);
+  }
+  
+  // Iterate over all game objects to update their state.
+  auto end = map->GetObjects().end();
+  for (auto it = map->GetObjects().begin(); it != end; ++ it) {
+    const u32& objectId = it->first;
+    ServerObject* object = it->second;
+    
+    if (object->isUnit()) {
+      ServerUnit* unit = static_cast<ServerUnit*>(object);
+      
+      bool unitMovementChanged = false;
+      
+      // If the unit's goal has been updated, plan a path towards the goal.
+      if (unit->HasMoveToTarget() && !unit->HasPath()) {
+        // TODO: Actually plan a path. For now, we just set the move-to target as a single path target point.
+        unit->SetPath(unit->GetMoveToTargetMapCoord());
+        
+        // Start traversing the path:
+        // Set the unit's movement direction to the first segment of the path.
+        QPointF direction = unit->GetMoveToTargetMapCoord() - unit->GetMapCoord();
+        direction = direction / std::max(1e-4f, sqrtf(direction.x() * direction.x() + direction.y() * direction.y()));
+        unit->SetMovementDirection(direction);
+        unitMovementChanged = true;
+      }
+      
+      if (unit->GetMovementDirection() != QPointF(0, 0)) {
+        float moveDistance = unit->GetMoveSpeed() * stepLengthInSeconds;
+        
+        // Test whether the current goal was reached.
+        QPointF toGoal = unit->GetPathTarget() - unit->GetMapCoord();
+        float squaredDistanceToGoal = toGoal.x() * toGoal.x() + toGoal.y() * toGoal.y();
+        float directionDotToGoal =
+            unit->GetMovementDirection().x() * toGoal.x() +
+            unit->GetMovementDirection().y() * toGoal.y();
+        if (squaredDistanceToGoal <= moveDistance * moveDistance || directionDotToGoal <= 0) {
+          // TODO: Only place the unit directly at the goal if this does not cause a collision.
+          unit->SetMapCoord(unit->GetPathTarget());
+          unit->StopMovement();
+          unitMovementChanged = true;
+        } else {
+          // Move the unit if the path is free.
+          // TODO: Only perform this mapCoord update if the target position is not occupied by a building or other unit.
+          unit->SetMapCoord(unit->GetMapCoord() + moveDistance * unit->GetMovementDirection());
+          
+          // Check whether the unit moves over to the next segment in its planned path.
+          // TODO
+        }
+      }
+      
+      if (unitMovementChanged) {
+        // Notify all clients that see the unit about its new movement / about it having stopped moving.
+        for (usize playerIndex = 0; playerIndex < playersInGame->size(); ++ playerIndex) {
+          // TODO: Only do this if the player sees the unit.
+          accumulatedMessages[playerIndex] +=
+              CreateUnitMovementMessage(
+                  objectId,
+                  unit->GetMapCoord(),
+                  unit->GetMoveSpeed() * unit->GetMovementDirection());
+        }
+      }
+    } else if (object->isBuilding()) {
+      // TODO: Anything to do here?
+    }
+  }
+  
+  // Send out the accumulated messages for each player. The advantage of the accumulation is that
+  // the TCP header only has to be sent once for each player, rather than for each message.
+  //
+  // All messages of this game step are prefixed by a message indicating the current server time,
+  // which avoids sending it with each single message.
+  for (usize playerIndex = 0; playerIndex < playersInGame->size(); ++ playerIndex) {
+    if (!accumulatedMessages[playerIndex].isEmpty()) {
+      (*playersInGame)[playerIndex]->socket->write(
+          CreateGameStepTimeMessage(gameStepServerTime) +
+          accumulatedMessages[playerIndex]);
+    }
+  }
 }

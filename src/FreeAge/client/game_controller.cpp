@@ -18,7 +18,20 @@ GameController::~GameController() {
 }
 
 void GameController::ParseMessage(const QByteArray& buffer, ServerToClientMessage msgType, u16 msgLength) {
+  // The messages are sorted by the frequency in which we expect to get them.
   switch (msgType) {
+  case ServerToClientMessage::UnitMovement:
+    HandleUnitMovementMessage(buffer);
+    break;
+  case ServerToClientMessage::AddObject:
+    HandleAddObjectMessage(buffer);
+    break;
+  case ServerToClientMessage::MapUncover:
+    HandleMapUncoverMessage(buffer);
+    break;
+  case ServerToClientMessage::GameStepTime:
+    HandleGameStepTimeMessage(buffer);
+    break;
   case ServerToClientMessage::ChatBroadcast:
     // TODO
     break;
@@ -27,12 +40,6 @@ void GameController::ParseMessage(const QByteArray& buffer, ServerToClientMessag
     break;
   case ServerToClientMessage::GameBegin:
     HandleGameBeginMessage(buffer);
-    break;
-  case ServerToClientMessage::MapUncover:
-    HandleMapUncoverMessage(buffer);
-    break;
-  case ServerToClientMessage::AddObject:
-    HandleAddObjectMessage(buffer);
     break;
   default:
     LOG(WARNING) << "GameController received a message that it cannot handle: " << static_cast<int>(msgType);
@@ -103,4 +110,33 @@ void GameController::HandleAddObjectMessage(const QByteArray& buffer) {
     
     map->AddObject(objectId, new ClientUnit(playerIndex, unitType, mapCoord));
   }
+}
+
+void GameController::HandleUnitMovementMessage(const QByteArray& buffer) {
+  const char* data = buffer.data();
+  
+  u32 unitId = mango::uload32(data + 3);
+  QPointF startPoint(
+      *reinterpret_cast<const float*>(data + 7),
+      *reinterpret_cast<const float*>(data + 11));
+  QPointF speed(
+      *reinterpret_cast<const float*>(data + 15),
+      *reinterpret_cast<const float*>(data + 19));
+  
+  auto it = map->GetObjects().find(unitId);
+  if (it == map->GetObjects().end()) {
+    LOG(ERROR) << "Received a UnitMovement message for an object ID that is not in the map.";
+    return;
+  }
+  if (!it->second->isUnit()) {
+    LOG(ERROR) << "Received a UnitMovement message for an object ID that is a different type than a unit.";
+    return;
+  }
+  
+  ClientUnit* unit = static_cast<ClientUnit*>(it->second);
+  unit->AddMovementSegment(currentGameStepServerTime, startPoint, speed);
+}
+
+void GameController::HandleGameStepTimeMessage(const QByteArray& buffer) {
+  memcpy(&currentGameStepServerTime, buffer.data() + 3, 8);
 }

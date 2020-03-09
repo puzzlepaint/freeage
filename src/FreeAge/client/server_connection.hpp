@@ -29,18 +29,26 @@ class ServerConnection : public QObject {
   
   /// Returns the server time at which the game state should be displayed by the client right now.
   inline double GetDisplayedServerTime() {
-    double clientTimeSeconds = SecondsDuration(Clock::now() - connectionStartTime).count();
-    
+    // Smoothly estimate the current ping and the offset to the server.
     // TODO: Drop ping outliers
     // TODO: Change the offset on the client time *smoothly* once new measurements come in and
     //       old ones are dropped to prevent visual jumps.
     double offsetSum = 0;
-    for (double offset : lastTimeOffsets) {
-      offsetSum += offset;
+    double pingSum = 0;
+    for (usize i = 0; i < lastTimeOffsets.size(); ++ i) {
+      offsetSum += lastTimeOffsets[i];
+      pingSum += lastPings[i];
     }
     double filteredOffset = offsetSum / lastTimeOffsets.size();
+    double filteredPing = pingSum / lastPings.size();
     
-    return clientTimeSeconds + filteredOffset;
+    // First, estimate the current server time.
+    double clientTimeSeconds = SecondsDuration(Clock::now() - connectionStartTime).count();
+    double estimatedServerTimeNow = clientTimeSeconds + filteredOffset;
+    
+    // Second, subtract the ping (to account for network latency) plus some safety margin (to account for processing time).
+    constexpr double kSafetyMargin = 0.020;  // 20 milliseconds
+    return estimatedServerTimeNow - filteredPing - kSafetyMargin;
   }
   
   /// Thread-safe writing to the connection's socket.
@@ -95,6 +103,7 @@ class ServerConnection : public QObject {
   /// client time to obtain the server time. A single offset may be computed by
   /// filtering the entries in this vector somehow, e.g., drop outliers and average the rest.
   std::vector<double> lastTimeOffsets;
+  std::vector<double> lastPings;
   
   
   // -- Ping --

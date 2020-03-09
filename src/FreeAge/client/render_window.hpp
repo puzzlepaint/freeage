@@ -59,24 +59,27 @@ class RenderWindow : public QOpenGLWidget {
   
   void ComputePixelToOpenGLMatrix();
   void UpdateView(const TimePoint& now);
-  void RenderShadows(double elapsedSeconds);
-  void RenderBuildings(double elapsedSeconds);
-  void RenderOutlines(double elapsedSeconds);
-  void RenderUnits(double elapsedSeconds);
+  void RenderShadows(double displayedServerTime);
+  void RenderBuildings(double displayedServerTime);
+  void RenderOutlines(double displayedServerTime);
+  void RenderUnits(double displayedServerTime);
   void RenderMoveToMarker(const TimePoint& now);
-  void RenderHealthBars(double elapsedSeconds);
+  void RenderHealthBars(double displayedServerTime);
   
   /// Given screen-space coordinates (x, y), finds the next object to select at
   /// this point. If an object is found, true is returned, and the object's ID is
   /// returned in objectId.
-  bool GetObjectToSelectAt(float x, float y, int* objectId);
+  bool GetObjectToSelectAt(float x, float y, u32* objectId);
   
   QPointF ScreenCoordToProjectedCoord(float x, float y);
   
   void ClearSelection();
-  void AddToSelection(int objectId);
+  void AddToSelection(u32 objectId);
   
   void RenderLoadingScreen();
+  
+  /// Updates the game state to the given server time for which the state should be rendered.
+  void UpdateGameState(double displayedServerTime);
   
   virtual void initializeGL() override;
   virtual void paintGL() override;
@@ -110,13 +113,15 @@ class RenderWindow : public QOpenGLWidget {
   std::shared_ptr<Map> map;
   
   /// IDs of selected objects (units or buildings).
-  std::vector<int> selection;
+  std::vector<u32> selection;
   
   /// Current zoom factor. The default zoom is one, two would make everything twice as big, etc.
   float zoom;
   
   /// Game start time.
   TimePoint renderStartTime;
+  
+  double lastDisplayedServerTime = -1;
   
   /// Cached widget size.
   int widgetWidth;

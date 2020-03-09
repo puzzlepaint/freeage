@@ -50,8 +50,9 @@ class Game {
   
   void HandleLoadingProgress(const QByteArray& msg, PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players);
   void SendChatBroadcast(u16 sendingPlayerIndex, const QString& text, const std::vector<std::shared_ptr<PlayerInGame>>& players);
-  void HandleChat(const QByteArray& msg, PlayerInGame* player, int len, const std::vector<std::shared_ptr<PlayerInGame>>& players);
+  void HandleChat(const QByteArray& msg, PlayerInGame* player, u32 len, const std::vector<std::shared_ptr<PlayerInGame>>& players);
   void HandlePing(const QByteArray& msg, PlayerInGame* player);
+  void HandleMoveToMapCoordMessage(const QByteArray& msg, PlayerInGame* player, u32 len);
   ParseMessagesResult TryParseClientMessages(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players);
   
   // TODO: Right now, this creates a message containing the whole map content.
@@ -60,9 +61,20 @@ class Game {
   QByteArray CreateMapUncoverMessage();
   QByteArray CreateAddObjectMessage(u32 objectId, ServerObject* object);
   
+  inline double GetCurrentServerTime() { return SecondsDuration(Clock::now() - settings->serverStartTime).count(); }
   void StartGame();
+  void SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds);
+  
   
   std::shared_ptr<ServerMap> map;
+  
+  /// The server time in seconds at which the actual game begins (after all clients
+  /// finished loading).
+  double gameBeginServerTime;
+  
+  /// The server time at which the last game iteration was simulated.
+  /// The next iteration is due 1 / FPS seconds after this time.
+  double lastSimulationTime;
   
   std::vector<std::shared_ptr<PlayerInGame>>* playersInGame;
   ServerSettings* settings;  // not owned

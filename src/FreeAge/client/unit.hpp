@@ -15,6 +15,7 @@ constexpr int kNumFacingDirections = 16;
 
 enum class UnitAnimation {
   Idle = 0,
+  Walk,
   NumAnimationTypes
 };
 
@@ -75,14 +76,23 @@ class ClientUnit : public ClientObject {
       float zoom,
       int widgetWidth,
       int widgetHeight,
-      double elapsedSeconds,
+      double serverTime,
       bool shadow,
       bool outline);
   
   inline UnitType GetType() const { return type; }
+  
   inline UnitAnimation GetCurrentAnimation() const { return currentAnimation; }
+  void SetCurrentAnimation(UnitAnimation animation, double serverTime, const std::vector<ClientUnitType>& unitTypes);
   
   inline const QPointF& GetMapCoord() const { return mapCoord; }
+  
+  void AddMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed) {
+    movementSegments.emplace_back(serverTime, startPoint, speed);
+  }
+  
+  /// Updates the unit's state to the given server time.
+  void UpdateGameState(double serverTime, const std::vector<ClientUnitType>& unitTypes);
   
  private:
   UnitType type;
@@ -97,4 +107,27 @@ class ClientUnit : public ClientObject {
   UnitAnimation currentAnimation;
   int currentAnimationVariant;
   double lastAnimationStartTime;
+  
+  /// Represents a segment of linear unit movement.
+  struct MovementSegment {
+    inline MovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed)
+        : serverTime(serverTime),
+          startPoint(startPoint),
+          speed(speed) {}
+    
+    /// The server time at which the unit starts moving from startPoint.
+    double serverTime;
+    
+    /// The start point of the movement.
+    QPointF startPoint;
+    
+    /// The direction & speed vector of movement. This may be zero, which means
+    /// that the unit stops moving at startPoint at the given serverTime.
+    QPointF speed;
+  };
+  
+  /// Ordered list of scheduled movement segments, sorted by increasing server time.
+  /// If the unit stands still, this is empty. Otherwise, it contains at least the current
+  /// segment of movement, and possibly additional segments for later.
+  std::vector<MovementSegment> movementSegments;
 };

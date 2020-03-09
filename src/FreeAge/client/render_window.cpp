@@ -350,7 +350,7 @@ void RenderWindow::UpdateView(const TimePoint& now) {
   }
 }
 
-void RenderWindow::RenderShadows(double elapsedSeconds) {
+void RenderWindow::RenderShadows(double displayedServerTime) {
   for (auto& object : map->GetObjects()) {
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
@@ -363,7 +363,7 @@ void RenderWindow::RenderShadows(double elapsedSeconds) {
       QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
           map.get(),
           buildingTypes,
-          elapsedSeconds,
+          displayedServerTime,
           true,
           false);
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
@@ -377,7 +377,7 @@ void RenderWindow::RenderShadows(double elapsedSeconds) {
             zoom,
             widgetWidth,
             widgetHeight,
-            elapsedSeconds,
+            displayedServerTime,
             true,
             false);
       }
@@ -390,7 +390,7 @@ void RenderWindow::RenderShadows(double elapsedSeconds) {
       QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
           map.get(),
           unitTypes,
-          elapsedSeconds,
+          displayedServerTime,
           true,
           false);
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
@@ -404,7 +404,7 @@ void RenderWindow::RenderShadows(double elapsedSeconds) {
             zoom,
             widgetWidth,
             widgetHeight,
-            elapsedSeconds,
+            displayedServerTime,
             true,
             false);
       }
@@ -412,7 +412,7 @@ void RenderWindow::RenderShadows(double elapsedSeconds) {
   }
 }
 
-void RenderWindow::RenderBuildings(double elapsedSeconds) {
+void RenderWindow::RenderBuildings(double displayedServerTime) {
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
     if (!object.second->isBuilding()) {
@@ -423,7 +423,7 @@ void RenderWindow::RenderBuildings(double elapsedSeconds) {
     QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
         map.get(),
         buildingTypes,
-        elapsedSeconds,
+        displayedServerTime,
         false,
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
@@ -438,14 +438,14 @@ void RenderWindow::RenderBuildings(double elapsedSeconds) {
           zoom,
           widgetWidth,
           widgetHeight,
-          elapsedSeconds,
+          displayedServerTime,
           false,
           false);
     }
   }
 }
 
-void RenderWindow::RenderOutlines(double elapsedSeconds) {
+void RenderWindow::RenderOutlines(double displayedServerTime) {
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
@@ -460,7 +460,7 @@ void RenderWindow::RenderOutlines(double elapsedSeconds) {
       QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
           map.get(),
           buildingTypes,
-          elapsedSeconds,
+          displayedServerTime,
           false,
           true);
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
@@ -474,7 +474,7 @@ void RenderWindow::RenderOutlines(double elapsedSeconds) {
             zoom,
             widgetWidth,
             widgetHeight,
-            elapsedSeconds,
+            displayedServerTime,
             false,
             true);
       }
@@ -487,7 +487,7 @@ void RenderWindow::RenderOutlines(double elapsedSeconds) {
       QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
           map.get(),
           unitTypes,
-          elapsedSeconds,
+          displayedServerTime,
           false,
           true);
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
@@ -501,7 +501,7 @@ void RenderWindow::RenderOutlines(double elapsedSeconds) {
             zoom,
             widgetWidth,
             widgetHeight,
-            elapsedSeconds,
+            displayedServerTime,
             false,
             true);
       }
@@ -509,7 +509,7 @@ void RenderWindow::RenderOutlines(double elapsedSeconds) {
   }
 }
 
-void RenderWindow::RenderUnits(double elapsedSeconds) {
+void RenderWindow::RenderUnits(double displayedServerTime) {
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
     if (!object.second->isUnit()) {
@@ -520,7 +520,7 @@ void RenderWindow::RenderUnits(double elapsedSeconds) {
     QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
         map.get(),
         unitTypes,
-        elapsedSeconds,
+        displayedServerTime,
         false,
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
@@ -534,7 +534,7 @@ void RenderWindow::RenderUnits(double elapsedSeconds) {
           zoom,
           widgetWidth,
           widgetHeight,
-          elapsedSeconds,
+          displayedServerTime,
           false,
           false);
     }
@@ -575,7 +575,7 @@ void RenderWindow::RenderMoveToMarker(const TimePoint& now) {
   }
 }
 
-void RenderWindow::RenderHealthBars(double elapsedSeconds) {
+void RenderWindow::RenderHealthBars(double displayedServerTime) {
   QRgb gaiaColor = qRgb(255, 255, 255);
   
   for (auto& object : map->GetObjects()) {
@@ -592,7 +592,7 @@ void RenderWindow::RenderHealthBars(double elapsedSeconds) {
       QPointF centerProjectedCoord = building.GetCenterProjectedCoord(map.get(), buildingTypes);
       QPointF healthBarCenter =
           centerProjectedCoord +
-          QPointF(0, -1 * buildingType.GetHealthBarHeightAboveCenter(building.GetFrameIndex(buildingType, elapsedSeconds)));
+          QPointF(0, -1 * buildingType.GetHealthBarHeightAboveCenter(building.GetFrameIndex(buildingType, displayedServerTime)));
       
       constexpr float kHealthBarWidth = 60;  // TODO: Smaller bar for trees
       constexpr float kHealthBarHeight = 3;
@@ -656,16 +656,13 @@ struct PossibleSelectedObject {
     return score < other.score;
   }
   
-  int id;
+  u32 id;
   
   /// The smaller, the better.
   float score;
 };
 
-bool RenderWindow::GetObjectToSelectAt(float x, float y, int* objectId) {
-  TimePoint now = Clock::now();
-  double elapsedSeconds = std::chrono::duration<double>(now - renderStartTime).count();
-  
+bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId) {
   // First, collect all objects at the given position.
   std::vector<PossibleSelectedObject> possibleSelectedObjects;
   
@@ -703,11 +700,11 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, int* objectId) {
       QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
           map.get(),
           buildingTypes,
-          elapsedSeconds,
+          lastDisplayedServerTime,
           false,
           false);
       if (!addToList && projectedCoordsRect.contains(projectedCoord)) {
-        const Sprite::Frame& frame = buildingType.GetSprite().frame(building.GetFrameIndex(buildingType, elapsedSeconds));
+        const Sprite::Frame& frame = buildingType.GetSprite().frame(building.GetFrameIndex(buildingType, lastDisplayedServerTime));
         // We add 1 here to account for the sprite border which is not included in projectedCoordsRect.
         // We further add 0.5f for rounding during the cast to integer.
         QPoint point(projectedCoord.x() - projectedCoordsRect.x() + 1 + 0.5f, projectedCoord.y() - projectedCoordsRect.y() + 1 + 0.5f);
@@ -734,7 +731,7 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, int* objectId) {
       QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
           map.get(),
           unitTypes,
-          elapsedSeconds,
+          lastDisplayedServerTime,
           false,
           false);
       projectedCoordsRect.adjust(-kExtendSize, -kExtendSize, kExtendSize, kExtendSize);
@@ -782,7 +779,7 @@ QPointF RenderWindow::ScreenCoordToProjectedCoord(float x, float y) {
 }
 
 void RenderWindow::ClearSelection() {
-  for (int objectId : selection) {
+  for (u32 objectId : selection) {
     auto objectIt = map->GetObjects().find(objectId);
     if (objectIt == map->GetObjects().end()) {
       LOG(ERROR) << "Selected object ID not found in map->GetObjects().";
@@ -794,7 +791,7 @@ void RenderWindow::ClearSelection() {
   selection.clear();
 }
 
-void RenderWindow::AddToSelection(int objectId) {
+void RenderWindow::AddToSelection(u32 objectId) {
   selection.push_back(objectId);
   
   auto objectIt = map->GetObjects().find(objectId);
@@ -851,6 +848,18 @@ void RenderWindow::RenderLoadingScreen() {
       loadingTextDisplay->GetBounds().y() - loadingIcon->GetHeight(),
       *loadingIcon,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+}
+
+void RenderWindow::UpdateGameState(double displayedServerTime) {
+  // Iterate over all map objects and predict their state at the given server time.
+  for (const auto& item : map->GetObjects()) {
+    if (item.second->isUnit()) {
+      ClientUnit* unit = static_cast<ClientUnit*>(item.second);
+      unit->UpdateGameState(displayedServerTime, unitTypes);
+    } else if (item.second->isBuilding()) {
+      // TODO: Anything to do here?
+    }
+  }
 }
 
 void RenderWindow::initializeGL() {
@@ -941,7 +950,15 @@ void RenderWindow::paintGL() {
   // Get the time for which to render the game state.
   // TODO: Predict the time at which the rendered frame will be displayed rather than taking the current time.
   TimePoint now = Clock::now();
-  double elapsedSeconds = std::chrono::duration<double>(now - renderStartTime).count();
+  // TODO: Using elapsedSeconds for animation has been replaced with using displayedServerTime.
+  // double elapsedSeconds = std::chrono::duration<double>(now - renderStartTime).count();
+  
+  // Update the game state to the server time that should be displayed.
+  double displayedServerTime = connection->GetDisplayedServerTime();
+  if (displayedServerTime > lastDisplayedServerTime) {
+    UpdateGameState(displayedServerTime);
+    lastDisplayedServerTime = displayedServerTime;
+  }
   
   // Update scrolling and compute the view transformation.
   UpdateView(now);
@@ -965,7 +982,7 @@ void RenderWindow::paintGL() {
   // and for alpha values, the maximum is used.
   f->glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
   
-  RenderShadows(elapsedSeconds);
+  RenderShadows(displayedServerTime);
   
   // Render the map terrain.
   f->glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);  // blend with the shadows
@@ -979,7 +996,7 @@ void RenderWindow::paintGL() {
   f->glDepthFunc(GL_LEQUAL);
   
   // Render buildings.
-  RenderBuildings(elapsedSeconds);
+  RenderBuildings(displayedServerTime);
   
   // Render outlines.
   // Disable depth writing.
@@ -988,13 +1005,13 @@ void RenderWindow::paintGL() {
   // So we only render outlines in places where something is occluded.
   f->glDepthFunc(GL_GREATER);
   
-  RenderOutlines(elapsedSeconds);
+  RenderOutlines(displayedServerTime);
   
   // Render units.
   f->glDepthMask(GL_TRUE);
   f->glDepthFunc(GL_LEQUAL);
   
-  RenderUnits(elapsedSeconds);
+  RenderUnits(displayedServerTime);
   
   // Render move-to marker.
   // This should be rendered after the last unit at the moment, since it contains semi-transparent
@@ -1005,7 +1022,7 @@ void RenderWindow::paintGL() {
   f->glClear(GL_DEPTH_BUFFER_BIT);
   f->glDisable(GL_BLEND);
   
-  RenderHealthBars(elapsedSeconds);
+  RenderHealthBars(displayedServerTime);
 }
 
 void RenderWindow::resizeGL(int width, int height) {
@@ -1021,22 +1038,26 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
   if (event->button() == Qt::LeftButton) {
     // TODO: Remember position for dragging
   } else if (event->button() == Qt::RightButton) {
-    bool haveUnitSelected = false;
+    bool haveOwnUnitSelected = false;
     bool haveBuildingSelected = false;
     
-    for (int id : selection) {
+    for (u32 id : selection) {
       auto objectIt = map->GetObjects().find(id);
       if (objectIt == map->GetObjects().end()) {
         LOG(ERROR) << "Selected object ID not found in map->GetObjects().";
       } else {
         haveBuildingSelected |= objectIt->second->isBuilding();
-        haveUnitSelected |= objectIt->second->isUnit();
+        haveOwnUnitSelected |= objectIt->second->isUnit() && objectIt->second->GetPlayerIndex() == match->GetPlayerIndex();
       }
     }
     
-    if (haveUnitSelected && !haveBuildingSelected) {
+    if (haveOwnUnitSelected && !haveBuildingSelected) {
       QPointF projectedCoord = ScreenCoordToProjectedCoord(event->x(), event->y());
       if (map->ProjectedCoordToMapCoord(projectedCoord, &moveToMapCoord)) {
+        // Send the move command to the server.
+        connection->Write(CreateMoveToMapCoordMessage(selection, moveToMapCoord));
+        
+        // Show the move-to marker.
         moveToTime = Clock::now();
         haveMoveTo = true;
       }
@@ -1060,7 +1081,7 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
   if (event->button() == Qt::LeftButton) {
     // TODO: Only do this when not dragging
     
-    int objectId;
+    u32 objectId;
     if (GetObjectToSelectAt(event->x(), event->y(), &objectId)) {
       // Note: We need to keep the selection during GetObjectToSelectAt() to make the
       // mechanism work which selects the next object on repeated clicks.

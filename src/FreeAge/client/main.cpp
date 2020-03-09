@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <QApplication>
+#include <QCommandLineParser>
 #include <QDir>
 #include <QFontDatabase>
 #include <QImage>
@@ -71,12 +72,27 @@ int main(int argc, char** argv) {
   // Communication with the server.
   std::shared_ptr<ServerConnection> connection(new ServerConnection());
   
-  // Load settings.
-  bool noServer = argc >= 2 && argv[1] == std::string("--no-server");  // TODO: For debugging. This allows starting the server separately in gdb.
+  // Parse command line options.
+  QCommandLineParser parser;
   
+  QCommandLineOption noServerOption("no-server", QObject::tr("Do not start a server when hosting, but connect to an existing server process instead using the host token 'aaaaaa'."));
+  parser.addOption(noServerOption);
+  
+  QCommandLineOption playerOption("player", QObject::tr("Sets the initial player name"), QObject::tr("Player name"));
+  parser.addOption(playerOption);
+  
+  parser.process(qapp);
+  
+  bool noServer = parser.isSet(noServerOption);
+  QString initialPlayerName = parser.value(playerOption);
+  
+  // Load settings.
   Settings settings;
   if (!settings.TryLoad()) {
     settings.InitializeWithDefaults();
+  }
+  if (!initialPlayerName.isEmpty()) {
+    settings.playerName = initialPlayerName;
   }
   
   // Match info, later returned by the game dialog.

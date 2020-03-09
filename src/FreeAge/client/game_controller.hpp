@@ -32,6 +32,8 @@ class GameController : public QObject {
   void HandleGameBeginMessage(const QByteArray& buffer);
   void HandleMapUncoverMessage(const QByteArray& buffer);
   void HandleAddObjectMessage(const QByteArray& buffer);
+  void HandleUnitMovementMessage(const QByteArray& buffer);
+  void HandleGameStepTimeMessage(const QByteArray& buffer);
   
   std::shared_ptr<ServerConnection> connection;
   std::shared_ptr<Match> match;
@@ -39,4 +41,5 @@ class GameController : public QObject {
   std::shared_ptr<RenderWindow> renderWindow;
   
   double gameStartServerTimeSeconds = std::numeric_limits<double>::max();
+  double currentGameStepServerTime;
 };

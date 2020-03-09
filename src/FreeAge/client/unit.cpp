@@ -1,5 +1,7 @@
 #include "FreeAge/client/unit.hpp"
 
+#include <cmath>
+
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/client/map.hpp"
 
@@ -13,15 +15,21 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   case UnitType::FemaleVillager:
     animations[static_cast<int>(UnitAnimation::Idle)].resize(1);
     ok = ok && LoadAnimation(0, "u_vil_female_villager_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
+    animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
+    ok = ok && LoadAnimation(0, "u_vil_female_villager_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
     break;
   case UnitType::MaleVillager:
     animations[static_cast<int>(UnitAnimation::Idle)].resize(1);
     ok = ok && LoadAnimation(0, "u_vil_male_villager_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
+    animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
+    ok = ok && LoadAnimation(0, "u_vil_male_villager_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
     break;
   case UnitType::Scout:
     animations[static_cast<int>(UnitAnimation::Idle)].resize(2);
     ok = ok && LoadAnimation(0, "u_cav_scout_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
     ok = ok && LoadAnimation(1, "u_cav_scout_idleB_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
+    animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
+    ok = ok && LoadAnimation(0, "u_cav_scout_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
     break;
   case UnitType::NumUnits:
     LOG(ERROR) << "Invalid unit type in ClientUnitType constructor: " << static_cast<int>(type);
@@ -110,7 +118,7 @@ void ClientUnit::Render(
     float zoom,
     int widgetWidth,
     int widgetHeight,
-    double elapsedSeconds,
+    double serverTime,
     bool shadow,
     bool outline) {
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
@@ -126,17 +134,17 @@ void ClientUnit::Render(
   
   if (lastAnimationStartTime < 0) {
     // Initialize lastAnimationStartTime.
-    lastAnimationStartTime = elapsedSeconds;
+    lastAnimationStartTime = serverTime;
   }
   int frame;
   while (true) {
-    frame = std::max(0, static_cast<int>(framesPerSecond * (elapsedSeconds - lastAnimationStartTime) + 0.5f));
+    frame = std::max(0, static_cast<int>(framesPerSecond * (serverTime - lastAnimationStartTime) + 0.5f));
     if (frame < framesPerDirection) {
       break;
     }
     
     // A new animation starts. Choose a random animation variant.
-    lastAnimationStartTime = std::min(elapsedSeconds, lastAnimationStartTime + framesPerDirection / framesPerSecond);
+    lastAnimationStartTime = std::min(serverTime, lastAnimationStartTime + framesPerDirection / framesPerSecond);
     // TODO: The "currentAnimationVariant == 1" condition is special-case handling to make the scout unit look nicer. Check how this should be handled in general in other cases.
     if (currentAnimationVariant == 1) {
       currentAnimationVariant = 0;
@@ -161,4 +169,61 @@ void ClientUnit::Render(
       outline,
       playerColors,
       playerIndex);
+}
+
+void ClientUnit::SetCurrentAnimation(UnitAnimation animation, double serverTime, const std::vector<ClientUnitType>& unitTypes) {
+  if (currentAnimation == animation) {
+    return;
+  }
+  
+  const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
+  
+  currentAnimation = animation;
+  lastAnimationStartTime = serverTime;
+  currentAnimationVariant = rand() % unitType.GetAnimations(currentAnimation).size();
+}
+
+void ClientUnit::UpdateGameState(double serverTime, const std::vector<ClientUnitType>& unitTypes) {
+  for (int i = static_cast<int>(movementSegments.size()) - 1; i >= 0; -- i) {
+    if (serverTime < movementSegments[i].serverTime) {
+      continue;
+    }
+    
+    if (i > 0) {
+      // Delete previous outdated movement segments.
+      movementSegments.erase(movementSegments.begin(), movementSegments.begin() + i);
+      i = 0;
+    }
+    
+    // Update the unit's movment according to segment 0.
+    mapCoord = movementSegments.front().startPoint + (serverTime - movementSegments.front().serverTime) * movementSegments.front().speed;
+    
+    // Update facing direction.
+    if (movementSegments.front().speed != QPointF(0, 0)) {
+      // This angle goes from (-3) * M_PI / 4 to (+5) * M_PI / 4, with 0 being the right direction in the projected view.
+      double angle = -1 * (atan2(movementSegments.front().speed.y(), movementSegments.front().speed.x()) - M_PI / 4);
+      if (angle < 0) {
+        angle += 2 * M_PI;
+      }
+      direction = std::max(0, std::min(kNumFacingDirections, static_cast<int>(kNumFacingDirections * angle / (2 * M_PI) + 0.5f)));
+      if (direction == kNumFacingDirections) {
+        direction = 0;
+      }
+    }
+    
+    // If the movement is zero, set the unit to the final position and delete the segment.
+    if (movementSegments.front().speed == QPointF(0, 0)) {
+      // Use idle animation
+      SetCurrentAnimation(UnitAnimation::Idle, serverTime, unitTypes);
+      
+      mapCoord = movementSegments.front().startPoint;
+      
+      movementSegments.erase(movementSegments.begin());
+    } else {
+      // Use moving animation
+      SetCurrentAnimation(UnitAnimation::Walk, serverTime, unitTypes);
+    }
+    
+    break;
+  }
 }

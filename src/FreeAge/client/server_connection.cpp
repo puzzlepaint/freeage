@@ -163,6 +163,11 @@ void ServerConnection::HandlePingResponseMessage(const QByteArray& msg, const Ti
         lastTimeOffsets.erase(lastTimeOffsets.begin());
       }
       
+      lastPings.push_back(0.001 * elapsedMilliseconds);
+      if (lastPings.size() > 10) {
+        lastPings.erase(lastPings.begin());
+      }
+      
       return;
     }
   }

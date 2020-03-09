@@ -147,6 +147,33 @@ QByteArray CreateLoadingProgressMessage(u8 percentage) {
   return msg;
 }
 
+QByteArray CreateMoveToMapCoordMessage(const std::vector<u32>& selectedUnitIds, const QPointF& targetMapCoord) {
+  if (selectedUnitIds.empty()) {
+    return QByteArray();
+  }
+  
+  // Create buffer
+  QByteArray msg(13 + 4 * selectedUnitIds.size(), Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ClientToServerMessage::MoveToMapCoord);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  *reinterpret_cast<float*>(data + 3) = targetMapCoord.x();
+  *reinterpret_cast<float*>(data + 7) = targetMapCoord.y();
+  
+  mango::ustore16(data + 11, selectedUnitIds.size());  // TODO: This could also be derived from the message length
+  int offset = 13;
+  for (u32 unitId : selectedUnitIds) {
+    mango::ustore32(data + offset, unitId);
+    offset += 4;
+  }
+  
+  return msg;
+}
+
 
 QByteArray CreateWelcomeMessage() {
   // Create buffer
@@ -263,6 +290,40 @@ QByteArray CreateGameBeginMessage(
   mango::ustore32(data + 31, initialStone);
   mango::ustore16(data + 35, mapWidth);
   mango::ustore16(data + 37, mapHeight);
+  
+  return msg;
+}
+
+QByteArray CreateGameStepTimeMessage(double gameStepServerTime) {
+  // Create buffer
+  QByteArray msg(1 + 2 + 8, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::GameStepTime);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  memcpy(data + 3, &gameStepServerTime, 8);
+  
+  return msg;
+}
+
+QByteArray CreateUnitMovementMessage(u32 unitId, const QPointF& startPoint, const QPointF& speed) {
+  // Create buffer
+  QByteArray msg(23, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::UnitMovement);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore32(data + 3, unitId);
+  *reinterpret_cast<float*>(data + 7) = startPoint.x();
+  *reinterpret_cast<float*>(data + 11) = startPoint.y();
+  *reinterpret_cast<float*>(data + 15) = speed.x();
+  *reinterpret_cast<float*>(data + 19) = speed.y();
   
   return msg;
 }
