@@ -3,6 +3,8 @@
 #include <mango/core/endian.hpp>
 
 #include "FreeAge/common/logging.hpp"
+#include "FreeAge/client/building.hpp"
+#include "FreeAge/client/unit.hpp"
 
 GameController::GameController(const std::shared_ptr<Match>& match, const std::shared_ptr<ServerConnection>& connection)
     : connection(connection),
@@ -30,7 +32,7 @@ void GameController::ParseMessage(const QByteArray& buffer, ServerToClientMessag
     HandleMapUncoverMessage(buffer);
     break;
   case ServerToClientMessage::AddObject:
-    // TODO
+    HandleAddObjectMessage(buffer);
     break;
   default:
     LOG(WARNING) << "GameController received a message that it cannot handle: " << static_cast<int>(msgType);
@@ -79,4 +81,26 @@ void GameController::HandleMapUncoverMessage(const QByteArray& buffer) {
   }
   
   map->SetNeedsRenderResourcesUpdate(true);
+}
+
+void GameController::HandleAddObjectMessage(const QByteArray& buffer) {
+  const char* data = buffer.data();
+  
+  ObjectType objectType = static_cast<ObjectType>(data[3]);
+  u32 objectId = mango::uload32(data + 4);
+  u8 playerIndex = data[8];
+  
+  if (objectType == ObjectType::Building) {
+    BuildingType buildingType = static_cast<BuildingType>(mango::uload16(data + 9));
+    QPoint baseTile(mango::uload16(data + 11),
+                    mango::uload16(data + 13));
+    
+    map->AddObject(objectId, new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y()));
+  } else {
+    UnitType unitType = static_cast<UnitType>(mango::uload16(data + 9));
+    QPointF mapCoord(*reinterpret_cast<const float*>(data + 11),
+                     *reinterpret_cast<const float*>(data + 15));
+    
+    map->AddObject(objectId, new ClientUnit(playerIndex, unitType, mapCoord));
+  }
 }

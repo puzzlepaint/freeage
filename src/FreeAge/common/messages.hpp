@@ -105,6 +105,7 @@ enum class ServerToClientMessage {
   
   /// A new map object (building or unit) is created respectively enters the client's view.
   /// TODO: TCP messages have quite some overhead. Add an option to batch such messages together with other in-game messages?
+  ///       Especially trees could be added quite frequently.
   AddObject,
 };
 

@@ -949,6 +949,10 @@ void RenderWindow::paintGL() {
   // Set states for rendering.
   f->glDisable(GL_CULL_FACE);
   
+  f->glActiveTexture(GL_TEXTURE0 + 1);
+  f->glBindTexture(GL_TEXTURE_2D, playerColorsTexture->GetId());
+  f->glActiveTexture(GL_TEXTURE0);
+  
   // Clear background.
   f->glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

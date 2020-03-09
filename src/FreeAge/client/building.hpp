@@ -81,13 +81,11 @@ class ClientBuilding : public ClientObject {
       bool shadow,
       bool outline);
   
-  inline int GetPlayerIndex() const { return playerIndex; }
   inline BuildingType GetType() const { return type; }
   
   inline QPoint GetBaseTile() const { return QPoint(baseTileX, baseTileY); }
   
  private:
-  int playerIndex;
   BuildingType type;
   
   /// In case the building uses a random but fixed frame index, it is stored here.

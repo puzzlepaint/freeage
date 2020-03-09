@@ -31,6 +31,7 @@ class GameController : public QObject {
   void HandleLoadingProgressBroadcast(const QByteArray& buffer, u16 msgLength);
   void HandleGameBeginMessage(const QByteArray& buffer);
   void HandleMapUncoverMessage(const QByteArray& buffer);
+  void HandleAddObjectMessage(const QByteArray& buffer);
   
   std::shared_ptr<ServerConnection> connection;
   std::shared_ptr<Match> match;

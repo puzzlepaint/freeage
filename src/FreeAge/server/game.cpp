@@ -218,16 +218,15 @@ QByteArray Game::CreateAddObjectMessage(u32 objectId, ServerObject* object) {
   // Fill buffer
   data[3] = static_cast<u8>(object->GetObjectType());  // TODO: Currently unneeded since this could be derived from the message length
   mango::ustore32(data + 4, objectId);  // TODO: Maybe save bytes here as long as e.g. less than 16 bits are non-zero?
+  data[8] = object->GetPlayerIndex();
   
   if (object->isBuilding()) {
     ServerBuilding* building = static_cast<ServerBuilding*>(object);
-    data[8] = building->GetPlayerIndex();
     mango::ustore16(data + 9, static_cast<u16>(building->GetBuildingType()));  // TODO: Would 8 bits be sufficient here?
     mango::ustore16(data + 11, building->GetBaseTile().x());
     mango::ustore16(data + 13, building->GetBaseTile().y());
   } else {
     ServerUnit* unit = static_cast<ServerUnit*>(object);
-    data[8] = unit->GetPlayerIndex();
     mango::ustore16(data + 9, static_cast<u16>(unit->GetUnitType()));  // TODO: Would 8 bits be sufficient here?
     *reinterpret_cast<float*>(data + 11) = unit->GetMapCoord().x();
     *reinterpret_cast<float*>(data + 15) = unit->GetMapCoord().y();

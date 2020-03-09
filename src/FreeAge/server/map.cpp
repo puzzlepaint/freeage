@@ -42,21 +42,21 @@ void ServerMap::GenerateRandomMap(int playerCount, int seed) {
   srand(seed);
   
   // Generate town centers. They are placed along a rectangle that is inset from the map edges.
-  constexpr int kDistanceToMapBorder = 15;
-  constexpr int kPositionVariance = 5;
+  constexpr int kDistanceToMapBorder = 12;
+  constexpr int kPositionVariance = 4;
   
   int rectangleWidth = width - 2 * kDistanceToMapBorder;
   int rectangleHeight = height - 2 * kDistanceToMapBorder;
   int rectangleEdgeLength = 2 * rectangleWidth + 2 * rectangleHeight;
-  constexpr int kPositionOnRectangeVariance = 10;
+  constexpr int kPositionOnRectangleVariance = 7;
   
   std::vector<QPoint> townCenterLocations(playerCount);
   std::vector<QPointF> townCenterCenters(playerCount);
   QSize townCenterSize = GetBuildingSize(BuildingType::TownCenter);
   for (int player = 0; player < playerCount; ++ player) {
     int positionOnRectangle =
-        ((rand() % rectangleEdgeLength) +
-         (rand() % (2 * kPositionOnRectangeVariance + 1)) - kPositionOnRectangeVariance) % rectangleEdgeLength;
+        ((player * rectangleEdgeLength / playerCount) +
+         (rand() % (2 * kPositionOnRectangleVariance + 1)) - kPositionOnRectangleVariance) % rectangleEdgeLength;
     
     if (positionOnRectangle < rectangleWidth) {
       townCenterLocations[player] = QPoint(kDistanceToMapBorder + positionOnRectangle, kDistanceToMapBorder);

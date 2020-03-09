@@ -75,6 +75,8 @@ class Map {
   inline std::unordered_map<int, ClientObject*>& GetObjects() { return objects; }
   inline const std::unordered_map<int, ClientObject*>& GetObjects() const { return objects; }
   
+  inline void AddObject(int objectId, ClientObject* object) { objects.insert(std::make_pair(objectId, object)); }
+  
   inline int GetWidth() const { return width; }
   inline int GetHeight() const { return height; }
   
