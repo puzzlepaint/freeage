@@ -283,7 +283,6 @@ bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord) {
   int maxTileY = std::min<int>(height - 1, mapCoord.y() + radius);
   for (int tileY = minTileY; tileY <= maxTileY; ++ tileY) {
     for (int tileX = minTileX; tileX <= maxTileX; ++ tileX) {
-      LOG(WARNING) << "tileX: " << tileX << ", tileY: " << tileY;
       if (!occupiedAt(tileX, tileY)) {
         continue;
       }
@@ -295,7 +294,6 @@ bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord) {
       
       QPointF offset = mapCoord - closestPointInTile;
       float squaredDistance = offset.x() * offset.x() + offset.y() * offset.y();
-      LOG(WARNING) << "tileX: " << tileX << ", tileY: " << tileY << ", mapCoord.x(): " << mapCoord.x() << "< mapCoord.y(): " << mapCoord.y() << ", squaredDistance: " << squaredDistance;
       if (squaredDistance < squaredRadius) {
         return true;
       }

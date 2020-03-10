@@ -70,6 +70,11 @@ RenderWindow::RenderWindow(
   // This may be faster than keeping partial updates possible
   setUpdateBehavior(QOpenGLWidget::NoPartialUpdate);
   
+  // Set the default cursor
+  setCursor(QCursor(QPixmap::fromImage(QImage((
+      graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame" / "cursor" / "default32x32.cur").c_str())),
+      0, 0));
+  
   // Do continuous rendering via a timer
   float framesPerSecondCap = 120;
   QTimer* timer = new QTimer(this);
