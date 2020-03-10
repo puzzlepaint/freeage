@@ -46,9 +46,10 @@ class ServerConnection : public QObject {
     double clientTimeSeconds = SecondsDuration(Clock::now() - connectionStartTime).count();
     double estimatedServerTimeNow = clientTimeSeconds + filteredOffset;
     
-    // Second, subtract the ping (to account for network latency) plus some safety margin (to account for processing time).
-    constexpr double kSafetyMargin = 0.020;  // 20 milliseconds
-    return estimatedServerTimeNow - filteredPing - kSafetyMargin;
+    // Second, subtract half the ping (to account for network latency from the server to the client)
+    // plus some safety margin (to account for processing time).
+    constexpr double kSafetyMargin = 0.010;  // 10 milliseconds
+    return estimatedServerTimeNow - 0.5 * filteredPing - kSafetyMargin;
   }
   
   /// Thread-safe writing to the connection's socket.

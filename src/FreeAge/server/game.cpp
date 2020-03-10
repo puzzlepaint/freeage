@@ -417,14 +417,21 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
             unit->GetMovementDirection().x() * toGoal.x() +
             unit->GetMovementDirection().y() * toGoal.y();
         if (squaredDistanceToGoal <= moveDistance * moveDistance || directionDotToGoal <= 0) {
-          // TODO: Only place the unit directly at the goal if this does not cause a collision.
-          unit->SetMapCoord(unit->GetPathTarget());
+          if (!map->DoesUnitCollide(unit, unit->GetPathTarget())) {
+            unit->SetMapCoord(unit->GetPathTarget());
+          }
           unit->StopMovement();
           unitMovementChanged = true;
         } else {
           // Move the unit if the path is free.
           // TODO: Only perform this mapCoord update if the target position is not occupied by a building or other unit.
-          unit->SetMapCoord(unit->GetMapCoord() + moveDistance * unit->GetMovementDirection());
+          QPointF newMapCoord = unit->GetMapCoord() + moveDistance * unit->GetMovementDirection();
+          if (map->DoesUnitCollide(unit, newMapCoord)) {
+            unit->StopMovement();
+            unitMovementChanged = true;
+          } else {
+            unit->SetMapCoord(newMapCoord);
+          }
           
           // Check whether the unit moves over to the next segment in its planned path.
           // TODO

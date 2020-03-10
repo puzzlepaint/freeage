@@ -264,6 +264,64 @@ void ServerMap::PlaceElevation(int tileX, int tileY, int elevationValue) {
   }
 }
 
+bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord) {
+  float radius = GetUnitRadius(unit->GetUnitType());
+  
+  // Test collision with the map bounds
+  if (mapCoord.x() < radius ||
+      mapCoord.y() < radius ||
+      mapCoord.x() >= width - radius ||
+      mapCoord.y() >= height - radius) {
+    return true;
+  }
+  
+  // Test collision with occupied space
+  float squaredRadius = radius * radius;
+  int minTileX = std::max<int>(0, mapCoord.x() - radius);
+  int minTileY = std::max<int>(0, mapCoord.y() - radius);
+  int maxTileX = std::min<int>(width - 1, mapCoord.x() + radius);
+  int maxTileY = std::min<int>(height - 1, mapCoord.y() + radius);
+  for (int tileY = minTileY; tileY <= maxTileY; ++ tileY) {
+    for (int tileX = minTileX; tileX <= maxTileX; ++ tileX) {
+      LOG(WARNING) << "tileX: " << tileX << ", tileY: " << tileY;
+      if (!occupiedAt(tileX, tileY)) {
+        continue;
+      }
+      
+      // Compute the point within the tile that is closest to the unit
+      QPointF closestPointInTile(
+          std::max<float>(tileX, std::min<float>(tileX + 1, mapCoord.x())),
+          std::max<float>(tileY, std::min<float>(tileY + 1, mapCoord.y())));
+      
+      QPointF offset = mapCoord - closestPointInTile;
+      float squaredDistance = offset.x() * offset.x() + offset.y() * offset.y();
+      LOG(WARNING) << "tileX: " << tileX << ", tileY: " << tileY << ", mapCoord.x(): " << mapCoord.x() << "< mapCoord.y(): " << mapCoord.y() << ", squaredDistance: " << squaredDistance;
+      if (squaredDistance < squaredRadius) {
+        return true;
+      }
+    }
+  }
+  
+  // Test collision with other units
+  // TODO: Use some spatial access structure to reduce the number of tests.
+  //       Probably store a list of units on each map tile.
+  for (const auto& item : objects) {
+    ServerObject* object = item.second;
+    if (object->isUnit() && object != unit) {
+      ServerUnit* otherUnit = static_cast<ServerUnit*>(object);
+      
+      float otherRadius = GetUnitRadius(otherUnit->GetUnitType());
+      QPointF offset = otherUnit->GetMapCoord() - mapCoord;
+      float squaredDistance = offset.x() * offset.x() + offset.y() * offset.y();
+      if (squaredDistance < (radius + otherRadius) * (radius + otherRadius)) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
 void ServerMap::AddBuilding(int player, BuildingType type, const QPoint& baseTile) {
   // Insert into objects map
   objects.insert(std::make_pair(nextObjectID, new ServerBuilding(player, type, baseTile)));
@@ -271,8 +329,8 @@ void ServerMap::AddBuilding(int player, BuildingType type, const QPoint& baseTil
   
   // Mark the occupied tiles as such
   QRect occupancyRect = GetBuildingOccupancy(type);
-  for (int y = occupancyRect.y(); y < occupancyRect.y() + occupancyRect.height(); ++ y) {
-    for (int x = occupancyRect.x(); x < occupancyRect.x() + occupancyRect.width(); ++ x) {
+  for (int y = baseTile.y() + occupancyRect.y(), endY = baseTile.y() + occupancyRect.y() + occupancyRect.height(); y < endY; ++ y) {
+    for (int x = baseTile.x() + occupancyRect.x(), endX = baseTile.x() + occupancyRect.x() + occupancyRect.width(); x < endX; ++ x) {
       occupiedAt(x, y) = true;
     }
   }

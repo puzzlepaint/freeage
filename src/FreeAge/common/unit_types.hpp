@@ -9,3 +9,5 @@ enum class UnitType {
   
   NumUnits
 };
+
+float GetUnitRadius(UnitType type);

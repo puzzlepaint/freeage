@@ -9,6 +9,8 @@
 #include "FreeAge/common/unit_types.hpp"
 #include "FreeAge/server/object.hpp"
 
+class ServerUnit;
+
 /// The server's representation of the game's map.
 class ServerMap {
  public:
@@ -23,6 +25,10 @@ class ServerMap {
   /// while ensuring that the maximum slope of 1 is not exceeded
   /// (i.e., neighboring tiles may be modified as well).
   void PlaceElevation(int tileX, int tileY, int elevationValue);
+  
+  /// Tests whether the given unit could stand at the given mapCoord without
+  /// colliding with other units or occupied space (buildings, etc.)
+  bool DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord);
   
   /// Returns the elevation at the given tile corner.
   inline int& elevationAt(int cornerX, int cornerY) { return elevation[cornerY * (width + 1) + cornerX]; }
