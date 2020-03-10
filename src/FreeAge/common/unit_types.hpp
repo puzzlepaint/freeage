@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QString>
+
 /// Unit types. The numbers must be sequential, starting from zero,
 /// since they are used to index into a std::vector.
 enum class UnitType {
@@ -11,3 +13,4 @@ enum class UnitType {
 };
 
 float GetUnitRadius(UnitType type);
+QString GetUnitName(UnitType type);

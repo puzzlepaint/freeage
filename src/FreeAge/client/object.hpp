@@ -1,7 +1,10 @@
 #pragma once
 
+#include <QString>
+
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/object_types.hpp"
+#include "FreeAge/client/texture.hpp"
 
 /// Base class for buildings and units on the client.
 class ClientObject {
@@ -12,8 +15,12 @@ class ClientObject {
         isSelected(false) {}
   
   inline bool isBuilding() const { return objectType == 0; }
+  
   inline bool isUnit() const { return objectType == 1; }
+  
   inline ObjectType GetObjectType() const { return static_cast<ObjectType>(objectType); }
+  QString GetObjectName() const;
+  const Texture* GetIconTexture() const;
   
   inline int GetPlayerIndex() const { return playerIndex; }
   

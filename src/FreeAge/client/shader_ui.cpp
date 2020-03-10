@@ -74,7 +74,7 @@ UIShader::~UIShader() {
 }
 
 
-void RenderUIGraphic(int x, int y, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer) {
+void RenderUIGraphic(float x, float y, float width, float height, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer) {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   f->glEnable(GL_BLEND);
@@ -91,8 +91,8 @@ void RenderUIGraphic(int x, int y, const Texture& texture, UIShader* uiShader, i
   
   program->SetUniform2f(
       uiShader->GetSizeLocation(),
-      2.f * texture.GetWidth() / static_cast<float>(widgetWidth),
-      2.f * texture.GetHeight() / static_cast<float>(widgetHeight));
+      2.f * width / static_cast<float>(widgetWidth),
+      2.f * height / static_cast<float>(widgetHeight));
   
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   float data[] = {1.f * x, 1.f * y, 0.f};

@@ -47,6 +47,8 @@ class RenderWindow : public QOpenGLWidget {
   inline void SetScroll(const QPointF& value) { scroll = value; }
   inline void SetMap(const std::shared_ptr<Map>& map) { this->map = map; map->SetNeedsRenderResourcesUpdate(true); }
   
+  inline void SetGameController(const std::shared_ptr<GameController>& gameController) { this->gameController = gameController; }
+  
  signals:
   void LoadingProgressUpdated(int progress);
   
@@ -65,6 +67,7 @@ class RenderWindow : public QOpenGLWidget {
   void RenderUnits(double displayedServerTime);
   void RenderMoveToMarker(const TimePoint& now);
   void RenderHealthBars(double displayedServerTime);
+  void RenderGameUI();
   
   /// Given screen-space coordinates (x, y), finds the next object to select at
   /// this point. If an object is found, true is returned, and the object's ID is
@@ -150,6 +153,30 @@ class RenderWindow : public QOpenGLWidget {
   std::shared_ptr<Texture> loadingIcon;
   std::shared_ptr<TextDisplay> loadingTextDisplay;
   
+  // Game UI.
+  std::shared_ptr<Texture> resourcePanelTexture;
+  std::shared_ptr<Texture> resourceWoodTexture;
+  std::shared_ptr<TextDisplay> woodTextDisplay;
+  std::shared_ptr<Texture> resourceFoodTexture;
+  std::shared_ptr<TextDisplay> foodTextDisplay;
+  std::shared_ptr<Texture> resourceGoldTexture;
+  std::shared_ptr<TextDisplay> goldTextDisplay;
+  std::shared_ptr<Texture> resourceStoneTexture;
+  std::shared_ptr<TextDisplay> stoneTextDisplay;
+  std::shared_ptr<Texture> popTexture;
+  std::shared_ptr<TextDisplay> popTextDisplay;
+  std::shared_ptr<Texture> idleVillagerDisabledTexture;
+  std::shared_ptr<Texture> currentAgeShieldTexture;
+  std::shared_ptr<TextDisplay> currentAgeTextDisplay;
+  
+  std::shared_ptr<Texture> commandPanelTexture;
+  
+  std::shared_ptr<Texture> selectionPanelTexture;
+  std::shared_ptr<TextDisplay> singleObjectNameDisplay;
+  
+  std::shared_ptr<Texture> iconOverlayNormalTexture;
+  std::shared_ptr<Texture> iconOverlayNormalExpensiveTexture;
+  
   // Resources.
   GLuint pointBuffer;
   
@@ -157,9 +184,6 @@ class RenderWindow : public QOpenGLWidget {
   int playerColorsTextureWidth;
   int playerColorsTextureHeight;
   std::vector<QRgb> playerColors;
-  
-  std::vector<ClientUnitType> unitTypes;
-  std::vector<ClientBuildingType> buildingTypes;
   
   std::shared_ptr<SpriteAndTextures> moveToSprite;
   QPointF moveToMapCoord;
@@ -170,6 +194,8 @@ class RenderWindow : public QOpenGLWidget {
   std::shared_ptr<GameController> gameController;
   std::shared_ptr<ServerConnection> connection;
   QFont georgiaFont;
+  QFont georgiaFontSmaller;
+  QFont georgiaFontLarger;
   const Palettes& palettes;
   const std::filesystem::path& graphicsPath;
   const std::filesystem::path& cachePath;

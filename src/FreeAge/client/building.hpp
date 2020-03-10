@@ -13,6 +13,7 @@ class Map;
 
 
 /// Stores client-side data for building types (i.e., their graphics).
+/// Access the global unit types vector via GetBuildingTypes().
 class ClientBuildingType {
  public:
   ClientBuildingType() = default;
@@ -28,8 +29,17 @@ class ClientBuildingType {
   inline const Texture& GetTexture() const { return texture; }
   inline const Texture& GetShadowTexture() const { return shadowTexture; }
   
+  inline const Texture* GetIconTexture() const { return &iconTexture; }
+  
+  /// Returns the global instance of the building types vector.
+  inline static std::vector<ClientBuildingType>& GetBuildingTypes() {
+    static std::vector<ClientBuildingType> buildingTypesSingleton;
+    return buildingTypesSingleton;
+  }
+  
  private:
   QString GetFilename() const;
+  std::filesystem::path GetIconFilename() const;
   
   BuildingType type;
   
@@ -41,6 +51,8 @@ class ClientBuildingType {
   /// For animated buildings such as mills, this can be used to determine a reasonable
   /// height for the building's health bar.
   int maxCenterY;
+  
+  Texture iconTexture;
 };
 
 
@@ -51,14 +63,12 @@ class ClientBuilding : public ClientObject {
   
   /// Returns the projected coordinates of this building's center point.
   QPointF GetCenterProjectedCoord(
-      Map* map,
-      const std::vector<ClientBuildingType>& buildingTypes);
+      Map* map);
   
   /// Computes the sprite rectangle for this building in projected coordinates.
   /// If shadow is true, returns the rectangle for the shadow sprite.
   QRectF GetRectInProjectedCoords(
       Map* map,
-      const std::vector<ClientBuildingType>& buildingTypes,
       double elapsedSeconds,
       bool shadow,
       bool outline);
@@ -69,7 +79,6 @@ class ClientBuilding : public ClientObject {
   
   void Render(
       Map* map,
-      const std::vector<ClientBuildingType>& buildingTypes,
       const std::vector<QRgb>& playerColors,
       SpriteShader* spriteShader,
       GLuint pointBuffer,
@@ -82,6 +91,8 @@ class ClientBuilding : public ClientObject {
       bool outline);
   
   inline BuildingType GetType() const { return type; }
+  inline QString GetBuildingName() const { return ::GetBuildingName(type); }
+  inline const Texture* GetIconTexture() const { return ClientBuildingType::GetBuildingTypes()[static_cast<int>(type)].GetIconTexture(); };
   
   inline QPoint GetBaseTile() const { return QPoint(baseTileX, baseTileY); }
   

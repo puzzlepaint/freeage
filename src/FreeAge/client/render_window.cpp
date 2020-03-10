@@ -59,6 +59,13 @@ RenderWindow::RenderWindow(
       palettes(palettes),
       graphicsPath(graphicsPath),
       cachePath(cachePath) {
+  georgiaFontLarger = georgiaFont;
+  georgiaFontLarger.setPixelSize(17);
+  georgiaFontLarger.setBold(true);
+  
+  georgiaFontSmaller = georgiaFont;
+  georgiaFontSmaller.setPixelSize(15);
+  
   setAttribute(Qt::WA_OpaquePaintEvent);
   setAutoFillBackground(false);
   
@@ -91,11 +98,34 @@ RenderWindow::RenderWindow(
 }
 
 RenderWindow::~RenderWindow() {
+  // Destroy OpenGL resources here, after makeCurrent() and before doneCurrent().
   makeCurrent();
   
-  // Destroy OpenGL resources here, after makeCurrent() and before doneCurrent().
   loadingIcon.reset();
   loadingTextDisplay.reset();
+  
+  resourcePanelTexture.reset();
+  resourceWoodTexture.reset();
+  woodTextDisplay.reset();
+  resourceFoodTexture.reset();
+  foodTextDisplay.reset();
+  resourceGoldTexture.reset();
+  goldTextDisplay.reset();
+  resourceStoneTexture.reset();
+  stoneTextDisplay.reset();
+  popTexture.reset();
+  popTextDisplay.reset();
+  idleVillagerDisabledTexture.reset();
+  currentAgeShieldTexture.reset();
+  currentAgeTextDisplay.reset();
+  
+  commandPanelTexture.reset();
+  
+  selectionPanelTexture.reset();
+  singleObjectNameDisplay.reset();
+  
+  iconOverlayNormalTexture.reset();
+  iconOverlayNormalExpensiveTexture.reset();
   
   uiShader.reset();
   spriteShader.reset();
@@ -108,8 +138,9 @@ RenderWindow::~RenderWindow() {
     map.reset();
   }
   
-  unitTypes.clear();
-  buildingTypes.clear();
+  ClientUnitType::GetUnitTypes().clear();
+  ClientBuildingType::GetBuildingTypes().clear();
+  LOG(WARNING) << "CLEARING BUILDING TYPES";
   
   playerColorsTexture.reset();
   moveToSprite.reset();
@@ -151,6 +182,7 @@ void RenderWindow::LoadResources() {
   didLoadingStep();
   
   // Load unit resources.
+  auto& unitTypes = ClientUnitType::GetUnitTypes();
   unitTypes.resize(static_cast<int>(UnitType::NumUnits));
   for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
     if (!unitTypes[unitType].Load(static_cast<UnitType>(unitType), graphicsPath, cachePath, palettes)) {
@@ -162,6 +194,7 @@ void RenderWindow::LoadResources() {
   }
   
   // Load building resources.
+  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   buildingTypes.resize(static_cast<int>(BuildingType::NumBuildings));
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
     if (!buildingTypes[buildingType].Load(static_cast<BuildingType>(buildingType), graphicsPath, cachePath, palettes)) {
@@ -184,6 +217,65 @@ void RenderWindow::LoadResources() {
       &moveToSprite->graphicTexture,
       &moveToSprite->shadowTexture,
       palettes);
+  didLoadingStep();
+  
+  // Load game UI textures.
+  const std::string architectureNameCaps = "ASIA";  // TODO: Choose depending on civilization
+  const std::string architectureNameLower = "asia";  // TODO: Choose depending on civilization
+  
+  std::filesystem::path widgetuiTexturesPath =
+      graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures";
+  std::filesystem::path architecturePanelsPath =
+      widgetuiTexturesPath / "ingame" / "panels" / architectureNameCaps;
+  std::filesystem::path ingameIconsPath =
+      widgetuiTexturesPath / "ingame" / "icons";
+  
+  resourcePanelTexture.reset(new Texture());
+  resourcePanelTexture->Load(QImage((architecturePanelsPath / "resource-panel.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  resourceWoodTexture.reset(new Texture());
+  resourceWoodTexture->Load(QImage((ingameIconsPath / "resource_wood.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  resourceFoodTexture.reset(new Texture());
+  resourceFoodTexture->Load(QImage((ingameIconsPath / "resource_food.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  resourceGoldTexture.reset(new Texture());
+  resourceGoldTexture->Load(QImage((ingameIconsPath / "resource_gold.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  resourceStoneTexture.reset(new Texture());
+  resourceStoneTexture->Load(QImage((ingameIconsPath / "resource_stone.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  popTexture.reset(new Texture());
+  popTexture->Load(QImage((ingameIconsPath / "pop.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  idleVillagerDisabledTexture.reset(new Texture());
+  idleVillagerDisabledTexture->Load(QImage((ingameIconsPath / "idle-villager_disabled.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  currentAgeShieldTexture.reset(new Texture());
+  currentAgeShieldTexture->Load(QImage((architecturePanelsPath / ("shield_dark_age_" + architectureNameLower + "_normal.png")).c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  commandPanelTexture.reset(new Texture());
+  commandPanelTexture->Load(QImage((architecturePanelsPath / "command-panel_extended.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  selectionPanelTexture.reset(new Texture());
+  selectionPanelTexture->Load(QImage((architecturePanelsPath / "single-selection-panel.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  iconOverlayNormalTexture.reset(new Texture());
+  iconOverlayNormalTexture->Load(QImage((ingameIconsPath / "icon_overlay_normal.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  iconOverlayNormalExpensiveTexture.reset(new Texture());
+  iconOverlayNormalExpensiveTexture->Load(QImage((ingameIconsPath / "icon_overlay_normal_expensive.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   // Output timings of the resource loading processes.
@@ -356,6 +448,9 @@ void RenderWindow::UpdateView(const TimePoint& now) {
 }
 
 void RenderWindow::RenderShadows(double displayedServerTime) {
+  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
+  auto& unitTypes = ClientUnitType::GetUnitTypes();
+  
   for (auto& object : map->GetObjects()) {
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
@@ -367,14 +462,12 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
       
       QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
           map.get(),
-          buildingTypes,
           displayedServerTime,
           true,
           false);
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
         building.Render(
             map.get(),
-            buildingTypes,
             playerColors,
             shadowShader.get(),
             pointBuffer,
@@ -394,14 +487,12 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
       
       QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
           map.get(),
-          unitTypes,
           displayedServerTime,
           true,
           false);
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
         unit.Render(
             map.get(),
-            unitTypes,
             playerColors,
             shadowShader.get(),
             pointBuffer,
@@ -427,7 +518,6 @@ void RenderWindow::RenderBuildings(double displayedServerTime) {
     
     QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
         map.get(),
-        buildingTypes,
         displayedServerTime,
         false,
         false);
@@ -435,7 +525,6 @@ void RenderWindow::RenderBuildings(double displayedServerTime) {
       // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
       building.Render(
           map.get(),
-          buildingTypes,
           playerColors,
           spriteShader.get(),
           pointBuffer,
@@ -451,6 +540,9 @@ void RenderWindow::RenderBuildings(double displayedServerTime) {
 }
 
 void RenderWindow::RenderOutlines(double displayedServerTime) {
+  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
+  auto& unitTypes = ClientUnitType::GetUnitTypes();
+  
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
@@ -464,14 +556,12 @@ void RenderWindow::RenderOutlines(double displayedServerTime) {
       
       QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
           map.get(),
-          buildingTypes,
           displayedServerTime,
           false,
           true);
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
         building.Render(
             map.get(),
-            buildingTypes,
             playerColors,
             outlineShader.get(),
             pointBuffer,
@@ -491,14 +581,12 @@ void RenderWindow::RenderOutlines(double displayedServerTime) {
       
       QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
           map.get(),
-          unitTypes,
           displayedServerTime,
           false,
           true);
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
         unit.Render(
             map.get(),
-            unitTypes,
             playerColors,
             outlineShader.get(),
             pointBuffer,
@@ -524,14 +612,12 @@ void RenderWindow::RenderUnits(double displayedServerTime) {
     
     QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
         map.get(),
-        unitTypes,
         displayedServerTime,
         false,
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
       unit.Render(
           map.get(),
-          unitTypes,
           playerColors,
           spriteShader.get(),
           pointBuffer,
@@ -581,6 +667,8 @@ void RenderWindow::RenderMoveToMarker(const TimePoint& now) {
 }
 
 void RenderWindow::RenderHealthBars(double displayedServerTime) {
+  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
+  auto& unitTypes = ClientUnitType::GetUnitTypes();
   QRgb gaiaColor = qRgb(255, 255, 255);
   
   for (auto& object : map->GetObjects()) {
@@ -594,7 +682,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
       ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
       const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
       
-      QPointF centerProjectedCoord = building.GetCenterProjectedCoord(map.get(), buildingTypes);
+      QPointF centerProjectedCoord = building.GetCenterProjectedCoord(map.get());
       QPointF healthBarCenter =
           centerProjectedCoord +
           QPointF(0, -1 * buildingType.GetHealthBarHeightAboveCenter(building.GetFrameIndex(buildingType, displayedServerTime)));
@@ -652,6 +740,204 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
   }
 }
 
+void RenderWindow::RenderGameUI() {
+  constexpr float kUIScale = 0.5f;  // TODO: Make configurable
+  
+  // Render the resource panel.
+  RenderUIGraphic(
+      0,
+      0,
+      kUIScale * resourcePanelTexture->GetWidth(),
+      kUIScale * resourcePanelTexture->GetHeight(),
+      *resourcePanelTexture,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  
+  RenderUIGraphic(
+      kUIScale * (17 + 0 * 200), kUIScale * 16,
+      kUIScale * 83,
+      kUIScale * 83,
+      *resourceWoodTexture,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  if (!woodTextDisplay) {
+    woodTextDisplay.reset(new TextDisplay());
+  }
+  woodTextDisplay->Render(
+      georgiaFontSmaller,
+      qRgba(255, 255, 255, 255),
+      "200",  // TODO
+      QRect(kUIScale * (17 + 0 * 200 + 83 + 16),
+            kUIScale * 16,
+            kUIScale * 82,
+            kUIScale * 83),
+      Qt::AlignLeft | Qt::AlignVCenter,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  
+  RenderUIGraphic(
+      kUIScale * (17 + 1 * 200), kUIScale * 16,
+      kUIScale * 83,
+      kUIScale * 83,
+      *resourceFoodTexture,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  if (!foodTextDisplay) {
+    foodTextDisplay.reset(new TextDisplay());
+  }
+  foodTextDisplay->Render(
+      georgiaFontSmaller,
+      qRgba(255, 255, 255, 255),
+      "200",  // TODO
+      QRect(kUIScale * (17 + 1 * 200 + 83 + 16),
+            kUIScale * 16,
+            kUIScale * 82,
+            kUIScale * 83),
+      Qt::AlignLeft | Qt::AlignVCenter,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  
+  RenderUIGraphic(
+      kUIScale * (17 + 2 * 200), kUIScale * 16,
+      kUIScale * 83,
+      kUIScale * 83,
+      *resourceGoldTexture,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  if (!goldTextDisplay) {
+    goldTextDisplay.reset(new TextDisplay());
+  }
+  goldTextDisplay->Render(
+      georgiaFontSmaller,
+      qRgba(255, 255, 255, 255),
+      "100",  // TODO
+      QRect(kUIScale * (17 + 2 * 200 + 83 + 16),
+            kUIScale * 16,
+            kUIScale * 82,
+            kUIScale * 83),
+      Qt::AlignLeft | Qt::AlignVCenter,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  
+  RenderUIGraphic(
+      kUIScale * (17 + 3 * 200), kUIScale * 16,
+      kUIScale * 83,
+      kUIScale * 83,
+      *resourceStoneTexture,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  if (!stoneTextDisplay) {
+    stoneTextDisplay.reset(new TextDisplay());
+  }
+  stoneTextDisplay->Render(
+      georgiaFontSmaller,
+      qRgba(255, 255, 255, 255),
+      "200",  // TODO
+      QRect(kUIScale * (17 + 3 * 200 + 83 + 16),
+            kUIScale * 16,
+            kUIScale * 82,
+            kUIScale * 83),
+      Qt::AlignLeft | Qt::AlignVCenter,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  
+  RenderUIGraphic(
+      kUIScale * (17 + 4 * 200), kUIScale * 16,
+      kUIScale * 83,
+      kUIScale * 83,
+      *popTexture,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  if (!popTextDisplay) {
+    popTextDisplay.reset(new TextDisplay());
+  }
+  popTextDisplay->Render(
+      georgiaFontSmaller,
+      qRgba(255, 255, 255, 255),
+      "4 / 5",  // TODO
+      QRect(kUIScale * (17 + 4 * 200 + 83 + 16),
+            kUIScale * 16,
+            kUIScale * 82,
+            kUIScale * 83),
+      Qt::AlignLeft | Qt::AlignVCenter,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  
+  RenderUIGraphic(
+      kUIScale * (17 + 4 * 200 + 234), kUIScale * 24,
+      kUIScale * 2 * 34,
+      kUIScale * 2 * 34,
+      *idleVillagerDisabledTexture,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  RenderUIGraphic(
+      kUIScale * (17 + 4 * 200 + 234 + 154 - currentAgeShieldTexture->GetWidth() / 2), kUIScale * 0,
+      kUIScale * currentAgeShieldTexture->GetWidth(),
+      kUIScale * currentAgeShieldTexture->GetHeight(),
+      *currentAgeShieldTexture,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  if (!currentAgeTextDisplay) {
+    currentAgeTextDisplay.reset(new TextDisplay());
+  }
+  float currentAgeTextLeft = kUIScale * (17 + 4 * 200 + 234 + 154 + currentAgeShieldTexture->GetWidth() / 2);
+  currentAgeTextDisplay->Render(
+      georgiaFontLarger,
+      qRgba(255, 255, 255, 255),
+      tr("Dark Age"),
+      QRect(currentAgeTextLeft,
+            kUIScale * 16,
+            kUIScale * (1623 - 8) - currentAgeTextLeft,
+            kUIScale * 83),
+      Qt::AlignHCenter | Qt::AlignVCenter,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  
+  // Render the selection panel.
+  float selectionPanelLeft = kUIScale * 539;
+  float selectionPanelTop = widgetHeight - kUIScale * selectionPanelTexture->GetHeight();
+  RenderUIGraphic(
+      selectionPanelLeft,
+      selectionPanelTop,
+      kUIScale * selectionPanelTexture->GetWidth(),
+      kUIScale * selectionPanelTexture->GetHeight(),
+      *selectionPanelTexture,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  
+  if (selection.size() == 1) {
+    ClientObject* singleSelectedObject = map->GetObjects().at(selection.front());
+    
+    // Render name of single selected object
+    if (!singleObjectNameDisplay) {
+      singleObjectNameDisplay.reset(new TextDisplay());
+    }
+    singleObjectNameDisplay->Render(
+        georgiaFontLarger,
+        qRgba(58, 29, 21, 255),
+        singleSelectedObject->GetObjectName(),
+        QRect(selectionPanelLeft + kUIScale * 2*32,
+              selectionPanelTop + kUIScale * 50 + kUIScale * 2*25,
+              kUIScale * 2*172,
+              kUIScale * 2*16),
+        Qt::AlignLeft | Qt::AlignTop,
+        uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+    
+    // Render icon of single selected object
+    const Texture* iconTexture = singleSelectedObject->GetIconTexture();
+    if (iconTexture) {
+      RenderUIGraphic(
+          selectionPanelLeft + kUIScale * 2*32,
+          selectionPanelTop + kUIScale * 50 + kUIScale * 2*46,
+          kUIScale * 2*60,
+          kUIScale * 2*60,
+          *iconTexture,
+          uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      RenderUIGraphic(
+          selectionPanelLeft + kUIScale * 2*32,
+          selectionPanelTop + kUIScale * 50 + kUIScale * 2*46,
+          kUIScale * 2*60,
+          kUIScale * 2*60,
+          *iconOverlayNormalTexture,
+          uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+    }
+  }
+  
+  // Render the command panel.
+  RenderUIGraphic(
+      0,
+      widgetHeight - kUIScale * commandPanelTexture->GetHeight(),
+      kUIScale * commandPanelTexture->GetWidth(),
+      kUIScale * commandPanelTexture->GetHeight(),
+      *commandPanelTexture,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+}
+
 struct PossibleSelectedObject {
   inline PossibleSelectedObject(int id, float score)
       : id(id),
@@ -668,6 +954,8 @@ struct PossibleSelectedObject {
 };
 
 bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId) {
+  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
+  
   // First, collect all objects at the given position.
   std::vector<PossibleSelectedObject> possibleSelectedObjects;
   
@@ -704,7 +992,6 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId) {
       // Is the position within the building sprite?
       QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
           map.get(),
-          buildingTypes,
           lastDisplayedServerTime,
           false,
           false);
@@ -735,7 +1022,6 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId) {
       bool addToList = false;
       QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
           map.get(),
-          unitTypes,
           lastDisplayedServerTime,
           false,
           false);
@@ -851,6 +1137,8 @@ void RenderWindow::RenderLoadingScreen() {
   RenderUIGraphic(
       widgetWidth / 2 - loadingIcon->GetWidth() / 2,
       loadingTextDisplay->GetBounds().y() - loadingIcon->GetHeight(),
+      loadingIcon->GetWidth(),
+      loadingIcon->GetHeight(),
       *loadingIcon,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
 }
@@ -860,7 +1148,7 @@ void RenderWindow::UpdateGameState(double displayedServerTime) {
   for (const auto& item : map->GetObjects()) {
     if (item.second->isUnit()) {
       ClientUnit* unit = static_cast<ClientUnit*>(item.second);
-      unit->UpdateGameState(displayedServerTime, unitTypes);
+      unit->UpdateGameState(displayedServerTime);
     } else if (item.second->isBuilding()) {
       // TODO: Anything to do here?
     }
@@ -906,7 +1194,7 @@ void RenderWindow::initializeGL() {
   
   isLoading = true;
   loadingStep = 0;
-  maxLoadingStep = 16;
+  maxLoadingStep = 28;
   loadingThread->start();
   
   // Create resources right now which are required for rendering the loading screen:
@@ -1028,6 +1316,11 @@ void RenderWindow::paintGL() {
   f->glDisable(GL_BLEND);
   
   RenderHealthBars(displayedServerTime);
+  
+  // Render game UI.
+  // TODO: Would it be faster to render this at the start and then prevent rendering over the UI pixels,
+  //       for example by setting the z-buffer such that no further pixel will be rendered there?
+  RenderGameUI();
 }
 
 void RenderWindow::resizeGL(int width, int height) {

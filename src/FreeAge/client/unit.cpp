@@ -10,6 +10,9 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   
   // TODO: Automatically check how many animations (A, B) for each type are available.
   
+  std::filesystem::path ingameUnitsPath =
+      graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame" / "units";
+  
   bool ok = true;
   switch (type) {
   case UnitType::FemaleVillager:
@@ -17,12 +20,14 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     ok = ok && LoadAnimation(0, "u_vil_female_villager_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
     animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
     ok = ok && LoadAnimation(0, "u_vil_female_villager_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
+    iconTexture.Load(ingameUnitsPath / "016_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);
     break;
   case UnitType::MaleVillager:
     animations[static_cast<int>(UnitAnimation::Idle)].resize(1);
     ok = ok && LoadAnimation(0, "u_vil_male_villager_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
     animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
     ok = ok && LoadAnimation(0, "u_vil_male_villager_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
+    iconTexture.Load(ingameUnitsPath / "015_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);
     break;
   case UnitType::Scout:
     animations[static_cast<int>(UnitAnimation::Idle)].resize(2);
@@ -30,6 +35,7 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     ok = ok && LoadAnimation(1, "u_cav_scout_idleB_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
     animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
     ok = ok && LoadAnimation(0, "u_cav_scout_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
+    iconTexture.Load(ingameUnitsPath / "064_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);
     break;
   case UnitType::NumUnits:
     LOG(ERROR) << "Invalid unit type in ClientUnitType constructor: " << static_cast<int>(type);
@@ -88,7 +94,9 @@ QPointF ClientUnit::GetCenterProjectedCoord(Map* map) {
   return map->MapCoordToProjectedCoord(mapCoord);
 }
 
-QRectF ClientUnit::GetRectInProjectedCoords(Map* map, const std::vector<ClientUnitType>& unitTypes, double elapsedSeconds, bool shadow, bool outline) {
+QRectF ClientUnit::GetRectInProjectedCoords(Map* map, double elapsedSeconds, bool shadow, bool outline) {
+  auto& unitTypes = ClientUnitType::GetUnitTypes();
+  
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
   const SpriteAndTextures& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
   const Sprite& sprite = animationSpriteAndTexture.sprite;
@@ -110,7 +118,6 @@ QRectF ClientUnit::GetRectInProjectedCoords(Map* map, const std::vector<ClientUn
 
 void ClientUnit::Render(
     Map* map,
-    const std::vector<ClientUnitType>& unitTypes,
     const std::vector<QRgb>& playerColors,
     SpriteShader* spriteShader,
     GLuint pointBuffer,
@@ -121,6 +128,7 @@ void ClientUnit::Render(
     double serverTime,
     bool shadow,
     bool outline) {
+  auto& unitTypes = ClientUnitType::GetUnitTypes();
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
   const SpriteAndTextures& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
   const Sprite& sprite = animationSpriteAndTexture.sprite;
@@ -171,11 +179,12 @@ void ClientUnit::Render(
       playerIndex);
 }
 
-void ClientUnit::SetCurrentAnimation(UnitAnimation animation, double serverTime, const std::vector<ClientUnitType>& unitTypes) {
+void ClientUnit::SetCurrentAnimation(UnitAnimation animation, double serverTime) {
   if (currentAnimation == animation) {
     return;
   }
   
+  auto& unitTypes = ClientUnitType::GetUnitTypes();
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
   
   currentAnimation = animation;
@@ -183,7 +192,7 @@ void ClientUnit::SetCurrentAnimation(UnitAnimation animation, double serverTime,
   currentAnimationVariant = rand() % unitType.GetAnimations(currentAnimation).size();
 }
 
-void ClientUnit::UpdateGameState(double serverTime, const std::vector<ClientUnitType>& unitTypes) {
+void ClientUnit::UpdateGameState(double serverTime) {
   for (int i = static_cast<int>(movementSegments.size()) - 1; i >= 0; -- i) {
     if (serverTime < movementSegments[i].serverTime) {
       continue;
@@ -214,14 +223,14 @@ void ClientUnit::UpdateGameState(double serverTime, const std::vector<ClientUnit
     // If the movement is zero, set the unit to the final position and delete the segment.
     if (movementSegments.front().speed == QPointF(0, 0)) {
       // Use idle animation
-      SetCurrentAnimation(UnitAnimation::Idle, serverTime, unitTypes);
+      SetCurrentAnimation(UnitAnimation::Idle, serverTime);
       
       mapCoord = movementSegments.front().startPoint;
       
       movementSegments.erase(movementSegments.begin());
     } else {
       // Use moving animation
-      SetCurrentAnimation(UnitAnimation::Walk, serverTime, unitTypes);
+      SetCurrentAnimation(UnitAnimation::Walk, serverTime);
     }
     
     break;

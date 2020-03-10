@@ -2,6 +2,7 @@
 
 #include <QRect>
 #include <QSize>
+#include <QString>
 
 /// Building types. The numbers must be sequential, starting from zero,
 /// since they are used to index into a std::vector of Sprite.
@@ -24,3 +25,4 @@ enum class BuildingType {
 
 QSize GetBuildingSize(BuildingType type);
 QRect GetBuildingOccupancy(BuildingType type);
+QString GetBuildingName(BuildingType type);

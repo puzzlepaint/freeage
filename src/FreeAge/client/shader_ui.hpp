@@ -32,4 +32,4 @@ class UIShader {
 };
 
 /// Simple helper function to render a UI element.
-void RenderUIGraphic(int x, int y, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer);
+void RenderUIGraphic(float x, float y, float width, float height, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer);

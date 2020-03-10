@@ -25,6 +25,13 @@ bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& gr
     maxCenterY = std::max(maxCenterY, sprite.frame(frame).graphic.centerY);
   }
   
+  std::filesystem::path ingameTexturesPath =
+      graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame";
+  std::filesystem::path iconFilename = GetIconFilename();
+  if (!iconFilename.empty()) {
+    iconTexture.Load(ingameTexturesPath / iconFilename, GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  }
+  
   return true;
 }
 
@@ -51,6 +58,25 @@ QString ClientBuildingType::GetFilename() const {
   return QString();
 }
 
+std::filesystem::path ClientBuildingType::GetIconFilename() const {
+  // TODO: Load this from some data file?
+  
+  switch (type) {
+  case BuildingType::TownCenter:       return std::filesystem::path("buildings") / "028_town_center.DDS";
+  case BuildingType::TownCenterBack:   return std::filesystem::path();
+  case BuildingType::TownCenterCenter: return std::filesystem::path();
+  case BuildingType::TownCenterFront:  return std::filesystem::path();
+  case BuildingType::TownCenterMain:   return std::filesystem::path();
+  case BuildingType::House:            return std::filesystem::path("buildings") / "034_house.DDS";
+  case BuildingType::TreeOak:          return std::filesystem::path("units") / "032_50730.DDS";
+  case BuildingType::NumBuildings:
+    LOG(ERROR) << "Invalid type given: BuildingType::NumBuildings";
+    break;
+  }
+  
+  return std::filesystem::path();
+}
+
 bool ClientBuildingType::UsesRandomSpriteFrame() const {
   return (static_cast<int>(type) >= static_cast<int>(BuildingType::FirstTree) &&
           static_cast<int>(type) <= static_cast<int>(BuildingType::LastTree));
@@ -75,8 +101,8 @@ ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX
       baseTileY(baseTileY) {}
 
 QPointF ClientBuilding::GetCenterProjectedCoord(
-    Map* map,
-    const std::vector<ClientBuildingType>& buildingTypes) {
+    Map* map) {
+  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
   QSize size = buildingType.GetSize();
@@ -86,14 +112,14 @@ QPointF ClientBuilding::GetCenterProjectedCoord(
 
 QRectF ClientBuilding::GetRectInProjectedCoords(
     Map* map,
-    const std::vector<ClientBuildingType>& buildingTypes,
     double elapsedSeconds,
     bool shadow,
     bool outline) {
+  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
   const Sprite& sprite = buildingType.GetSprite();
-  QPointF centerProjectedCoord = GetCenterProjectedCoord(map, buildingTypes);
+  QPointF centerProjectedCoord = GetCenterProjectedCoord(map);
   int frameIndex = GetFrameIndex(buildingType, elapsedSeconds);
   
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameIndex).shadow : sprite.frame(frameIndex).graphic;
@@ -107,7 +133,6 @@ QRectF ClientBuilding::GetRectInProjectedCoords(
 
 void ClientBuilding::Render(
     Map* map,
-    const std::vector<ClientBuildingType>& buildingTypes,
     const std::vector<QRgb>& playerColors,
     SpriteShader* spriteShader,
     GLuint pointBuffer,
@@ -118,10 +143,11 @@ void ClientBuilding::Render(
     double elapsedSeconds,
     bool shadow,
     bool outline) {
+  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
   const Texture& texture = shadow ? buildingType.GetShadowTexture() : buildingType.GetTexture();
-  QPointF centerProjectedCoord = GetCenterProjectedCoord(map, buildingTypes);
+  QPointF centerProjectedCoord = GetCenterProjectedCoord(map);
   int frameIndex = GetFrameIndex(buildingType, elapsedSeconds);
   
   if (type == BuildingType::TownCenter) {

@@ -160,7 +160,7 @@ retryForest:  // TODO: Ugly implementation, improve this
   }
   
   // Generate villagers
-  for (int player = 0; player < 2; ++ player) {
+  for (int player = 0; player < playerCount; ++ player) {
     for (int villager = 0; villager < 3; ++ villager) {
       while (true) {
         // TODO: Account for collisions with other units too.
@@ -183,7 +183,7 @@ retryForest:  // TODO: Ugly implementation, improve this
   }
   
   // Generate scouts
-  for (int player = 0; player < 2; ++ player) {
+  for (int player = 0; player < playerCount; ++ player) {
     while (true) {
       // TODO: Account for collisions with other units too.
       // TODO: Prevent this from potentially being an endless loop

@@ -1,5 +1,7 @@
 #include "FreeAge/common/building_types.hpp"
 
+#include <QObject>
+
 #include "FreeAge/common/logging.hpp"
 
 QSize GetBuildingSize(BuildingType type) {
@@ -30,4 +32,18 @@ QRect GetBuildingOccupancy(BuildingType type) {
     QSize size = GetBuildingSize(type);
     return QRect(0, 0, size.width(), size.height());
   }
+}
+
+QString GetBuildingName(BuildingType type) {
+  switch (type) {
+  case BuildingType::TownCenter: return QObject::tr("Town Center");
+  case BuildingType::TownCenterBack: LOG(ERROR) << "GetBuildingName() called on BuildingType::TownCenterBack"; return "";
+  case BuildingType::TownCenterCenter: LOG(ERROR) << "GetBuildingName() called on BuildingType::TownCenterCenter"; return "";
+  case BuildingType::TownCenterFront: LOG(ERROR) << "GetBuildingName() called on BuildingType::TownCenterFront"; return "";
+  case BuildingType::TownCenterMain: LOG(ERROR) << "GetBuildingName() called on BuildingType::TownCenterMain"; return "";
+  case BuildingType::House: return QObject::tr("House");
+  case BuildingType::TreeOak: return QObject::tr("Oak Tree");
+  case BuildingType::NumBuildings: LOG(ERROR) << "GetBuildingName() called on BuildingType::NumBuildings"; return "";
+  }
+  return "";
 }

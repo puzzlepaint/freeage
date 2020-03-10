@@ -28,6 +28,7 @@ struct SpriteAndTextures {
 
 
 /// Stores client-side data for unit types (i.e., their graphics).
+/// Access the global unit types vector via GetUnitTypes().
 class ClientUnitType {
  public:
   ClientUnitType() = default;
@@ -38,6 +39,14 @@ class ClientUnitType {
   
   inline const std::vector<SpriteAndTextures>& GetAnimations(UnitAnimation type) const { return animations[static_cast<int>(type)]; }
   
+  inline const Texture* GetIconTexture() const { return &iconTexture; }
+  
+  /// Returns the global instance of the unit types vector.
+  inline static std::vector<ClientUnitType>& GetUnitTypes() {
+    static std::vector<ClientUnitType> unitTypesSingleton;
+    return unitTypesSingleton;
+  }
+  
  private:
   bool LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes, UnitAnimation type);
   
@@ -47,6 +56,8 @@ class ClientUnitType {
   /// The maximum centerY value of any graphic frame of this unit type in the idle animation(s) when facing right.
   /// This can be used to determine a reasonable height for the unit's health bar.
   int maxCenterY;
+  
+  Texture iconTexture;
 };
 
 
@@ -61,14 +72,12 @@ class ClientUnit : public ClientObject {
   /// Computes the sprite rectangle for this unit in projected coordinates.
   QRectF GetRectInProjectedCoords(
       Map* map,
-      const std::vector<ClientUnitType>& unitTypes,
       double elapsedSeconds,
       bool shadow,
       bool outline);
   
   void Render(
       Map* map,
-      const std::vector<ClientUnitType>& unitTypes,
       const std::vector<QRgb>& playerColors,
       SpriteShader* spriteShader,
       GLuint pointBuffer,
@@ -81,9 +90,11 @@ class ClientUnit : public ClientObject {
       bool outline);
   
   inline UnitType GetType() const { return type; }
+  inline QString GetUnitName() const { return ::GetUnitName(type); }
+  inline const Texture* GetIconTexture() const { return ClientUnitType::GetUnitTypes()[static_cast<int>(type)].GetIconTexture(); };
   
   inline UnitAnimation GetCurrentAnimation() const { return currentAnimation; }
-  void SetCurrentAnimation(UnitAnimation animation, double serverTime, const std::vector<ClientUnitType>& unitTypes);
+  void SetCurrentAnimation(UnitAnimation animation, double serverTime);
   
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   
@@ -92,7 +103,7 @@ class ClientUnit : public ClientObject {
   }
   
   /// Updates the unit's state to the given server time.
-  void UpdateGameState(double serverTime, const std::vector<ClientUnitType>& unitTypes);
+  void UpdateGameState(double serverTime);
   
  private:
   UnitType type;

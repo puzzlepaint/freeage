@@ -261,5 +261,13 @@ int main(int argc, char** argv) {
   // Run the Qt event loop.
   qapp.exec();
   
+  // Manually delete the render window before the ClientUnitType or ClientBuildingType singleton vectors
+  // are deleted automatically (without an active OpenGL context, causing this to fail).
+  // We have to delete the game controller first since it keeps a shared_ptr of the RenderWindow.
+  gameController.reset();
+  renderWindow->SetGameController(nullptr);
+  renderWindow.reset();
+  LOG(WARNING) << "TEST !!!";
+  
   return 0;
 }
