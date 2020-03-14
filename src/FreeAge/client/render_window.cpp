@@ -461,7 +461,7 @@ void RenderWindow::UpdateView(const TimePoint& now) {
   }
 }
 
-void RenderWindow::RenderClosedPath(const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset) {
+void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset) {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   CHECK_OPENGL_NO_ERROR();
   
@@ -471,18 +471,44 @@ void RenderWindow::RenderClosedPath(const QRgb& color, const std::vector<QPointF
   
   // Repeat the first 2 vertices to close the path and get information
   // on the bend direction at the end.
-  int numVertices = vertices.size() + 2;
+  int numVertices = 2 * (vertices.size() + 1);
   
   // Buffer geometry data.
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   int elementSizeInBytes = 3 * sizeof(float);
   std::vector<float> vertexData(3 * numVertices);  // TODO: Could skip the 3rd dimension
-  for (int i = 0; i < numVertices; ++ i) {
-    int index = i % vertices.size();
+  int lastVertex = vertices.size() - 1;
+  for (usize i = 0; i <= vertices.size(); ++ i) {
+    int thisVertex = i % vertices.size();
+    int nextVertex = (i + 1) % vertices.size();
     
-    vertexData[3 * i + 0] = vertices[index].x() + offset.x();
-    vertexData[3 * i + 1] = vertices[index].y() + offset.y();
-    vertexData[3 * i + 2] = 0;
+    QPointF prevToCur = vertices[thisVertex] - vertices[lastVertex];
+    QPointF curToNext = vertices[nextVertex] - vertices[thisVertex];
+    
+    lastVertex = thisVertex;
+    
+    float prevToCurNormalizer = 1.f / sqrtf(prevToCur.x() * prevToCur.x() + prevToCur.y() * prevToCur.y());
+    prevToCur.setX(prevToCurNormalizer * prevToCur.x());
+    prevToCur.setY(prevToCurNormalizer * prevToCur.y());
+    
+    float curToNextNormalizer = 1.f / sqrtf(curToNext.x() * curToNext.x() + curToNext.y() * curToNext.y());
+    curToNext.setX(curToNextNormalizer * curToNext.x());
+    curToNext.setY(curToNextNormalizer * curToNext.y());
+    
+    QPointF prevToCurRight(halfLineWidth * -prevToCur.y(), halfLineWidth * prevToCur.x());
+    
+    float halfBendAngle = std::max<float>(1e-4f, 0.5f * acos(std::max<float>(-1, std::min<float>(1, prevToCur.x() * -curToNext.x() + prevToCur.y() * -curToNext.y()))));
+    float length = halfLineWidth / tan(halfBendAngle);
+    
+    // Vertex to the left of the line
+    vertexData[6 * i + 0] = vertices[thisVertex].x() - prevToCurRight.x() - length * prevToCur.x() + offset.x();
+    vertexData[6 * i + 1] = vertices[thisVertex].y() - prevToCurRight.y() - length * prevToCur.y() + offset.y();
+    vertexData[6 * i + 2] = 0;
+    
+    // Vertex to the right of the line
+    vertexData[6 * i + 3] = vertices[thisVertex].x() + prevToCurRight.x() + length * prevToCur.x() + offset.x();
+    vertexData[6 * i + 4] = vertices[thisVertex].y() + prevToCurRight.y() + length * prevToCur.y() + offset.y();
+    vertexData[6 * i + 5] = 0;
   }
   f->glBufferData(GL_ARRAY_BUFFER, numVertices * elementSizeInBytes, vertexData.data(), GL_DYNAMIC_DRAW);
   CHECK_OPENGL_NO_ERROR();
@@ -493,7 +519,7 @@ void RenderWindow::RenderClosedPath(const QRgb& color, const std::vector<QPointF
       0);
   
   // Draw lines.
-  f->glDrawArrays(GL_LINE_STRIP, 0, numVertices);
+  f->glDrawArrays(GL_TRIANGLE_STRIP, 0, numVertices);
   CHECK_OPENGL_NO_ERROR();
 }
 
@@ -624,8 +650,8 @@ void RenderWindow::RenderBuildingSelectionOutlines() {
                     ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
       }
       
-      RenderClosedPath(qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, 2));
-      RenderClosedPath(qRgba(255, 255, 255, 255), outlineVertices, QPointF(0, 0));
+      RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2));
+      RenderClosedPath(zoom * 1.1f, qRgba(255, 255, 255, 255), outlineVertices, QPointF(0, 0));
     }
   }
 }
@@ -1502,8 +1528,8 @@ void RenderWindow::paintGL() {
     vertices[2] = lastCursorPos;
     vertices[3] = QPointF(lastCursorPos.x(), dragStartPos.y());
     
-    RenderClosedPath(qRgba(0, 0, 0, 255), vertices, QPointF(2, 2));
-    RenderClosedPath(qRgba(255, 255, 255, 255), vertices, QPointF(0, 0));
+    RenderClosedPath(1.1f, qRgba(0, 0, 0, 255), vertices, QPointF(2, 2));
+    RenderClosedPath(1.1f, qRgba(255, 255, 255, 255), vertices, QPointF(0, 0));
   }
   
   // Render game UI.
