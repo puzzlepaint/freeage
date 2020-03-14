@@ -1192,7 +1192,7 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId) {
         // TODO: Also consider distance between given position and sprite center in score?
         possibleSelectedObjects.emplace_back(object.first, computeScore(projectedCoordsRect, projectedCoord));
       }
-    } else {  // if (object.second->isUnit()) {
+    } else if (object.second->isUnit()) {
       ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
       
       // Is the position close to the unit sprite?
@@ -1243,7 +1243,37 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId) {
 }
 
 void RenderWindow::BoxSelection(const QPoint& p0, const QPoint& p1) {
-  // TODO
+  ClearSelection();
+  
+  QPointF pr0 = ScreenCoordToProjectedCoord(p0.x(), p0.y());
+  QPointF pr1 = ScreenCoordToProjectedCoord(p1.x(), p1.y());
+  QRectF selectionRect(
+      std::min(pr0.x(), pr1.x()),
+      std::min(pr0.y(), pr1.y()),
+      std::abs(pr0.x() - pr1.x()),
+      std::abs(pr0.y() - pr1.y()));
+  
+  for (auto& object : map->GetObjects()) {
+    if (!object.second->ShallBeDisplayed(lastDisplayedServerTime)) {
+      continue;
+    }
+    
+    if (object.second->isUnit()) {
+      ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
+      
+      QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
+          map.get(),
+          lastDisplayedServerTime,
+          false,
+          false);
+      
+      if (projectedCoordsRect.intersects(selectionRect)) {
+        AddToSelection(object.first);
+      }
+    }
+  }
+  
+  SelectionChanged();
 }
 
 QPointF RenderWindow::ScreenCoordToProjectedCoord(float x, float y) {
