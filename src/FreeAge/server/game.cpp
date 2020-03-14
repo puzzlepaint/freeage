@@ -207,6 +207,43 @@ void Game::HandleMoveToMapCoordMessage(const QByteArray& msg, PlayerInGame* play
   }
 }
 
+void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player) {
+  const char* data = msg.data();
+  
+  u32 buildingId = mango::uload32(data + 3);
+  UnitType unitType = static_cast<UnitType>(mango::uload16(data + 7));
+  
+  // Safely get the production building.
+  auto buildingIt = map->GetObjects().find(buildingId);
+  if (buildingIt == map->GetObjects().end()) {
+    LOG(WARNING) << "Received a ProduceUnit message for a building with a non-existant object ID";
+    return;
+  }
+  ServerObject* buildingObject = buildingIt->second;
+  if (!buildingObject->isBuilding()) {
+    LOG(WARNING) << "Received a ProduceUnit message for a production building object ID that is not a building";
+    return;
+  }
+  ServerBuilding* productionBuilding = static_cast<ServerBuilding*>(buildingObject);
+  
+  if (!productionBuilding->CanProduce(unitType, player)) {
+    LOG(ERROR) << "Received a ProduceUnit message for a unit that either cannot be produced from the given building or for which the player does not have the right civilization/technologies";
+    return;
+  }
+  
+  // Does the player have sufficient resources to produce this unit?
+  ResourceAmount unitCost = GetUnitCost(unitType);
+  if (!player->resources.CanAfford(unitCost)) {
+    LOG(WARNING) << "Received a ProduceUnit message for a unit for which the player has not enough resources";
+    return;
+  }
+  // Subtract the unit cost from the player's resources.
+  player->resources.Subtract(unitCost);
+  
+  // Add the unit to the production queue.
+  productionBuilding->QueueUnit(unitType);
+}
+
 Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players) {
   while (true) {
     if (player->unparsedBuffer.size() < 3) {
@@ -225,6 +262,9 @@ Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, con
     switch (msgType) {
     case ClientToServerMessage::MoveToMapCoord:
       HandleMoveToMapCoordMessage(player->unparsedBuffer, player, msgLength);
+      break;
+    case ClientToServerMessage::ProduceUnit:
+      HandleProduceUnitMessage(player->unparsedBuffer, player);
       break;
     case ClientToServerMessage::Chat:
       HandleChat(player->unparsedBuffer, player, msgLength, players);
@@ -349,10 +389,10 @@ void Game::StartGame() {
     QByteArray gameBeginMsg = CreateGameBeginMessage(
         gameBeginServerTime,
         initialViewCenter,
-        /*initialFood*/ 200,  // TODO: do not hardcode here
-        /*initialWood*/ 200,  // TODO: do not hardcode here
-        /*initialGold*/ 100,  // TODO: do not hardcode here
-        /*initialStone*/ 200,  // TODO: do not hardcode here
+        player->resources.wood(),
+        player->resources.food(),
+        player->resources.gold(),
+        player->resources.stone(),
         map->GetWidth(),
         map->GetHeight());
     player->socket->write(gameBeginMsg);
@@ -391,66 +431,10 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
     
     if (object->isUnit()) {
       ServerUnit* unit = static_cast<ServerUnit*>(object);
-      
-      bool unitMovementChanged = false;
-      
-      // If the unit's goal has been updated, plan a path towards the goal.
-      if (unit->HasMoveToTarget() && !unit->HasPath()) {
-        // TODO: Actually plan a path. For now, we just set the move-to target as a single path target point.
-        unit->SetPath(unit->GetMoveToTargetMapCoord());
-        
-        // Start traversing the path:
-        // Set the unit's movement direction to the first segment of the path.
-        QPointF direction = unit->GetMoveToTargetMapCoord() - unit->GetMapCoord();
-        direction = direction / std::max(1e-4f, sqrtf(direction.x() * direction.x() + direction.y() * direction.y()));
-        unit->SetMovementDirection(direction);
-        unitMovementChanged = true;
-      }
-      
-      if (unit->GetMovementDirection() != QPointF(0, 0)) {
-        float moveDistance = unit->GetMoveSpeed() * stepLengthInSeconds;
-        
-        // Test whether the current goal was reached.
-        QPointF toGoal = unit->GetPathTarget() - unit->GetMapCoord();
-        float squaredDistanceToGoal = toGoal.x() * toGoal.x() + toGoal.y() * toGoal.y();
-        float directionDotToGoal =
-            unit->GetMovementDirection().x() * toGoal.x() +
-            unit->GetMovementDirection().y() * toGoal.y();
-        if (squaredDistanceToGoal <= moveDistance * moveDistance || directionDotToGoal <= 0) {
-          if (!map->DoesUnitCollide(unit, unit->GetPathTarget())) {
-            unit->SetMapCoord(unit->GetPathTarget());
-          }
-          unit->StopMovement();
-          unitMovementChanged = true;
-        } else {
-          // Move the unit if the path is free.
-          // TODO: Only perform this mapCoord update if the target position is not occupied by a building or other unit.
-          QPointF newMapCoord = unit->GetMapCoord() + moveDistance * unit->GetMovementDirection();
-          if (map->DoesUnitCollide(unit, newMapCoord)) {
-            unit->StopMovement();
-            unitMovementChanged = true;
-          } else {
-            unit->SetMapCoord(newMapCoord);
-          }
-          
-          // Check whether the unit moves over to the next segment in its planned path.
-          // TODO
-        }
-      }
-      
-      if (unitMovementChanged) {
-        // Notify all clients that see the unit about its new movement / about it having stopped moving.
-        for (usize playerIndex = 0; playerIndex < playersInGame->size(); ++ playerIndex) {
-          // TODO: Only do this if the player sees the unit.
-          accumulatedMessages[playerIndex] +=
-              CreateUnitMovementMessage(
-                  objectId,
-                  unit->GetMapCoord(),
-                  unit->GetMoveSpeed() * unit->GetMovementDirection());
-        }
-      }
+      SimulateGameStepForUnit(objectId, unit, stepLengthInSeconds, &accumulatedMessages);
     } else if (object->isBuilding()) {
-      // TODO: Anything to do here?
+      ServerBuilding* building = static_cast<ServerBuilding*>(object);
+      SimulateGameStepForBuilding(objectId, building, stepLengthInSeconds, &accumulatedMessages);
     }
   }
   
@@ -460,10 +444,190 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
   // All messages of this game step are prefixed by a message indicating the current server time,
   // which avoids sending it with each single message.
   for (usize playerIndex = 0; playerIndex < playersInGame->size(); ++ playerIndex) {
+    auto& player = (*playersInGame)[playerIndex];
+    
+    // Does the player need to be notified about a changed amount of resources?
+    if (player->resources != player->lastResources) {
+      accumulatedMessages[playerIndex] += CreateResourcesUpdateMessage(player->resources);
+      player->lastResources = player->resources;
+    }
+    
     if (!accumulatedMessages[playerIndex].isEmpty()) {
-      (*playersInGame)[playerIndex]->socket->write(
+      player->socket->write(
           CreateGameStepTimeMessage(gameStepServerTime) +
           accumulatedMessages[playerIndex]);
     }
+  }
+}
+
+void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengthInSeconds, std::vector<QByteArray>* accumulatedMessages) {
+  bool unitMovementChanged = false;
+  
+  // If the unit's goal has been updated, plan a path towards the goal.
+  if (unit->HasMoveToTarget() && !unit->HasPath()) {
+    // TODO: Actually plan a path. For now, we just set the move-to target as a single path target point.
+    unit->SetPath(unit->GetMoveToTargetMapCoord());
+    
+    // Start traversing the path:
+    // Set the unit's movement direction to the first segment of the path.
+    QPointF direction = unit->GetMoveToTargetMapCoord() - unit->GetMapCoord();
+    direction = direction / std::max(1e-4f, sqrtf(direction.x() * direction.x() + direction.y() * direction.y()));
+    unit->SetMovementDirection(direction);
+    unitMovementChanged = true;
+  }
+  
+  if (unit->GetMovementDirection() != QPointF(0, 0)) {
+    float moveDistance = unit->GetMoveSpeed() * stepLengthInSeconds;
+    
+    // Test whether the current goal was reached.
+    QPointF toGoal = unit->GetPathTarget() - unit->GetMapCoord();
+    float squaredDistanceToGoal = toGoal.x() * toGoal.x() + toGoal.y() * toGoal.y();
+    float directionDotToGoal =
+        unit->GetMovementDirection().x() * toGoal.x() +
+        unit->GetMovementDirection().y() * toGoal.y();
+    if (squaredDistanceToGoal <= moveDistance * moveDistance || directionDotToGoal <= 0) {
+      if (!map->DoesUnitCollide(unit, unit->GetPathTarget())) {
+        unit->SetMapCoord(unit->GetPathTarget());
+      }
+      unit->StopMovement();
+      unitMovementChanged = true;
+    } else {
+      // Move the unit if the path is free.
+      // TODO: Only perform this mapCoord update if the target position is not occupied by a building or other unit.
+      QPointF newMapCoord = unit->GetMapCoord() + moveDistance * unit->GetMovementDirection();
+      if (map->DoesUnitCollide(unit, newMapCoord)) {
+        unit->StopMovement();
+        unitMovementChanged = true;
+      } else {
+        unit->SetMapCoord(newMapCoord);
+      }
+      
+      // Check whether the unit moves over to the next segment in its planned path.
+      // TODO
+    }
+  }
+  
+  if (unitMovementChanged) {
+    // Notify all clients that see the unit about its new movement / about it having stopped moving.
+    for (usize playerIndex = 0; playerIndex < playersInGame->size(); ++ playerIndex) {
+      // TODO: Only do this if the player sees the unit.
+      (*accumulatedMessages)[playerIndex] +=
+          CreateUnitMovementMessage(
+              unitId,
+              unit->GetMapCoord(),
+              unit->GetMoveSpeed() * unit->GetMovementDirection());
+    }
+  }
+}
+
+void Game::SimulateGameStepForBuilding(u32 /*buildingId*/, ServerBuilding* building, float stepLengthInSeconds, std::vector<QByteArray>* accumulatedMessages) {
+  // If the building's production queue is non-empty, add progress on the item that is currently being produced / researched.
+  UnitType unitInProduction;
+  if (building->IsUnitQueued(&unitInProduction)) {
+    float productionTime = GetUnitProductionTime(unitInProduction);
+    float timeStepPercentage = 100 * stepLengthInSeconds / productionTime;
+    float newPercentage = building->GetProductionPercentage() + timeStepPercentage;
+    if (newPercentage >= 100) {
+      // Special case for UnitType::MaleVillager: Randomly decide whether to produce a male or female.
+      if (unitInProduction == UnitType::MaleVillager) {
+        unitInProduction = (rand() % 2 == 0) ? UnitType::MaleVillager : UnitType::FemaleVillager;
+      }
+      
+      // Create the unit.
+      ProduceUnit(building, unitInProduction, accumulatedMessages);
+      building->RemoveCurrentItemFromQueue();
+      
+      newPercentage = 0;
+    }
+    building->SetProductionPercentage(newPercentage);
+  }
+}
+
+void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction, std::vector<QByteArray>* accumulatedMessages) {
+  // Create the unit object.
+  u32 newUnitId;
+  ServerUnit* newUnit = map->AddUnit(building->GetPlayerIndex(), unitInProduction, QPointF(-999, -999), &newUnitId);
+  
+  // Look for a free space to place the unit next to the building.
+  float unitRadius = GetUnitRadius(unitInProduction);
+  
+  QSize buildingSize = GetBuildingSize(building->GetBuildingType());
+  QPointF buildingBaseCoord(building->GetBaseTile() + QPointF(buildingSize.width() + unitRadius, -unitRadius));
+  float extendedWidth = buildingSize.width() + 2 * unitRadius;
+  float extendedHeight = buildingSize.height() + 2 * unitRadius;
+  
+  bool foundFreeSpace = false;
+  QPointF freeSpace(-999, -999);
+  
+  // Try to place the unit on the bottom-left or bottom-right side of the building.
+  // This equals +x or -y in map coordinates.
+  float offset = 0;
+  while (offset <= std::max(extendedWidth, extendedHeight)) {
+    // Test bottom-right side
+    if (offset < extendedHeight) {
+      QPointF testPoint = buildingBaseCoord + QPointF(0, offset);
+      if (!map->DoesUnitCollide(newUnit, testPoint)) {
+        foundFreeSpace = true;
+        freeSpace = testPoint;
+        break;
+      }
+    }
+    
+    // Test bottom-left side
+    if (offset < extendedWidth) {
+      QPointF testPoint = buildingBaseCoord + QPointF(-offset, 0);
+      if (!map->DoesUnitCollide(newUnit, testPoint)) {
+        foundFreeSpace = true;
+        freeSpace = testPoint;
+        break;
+      }
+    }
+    
+    // Incease the offset. Make sure that we reach the end in a reasonable number
+    // of steps, even in case the unit radius is very small (or even zero).
+    offset += std::min(0.02f * extendedWidth, 2 * unitRadius);
+  }
+  
+  // Try to place the unit on the top-left or top-right side of the building.
+  // This equals -x or +y in map coordinates.
+  if (!foundFreeSpace) {
+    offset = 2 * unitRadius;
+    while (offset <= std::max(extendedWidth, extendedHeight)) {
+      // Test top-left side
+      if (offset < extendedHeight) {
+        QPointF testPoint = buildingBaseCoord + QPointF(-extendedWidth, offset);
+        if (!map->DoesUnitCollide(newUnit, testPoint)) {
+          foundFreeSpace = true;
+          freeSpace = testPoint;
+          break;
+        }
+      }
+      
+      // Test top-right side
+      if (offset < extendedWidth) {
+        QPointF testPoint = buildingBaseCoord + QPointF(-offset, extendedHeight);
+        if (!map->DoesUnitCollide(newUnit, testPoint)) {
+          foundFreeSpace = true;
+          freeSpace = testPoint;
+          break;
+        }
+      }
+      
+      // Incease the offset. Make sure that we reach the end in a reasonable number
+      // of steps, even in case the unit radius is very small (or even zero).
+      offset += std::min(0.02f * extendedWidth, 2 * unitRadius);
+    }
+  }
+  
+  if (foundFreeSpace) {
+    newUnit->SetMapCoord(freeSpace);
+  } else {
+    // TODO: Garrison the unit in the building
+  }
+  
+  // Send messages to clients that see the new unit
+  for (auto& player : *playersInGame) {
+    QByteArray addObjectMsg = CreateAddObjectMessage(newUnitId, newUnit);
+    (*accumulatedMessages)[player->index] += addObjectMsg;
   }
 }

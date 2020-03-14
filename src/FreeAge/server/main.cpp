@@ -84,12 +84,22 @@ int main(int argc, char** argv) {
   for (const auto& player : playersInMatch) {
     if (player->state == PlayerInMatch::State::Joined) {
       std::shared_ptr<PlayerInGame> newPlayer(new PlayerInGame());
+      
       newPlayer->index = playersInGame.size();
       newPlayer->socket = player->socket;
       newPlayer->unparsedBuffer = player->unparsedBuffer;
       newPlayer->name = player->name;
       newPlayer->playerColorIndex = player->playerColorIndex;
       newPlayer->lastPingTime = player->lastPingTime;
+      
+      // TODO: Set the starting resources according to the map
+      newPlayer->resources.wood() = 200;
+      newPlayer->resources.food() = 200 * 200;
+      newPlayer->resources.gold() = 100;
+      newPlayer->resources.stone() = 200;
+      
+      newPlayer->lastResources = newPlayer->resources;
+      
       playersInGame.emplace_back(newPlayer);
     } else {
       delete player->socket;

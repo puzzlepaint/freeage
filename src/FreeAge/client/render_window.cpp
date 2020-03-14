@@ -126,6 +126,8 @@ RenderWindow::~RenderWindow() {
   
   iconOverlayNormalTexture.reset();
   iconOverlayNormalExpensiveTexture.reset();
+  iconOverlayHoverTexture.reset();
+  iconOverlayActiveTexture.reset();
   
   uiShader.reset();
   spriteShader.reset();
@@ -140,7 +142,6 @@ RenderWindow::~RenderWindow() {
   
   ClientUnitType::GetUnitTypes().clear();
   ClientBuildingType::GetBuildingTypes().clear();
-  LOG(WARNING) << "CLEARING BUILDING TYPES";
   
   playerColorsTexture.reset();
   moveToSprite.reset();
@@ -276,6 +277,14 @@ void RenderWindow::LoadResources() {
   
   iconOverlayNormalExpensiveTexture.reset(new Texture());
   iconOverlayNormalExpensiveTexture->Load(QImage((ingameIconsPath / "icon_overlay_normal_expensive.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  iconOverlayHoverTexture.reset(new Texture());
+  iconOverlayHoverTexture->Load(QImage((ingameIconsPath / "icon_overlay_hover.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  iconOverlayActiveTexture.reset(new Texture());
+  iconOverlayActiveTexture->Load(QImage((ingameIconsPath / "icon_overlay_active.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   // Output timings of the resource loading processes.
@@ -743,6 +752,8 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
 void RenderWindow::RenderGameUI() {
   constexpr float kUIScale = 0.5f;  // TODO: Make configurable
   
+  const ResourceAmount& resources = gameController->GetCurrentResourceAmount(lastDisplayedServerTime);
+  
   // Render the resource panel.
   RenderUIGraphic(
       0,
@@ -764,7 +775,7 @@ void RenderWindow::RenderGameUI() {
   woodTextDisplay->Render(
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
-      "200",  // TODO
+      QString::number(resources.wood()),
       QRect(kUIScale * (17 + 0 * 200 + 83 + 16),
             kUIScale * 16,
             kUIScale * 82,
@@ -784,7 +795,7 @@ void RenderWindow::RenderGameUI() {
   foodTextDisplay->Render(
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
-      "200",  // TODO
+      QString::number(resources.food()),
       QRect(kUIScale * (17 + 1 * 200 + 83 + 16),
             kUIScale * 16,
             kUIScale * 82,
@@ -804,7 +815,7 @@ void RenderWindow::RenderGameUI() {
   goldTextDisplay->Render(
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
-      "100",  // TODO
+      QString::number(resources.gold()),
       QRect(kUIScale * (17 + 2 * 200 + 83 + 16),
             kUIScale * 16,
             kUIScale * 82,
@@ -824,7 +835,7 @@ void RenderWindow::RenderGameUI() {
   stoneTextDisplay->Render(
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
-      "200",  // TODO
+      QString::number(resources.stone()),
       QRect(kUIScale * (17 + 3 * 200 + 83 + 16),
             kUIScale * 16,
             kUIScale * 82,
@@ -911,11 +922,12 @@ void RenderWindow::RenderGameUI() {
     // Render icon of single selected object
     const Texture* iconTexture = singleSelectedObject->GetIconTexture();
     if (iconTexture) {
+      float iconInset = kUIScale * 4;
       RenderUIGraphic(
-          selectionPanelLeft + kUIScale * 2*32,
-          selectionPanelTop + kUIScale * 50 + kUIScale * 2*46,
-          kUIScale * 2*60,
-          kUIScale * 2*60,
+          selectionPanelLeft + kUIScale * 2*32 + iconInset,
+          selectionPanelTop + kUIScale * 50 + kUIScale * 2*46 + iconInset,
+          kUIScale * 2*60 - 2 * iconInset,
+          kUIScale * 2*60 - 2 * iconInset,
           *iconTexture,
           uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
       RenderUIGraphic(
@@ -929,13 +941,46 @@ void RenderWindow::RenderGameUI() {
   }
   
   // Render the command panel.
+  float commandPanelTop = widgetHeight - kUIScale * commandPanelTexture->GetHeight();
   RenderUIGraphic(
       0,
-      widgetHeight - kUIScale * commandPanelTexture->GetHeight(),
+      commandPanelTop,
       kUIScale * commandPanelTexture->GetWidth(),
       kUIScale * commandPanelTexture->GetHeight(),
       *commandPanelTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  
+  float commandButtonsLeft = kUIScale * 49;
+  float commandButtonsTop = commandPanelTop + kUIScale * 93;
+  float commandButtonsRight = kUIScale * 499;
+  float commandButtonsBottom = commandPanelTop + kUIScale * 370;
+  
+  float commandButtonSize = kUIScale * 80;
+  
+  for (int row = 0; row < kCommandButtonRows; ++ row) {
+    for (int col = 0; col < kCommandButtonCols; ++ col) {
+      float buttonLeft = commandButtonsLeft + (commandButtonsRight - commandButtonSize - commandButtonsLeft) * (col / (kCommandButtonCols - 1.));
+      float buttonTop = commandButtonsTop + (commandButtonsBottom - commandButtonSize - commandButtonsTop) * (row / (kCommandButtonRows - 1.));
+      
+      bool pressed =
+          pressedCommandButtonRow == row &&
+          pressedCommandButtonCol == col;
+      bool mouseOver =
+          lastCursorPos.x() >= buttonLeft &&
+          lastCursorPos.y() >= buttonTop &&
+          lastCursorPos.x() < buttonLeft + commandButtonSize &&
+          lastCursorPos.y() < buttonTop + commandButtonSize;
+      
+      commandButtons[row][col].Render(
+          buttonLeft,
+          buttonTop,
+          commandButtonSize,
+          kUIScale * 4,
+          pressed ? *iconOverlayActiveTexture :
+              (mouseOver ? *iconOverlayHoverTexture : *iconOverlayNormalTexture),
+          uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+    }
+  }
 }
 
 struct PossibleSelectedObject {
@@ -1093,6 +1138,39 @@ void RenderWindow::AddToSelection(u32 objectId) {
   }
 }
 
+void RenderWindow::SelectionChanged() {
+  for (int row = 0; row < kCommandButtonRows; ++ row) {
+    for (int col = 0; col < kCommandButtonCols; ++ col) {
+      commandButtons[row][col].SetInvisible();
+    }
+  }
+  
+  // Check whether a single type of building is selected only.
+  // In this case, show the buttons corresponding to this building type.
+  bool singleBuildingTypeSelected = true;
+  BuildingType selectedBuildingType = BuildingType::NumBuildings;
+  for (usize i = 0; i < selection.size(); ++ i) {
+    u32 objectId = selection[i];
+    ClientObject* object = map->GetObjects().at(objectId);
+    
+    if (object->isUnit()) {
+      singleBuildingTypeSelected = false;
+      break;
+    } else if (object->isBuilding()) {
+      ClientBuilding* building = static_cast<ClientBuilding*>(object);
+      if (i == 0) {
+        selectedBuildingType = building->GetType();
+      } else if (selectedBuildingType != building->GetType()) {
+        singleBuildingTypeSelected = false;
+        break;
+      }
+    }
+  }
+  if (!selection.empty() && singleBuildingTypeSelected) {
+    ClientBuildingType::GetBuildingTypes()[static_cast<int>(selectedBuildingType)].SetCommandButtons(commandButtons);
+  }
+}
+
 void RenderWindow::RenderLoadingScreen() {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   CHECK_OPENGL_NO_ERROR();
@@ -1194,7 +1272,7 @@ void RenderWindow::initializeGL() {
   
   isLoading = true;
   loadingStep = 0;
-  maxLoadingStep = 28;
+  maxLoadingStep = 30;
   loadingThread->start();
   
   // Create resources right now which are required for rendering the loading screen:
@@ -1334,6 +1412,15 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
   }
   
   if (event->button() == Qt::LeftButton) {
+    for (int row = 0; row < kCommandButtonRows; ++ row) {
+      for (int col = 0; col < kCommandButtonCols; ++ col) {
+        if (commandButtons[row][col].IsPointInButton(event->pos())) {
+          pressedCommandButtonRow = row;
+          pressedCommandButtonCol = col;
+        }
+      }
+    }
+    
     // TODO: Remember position for dragging
   } else if (event->button() == Qt::RightButton) {
     bool haveOwnUnitSelected = false;
@@ -1363,12 +1450,22 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
   }
 }
 
-void RenderWindow::mouseMoveEvent(QMouseEvent* /*event*/) {
+void RenderWindow::mouseMoveEvent(QMouseEvent* event) {
   if (!map) {
     return;
   }
   
   // TODO: Possibly manually batch these events together, since we disabled event batching globally.
+  
+  lastCursorPos = event->pos();
+  
+  // If a command button has been pressed but the cursor moves away from it, abort the button press.
+  if (pressedCommandButtonRow >= 0 &&
+      pressedCommandButtonCol >= 0 &&
+      !commandButtons[pressedCommandButtonRow][pressedCommandButtonCol].IsPointInButton(event->pos())) {
+    pressedCommandButtonRow = -1;
+    pressedCommandButtonCol = -1;
+  }
 }
 
 void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
@@ -1377,7 +1474,15 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
   }
   
   if (event->button() == Qt::LeftButton) {
-    // TODO: Only do this when not dragging
+    if (pressedCommandButtonRow >= 0 &&
+        pressedCommandButtonCol >= 0) {
+      commandButtons[pressedCommandButtonRow][pressedCommandButtonCol].Pressed(selection, gameController.get());
+      pressedCommandButtonRow = -1;
+      pressedCommandButtonCol = -1;
+      return;
+    }
+    
+    // TODO: Only do this when not dragging and not clicking the UI
     
     u32 objectId;
     if (GetObjectToSelectAt(event->x(), event->y(), &objectId)) {
@@ -1388,6 +1493,7 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
     } else {
       ClearSelection();
     }
+    SelectionChanged();
   }
 }
 

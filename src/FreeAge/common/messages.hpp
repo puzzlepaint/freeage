@@ -7,7 +7,11 @@
 
 #include "FreeAge/common/free_age.hpp"
 
+
+struct ResourceAmount;
+
 static constexpr int hostTokenLength = 6;
+
 
 /// Types of messages sent by clients to the server.
 enum class ClientToServerMessage {
@@ -62,6 +66,9 @@ enum class ClientToServerMessage {
   /// * Moving a trade cart / cog to an allied market / dock starts trading with it.
   /// TODO: Implement this message
   SetTarget,
+  
+  /// Sent upon pressing the button / hotkey to produce a unit.
+  ProduceUnit,
 };
 
 QByteArray CreateHostConnectMessage(const QByteArray& hostToken, const QString& playerName);
@@ -85,6 +92,10 @@ QByteArray CreateLoadingProgressMessage(u8 percentage);
 QByteArray CreateMoveToMapCoordMessage(
     const std::vector<u32>& selectedUnitIds,
     const QPointF& targetMapCoord);
+
+QByteArray CreateProduceUnitMessage(
+    u32 buildingId,
+    u16 unitType);
 
 
 /// Types of messages sent by the server to clients.
@@ -140,6 +151,9 @@ enum class ServerToClientMessage {
   /// Tells the client about the start point and speed of a unit's movement.
   /// The speed may be zero, which indicates that the unit has stopped moving.
   UnitMovement,
+  
+  /// Tells the client about updates to its game resource amounts (wood, food, etc.)
+  ResourcesUpdate,
 };
 
 QByteArray CreateWelcomeMessage();
@@ -157,8 +171,8 @@ QByteArray CreateLoadingProgressBroadcastMessage(u8 playerIndex, u8 percentage);
 QByteArray CreateGameBeginMessage(
     double gameStartServerTimeSeconds,
     const QPointF& initialViewCenterMapCoord,
-    u32 initialFood,
     u32 initialWood,
+    u32 initialFood,
     u32 initialGold,
     u32 initialStone,
     u16 mapWidth,
@@ -170,3 +184,5 @@ QByteArray CreateUnitMovementMessage(
     u32 unitId,
     const QPointF& startPoint,
     const QPointF& speed);
+
+QByteArray CreateResourcesUpdateMessage(const ResourceAmount& amount);

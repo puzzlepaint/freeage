@@ -320,9 +320,14 @@ bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord) {
   return false;
 }
 
-void ServerMap::AddBuilding(int player, BuildingType type, const QPoint& baseTile) {
+ServerBuilding* ServerMap::AddBuilding(int player, BuildingType type, const QPoint& baseTile, u32* id) {
+  ServerBuilding* newBuilding = new ServerBuilding(player, type, baseTile);
+  
   // Insert into objects map
-  objects.insert(std::make_pair(nextObjectID, new ServerBuilding(player, type, baseTile)));
+  objects.insert(std::make_pair(nextObjectID, newBuilding));
+  if (id) {
+    *id = nextObjectID;
+  }
   ++ nextObjectID;
   
   // Mark the occupied tiles as such
@@ -332,9 +337,16 @@ void ServerMap::AddBuilding(int player, BuildingType type, const QPoint& baseTil
       occupiedAt(x, y) = true;
     }
   }
+  
+  return newBuilding;
 }
 
-void ServerMap::AddUnit(int player, UnitType type, const QPointF& position) {
-  objects.insert(std::make_pair(nextObjectID, new ServerUnit(player, type, position)));
+ServerUnit* ServerMap::AddUnit(int player, UnitType type, const QPointF& position, u32* id) {
+  ServerUnit* newUnit = new ServerUnit(player, type, position);
+  objects.insert(std::make_pair(nextObjectID, newUnit));
+  if (id) {
+    *id = nextObjectID;
+  }
   ++ nextObjectID;
+  return newUnit;
 }

@@ -92,6 +92,19 @@ float ClientBuildingType::GetHealthBarHeightAboveCenter(int frameIndex) const {
   }
 }
 
+void ClientBuildingType::SetCommandButtons(CommandButton commandButtons[3][5]) {
+  // TODO: Load this from some data file
+  
+  if (type == BuildingType::TownCenter) {
+    // NOTE: Choosing the male villager icon here follows the original game.
+    //       Maybe we can increase the diversity :)
+    commandButtons[0][0].SetProduceUnit(UnitType::MaleVillager);
+    
+    // TODO: Set loom button
+    // TODO: Set age-up button
+  }
+}
+
 
 ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY)
     : ClientObject(ObjectType::Building, playerIndex),

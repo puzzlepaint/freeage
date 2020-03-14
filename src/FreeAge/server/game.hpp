@@ -8,8 +8,12 @@
 #include <QTcpSocket>
 
 #include "FreeAge/common/free_age.hpp"
+#include "FreeAge/common/resources.hpp"
 #include "FreeAge/server/map.hpp"
 #include "FreeAge/server/settings.hpp"
+
+class ServerBuilding;
+class ServerUnit;
 
 /// Represents a player in a game.
 struct PlayerInGame {
@@ -34,6 +38,14 @@ struct PlayerInGame {
   
   /// Whether the player finished loading the game resources.
   bool finishedLoading = false;
+  
+  /// The current game resources of the player (wood, food, gold, stone).
+  ResourceAmount resources;
+  
+  /// The resources of the player at the end of the last game simulation step.
+  /// Only if this differs from the current resource amount, then an update message
+  /// needs to be sent to the client.
+  ResourceAmount lastResources;
 };
 
 class Game {
@@ -53,6 +65,7 @@ class Game {
   void HandleChat(const QByteArray& msg, PlayerInGame* player, u32 len, const std::vector<std::shared_ptr<PlayerInGame>>& players);
   void HandlePing(const QByteArray& msg, PlayerInGame* player);
   void HandleMoveToMapCoordMessage(const QByteArray& msg, PlayerInGame* player, u32 len);
+  void HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player);
   ParseMessagesResult TryParseClientMessages(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players);
   
   // TODO: Right now, this creates a message containing the whole map content.
@@ -62,8 +75,13 @@ class Game {
   QByteArray CreateAddObjectMessage(u32 objectId, ServerObject* object);
   
   inline double GetCurrentServerTime() { return SecondsDuration(Clock::now() - settings->serverStartTime).count(); }
+  
   void StartGame();
   void SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds);
+  void SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengthInSeconds, std::vector<QByteArray>* accumulatedMessages);
+  void SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building, float stepLengthInSeconds, std::vector<QByteArray>* accumulatedMessages);
+  
+  void ProduceUnit(ServerBuilding* building, UnitType unitInProduction, std::vector<QByteArray>* accumulatedMessages);
   
   
   std::shared_ptr<ServerMap> map;

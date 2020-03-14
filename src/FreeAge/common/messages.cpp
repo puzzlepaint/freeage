@@ -4,6 +4,7 @@
 #include <QString>
 
 #include "FreeAge/common/logging.hpp"
+#include "FreeAge/common/resources.hpp"
 
 // TODO: Create a helper function to create the base of all of these similar messages
 
@@ -174,6 +175,22 @@ QByteArray CreateMoveToMapCoordMessage(const std::vector<u32>& selectedUnitIds, 
   return msg;
 }
 
+QByteArray CreateProduceUnitMessage(u32 buildingId, u16 unitType) {
+  // Create buffer
+  QByteArray msg(9, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ClientToServerMessage::ProduceUnit);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore32(data + 3, buildingId);
+  mango::ustore16(data + 7, unitType);
+  
+  return msg;
+}
+
 
 QByteArray CreateWelcomeMessage() {
   // Create buffer
@@ -266,8 +283,8 @@ QByteArray CreateLoadingProgressBroadcastMessage(u8 playerIndex, u8 percentage) 
 QByteArray CreateGameBeginMessage(
     double gameStartServerTimeSeconds,
     const QPointF& initialViewCenterMapCoord,
-    u32 initialFood,
     u32 initialWood,
+    u32 initialFood,
     u32 initialGold,
     u32 initialStone,
     u16 mapWidth,
@@ -284,8 +301,8 @@ QByteArray CreateGameBeginMessage(
   memcpy(data + 3, &gameStartServerTimeSeconds, 8);
   *reinterpret_cast<float*>(data + 11) = initialViewCenterMapCoord.x();
   *reinterpret_cast<float*>(data + 15) = initialViewCenterMapCoord.y();
-  mango::ustore32(data + 19, initialFood);
-  mango::ustore32(data + 23, initialWood);
+  mango::ustore32(data + 19, initialWood);
+  mango::ustore32(data + 23, initialFood);
   mango::ustore32(data + 27, initialGold);
   mango::ustore32(data + 31, initialStone);
   mango::ustore16(data + 35, mapWidth);
@@ -324,6 +341,24 @@ QByteArray CreateUnitMovementMessage(u32 unitId, const QPointF& startPoint, cons
   *reinterpret_cast<float*>(data + 11) = startPoint.y();
   *reinterpret_cast<float*>(data + 15) = speed.x();
   *reinterpret_cast<float*>(data + 19) = speed.y();
+  
+  return msg;
+}
+
+QByteArray CreateResourcesUpdateMessage(const ResourceAmount& amount) {
+  // Create buffer
+  QByteArray msg(19, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::ResourcesUpdate);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore32(data + 3, amount.wood());
+  mango::ustore32(data + 7, amount.food());
+  mango::ustore32(data + 11, amount.gold());
+  mango::ustore32(data + 15, amount.stone());
   
   return msg;
 }

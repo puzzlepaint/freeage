@@ -4,6 +4,7 @@
 #include <QString>
 
 #include "FreeAge/common/building_types.hpp"
+#include "FreeAge/client/command_button.hpp"
 #include "FreeAge/client/object.hpp"
 #include "FreeAge/client/shader_sprite.hpp"
 #include "FreeAge/client/sprite.hpp"
@@ -24,6 +25,9 @@ class ClientBuildingType {
   bool UsesRandomSpriteFrame() const;
   /// Returns the height (in projected coordinates) above the building's center at which the health bar should be displayed.
   float GetHealthBarHeightAboveCenter(int frameIndex) const;
+  
+  /// Sets up the command buttons for the actions that can be performed when this building type (only) is selected.
+  void SetCommandButtons(CommandButton commandButtons[3][5]);
   
   inline const Sprite& GetSprite() const { return sprite; }
   inline const Texture& GetTexture() const { return texture; }

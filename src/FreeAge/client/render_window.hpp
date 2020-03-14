@@ -8,6 +8,7 @@
 
 #include "FreeAge/client/unit.hpp"
 #include "FreeAge/common/free_age.hpp"
+#include "FreeAge/client/command_button.hpp"
 #include "FreeAge/client/map.hpp"
 #include "FreeAge/client/match.hpp"
 #include "FreeAge/client/shader_health_bar.hpp"
@@ -78,6 +79,8 @@ class RenderWindow : public QOpenGLWidget {
   
   void ClearSelection();
   void AddToSelection(u32 objectId);
+  /// This must be called after making changes to the selection.
+  void SelectionChanged();
   
   void RenderLoadingScreen();
   
@@ -93,6 +96,9 @@ class RenderWindow : public QOpenGLWidget {
   virtual void wheelEvent(QWheelEvent* event) override;
   virtual void keyPressEvent(QKeyEvent* event) override;
   virtual void keyReleaseEvent(QKeyEvent* event) override;
+  
+  
+  QPoint lastCursorPos = QPoint(0, 0);
   
   /// Current map scroll position in map coordinates.
   /// The "scroll" map coordinate is visible at the center of the screen.
@@ -176,6 +182,13 @@ class RenderWindow : public QOpenGLWidget {
   
   std::shared_ptr<Texture> iconOverlayNormalTexture;
   std::shared_ptr<Texture> iconOverlayNormalExpensiveTexture;
+  std::shared_ptr<Texture> iconOverlayHoverTexture;
+  std::shared_ptr<Texture> iconOverlayActiveTexture;
+  
+  /// Command buttons (on the bottom-left). 3 rows of 5 buttons each. Buttons may be invisible.
+  CommandButton commandButtons[kCommandButtonRows][kCommandButtonCols];
+  int pressedCommandButtonRow = -1;
+  int pressedCommandButtonCol = -1;
   
   // Resources.
   GLuint pointBuffer;

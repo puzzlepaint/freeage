@@ -267,7 +267,6 @@ int main(int argc, char** argv) {
   gameController.reset();
   renderWindow->SetGameController(nullptr);
   renderWindow.reset();
-  LOG(WARNING) << "TEST !!!";
   
   return 0;
 }

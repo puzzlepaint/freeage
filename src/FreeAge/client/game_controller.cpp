@@ -17,6 +17,36 @@ GameController::~GameController() {
   connection->SetParseMessages(false);
 }
 
+void GameController::ProduceUnit(const std::vector<u32>& selection, UnitType type) {
+  if (selection.empty()) {
+    LOG(ERROR) << "Attempted to produce a unit without a selected building.";
+    return;
+  }
+  
+  // TODO: Implement proper multi-queue.
+  // For now, we always queue the unit in the first selected building.
+  connection->Write(CreateProduceUnitMessage(selection.front(), static_cast<u16>(type)));
+}
+
+const ResourceAmount& GameController::GetCurrentResourceAmount(double serverTime) {
+  if (playerResources.empty()) {
+    LOG(FATAL) << "GetCurrentResourceAmount() called while the playerResources vector is empty.";
+  }
+  
+  for (int i = static_cast<int>(playerResources.size()) - 1; i >= 0; -- i) {
+    if (serverTime >= playerResources[i].first) {
+      if (i > 0) {
+        playerResources.erase(playerResources.begin(), playerResources.begin() + i);
+      }
+      
+      return playerResources.front().second;
+    }
+  }
+  
+  LOG(ERROR) << "GetCurrentResourceAmount() did not find a resource amount which is valid for the given server time.";
+  return playerResources.front().second;
+}
+
 void GameController::ParseMessage(const QByteArray& buffer, ServerToClientMessage msgType, u16 msgLength) {
   // The messages are sorted by the frequency in which we expect to get them.
   switch (msgType) {
@@ -31,6 +61,9 @@ void GameController::ParseMessage(const QByteArray& buffer, ServerToClientMessag
     break;
   case ServerToClientMessage::GameStepTime:
     HandleGameStepTimeMessage(buffer);
+    break;
+  case ServerToClientMessage::ResourcesUpdate:
+    HandleResourcesUpdateMessage(buffer);
     break;
   case ServerToClientMessage::ChatBroadcast:
     // TODO
@@ -62,15 +95,11 @@ void GameController::HandleGameBeginMessage(const QByteArray& buffer) {
       *reinterpret_cast<const float*>(data + 11),
       *reinterpret_cast<const float*>(data + 15));
   
-  u32 initialFood = mango::uload32(data + 19);
-  u32 initialWood = mango::uload32(data + 23);
+  u32 initialWood = mango::uload32(data + 19);
+  u32 initialFood = mango::uload32(data + 23);
   u32 initialGold = mango::uload32(data + 27);
   u32 initialStone = mango::uload32(data + 31);
-  // TODO: Store initial resource counts.
-  (void) initialFood;
-  (void) initialWood;
-  (void) initialGold;
-  (void) initialStone;
+  playerResources.push_back(std::make_pair(-1, ResourceAmount(initialWood, initialFood, initialGold, initialStone)));
   
   u16 mapWidth = mango::uload16(data + 35);
   u16 mapHeight = mango::uload16(data + 37);
@@ -92,7 +121,6 @@ void GameController::HandleMapUncoverMessage(const QByteArray& buffer) {
 
 void GameController::HandleAddObjectMessage(const QByteArray& buffer) {
   const char* data = buffer.data();
-  
   ObjectType objectType = static_cast<ObjectType>(data[3]);
   u32 objectId = mango::uload32(data + 4);
   u8 playerIndex = data[8];
@@ -139,4 +167,15 @@ void GameController::HandleUnitMovementMessage(const QByteArray& buffer) {
 
 void GameController::HandleGameStepTimeMessage(const QByteArray& buffer) {
   memcpy(&currentGameStepServerTime, buffer.data() + 3, 8);
+}
+
+void GameController::HandleResourcesUpdateMessage(const QByteArray& buffer) {
+  const char* data = buffer.data();
+  
+  u32 wood = mango::uload32(data + 3);
+  u32 food = mango::uload32(data + 7);
+  u32 gold = mango::uload32(data + 11);
+  u32 stone = mango::uload32(data + 15);
+  
+  playerResources.push_back(std::make_pair(currentGameStepServerTime, ResourceAmount(wood, food, gold, stone)));
 }
