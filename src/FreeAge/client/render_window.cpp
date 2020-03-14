@@ -619,39 +619,57 @@ void RenderWindow::RenderBuildings(double displayedServerTime) {
   }
 }
 
-void RenderWindow::RenderBuildingSelectionOutlines() {
+void RenderWindow::RenderSelectionGroundOutlines() {
   for (u32 objectId : selection) {
     auto it = map->GetObjects().find(objectId);
-    if (it != map->GetObjects().end() &&
-        it->second->isBuilding()) {
-      ClientBuilding& building = *static_cast<ClientBuilding*>(it->second);
-      
-      QSize size = GetBuildingSize(building.GetType());
-      std::vector<QPointF> outlineVertices(4 + 2 * (size.width() - 1) + 2 * (size.height() - 1));
-      
-      QPointF base = building.GetBaseTile();
-      int index = 0;
-      for (int x = 0; x <= size.width(); ++ x) {
-        outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(x, 0));
+    if (it != map->GetObjects().end()) {
+      if (it->second->isBuilding()) {
+        ClientBuilding& building = *static_cast<ClientBuilding*>(it->second);
+        
+        QSize size = GetBuildingSize(building.GetType());
+        std::vector<QPointF> outlineVertices(4 + 2 * (size.width() - 1) + 2 * (size.height() - 1));
+        
+        QPointF base = building.GetBaseTile();
+        int index = 0;
+        for (int x = 0; x <= size.width(); ++ x) {
+          outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(x, 0));
+        }
+        for (int y = 1; y <= size.height(); ++ y) {
+          outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(size.width(), y));
+        }
+        for (int x = static_cast<int>(size.width()) - 1; x >= 0; -- x) {
+          outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(x, size.height()));
+        }
+        for (int y = static_cast<int>(size.height()) - 1; y > 0; -- y) {
+          outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(0, y));
+        }
+        CHECK_EQ(index, outlineVertices.size());
+        for (usize i = 0; i < outlineVertices.size(); ++ i) {
+          outlineVertices[i] =
+              QPointF(((viewMatrix[0] * outlineVertices[i].x() + viewMatrix[2]) * 0.5f + 0.5f) * width(),
+                      ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
+        }
+        
+        RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2));
+        RenderClosedPath(zoom * 1.1f, qRgba(255, 255, 255, 255), outlineVertices, QPointF(0, 0));
+      } else if (it->second->isUnit()) {
+        ClientUnit& unit = *static_cast<ClientUnit*>(it->second);
+        
+        float radius = GetUnitRadius(unit.GetType());
+        
+        std::vector<QPointF> outlineVertices(16);
+        for (usize i = 0; i < outlineVertices.size(); ++ i) {
+          float angle = (2 * M_PI) * i / (1.f * outlineVertices.size());
+          outlineVertices[i] =
+              map->MapCoordToProjectedCoord(unit.GetMapCoord() + radius * QPointF(sin(angle), cos(angle)));
+          outlineVertices[i] =
+              QPointF(((viewMatrix[0] * outlineVertices[i].x() + viewMatrix[2]) * 0.5f + 0.5f) * width(),
+                      ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
+        }
+        
+        RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2));
+        RenderClosedPath(zoom * 1.1f, qRgba(255, 255, 255, 255), outlineVertices, QPointF(0, 0));
       }
-      for (int y = 1; y <= size.height(); ++ y) {
-        outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(size.width(), y));
-      }
-      for (int x = static_cast<int>(size.width()) - 1; x >= 0; -- x) {
-        outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(x, size.height()));
-      }
-      for (int y = static_cast<int>(size.height()) - 1; y > 0; -- y) {
-        outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(0, y));
-      }
-      CHECK_EQ(index, outlineVertices.size());
-      for (usize i = 0; i < outlineVertices.size(); ++ i) {
-        outlineVertices[i] =
-            QPointF(((viewMatrix[0] * outlineVertices[i].x() + viewMatrix[2]) * 0.5f + 0.5f) * width(),
-                    ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
-      }
-      
-      RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2));
-      RenderClosedPath(zoom * 1.1f, qRgba(255, 255, 255, 255), outlineVertices, QPointF(0, 0));
     }
   }
 }
@@ -1484,7 +1502,7 @@ void RenderWindow::paintGL() {
   f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // reset the blend func to standard
   
   // Render selection outlines below buildings.
-  RenderBuildingSelectionOutlines();
+  RenderSelectionGroundOutlines();
   
   // Enable the depth buffer for sprite rendering.
   f->glEnable(GL_DEPTH_TEST);

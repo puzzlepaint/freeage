@@ -69,7 +69,7 @@ class RenderWindow : public QOpenGLWidget {
   void RenderClosedPath(float halfLineWidth, const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset);
   void RenderShadows(double displayedServerTime);
   void RenderBuildings(double displayedServerTime);
-  void RenderBuildingSelectionOutlines();
+  void RenderSelectionGroundOutlines();
   void RenderOutlines(double displayedServerTime);
   void RenderUnits(double displayedServerTime);
   void RenderMoveToMarker(const TimePoint& now);
