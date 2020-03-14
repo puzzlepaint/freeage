@@ -14,7 +14,8 @@ class CommandButton {
  public:
   enum class Type {
     Invisible = 0,
-    ProduceUnit
+    ProduceUnit,
+    Action
   };
   
   /// Hides this button.
@@ -24,6 +25,8 @@ class CommandButton {
   void SetProduceUnit(UnitType type);
   
   // TODO: SetResearchTechnology(TechType type);
+  
+  void SetAction(const Texture* texture);
   
   void Render(
       float x, float y, float size, float iconInset,
@@ -36,9 +39,12 @@ class CommandButton {
   /// button has been rendered.
   bool IsPointInButton(const QPoint& point) { return type != Type::Invisible && buttonRect.contains(point); }
   
+  inline Type GetType() const { return type; }
+  inline UnitType GetUnitProductionType() const { return unitProductionType; }
+  
  private:
   Type type = Type::Invisible;
   UnitType unitProductionType;
-  
+  const Texture* texture = nullptr;
   QRectF buttonRect;
 };

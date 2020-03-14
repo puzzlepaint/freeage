@@ -190,6 +190,8 @@ class RenderWindow : public QOpenGLWidget {
   std::shared_ptr<TextDisplay> currentAgeTextDisplay;
   
   std::shared_ptr<Texture> commandPanelTexture;
+  std::shared_ptr<Texture> buildEconomyBuildingsTexture;
+  std::shared_ptr<Texture> buildMilitaryBuildingsTexture;
   
   std::shared_ptr<Texture> selectionPanelTexture;
   std::shared_ptr<TextDisplay> singleObjectNameDisplay;

@@ -68,7 +68,7 @@ class Map {
   
   // TODO: Should this functionality be moved into its own class?
   inline void SetNeedsRenderResourcesUpdate(bool needsUpdate) { needsRenderResourcesUpdate = needsUpdate; }
-  void Render(float* viewMatrix);
+  void Render(float* viewMatrix, const std::filesystem::path& graphicsPath);
   void UnloadRenderResources();
   
   
@@ -81,7 +81,7 @@ class Map {
   inline int GetHeight() const { return height; }
   
  private:
-  void UpdateRenderResources();
+  void UpdateRenderResources(const std::filesystem::path& graphicsPath);
   
   /// The maximum possible elevation level (the lowest is zero).
   /// This may be higher than the maximum actually existing

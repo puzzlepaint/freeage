@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
       
       // TODO: Set the starting resources according to the map
       newPlayer->resources.wood() = 200;
-      newPlayer->resources.food() = 200 * 200;
+      newPlayer->resources.food() = 200;
       newPlayer->resources.gold() = 100;
       newPlayer->resources.stone() = 200;
       

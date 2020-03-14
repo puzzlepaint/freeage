@@ -30,6 +30,11 @@ class GameController : public QObject {
   /// Server times must be queried in increasing order only (since old values are dropped).
   const ResourceAmount& GetCurrentResourceAmount(double serverTime);
   
+  /// Returns the latest known resource amount, even if this is for a server time that
+  /// should not be displayed yet. This value is used to determine whether to make
+  /// "produce unit" or "research technology" buttons active or inactive.
+  inline const ResourceAmount& GetLatestKnownResourceAmount() { return playerResources.back().second; }
+  
  private slots:
   void ParseMessage(const QByteArray& buffer, ServerToClientMessage msgType, u16 msgLength);
   

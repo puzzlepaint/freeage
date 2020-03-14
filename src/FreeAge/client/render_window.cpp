@@ -121,6 +121,8 @@ RenderWindow::~RenderWindow() {
   currentAgeTextDisplay.reset();
   
   commandPanelTexture.reset();
+  buildEconomyBuildingsTexture.reset();
+  buildMilitaryBuildingsTexture.reset();
   
   selectionPanelTexture.reset();
   singleObjectNameDisplay.reset();
@@ -232,6 +234,8 @@ void RenderWindow::LoadResources() {
       widgetuiTexturesPath / "ingame" / "panels" / architectureNameCaps;
   std::filesystem::path ingameIconsPath =
       widgetuiTexturesPath / "ingame" / "icons";
+  std::filesystem::path ingameActionsPath =
+      widgetuiTexturesPath / "ingame" / "actions";
   
   resourcePanelTexture.reset(new Texture());
   resourcePanelTexture->Load(QImage((architecturePanelsPath / "resource-panel.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
@@ -267,6 +271,14 @@ void RenderWindow::LoadResources() {
   
   commandPanelTexture.reset(new Texture());
   commandPanelTexture->Load(QImage((architecturePanelsPath / "command-panel_extended.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  buildEconomyBuildingsTexture.reset(new Texture());
+  buildEconomyBuildingsTexture->Load(ingameActionsPath / "030_.png", GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  buildMilitaryBuildingsTexture.reset(new Texture());
+  buildMilitaryBuildingsTexture->Load(ingameActionsPath / "031_.png", GL_CLAMP, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   selectionPanelTexture.reset(new Texture());
@@ -1102,13 +1114,21 @@ void RenderWindow::RenderGameUI() {
           lastCursorPos.x() < buttonLeft + commandButtonSize &&
           lastCursorPos.y() < buttonTop + commandButtonSize;
       
+      bool disabled = false;
+      if (commandButtons[row][col].GetType() == CommandButton::Type::ProduceUnit) {
+        disabled =
+            !gameController->GetLatestKnownResourceAmount().CanAfford(
+                GetUnitCost(commandButtons[row][col].GetUnitProductionType()));
+      }
+      
       commandButtons[row][col].Render(
           buttonLeft,
           buttonTop,
           commandButtonSize,
           kUIScale * 4,
-          pressed ? *iconOverlayActiveTexture :
-              (mouseOver ? *iconOverlayHoverTexture : *iconOverlayNormalTexture),
+          disabled ? *iconOverlayNormalExpensiveTexture :
+              (pressed ? *iconOverlayActiveTexture :
+                  (mouseOver ? *iconOverlayHoverTexture : *iconOverlayNormalTexture)),
           uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
     }
   }
@@ -1337,6 +1357,27 @@ void RenderWindow::SelectionChanged() {
   }
   if (!selection.empty() && singleBuildingTypeSelected) {
     ClientBuildingType::GetBuildingTypes()[static_cast<int>(selectedBuildingType)].SetCommandButtons(commandButtons);
+    return;
+  }
+  
+  // If at least one villager is selected, show the build buttons.
+  bool atLeastOneVillagerSelected = false;
+  for (usize i = 0; i < selection.size(); ++ i) {
+    u32 objectId = selection[i];
+    ClientObject* object = map->GetObjects().at(objectId);
+    
+    if (object->isUnit()) {
+      ClientUnit* unit = static_cast<ClientUnit*>(object);
+      if (unit->GetType() == UnitType::FemaleVillager ||
+          unit->GetType() == UnitType::MaleVillager) {
+        atLeastOneVillagerSelected = true;
+        break;
+      }
+    }
+  }
+  if (atLeastOneVillagerSelected) {
+    commandButtons[0][0].SetAction(buildEconomyBuildingsTexture.get());
+    commandButtons[0][1].SetAction(buildMilitaryBuildingsTexture.get());
   }
 }
 
@@ -1441,7 +1482,7 @@ void RenderWindow::initializeGL() {
   
   isLoading = true;
   loadingStep = 0;
-  maxLoadingStep = 30;
+  maxLoadingStep = 32;
   loadingThread->start();
   
   // Create resources right now which are required for rendering the loading screen:
@@ -1528,7 +1569,7 @@ void RenderWindow::paintGL() {
   // Render the map terrain.
   f->glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);  // blend with the shadows
   
-  map->Render(viewMatrix);
+  map->Render(viewMatrix, graphicsPath);
   
   f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // reset the blend func to standard
   

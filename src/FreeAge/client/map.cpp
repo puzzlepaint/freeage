@@ -224,9 +224,9 @@ bool Map::ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCo
   return converged;
 }
 
-void Map::Render(float* viewMatrix) {
+void Map::Render(float* viewMatrix, const std::filesystem::path& graphicsPath) {
   if (needsRenderResourcesUpdate) {
-    UpdateRenderResources();
+    UpdateRenderResources(graphicsPath);
     needsRenderResourcesUpdate = false;
   }
   
@@ -272,13 +272,14 @@ void Map::UnloadRenderResources() {
   }
 }
 
-void Map::UpdateRenderResources() {
+void Map::UpdateRenderResources(const std::filesystem::path& graphicsPath) {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   // Load texture
   if (!hasTextureBeenLoaded) {
-    const char* texturePath = "/home/thomas/.local/share/Steam/steamapps/compatdata/813780/pfx/drive_c/users/steamuser/Games/Age of Empires 2 DE/76561197995377131/mods/subscribed/812_Zetnus Improved Grid Mod/resources/_common/terrain/textures/2x/g_gr2.dds";
-    mango::Bitmap textureBitmap(texturePath, mango::Format(32, mango::Format::UNORM, mango::Format::BGRA, 8, 8, 8, 8));
+    mango::Bitmap textureBitmap(
+        (graphicsPath.parent_path().parent_path() / "terrain" / "textures" / "2x" / "g_gr2.dds").string(),
+        mango::Format(32, mango::Format::UNORM, mango::Format::BGRA, 8, 8, 8, 8));
     
     f->glGenTextures(1, &textureId);
     f->glBindTexture(GL_TEXTURE_2D, textureId);

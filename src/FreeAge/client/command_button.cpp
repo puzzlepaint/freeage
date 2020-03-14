@@ -12,19 +12,32 @@ void CommandButton::SetProduceUnit(UnitType type) {
   unitProductionType = type;
 }
 
+void CommandButton::SetAction(const Texture* texture) {
+  this->type = Type::Action;
+  this->texture = texture;
+}
+
 void CommandButton::Render(
     float x, float y, float size, float iconInset,
     const Texture& iconOverlayNormalTexture,
     UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer) {
   if (type == Type::Invisible) {
     return;
-  } else if (type == Type::ProduceUnit) {
+  } else if (type == Type::ProduceUnit ||
+             type == Type::Action) {
+    const Texture* texture;
+    if (type == Type::ProduceUnit) {
+      texture = ClientUnitType::GetUnitTypes()[static_cast<int>(unitProductionType)].GetIconTexture();
+    } else {  // if (type == Type::Action) {
+      texture = this->texture;
+    }
+    
     RenderUIGraphic(
         x + iconInset,
         y + iconInset,
         size - 2 * iconInset,
         size - 2 * iconInset,
-        *ClientUnitType::GetUnitTypes()[static_cast<int>(unitProductionType)].GetIconTexture(),
+        *texture,
         uiShader, widgetWidth, widgetHeight, pointBuffer);
     RenderUIGraphic(
         x,
