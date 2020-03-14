@@ -496,18 +496,19 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
     curToNext.setY(curToNextNormalizer * curToNext.y());
     
     QPointF prevToCurRight(halfLineWidth * -prevToCur.y(), halfLineWidth * prevToCur.x());
+    int bendDirection = ((prevToCurRight.x() * curToNext.x() + prevToCurRight.y() * curToNext.y()) > 0) ? 1 : -1;
     
     float halfBendAngle = std::max<float>(1e-4f, 0.5f * acos(std::max<float>(-1, std::min<float>(1, prevToCur.x() * -curToNext.x() + prevToCur.y() * -curToNext.y()))));
     float length = halfLineWidth / tan(halfBendAngle);
     
     // Vertex to the left of the line
-    vertexData[6 * i + 0] = vertices[thisVertex].x() - prevToCurRight.x() - length * prevToCur.x() + offset.x();
-    vertexData[6 * i + 1] = vertices[thisVertex].y() - prevToCurRight.y() - length * prevToCur.y() + offset.y();
+    vertexData[6 * i + 0] = vertices[thisVertex].x() - prevToCurRight.x() + bendDirection * length * prevToCur.x() + offset.x();
+    vertexData[6 * i + 1] = vertices[thisVertex].y() - prevToCurRight.y() + bendDirection * length * prevToCur.y() + offset.y();
     vertexData[6 * i + 2] = 0;
     
     // Vertex to the right of the line
-    vertexData[6 * i + 3] = vertices[thisVertex].x() + prevToCurRight.x() + length * prevToCur.x() + offset.x();
-    vertexData[6 * i + 4] = vertices[thisVertex].y() + prevToCurRight.y() + length * prevToCur.y() + offset.y();
+    vertexData[6 * i + 3] = vertices[thisVertex].x() + prevToCurRight.x() - bendDirection * length * prevToCur.x() + offset.x();
+    vertexData[6 * i + 4] = vertices[thisVertex].y() + prevToCurRight.y() - bendDirection * length * prevToCur.y() + offset.y();
     vertexData[6 * i + 5] = 0;
   }
   f->glBufferData(GL_ARRAY_BUFFER, numVertices * elementSizeInBytes, vertexData.data(), GL_DYNAMIC_DRAW);
