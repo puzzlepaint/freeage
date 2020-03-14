@@ -2,6 +2,7 @@
 
 #include <math.h>
 
+#include <QApplication>
 #include <QFontDatabase>
 #include <QKeyEvent>
 #include <QOffscreenSurface>
@@ -130,6 +131,7 @@ RenderWindow::~RenderWindow() {
   iconOverlayActiveTexture.reset();
   
   uiShader.reset();
+  uiSingleColorShader.reset();
   spriteShader.reset();
   shadowShader.reset();
   outlineShader.reset();
@@ -393,6 +395,9 @@ void RenderWindow::ComputePixelToOpenGLMatrix() {
   
   uiShader->GetProgram()->UseProgram();
   uiShader->GetProgram()->setUniformMatrix2fv(uiShader->GetViewMatrixLocation(), pixelToOpenGLMatrix);
+  
+  uiSingleColorShader->GetProgram()->UseProgram();
+  uiSingleColorShader->GetProgram()->setUniformMatrix2fv(uiSingleColorShader->GetViewMatrixLocation(), pixelToOpenGLMatrix);
 }
 
 void RenderWindow::UpdateView(const TimePoint& now) {
@@ -456,11 +461,51 @@ void RenderWindow::UpdateView(const TimePoint& now) {
   }
 }
 
+void RenderWindow::RenderClosedPath(const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset) {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  CHECK_OPENGL_NO_ERROR();
+  
+  // Set shader.
+  uiSingleColorShader->GetProgram()->UseProgram();
+  uiSingleColorShader->GetProgram()->SetUniform4f(uiSingleColorShader->GetColorLocation(), qRed(color) / 255.f, qGreen(color) / 255.f, qBlue(color) / 255.f, qAlpha(color) / 255.f);
+  
+  // Repeat the first 2 vertices to close the path and get information
+  // on the bend direction at the end.
+  int numVertices = vertices.size() + 2;
+  
+  // Buffer geometry data.
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+  int elementSizeInBytes = 3 * sizeof(float);
+  std::vector<float> vertexData(3 * numVertices);  // TODO: Could skip the 3rd dimension
+  for (int i = 0; i < numVertices; ++ i) {
+    int index = i % vertices.size();
+    
+    vertexData[3 * i + 0] = vertices[index].x() + offset.x();
+    vertexData[3 * i + 1] = vertices[index].y() + offset.y();
+    vertexData[3 * i + 2] = 0;
+  }
+  f->glBufferData(GL_ARRAY_BUFFER, numVertices * elementSizeInBytes, vertexData.data(), GL_DYNAMIC_DRAW);
+  CHECK_OPENGL_NO_ERROR();
+  uiSingleColorShader->GetProgram()->SetPositionAttribute(
+      3,
+      GetGLType<float>::value,
+      3 * sizeof(float),
+      0);
+  
+  // Draw lines.
+  f->glDrawArrays(GL_LINE_STRIP, 0, numVertices);
+  CHECK_OPENGL_NO_ERROR();
+}
+
 void RenderWindow::RenderShadows(double displayedServerTime) {
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
   for (auto& object : map->GetObjects()) {
+    if (!object.second->ShallBeDisplayed(displayedServerTime)) {
+      continue;
+    }
+    
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
     if (object.second->isBuilding()) {
@@ -520,7 +565,7 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
 void RenderWindow::RenderBuildings(double displayedServerTime) {
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
-    if (!object.second->isBuilding()) {
+    if (!object.second->isBuilding() || !object.second->ShallBeDisplayed(displayedServerTime)) {
       continue;
     }
     ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
@@ -548,12 +593,53 @@ void RenderWindow::RenderBuildings(double displayedServerTime) {
   }
 }
 
+void RenderWindow::RenderBuildingSelectionOutlines() {
+  for (u32 objectId : selection) {
+    auto it = map->GetObjects().find(objectId);
+    if (it != map->GetObjects().end() &&
+        it->second->isBuilding()) {
+      ClientBuilding& building = *static_cast<ClientBuilding*>(it->second);
+      
+      QSize size = GetBuildingSize(building.GetType());
+      std::vector<QPointF> outlineVertices(4 + 2 * (size.width() - 1) + 2 * (size.height() - 1));
+      
+      QPointF base = building.GetBaseTile();
+      int index = 0;
+      for (int x = 0; x <= size.width(); ++ x) {
+        outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(x, 0));
+      }
+      for (int y = 1; y <= size.height(); ++ y) {
+        outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(size.width(), y));
+      }
+      for (int x = static_cast<int>(size.width()) - 1; x >= 0; -- x) {
+        outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(x, size.height()));
+      }
+      for (int y = static_cast<int>(size.height()) - 1; y > 0; -- y) {
+        outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(0, y));
+      }
+      CHECK_EQ(index, outlineVertices.size());
+      for (usize i = 0; i < outlineVertices.size(); ++ i) {
+        outlineVertices[i] =
+            QPointF(((viewMatrix[0] * outlineVertices[i].x() + viewMatrix[2]) * 0.5f + 0.5f) * width(),
+                    ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
+      }
+      
+      RenderClosedPath(qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, 2));
+      RenderClosedPath(qRgba(255, 255, 255, 255), outlineVertices, QPointF(0, 0));
+    }
+  }
+}
+
 void RenderWindow::RenderOutlines(double displayedServerTime) {
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
+    if (!object.second->ShallBeDisplayed(displayedServerTime)) {
+      continue;
+    }
+    
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
     if (object.second->isBuilding()) {
@@ -614,7 +700,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime) {
 void RenderWindow::RenderUnits(double displayedServerTime) {
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
-    if (!object.second->isUnit()) {
+    if (!object.second->isUnit() || !object.second->ShallBeDisplayed(displayedServerTime)) {
       continue;
     }
     ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
@@ -681,7 +767,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
   QRgb gaiaColor = qRgb(255, 255, 255);
   
   for (auto& object : map->GetObjects()) {
-    if (!object.second->IsSelected()) {
+    if (!object.second->IsSelected() || !object.second->ShallBeDisplayed(displayedServerTime)) {
       continue;
     }
     
@@ -1016,6 +1102,10 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId) {
   };
   
   for (auto& object : map->GetObjects()) {
+    if (!object.second->ShallBeDisplayed(lastDisplayedServerTime)) {
+      continue;
+    }
+    
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
     if (object.second->isBuilding()) {
@@ -1106,6 +1196,10 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId) {
   }
   
   return false;
+}
+
+void RenderWindow::BoxSelection(const QPoint& p0, const QPoint& p1) {
+  // TODO
 }
 
 QPointF RenderWindow::ScreenCoordToProjectedCoord(float x, float y) {
@@ -1277,8 +1371,9 @@ void RenderWindow::initializeGL() {
   
   // Create resources right now which are required for rendering the loading screen:
   
-  // Load the UI shader.
+  // Load the UI shaders.
   uiShader.reset(new UIShader());
+  uiSingleColorShader.reset(new UISingleColorShader());
   
   // Create a buffer containing a single point for sprite rendering.
   f->glGenBuffers(1, &pointBuffer);
@@ -1362,6 +1457,9 @@ void RenderWindow::paintGL() {
   
   f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // reset the blend func to standard
   
+  // Render selection outlines below buildings.
+  RenderBuildingSelectionOutlines();
+  
   // Enable the depth buffer for sprite rendering.
   f->glEnable(GL_DEPTH_TEST);
   f->glDepthFunc(GL_LEQUAL);
@@ -1395,6 +1493,19 @@ void RenderWindow::paintGL() {
   
   RenderHealthBars(displayedServerTime);
   
+  // Render selection box.
+  if (dragging) {
+    std::vector<QPointF> vertices(4);
+    
+    vertices[0] = dragStartPos;
+    vertices[1] = QPointF(dragStartPos.x(), lastCursorPos.y());
+    vertices[2] = lastCursorPos;
+    vertices[3] = QPointF(lastCursorPos.x(), dragStartPos.y());
+    
+    RenderClosedPath(qRgba(0, 0, 0, 255), vertices, QPointF(2, 2));
+    RenderClosedPath(qRgba(255, 255, 255, 255), vertices, QPointF(0, 0));
+  }
+  
   // Render game UI.
   // TODO: Would it be faster to render this at the start and then prevent rendering over the UI pixels,
   //       for example by setting the z-buffer such that no further pixel will be rendered there?
@@ -1417,11 +1528,14 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
         if (commandButtons[row][col].IsPointInButton(event->pos())) {
           pressedCommandButtonRow = row;
           pressedCommandButtonCol = col;
+          return;
         }
       }
     }
     
-    // TODO: Remember position for dragging
+    dragStartPos = event->pos();
+    possibleDragStart = true;
+    dragging = false;
   } else if (event->button() == Qt::RightButton) {
     bool haveOwnUnitSelected = false;
     bool haveBuildingSelected = false;
@@ -1459,6 +1573,12 @@ void RenderWindow::mouseMoveEvent(QMouseEvent* event) {
   
   lastCursorPos = event->pos();
   
+  if (possibleDragStart) {
+    if ((lastCursorPos - dragStartPos).manhattanLength() >= QApplication::startDragDistance()) {
+      dragging = true;
+    }
+  }
+  
   // If a command button has been pressed but the cursor moves away from it, abort the button press.
   if (pressedCommandButtonRow >= 0 &&
       pressedCommandButtonCol >= 0 &&
@@ -1474,6 +1594,15 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
   }
   
   if (event->button() == Qt::LeftButton) {
+    possibleDragStart = false;
+    
+    if (dragging) {
+      BoxSelection(dragStartPos, event->pos());
+      
+      dragging = false;
+      return;
+    }
+    
     if (pressedCommandButtonRow >= 0 &&
         pressedCommandButtonCol >= 0) {
       commandButtons[pressedCommandButtonRow][pressedCommandButtonCol].Pressed(selection, gameController.get());

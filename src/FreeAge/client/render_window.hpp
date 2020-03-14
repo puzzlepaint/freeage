@@ -14,6 +14,7 @@
 #include "FreeAge/client/shader_health_bar.hpp"
 #include "FreeAge/client/shader_sprite.hpp"
 #include "FreeAge/client/shader_ui.hpp"
+#include "FreeAge/client/shader_ui_single_color.hpp"
 #include "FreeAge/client/server_connection.hpp"
 #include "FreeAge/client/sprite.hpp"
 #include "FreeAge/client/text_display.hpp"
@@ -62,8 +63,10 @@ class RenderWindow : public QOpenGLWidget {
   
   void ComputePixelToOpenGLMatrix();
   void UpdateView(const TimePoint& now);
+  void RenderClosedPath(const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset);
   void RenderShadows(double displayedServerTime);
   void RenderBuildings(double displayedServerTime);
+  void RenderBuildingSelectionOutlines();
   void RenderOutlines(double displayedServerTime);
   void RenderUnits(double displayedServerTime);
   void RenderMoveToMarker(const TimePoint& now);
@@ -74,6 +77,8 @@ class RenderWindow : public QOpenGLWidget {
   /// this point. If an object is found, true is returned, and the object's ID is
   /// returned in objectId.
   bool GetObjectToSelectAt(float x, float y, u32* objectId);
+  
+  void BoxSelection(const QPoint& p0, const QPoint& p1);
   
   QPointF ScreenCoordToProjectedCoord(float x, float y);
   
@@ -98,7 +103,12 @@ class RenderWindow : public QOpenGLWidget {
   virtual void keyReleaseEvent(QKeyEvent* event) override;
   
   
+  /// Cursor handling.
   QPoint lastCursorPos = QPoint(0, 0);
+  
+  QPoint dragStartPos = QPoint(0, 0);
+  bool possibleDragStart = false;
+  bool dragging = false;
   
   /// Current map scroll position in map coordinates.
   /// The "scroll" map coordinate is visible at the center of the screen.
@@ -141,6 +151,7 @@ class RenderWindow : public QOpenGLWidget {
   
   // Shaders.
   std::shared_ptr<UIShader> uiShader;
+  std::shared_ptr<UISingleColorShader> uiSingleColorShader;
   std::shared_ptr<SpriteShader> spriteShader;
   std::shared_ptr<SpriteShader> shadowShader;
   std::shared_ptr<SpriteShader> outlineShader;

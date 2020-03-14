@@ -86,7 +86,7 @@ void RenderUIGraphic(float x, float y, float width, float height, const Texture&
   program->SetUniform1i(uiShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
   
-  program->SetUniform2f(uiShader->GetTextTopLeftLocation(), 0, 0);
+  program->SetUniform2f(uiShader->GetTexTopLeftLocation(), 0, 0);
   program->SetUniform2f(uiShader->GetTexBottomRightLocation(), 1, 1);
   
   program->SetUniform2f(

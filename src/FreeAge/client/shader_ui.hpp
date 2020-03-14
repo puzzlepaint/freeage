@@ -18,7 +18,7 @@ class UIShader {
   inline GLint GetTextureLocation() const { return texture_location; }
   inline GLint GetViewMatrixLocation() const { return viewMatrix_location; }
   inline GLint GetSizeLocation() const { return size_location; }
-  inline GLint GetTextTopLeftLocation() const { return tex_topleft_location; }
+  inline GLint GetTexTopLeftLocation() const { return tex_topleft_location; }
   inline GLint GetTexBottomRightLocation() const { return tex_bottomright_location; }
   
  private:

@@ -49,6 +49,11 @@ class GameController : public QObject {
   std::shared_ptr<RenderWindow> renderWindow;
   
   double gameStartServerTimeSeconds = std::numeric_limits<double>::max();
+  
+  /// The server time of the last received GameStepTime message. This applies to all
+  /// following messages until the next GameStepTime message is received. Initially
+  /// (as long as no GameStepTime message was received yet), currentGameStepServerTime
+  /// is set to a negative value.
   double currentGameStepServerTime;
   
   /// Player resources over time. The double in the pair gives the server time

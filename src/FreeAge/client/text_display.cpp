@@ -39,7 +39,7 @@ void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& te
   program->SetUniform1i(uiShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   f->glBindTexture(GL_TEXTURE_2D, textureId);
   
-  program->SetUniform2f(uiShader->GetTextTopLeftLocation(), 0, 0);
+  program->SetUniform2f(uiShader->GetTexTopLeftLocation(), 0, 0);
   program->SetUniform2f(uiShader->GetTexBottomRightLocation(), 1, 1);
   
   program->SetUniform2f(

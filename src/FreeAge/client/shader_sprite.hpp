@@ -21,7 +21,7 @@ class SpriteShader {
   inline GLint GetTextureSizeLocation() const { return textureSize_location; }
   inline GLint GetPlayerColorsTextureSizeLocation() const { return playerColorsTextureSize_location; }
   inline GLint GetPlayerIndexLocation() const { return playerIndex_location; }
-  inline GLint GetTextTopLeftLocation() const { return tex_topleft_location; }
+  inline GLint GetTexTopLeftLocation() const { return tex_topleft_location; }
   inline GLint GetTexBottomRightLocation() const { return tex_bottomright_location; }
   inline GLint GetPlayerColorLocation() const { return playerColor_location; }
   

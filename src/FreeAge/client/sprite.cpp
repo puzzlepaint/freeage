@@ -1122,7 +1122,7 @@ void DrawSprite(
   if (layer.rotated) {
     // TODO: Is this worth implementing? It will complicate the shader a little.
   }
-  program->SetUniform2f(spriteShader->GetTextTopLeftLocation(), texLeftX, texTopY);
+  program->SetUniform2f(spriteShader->GetTexTopLeftLocation(), texLeftX, texTopY);
   program->SetUniform2f(spriteShader->GetTexBottomRightLocation(), texRightX, texBottomY);
   
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);

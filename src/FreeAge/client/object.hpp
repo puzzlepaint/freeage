@@ -9,8 +9,9 @@
 /// Base class for buildings and units on the client.
 class ClientObject {
  public:
-  inline ClientObject(ObjectType objectType, int playerIndex)
-      : playerIndex(playerIndex),
+  inline ClientObject(ObjectType objectType, int playerIndex, double creationServerTime)
+      : creationServerTime(creationServerTime),
+        playerIndex(playerIndex),
         objectType(static_cast<int>(objectType)),
         isSelected(false) {}
   
@@ -27,7 +28,13 @@ class ClientObject {
   inline bool IsSelected() const { return isSelected; }
   inline void SetIsSelected(bool selected) { isSelected = selected; }
   
+  inline bool ShallBeDisplayed(double serverTime) { return serverTime >= creationServerTime; }
+  
  protected:
+  /// Server time of the creation of this object. Before this displayed time is reached,
+  /// the object must not be displayed on the client.
+  double creationServerTime;
+  
   u8 playerIndex;
   
   /// 0 for buildings, 1 for units.

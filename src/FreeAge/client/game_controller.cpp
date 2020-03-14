@@ -9,6 +9,8 @@
 GameController::GameController(const std::shared_ptr<Match>& match, const std::shared_ptr<ServerConnection>& connection)
     : connection(connection),
       match(match) {
+  currentGameStepServerTime = -1;
+  
   connect(connection.get(), &ServerConnection::NewMessage, this, &GameController::ParseMessage);
   connection->SetParseMessages(true);
 }
@@ -130,13 +132,13 @@ void GameController::HandleAddObjectMessage(const QByteArray& buffer) {
     QPoint baseTile(mango::uload16(data + 11),
                     mango::uload16(data + 13));
     
-    map->AddObject(objectId, new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y()));
+    map->AddObject(objectId, new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y(), currentGameStepServerTime));
   } else {
     UnitType unitType = static_cast<UnitType>(mango::uload16(data + 9));
     QPointF mapCoord(*reinterpret_cast<const float*>(data + 11),
                      *reinterpret_cast<const float*>(data + 15));
     
-    map->AddObject(objectId, new ClientUnit(playerIndex, unitType, mapCoord));
+    map->AddObject(objectId, new ClientUnit(playerIndex, unitType, mapCoord, currentGameStepServerTime));
   }
 }
 
