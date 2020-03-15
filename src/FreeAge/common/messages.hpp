@@ -5,6 +5,7 @@
 #include <QByteArray>
 #include <QPointF>
 
+#include "FreeAge/common/building_types.hpp"
 #include "FreeAge/common/free_age.hpp"
 
 
@@ -69,6 +70,9 @@ enum class ClientToServerMessage {
   
   /// Sent upon pressing the button / hotkey to produce a unit.
   ProduceUnit,
+  
+  /// Sent to place a building foundation.
+  PlaceBuildingFoundation,
 };
 
 QByteArray CreateHostConnectMessage(const QByteArray& hostToken, const QString& playerName);
@@ -96,6 +100,10 @@ QByteArray CreateMoveToMapCoordMessage(
 QByteArray CreateProduceUnitMessage(
     u32 buildingId,
     u16 unitType);
+
+QByteArray CreatePlaceBuildingFoundationMessage(
+    BuildingType type,
+    const QPoint& baseTile);
 
 
 /// Types of messages sent by the server to clients.

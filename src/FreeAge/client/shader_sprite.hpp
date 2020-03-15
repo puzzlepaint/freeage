@@ -24,6 +24,7 @@ class SpriteShader {
   inline GLint GetTexTopLeftLocation() const { return tex_topleft_location; }
   inline GLint GetTexBottomRightLocation() const { return tex_bottomright_location; }
   inline GLint GetPlayerColorLocation() const { return playerColor_location; }
+  inline GLint GetModulationColorLocation() const { return modulationColor_location; }
   
  private:
   std::shared_ptr<ShaderProgram> program;
@@ -37,4 +38,5 @@ class SpriteShader {
   GLint tex_topleft_location;
   GLint tex_bottomright_location;
   GLint playerColor_location;
+  GLint modulationColor_location;
 };

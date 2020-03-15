@@ -94,8 +94,9 @@ RenderWindow::RenderWindow(
   scroll = QPointF(0, 0);
   zoom = 1;
   
-  
   map = nullptr;
+  
+  resize(std::max(800, width()), std::max(600, height()));
 }
 
 RenderWindow::~RenderWindow() {
@@ -186,6 +187,9 @@ void RenderWindow::LoadResources() {
   f->glActiveTexture(GL_TEXTURE0 + 1);
   f->glBindTexture(GL_TEXTURE_2D, playerColorsTexture->GetId());
   f->glActiveTexture(GL_TEXTURE0);
+  
+  // Set the sprite modulation color to the default.
+  spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
   didLoadingStep();
   
   // Load unit resources.
@@ -547,7 +551,6 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
 }
 
 void RenderWindow::RenderShadows(double displayedServerTime) {
-  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
   for (auto& object : map->GetObjects()) {
@@ -559,7 +562,7 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
     
     if (object.second->isBuilding()) {
       ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
-      if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasShadow()) {
+      if (!building.GetSprite().HasShadow()) {
         continue;
       }
       
@@ -642,6 +645,37 @@ void RenderWindow::RenderBuildings(double displayedServerTime) {
   }
 }
 
+void RenderWindow::RenderBuildingFoundation(double displayedServerTime) {
+  QPoint foundationBaseTile;
+  bool canBePlacedHere = CanBuildingFoundationBePlacedHere(constructBuildingType, lastCursorPos, &foundationBaseTile);
+  
+  // Render the building foundation, colored either in gray if it can be placed at this location,
+  // or in red if it cannot be placed there.
+  ClientBuilding* tempBuilding = new ClientBuilding(match->GetPlayerIndex(), constructBuildingType, foundationBaseTile.x(), foundationBaseTile.y(), 100, -1);
+  tempBuilding->SetFixedFrameIndex(0);
+  
+  if (canBePlacedHere) {
+    spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 0.8, 0.8, 0.8, 1);
+  } else {
+    spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 0.4, 0.4, 1);
+  }
+  tempBuilding->Render(
+      map.get(),
+      playerColors,
+      spriteShader.get(),
+      pointBuffer,
+      viewMatrix,
+      zoom,
+      widgetWidth,
+      widgetHeight,
+      displayedServerTime,
+      false,
+      false);
+  spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
+  
+  delete tempBuilding;
+}
+
 void RenderWindow::RenderSelectionGroundOutlines() {
   for (u32 objectId : selection) {
     auto it = map->GetObjects().find(objectId);
@@ -698,7 +732,6 @@ void RenderWindow::RenderSelectionGroundOutlines() {
 }
 
 void RenderWindow::RenderOutlines(double displayedServerTime) {
-  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
   // TODO: Sort to minmize texture switches.
@@ -711,10 +744,9 @@ void RenderWindow::RenderOutlines(double displayedServerTime) {
     
     if (object.second->isBuilding()) {
       ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
-      if (!buildingTypes[static_cast<int>(building.GetType())].GetSprite().HasOutline()) {
+      if (!building.GetSprite().HasOutline()) {
         continue;
       }
-      LOG(WARNING) << "DEBUG: Buildings with outline exist!";
       
       QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
           map.get(),
@@ -1129,6 +1161,10 @@ void RenderWindow::RenderGameUI() {
         disabled =
             !gameController->GetLatestKnownResourceAmount().CanAfford(
                 GetUnitCost(commandButtons[row][col].GetUnitProductionType()));
+      } else if (commandButtons[row][col].GetType() == CommandButton::Type::ConstructBuilding) {
+        disabled =
+            !gameController->GetLatestKnownResourceAmount().CanAfford(
+                GetBuildingCost(commandButtons[row][col].GetBuildingConstructionType()));
       }
       
       commandButtons[row][col].Render(
@@ -1403,6 +1439,67 @@ void RenderWindow::UpdateGameState(double displayedServerTime) {
   }
 }
 
+bool RenderWindow::CanBuildingFoundationBePlacedHere(BuildingType type, const QPointF& cursorPos, QPoint* baseTile) {
+QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y());
+  QPointF cursorMapCoord;
+  if (!map->ProjectedCoordToMapCoord(projectedCoord, &cursorMapCoord)) {
+    return false;
+  }
+  
+  QSize foundationSize = GetBuildingSize(type);
+  QPoint foundationBaseTile;
+  
+  if (foundationSize.width() % 2 == 1) {
+    // Round cursorMapCoord.x() to integer tiles.
+    foundationBaseTile.setX(std::max<int>(0, std::min<int>(map->GetWidth() - 1, static_cast<int>(cursorMapCoord.x()) - (foundationSize.width() - 1) / 2)));
+  } else {
+    // Round cursorMapCoord.x() to tile borders.
+    foundationBaseTile.setX(std::max<int>(0, std::min<int>(map->GetWidth() - 1, static_cast<int>(cursorMapCoord.x() + 0.5f) - foundationSize.width() / 2)));
+  }
+  
+  if (foundationSize.height() % 2 == 1) {
+    // Round cursorMapCoord.y() to integer tiles.
+    foundationBaseTile.setY(std::max<int>(0, std::min<int>(map->GetHeight() - 1, static_cast<int>(cursorMapCoord.y()) - (foundationSize.height() - 1) / 2)));
+  } else {
+    // Round cursorMapCoord.y() to tile borders.
+    foundationBaseTile.setY(std::max<int>(0, std::min<int>(map->GetHeight() - 1, static_cast<int>(cursorMapCoord.y() + 0.5f) - foundationSize.height() / 2)));
+  }
+  
+  // Check whether the building can be placed at the given location.
+  // TODO: The same logic is implemented on the server, can that be unified?
+  // TODO: Docks need a special case
+  
+  // 1) Check whether any map tile at this location is occupied.
+  for (int y = foundationBaseTile.y(); y < foundationBaseTile.y() + foundationSize.height(); ++ y) {
+    for (int x = foundationBaseTile.x(); x < foundationBaseTile.x() + foundationSize.width(); ++ x) {
+      // TODO: Track occupancy on the client
+      // if (map->occupiedAt(x, y)) {
+      //   return false;
+      // }
+    }
+  }
+  
+  // 2) Check whether the maximum elevation difference within the building space does not exceed 2.
+  //    TODO: I made this criterion up without testing it; is that actually how the original game works?
+  // TODO: This criterion must not apply to farms.
+  int minElevation = std::numeric_limits<int>::max();
+  int maxElevation = std::numeric_limits<int>::min();
+  for (int y = foundationBaseTile.y(); y <= foundationBaseTile.y() + foundationSize.height(); ++ y) {
+    for (int x = foundationBaseTile.x(); x <= foundationBaseTile.x() + foundationSize.width(); ++ x) {
+      int elevation = map->elevationAt(x, y);
+      minElevation = std::min(minElevation, elevation);
+      maxElevation = std::max(maxElevation, elevation);
+    }
+  }
+  
+  if (maxElevation - minElevation > 2) {
+    return false;
+  }
+  
+  *baseTile = foundationBaseTile;
+  return true;
+}
+
 void RenderWindow::ShowDefaultCommandButtonsForSelection() {
   for (int row = 0; row < kCommandButtonRows; ++ row) {
     for (int col = 0; col < kCommandButtonCols; ++ col) {
@@ -1595,6 +1692,7 @@ void RenderWindow::paintGL() {
   
   // Update scrolling and compute the view transformation.
   UpdateView(now);
+  CHECK_OPENGL_NO_ERROR();
   
   // Set states for rendering.
   f->glDisable(GL_CULL_FACE);
@@ -1615,24 +1713,39 @@ void RenderWindow::paintGL() {
   // and for alpha values, the maximum is used.
   f->glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
   
+  CHECK_OPENGL_NO_ERROR();
   RenderShadows(displayedServerTime);
+  CHECK_OPENGL_NO_ERROR();
   
   // Render the map terrain.
   f->glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);  // blend with the shadows
   
+  CHECK_OPENGL_NO_ERROR();
   map->Render(viewMatrix, graphicsPath);
+  CHECK_OPENGL_NO_ERROR();
   
   f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // reset the blend func to standard
   
   // Render selection outlines below buildings.
+  CHECK_OPENGL_NO_ERROR();
   RenderSelectionGroundOutlines();
+  CHECK_OPENGL_NO_ERROR();
   
   // Enable the depth buffer for sprite rendering.
   f->glEnable(GL_DEPTH_TEST);
   f->glDepthFunc(GL_LEQUAL);
   
   // Render buildings.
+  CHECK_OPENGL_NO_ERROR();
   RenderBuildings(displayedServerTime);
+  CHECK_OPENGL_NO_ERROR();
+  
+  // Render the building foundation under the cursor.
+  if (constructBuildingType != BuildingType::NumBuildings) {
+    CHECK_OPENGL_NO_ERROR();
+    RenderBuildingFoundation(displayedServerTime);
+    CHECK_OPENGL_NO_ERROR();
+  }
   
   // Render outlines.
   // Disable depth writing.
@@ -1641,24 +1754,32 @@ void RenderWindow::paintGL() {
   // So we only render outlines in places where something is occluded.
   f->glDepthFunc(GL_GREATER);
   
+  CHECK_OPENGL_NO_ERROR();
   RenderOutlines(displayedServerTime);
+  CHECK_OPENGL_NO_ERROR();
   
   // Render units.
   f->glDepthMask(GL_TRUE);
   f->glDepthFunc(GL_LEQUAL);
   
+  CHECK_OPENGL_NO_ERROR();
   RenderUnits(displayedServerTime);
+  CHECK_OPENGL_NO_ERROR();
   
   // Render move-to marker.
   // This should be rendered after the last unit at the moment, since it contains semi-transparent
   // pixels which do currenly write to the z-buffer.
+  CHECK_OPENGL_NO_ERROR();
   RenderMoveToMarker(now);
+  CHECK_OPENGL_NO_ERROR();
   
   // Render health bars.
   f->glClear(GL_DEPTH_BUFFER_BIT);
   f->glDisable(GL_BLEND);
   
+  CHECK_OPENGL_NO_ERROR();
   RenderHealthBars(displayedServerTime);
+  CHECK_OPENGL_NO_ERROR();
   
   // Render selection box.
   if (dragging) {
@@ -1676,7 +1797,9 @@ void RenderWindow::paintGL() {
   // Render game UI.
   // TODO: Would it be faster to render this at the start and then prevent rendering over the UI pixels,
   //       for example by setting the z-buffer such that no further pixel will be rendered there?
+  CHECK_OPENGL_NO_ERROR();
   RenderGameUI();
+  CHECK_OPENGL_NO_ERROR();
 }
 
 void RenderWindow::resizeGL(int width, int height) {
@@ -1690,6 +1813,19 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
   }
   
   if (event->button() == Qt::LeftButton) {
+    // Place a building foundation?
+    if (constructBuildingType != BuildingType::NumBuildings) {
+      QPoint foundationBaseTile;
+      bool canBePlacedHere = CanBuildingFoundationBePlacedHere(constructBuildingType, lastCursorPos, &foundationBaseTile);
+      if (canBePlacedHere) {
+        connection->Write(CreatePlaceBuildingFoundationMessage(constructBuildingType, foundationBaseTile));
+        
+        constructBuildingType = BuildingType::NumBuildings;
+        return;
+      }
+    }
+    
+    // Has a command button been pressed?
     for (int row = 0; row < kCommandButtonRows; ++ row) {
       for (int col = 0; col < kCommandButtonCols; ++ col) {
         if (commandButtons[row][col].IsPointInButton(event->pos())) {
@@ -1700,6 +1836,8 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
       }
     }
     
+    // Clicked into the game area. Remember the position in case the user
+    // starts dragging the mouse later.
     dragStartPos = event->pos();
     possibleDragStart = true;
     dragging = false;
@@ -1776,6 +1914,12 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
       button.Pressed(selection, gameController.get());
       pressedCommandButtonRow = -1;
       pressedCommandButtonCol = -1;
+      
+      // Handle building construction.
+      if (button.GetType() == CommandButton::Type::ConstructBuilding &&
+          gameController->GetLatestKnownResourceAmount().CanAfford(GetBuildingCost(button.GetBuildingConstructionType()))) {
+        constructBuildingType = button.GetBuildingConstructionType();
+      }
       
       // "Action" buttons are handled here.
       if (button.GetType() == CommandButton::Type::Action) {

@@ -13,7 +13,7 @@ class PlayerInGame;
 /// Represents a building on the server.
 class ServerBuilding : public ServerObject {
  public:
-  ServerBuilding(int playerIndex, BuildingType type, const QPoint& baseTile);
+  ServerBuilding(int playerIndex, BuildingType type, const QPoint& baseTile, float buildPercentage);
   
   /// Returns whether this building can produce the given type of unit for the given player.
   /// Checks:
@@ -37,6 +37,9 @@ class ServerBuilding : public ServerObject {
   inline BuildingType GetBuildingType() const { return type; }
   inline const QPoint& GetBaseTile() const { return baseTile; }
   
+  inline float GetBuildPercentage() const { return buildPercentage; }
+  inline void SetBuildPercentage(float percentage) { buildPercentage = percentage; }
+  
  private:
   // TODO: Allow to queue technologies as well
   std::vector<UnitType> productionQueue;
@@ -49,4 +52,9 @@ class ServerBuilding : public ServerObject {
   /// The "base tile" is the minimum map tile coordinate on which the building
   /// stands on.
   QPoint baseTile;
+  
+  /// The build percentage of this building, in percent. Special cases:
+  /// * Exactly 100 means that the building is finished.
+  /// * Exactly   0 means that this is a building foundation (i.e., it does not affect map occupancy (yet)).
+  float buildPercentage;
 };

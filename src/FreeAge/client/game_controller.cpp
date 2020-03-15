@@ -131,8 +131,9 @@ void GameController::HandleAddObjectMessage(const QByteArray& buffer) {
     BuildingType buildingType = static_cast<BuildingType>(mango::uload16(data + 9));
     QPoint baseTile(mango::uload16(data + 11),
                     mango::uload16(data + 13));
+    float buildPercentage = *reinterpret_cast<const float*>(data + 15);
     
-    map->AddObject(objectId, new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y(), currentGameStepServerTime));
+    map->AddObject(objectId, new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y(), buildPercentage, currentGameStepServerTime));
   } else {
     UnitType unitType = static_cast<UnitType>(mango::uload16(data + 9));
     QPointF mapCoord(*reinterpret_cast<const float*>(data + 11),

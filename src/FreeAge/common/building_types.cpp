@@ -74,3 +74,28 @@ QString GetBuildingName(BuildingType type) {
   }
   return "";
 }
+
+ResourceAmount GetBuildingCost(BuildingType type) {
+  switch (type) {
+  case BuildingType::TownCenter: return ResourceAmount(275, 0, 0, 100);
+  case BuildingType::TownCenterBack: LOG(ERROR) << "GetBuildingCost() called on BuildingType::TownCenterBack"; return ResourceAmount(0, 0, 0, 0);
+  case BuildingType::TownCenterCenter: LOG(ERROR) << "GetBuildingCost() called on BuildingType::TownCenterCenter"; return ResourceAmount(0, 0, 0, 0);
+  case BuildingType::TownCenterFront: LOG(ERROR) << "GetBuildingCost() called on BuildingType::TownCenterFront"; return ResourceAmount(0, 0, 0, 0);
+  case BuildingType::TownCenterMain: LOG(ERROR) << "GetBuildingCost() called on BuildingType::TownCenterMain"; return ResourceAmount(0, 0, 0, 0);
+  case BuildingType::House: return ResourceAmount(30, 0, 0, 0);
+  
+  case BuildingType::Mill: return ResourceAmount(100, 0, 0, 0);
+  case BuildingType::MiningCamp: return ResourceAmount(100, 0, 0, 0);
+  case BuildingType::LumberCamp: return ResourceAmount(100, 0, 0, 0);
+  case BuildingType::Dock: return ResourceAmount(150, 0, 0, 0);
+  
+  case BuildingType::Barracks: return ResourceAmount(175, 0, 0, 0);
+  case BuildingType::Outpost: return ResourceAmount(25, 0, 0, 5);
+  case BuildingType::PalisadeWall: return ResourceAmount(1, 0, 0, 0);
+  case BuildingType::PalisadeGate: return ResourceAmount(5, 0, 0, 0);
+  
+  case BuildingType::TreeOak: LOG(ERROR) << "GetBuildingCost() called on BuildingType::TreeOak"; return ResourceAmount(0, 0, 0, 0);
+  case BuildingType::NumBuildings: LOG(ERROR) << "GetBuildingCost() called on BuildingType::NumBuildings"; return ResourceAmount(0, 0, 0, 0);
+  }
+  return ResourceAmount(0, 0, 0, 0);
+}

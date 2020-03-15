@@ -7,9 +7,11 @@
 bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes) {
   this->type = type;
   
+  // Load main sprite
+  QString filename = GetFilename();
   if (!LoadSpriteAndTexture(
-      (graphicsPath / GetFilename().toStdString()).c_str(),
-      (cachePath / GetFilename().toStdString()).c_str(),
+      (graphicsPath / filename.toStdString()).c_str(),
+      (cachePath / filename.toStdString()).c_str(),
       GL_CLAMP,
       GL_NEAREST,
       GL_NEAREST,
@@ -18,6 +20,23 @@ bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& gr
       &shadowTexture,
       palettes)) {
     return false;
+  }
+  
+  // Load foundation sprite
+  QString foundationFilename = GetFoundationFilename();
+  if (!foundationFilename.isEmpty()) {
+    if (!LoadSpriteAndTexture(
+        (graphicsPath / foundationFilename.toStdString()).c_str(),
+        (cachePath / foundationFilename.toStdString()).c_str(),
+        GL_CLAMP,
+        GL_NEAREST,
+        GL_NEAREST,
+        &foundationSprite,
+        &foundationTexture,
+        &foundationShadowTexture,
+        palettes)) {
+      return false;
+    }
   }
   
   maxCenterY = 0;
@@ -50,13 +69,40 @@ QString ClientBuildingType::GetFilename() const {
   case BuildingType::TownCenterMain:   return QStringLiteral("b_dark_town_center_age1_main_x1.smx");
   case BuildingType::House:            return QStringLiteral("b_dark_house_age1_x1.smx");
   case BuildingType::Mill:             return QStringLiteral("b_dark_mill_age1_x1.smx");
-  case BuildingType::MiningCamp:       return QStringLiteral("b_misc_foundation_mining_camp_x1.smx");  // TODO: Correct?
-  case BuildingType::LumberCamp:       return QStringLiteral("b_misc_foundation_lumber_camp_x1.smx");  // TODO: Correct?
+  case BuildingType::MiningCamp:       return QStringLiteral("b_asia_mining_camp_age2_x1.smx");  // TODO: Could not find an "age1" variant of this
+  case BuildingType::LumberCamp:       return QStringLiteral("b_asia_lumber_camp_age2_x1.smx");  // TODO: Could not find an "age1" variant of this
   case BuildingType::Dock:             return QStringLiteral("b_dark_dock_age1_x1.smx");
   case BuildingType::Barracks:         return QStringLiteral("b_dark_barracks_age1_x1.smx");
   case BuildingType::Outpost:          return QStringLiteral("b_dark_outpost_age1_x1.smx");
-  case BuildingType::PalisadeWall:     return QStringLiteral("b_dark_gate_palisade_corner_x1.smx");  // b_dark_wall_palisade_x1.smx
-  case BuildingType::PalisadeGate:     return QStringLiteral("b_dark_gate_palisade_e_closed_x1.smx");
+  case BuildingType::PalisadeWall:     return QStringLiteral("b_dark_wall_palisade_x1.smx");
+  case BuildingType::PalisadeGate:     return QStringLiteral("b_dark_gate_palisade_e_closed_x1.smx");  // TODO: This consists of multiple parts and has multiple orientations
+  case BuildingType::TreeOak:          return QStringLiteral("n_tree_oak_x1.smx");
+  case BuildingType::NumBuildings:
+    LOG(ERROR) << "Invalid type given: BuildingType::NumBuildings";
+    break;
+  }
+  
+  return QString();
+}
+
+QString ClientBuildingType::GetFoundationFilename() const {
+  // TODO: Load this from some data file
+  
+  switch (type) {
+  case BuildingType::TownCenter:       return QStringLiteral("b_misc_foundation_town_center_x1.smx");
+  case BuildingType::TownCenterBack:   return QStringLiteral("");
+  case BuildingType::TownCenterCenter: return QStringLiteral("");
+  case BuildingType::TownCenterFront:  return QStringLiteral("");
+  case BuildingType::TownCenterMain:   return QStringLiteral("");
+  case BuildingType::House:            return QStringLiteral("b_misc_foundation_house_x1.smx");
+  case BuildingType::Mill:             return QStringLiteral("b_misc_foundation_mill_x1.smx");
+  case BuildingType::MiningCamp:       return QStringLiteral("b_misc_foundation_mining_camp_x1.smx");
+  case BuildingType::LumberCamp:       return QStringLiteral("b_misc_foundation_lumber_camp_x1.smx");
+  case BuildingType::Dock:             return QStringLiteral("b_misc_foundation_dock_x1.smx");
+  case BuildingType::Barracks:         return QStringLiteral("b_misc_foundation_barracks_x1.smx");
+  case BuildingType::Outpost:          return QStringLiteral("b_misc_foundation_outpost_x1.smx");
+  case BuildingType::PalisadeWall:     return QStringLiteral("b_misc_foundation_1x1_x1.smx");  // TODO: Is this correct?
+  case BuildingType::PalisadeGate:     return QStringLiteral("b_dark_gate_palisade_e_constr_x1.smx");  // TODO: This has multiple orientations
   case BuildingType::TreeOak:          return QStringLiteral("n_tree_oak_x1.smx");
   case BuildingType::NumBuildings:
     LOG(ERROR) << "Invalid type given: BuildingType::NumBuildings";
@@ -95,7 +141,8 @@ std::filesystem::path ClientBuildingType::GetIconFilename() const {
 
 bool ClientBuildingType::UsesRandomSpriteFrame() const {
   return (static_cast<int>(type) >= static_cast<int>(BuildingType::FirstTree) &&
-          static_cast<int>(type) <= static_cast<int>(BuildingType::LastTree));
+          static_cast<int>(type) <= static_cast<int>(BuildingType::LastTree)) ||
+         type == BuildingType::House;
 }
 
 float ClientBuildingType::GetHealthBarHeightAboveCenter(int frameIndex) const {
@@ -122,12 +169,13 @@ void ClientBuildingType::SetCommandButtons(CommandButton commandButtons[3][5]) {
 }
 
 
-ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY, double creationServerTime)
+ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY, float buildPercentage, double creationServerTime)
     : ClientObject(ObjectType::Building, playerIndex, creationServerTime),
       type(type),
       fixedFrameIndex(-1),
       baseTileX(baseTileX),
-      baseTileY(baseTileY) {}
+      baseTileY(baseTileY),
+      buildPercentage(buildPercentage) {}
 
 QPointF ClientBuilding::GetCenterProjectedCoord(
     Map* map) {
@@ -147,7 +195,8 @@ QRectF ClientBuilding::GetRectInProjectedCoords(
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
-  const Sprite& sprite = buildingType.GetSprite();
+  bool isFoundation = buildPercentage < 100;
+  const Sprite& sprite = isFoundation ? buildingType.GetFoundationSprite() : buildingType.GetSprite();
   QPointF centerProjectedCoord = GetCenterProjectedCoord(map);
   int frameIndex = GetFrameIndex(buildingType, elapsedSeconds);
   
@@ -175,11 +224,17 @@ void ClientBuilding::Render(
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
-  const Texture& texture = shadow ? buildingType.GetShadowTexture() : buildingType.GetTexture();
-  QPointF centerProjectedCoord = GetCenterProjectedCoord(map);
-  int frameIndex = GetFrameIndex(buildingType, elapsedSeconds);
+  bool isFoundation = buildPercentage < 100;
   
-  if (type == BuildingType::TownCenter) {
+  const Texture& texture =
+      isFoundation ?
+      (shadow ? buildingType.GetFoundationShadowTexture() : buildingType.GetFoundationTexture()) :
+      (shadow ? buildingType.GetShadowTexture() : buildingType.GetTexture());
+  
+  int frameIndex = GetFrameIndex(buildingType, elapsedSeconds);
+  QPointF centerProjectedCoord = GetCenterProjectedCoord(map);
+  
+  if (type == BuildingType::TownCenter && !isFoundation) {
     // Special case for town centers: Render all of their separate parts.
     // Main
     const ClientBuildingType& helperType1 = buildingTypes[static_cast<int>(BuildingType::TownCenterMain)];
@@ -209,8 +264,13 @@ void ClientBuilding::Render(
         playerColors, playerIndex);
   }
   
+  bool useDarkModulation = isFoundation && buildPercentage == 0 && !shadow && !outline;
+  if (useDarkModulation) {
+    spriteShader->GetProgram()->UseProgram();
+    spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 0.5, 0.5, 0.5, 1);
+  }
   DrawSprite(
-      buildingType.GetSprite(),
+      isFoundation ? buildingType.GetFoundationSprite() : buildingType.GetSprite(),
       texture,
       spriteShader,
       centerProjectedCoord,
@@ -224,8 +284,11 @@ void ClientBuilding::Render(
       outline,
       playerColors,
       playerIndex);
+  if (useDarkModulation) {
+    spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
+  }
   
-  if (type == BuildingType::TownCenter) {
+  if (type == BuildingType::TownCenter && !isFoundation) {
     // Front
     const ClientBuildingType& helperType4 = buildingTypes[static_cast<int>(BuildingType::TownCenterFront)];
     DrawSprite(
@@ -237,9 +300,24 @@ void ClientBuilding::Render(
   }
 }
 
+const Sprite& ClientBuilding::GetSprite() {
+  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
+  const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
+  
+  bool isFoundation = buildPercentage < 100;
+  
+  return isFoundation ? buildingType.GetFoundationSprite() : buildingType.GetSprite();
+}
+
 int ClientBuilding::GetFrameIndex(
     const ClientBuildingType& buildingType,
     double elapsedSeconds) {
+  bool isFoundation = buildPercentage < 100;
+  if (isFoundation) {
+    return std::max<int>(0, std::min<int>(buildingType.GetFoundationSprite().NumFrames() - 1,
+                                          (buildPercentage / 100.f) * buildingType.GetFoundationSprite().NumFrames()));
+  }
+  
   if (buildingType.UsesRandomSpriteFrame()) {
     if (fixedFrameIndex < 0) {
       fixedFrameIndex = rand() % buildingType.GetSprite().NumFrames();

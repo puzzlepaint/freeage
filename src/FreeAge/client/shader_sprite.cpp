@@ -119,6 +119,7 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
         "uniform vec2 u_textureSize;\n"
         "uniform vec2 u_playerColorsTextureSize;\n"
         "uniform int u_playerIndex;\n"
+        "uniform vec4 u_modulationColor;\n"
         "\n"
         "vec4 AdjustPlayerColor(vec4 input) {\n"
         "  int alpha = int(round(255 * input.a));"
@@ -148,10 +149,10 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
         "  bottomRight = AdjustPlayerColor(bottomRight);\n"
         "  \n"
         "  out_color =\n"
-        "      (1 - fx) * (1 - fy) * topLeft +\n"
-        "      (    fx) * (1 - fy) * topRight +\n"
-        "      (1 - fx) * (    fy) * bottomLeft +\n"
-        "      (    fx) * (    fy) * bottomRight;\n"
+        "      u_modulationColor *\n"  // this is a component-wise multiplication
+        "      mix(mix(topLeft, topRight, fx),\n"
+        "          mix(bottomLeft, bottomRight, fx),\n"
+        "          fy);\n"
         "  \n"
         "  if (out_color.a < 0.5) {\n"
         "    discard;\n"
@@ -174,6 +175,7 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
       playerColorsTextureSize_location = program->GetUniformLocationOrAbort("u_playerColorsTextureSize");
       playerIndex_location = program->GetUniformLocationOrAbort("u_playerIndex");
       playerColorsTexture_location = program->GetUniformLocationOrAbort("u_playerColorsTexture");
+      modulationColor_location = program->GetUniformLocationOrAbort("u_modulationColor");
     }
   }
   if (outline) {

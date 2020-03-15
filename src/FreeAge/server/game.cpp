@@ -244,6 +244,70 @@ void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player)
   productionBuilding->QueueUnit(unitType);
 }
 
+void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInGame* player) {
+  const char* data = msg.data();
+  
+  BuildingType type = static_cast<BuildingType>(mango::uload16(data + 3));
+  QSize foundationSize = GetBuildingSize(type);
+  QPoint baseTile(
+      mango::uload16(data + 5),
+      mango::uload16(data + 7));
+  
+  // Can the foundation be placed at the given location?
+  // TODO: The same logic is implemented on the client, can that be unified?
+  // TODO: Docks need a special case
+  
+  // 1) Check whether any map tile at this location is occupied.
+  // TODO: We should also check against foundations set by the same player.
+  for (int y = baseTile.y(); y < baseTile.y() + foundationSize.height(); ++ y) {
+    for (int x = baseTile.x(); x < baseTile.x() + foundationSize.width(); ++ x) {
+      if (map->occupiedAt(x, y)) {
+        // TODO: Once map visibility is implemented, players must be allowed to place foundations over other players'
+        //       buildings that they don't see. Otherwise, "foundation scanning" will be possible (as in the original game).
+        LOG(WARNING) << "Received a PlaceBuildingFoundation message for an occupied space";
+        return;
+      }
+    }
+  }
+  
+  // 2) Check whether the maximum elevation difference within the building space does not exceed 2.
+  //    TODO: I made this criterion up without testing it; is that actually how the original game works?
+  // TODO: This criterion must not apply to farms.
+  int minElevation = std::numeric_limits<int>::max();
+  int maxElevation = std::numeric_limits<int>::min();
+  for (int y = baseTile.y(); y <= baseTile.y() + foundationSize.height(); ++ y) {
+    for (int x = baseTile.x(); x <= baseTile.x() + foundationSize.width(); ++ x) {
+      int elevation = map->elevationAt(x, y);
+      minElevation = std::min(minElevation, elevation);
+      maxElevation = std::max(maxElevation, elevation);
+    }
+  }
+  
+  if (maxElevation - minElevation > 2) {
+    LOG(WARNING) << "Received a PlaceBuildingFoundation message for a space that is too hilly";
+    return;
+  }
+  
+  // Does the player have sufficient resources to place this foundation?
+  ResourceAmount cost = GetBuildingCost(type);
+  if (!player->resources.CanAfford(cost)) {
+    LOG(WARNING) << "Received a PlaceBuildingFoundation message for a building for which the player has not enough resources";
+    return;
+  }
+  // Subtract the unit cost from the player's resources.
+  player->resources.Subtract(cost);
+  
+  // Add the foundation and tell the sending player that it has been added.
+  u32 newBuildingId;
+  ServerBuilding* newBuildingFoundation = map->AddBuilding(player->index, type, baseTile, /*buildPercentage*/ 0, &newBuildingId, /*addOccupancy*/ false);
+  
+  // NOTE: This addObject message will be interpreted on the client together with the last
+  //       sent game step server time. This should be fine, but should be kept in mind in case
+  //       one wants to make changes here.
+  QByteArray addObjectMsg = CreateAddObjectMessage(newBuildingId, newBuildingFoundation);
+  player->socket->write(addObjectMsg);
+}
+
 Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players) {
   while (true) {
     if (player->unparsedBuffer.size() < 3) {
@@ -265,6 +329,9 @@ Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, con
       break;
     case ClientToServerMessage::ProduceUnit:
       HandleProduceUnitMessage(player->unparsedBuffer, player);
+      break;
+    case ClientToServerMessage::PlaceBuildingFoundation:
+      HandlePlaceBuildingFoundationMessage(player->unparsedBuffer, player);
       break;
     case ClientToServerMessage::Chat:
       HandleChat(player->unparsedBuffer, player, msgLength, players);
@@ -314,7 +381,7 @@ QByteArray Game::CreateMapUncoverMessage() {
 
 QByteArray Game::CreateAddObjectMessage(u32 objectId, ServerObject* object) {
   // Create buffer
-  QByteArray msg(object->isBuilding() ? 15 : 19, Qt::Initialization::Uninitialized);
+  QByteArray msg(object->isBuilding() ? 19 : 19, Qt::Initialization::Uninitialized);
   char* data = msg.data();
   
   // Set buffer header (3 bytes)
@@ -331,6 +398,7 @@ QByteArray Game::CreateAddObjectMessage(u32 objectId, ServerObject* object) {
     mango::ustore16(data + 9, static_cast<u16>(building->GetBuildingType()));  // TODO: Would 8 bits be sufficient here?
     mango::ustore16(data + 11, building->GetBaseTile().x());
     mango::ustore16(data + 13, building->GetBaseTile().y());
+    *reinterpret_cast<float*>(data + 15) = building->GetBuildPercentage();
   } else {
     ServerUnit* unit = static_cast<ServerUnit*>(object);
     mango::ustore16(data + 9, static_cast<u16>(unit->GetUnitType()));  // TODO: Would 8 bits be sufficient here?

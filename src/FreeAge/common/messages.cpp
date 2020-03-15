@@ -191,6 +191,23 @@ QByteArray CreateProduceUnitMessage(u32 buildingId, u16 unitType) {
   return msg;
 }
 
+QByteArray CreatePlaceBuildingFoundationMessage(BuildingType type, const QPoint& baseTile) {
+  // Create buffer
+  QByteArray msg(9, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ClientToServerMessage::PlaceBuildingFoundation);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore16(data + 3, static_cast<u16>(type));
+  mango::ustore16(data + 5, baseTile.x());
+  mango::ustore16(data + 7, baseTile.y());
+  
+  return msg;
+}
+
 
 QByteArray CreateWelcomeMessage() {
   // Create buffer

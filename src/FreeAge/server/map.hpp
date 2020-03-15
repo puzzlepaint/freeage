@@ -27,7 +27,7 @@ class ServerMap {
   /// (i.e., neighboring tiles may be modified as well).
   void PlaceElevation(int tileX, int tileY, int elevationValue);
   
-  ServerBuilding* AddBuilding(int player, BuildingType type, const QPoint& baseTile, u32* id = nullptr);
+  ServerBuilding* AddBuilding(int player, BuildingType type, const QPoint& baseTile, float buildPercentage, u32* id = nullptr, bool addOccupancy = true);
   ServerUnit* AddUnit(int player, UnitType type, const QPointF& position, u32* id = nullptr);
   
   /// Tests whether the given unit could stand at the given mapCoord without

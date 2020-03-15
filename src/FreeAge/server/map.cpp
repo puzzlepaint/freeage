@@ -79,7 +79,7 @@ void ServerMap::GenerateRandomMap(int playerCount, int seed) {
         townCenterLocations[player].x() + 0.5f * townCenterSize.width(),
         townCenterLocations[player].y() + 0.5f * townCenterSize.height());
     
-    AddBuilding(player, BuildingType::TownCenter, townCenterLocations[player]);
+    AddBuilding(player, BuildingType::TownCenter, townCenterLocations[player], /*buildPercentage*/ 100);
   }
   
   auto getRandomLocation = [&](float minDistanceToTCs, int* tileX, int* tileY) {
@@ -140,7 +140,7 @@ retryForest:  // TODO: Ugly implementation, improve this
           int diffY = y - tileY;
           float radius = sqrtf(diffX * diffX + diffY * diffY);
           if (radius <= forestRadius && !occupiedAt(x, y)) {
-            AddBuilding(-1, BuildingType::TreeOak, QPoint(x, y));
+            AddBuilding(-1, BuildingType::TreeOak, QPoint(x, y), /*buildPercentage*/ 100);
           }
         }
       }
@@ -320,8 +320,8 @@ bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord) {
   return false;
 }
 
-ServerBuilding* ServerMap::AddBuilding(int player, BuildingType type, const QPoint& baseTile, u32* id) {
-  ServerBuilding* newBuilding = new ServerBuilding(player, type, baseTile);
+ServerBuilding* ServerMap::AddBuilding(int player, BuildingType type, const QPoint& baseTile, float buildPercentage, u32* id, bool addOccupancy) {
+  ServerBuilding* newBuilding = new ServerBuilding(player, type, baseTile, buildPercentage);
   
   // Insert into objects map
   objects.insert(std::make_pair(nextObjectID, newBuilding));
@@ -331,10 +331,12 @@ ServerBuilding* ServerMap::AddBuilding(int player, BuildingType type, const QPoi
   ++ nextObjectID;
   
   // Mark the occupied tiles as such
-  QRect occupancyRect = GetBuildingOccupancy(type);
-  for (int y = baseTile.y() + occupancyRect.y(), endY = baseTile.y() + occupancyRect.y() + occupancyRect.height(); y < endY; ++ y) {
-    for (int x = baseTile.x() + occupancyRect.x(), endX = baseTile.x() + occupancyRect.x() + occupancyRect.width(); x < endX; ++ x) {
-      occupiedAt(x, y) = true;
+  if (addOccupancy) {
+    QRect occupancyRect = GetBuildingOccupancy(type);
+    for (int y = baseTile.y() + occupancyRect.y(), endY = baseTile.y() + occupancyRect.y() + occupancyRect.height(); y < endY; ++ y) {
+      for (int x = baseTile.x() + occupancyRect.x(), endX = baseTile.x() + occupancyRect.x() + occupancyRect.width(); x < endX; ++ x) {
+        occupiedAt(x, y) = true;
+      }
     }
   }
   

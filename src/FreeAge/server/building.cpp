@@ -3,11 +3,12 @@
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/server/game.hpp"
 
-ServerBuilding::ServerBuilding(int playerIndex, BuildingType type, const QPoint& baseTile)
+ServerBuilding::ServerBuilding(int playerIndex, BuildingType type, const QPoint& baseTile, float buildPercentage)
     : ServerObject(ObjectType::Building, playerIndex),
       productionPercentage(0),
       type(type),
-      baseTile(baseTile) {}
+      baseTile(baseTile),
+      buildPercentage(buildPercentage) {}
 
 bool ServerBuilding::CanProduce(UnitType unitType, PlayerInGame* /*player*/) {
   // Can the building produce this unit in principle?

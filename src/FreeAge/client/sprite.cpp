@@ -1090,6 +1090,7 @@ void DrawSprite(
     float scaling) {
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameNumber).shadow : sprite.frame(frameNumber).graphic;
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  CHECK_OPENGL_NO_ERROR();
   
   bool isGraphic = !shadow && !outline;
   

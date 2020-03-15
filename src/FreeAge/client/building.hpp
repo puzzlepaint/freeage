@@ -33,6 +33,10 @@ class ClientBuildingType {
   inline const Texture& GetTexture() const { return texture; }
   inline const Texture& GetShadowTexture() const { return shadowTexture; }
   
+  inline const Sprite& GetFoundationSprite() const { return foundationSprite; }
+  inline const Texture& GetFoundationTexture() const { return foundationTexture; }
+  inline const Texture& GetFoundationShadowTexture() const { return foundationShadowTexture; }
+  
   inline const Texture* GetIconTexture() const { return &iconTexture; }
   
   /// Returns the global instance of the building types vector.
@@ -43,6 +47,7 @@ class ClientBuildingType {
   
  private:
   QString GetFilename() const;
+  QString GetFoundationFilename() const;
   std::filesystem::path GetIconFilename() const;
   
   BuildingType type;
@@ -50,6 +55,10 @@ class ClientBuildingType {
   Sprite sprite;
   Texture texture;
   Texture shadowTexture;
+  
+  Sprite foundationSprite;
+  Texture foundationTexture;
+  Texture foundationShadowTexture;
   
   /// The maximum centerY value of any graphic frame of this building type.
   /// For animated buildings such as mills, this can be used to determine a reasonable
@@ -63,7 +72,7 @@ class ClientBuildingType {
 /// Represents a building on the client side.
 class ClientBuilding : public ClientObject {
  public:
-  ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY, double creationServerTime);
+  ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY, float buildPercentage, double creationServerTime);
   
   /// Returns the projected coordinates of this building's center point.
   QPointF GetCenterProjectedCoord(
@@ -76,6 +85,9 @@ class ClientBuilding : public ClientObject {
       double elapsedSeconds,
       bool shadow,
       bool outline);
+  
+  /// Returns the current sprite for this building. This can differ (e.g., it could be the foundation or main sprite).
+  const Sprite& GetSprite();
   
   int GetFrameIndex(
       const ClientBuildingType& buildingType,
@@ -94,10 +106,11 @@ class ClientBuilding : public ClientObject {
       bool shadow,
       bool outline);
   
+  inline void SetFixedFrameIndex(int index) { fixedFrameIndex = index; }
+  
   inline BuildingType GetType() const { return type; }
   inline QString GetBuildingName() const { return ::GetBuildingName(type); }
   inline const Texture* GetIconTexture() const { return ClientBuildingType::GetBuildingTypes()[static_cast<int>(type)].GetIconTexture(); };
-  
   inline QPoint GetBaseTile() const { return QPoint(baseTileX, baseTileY); }
   
  private:
@@ -110,4 +123,9 @@ class ClientBuilding : public ClientObject {
   /// stands on.
   int baseTileX;
   int baseTileY;
+  
+  /// The build percentage of this building, in percent. Special cases:
+  /// * Exactly 100 means that the building is finished.
+  /// * Exactly   0 means that this is a building foundation (i.e., it does not affect map occupancy (yet)).
+  float buildPercentage;
 };

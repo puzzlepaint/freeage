@@ -9,12 +9,12 @@ std::string GetGLErrorName(GLenum error_code);
 
 std::string GetGLErrorDescription(GLenum error_code);
 
-// This uses a macro such that LOG(ERROR) picks up the correct file and line
+// This uses a macro such that LOG(...) picks up the correct file and line
 // number.
 #define CHECK_OPENGL_NO_ERROR() \
   do { \
     GLenum error = f->glGetError(); \
-    if (error == GL_NO_ERROR) {  \
+    if (error == GL_NO_ERROR) { \
       break; \
     } \
     LOG(ERROR) << "OpenGL Error: " << GetGLErrorName(error) << " (" << error << "), description:" << std::endl << GetGLErrorDescription(error); \

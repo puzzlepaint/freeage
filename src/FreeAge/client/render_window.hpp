@@ -69,6 +69,7 @@ class RenderWindow : public QOpenGLWidget {
   void RenderClosedPath(float halfLineWidth, const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset);
   void RenderShadows(double displayedServerTime);
   void RenderBuildings(double displayedServerTime);
+  void RenderBuildingFoundation(double displayedServerTime);
   void RenderSelectionGroundOutlines();
   void RenderOutlines(double displayedServerTime);
   void RenderUnits(double displayedServerTime);
@@ -94,6 +95,11 @@ class RenderWindow : public QOpenGLWidget {
   
   /// Updates the game state to the given server time for which the state should be rendered.
   void UpdateGameState(double displayedServerTime);
+  
+  /// Checks whether a building foundation of the given type can be placed at the given
+  /// cursor position in screen coordinates. If yes, true is returned and the base tile
+  /// coordinates of the building are returned in baseTile.
+  bool CanBuildingFoundationBePlacedHere(BuildingType type, const QPointF& cursorPos, QPoint* baseTile);
   
   void ShowDefaultCommandButtonsForSelection();
   void ShowEconomyBuildingCommandButtons();
@@ -213,6 +219,9 @@ class RenderWindow : public QOpenGLWidget {
   int pressedCommandButtonCol = -1;
   
   bool showingEconomyBuildingCommandButtons = false;
+  /// The type of building that the user is about to place a foundation for.
+  /// If not constructing a building, this is set to BuildingType::NumBuildings.
+  BuildingType constructBuildingType = BuildingType::NumBuildings;
   
   // Resources.
   GLuint pointBuffer;
