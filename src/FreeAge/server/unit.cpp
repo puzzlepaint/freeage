@@ -5,7 +5,8 @@
 ServerUnit::ServerUnit(int playerIndex, UnitType type, const QPointF& mapCoord)
     : ServerObject(ObjectType::Unit, playerIndex),
       type(type),
-      mapCoord(mapCoord) {}
+      mapCoord(mapCoord),
+      currentAction(UnitAction::Idle) {}
 
 void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject) {
   if (IsVillager(type)) {
@@ -15,6 +16,7 @@ void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject) {
       if (targetBuilding->GetPlayerIndex() == GetPlayerIndex() &&
           targetBuilding->GetBuildPercentage() < 100) {
         // Make the villager construct the target building.
+        type = IsMaleVillager(type) ? UnitType::MaleVillagerBuilder : UnitType::FemaleVillagerBuilder;
         SetTargetInternal(targetObjectId, targetObject);
         return;
       }

@@ -64,6 +64,9 @@ void GameController::ParseMessage(const QByteArray& buffer, ServerToClientMessag
   case ServerToClientMessage::MapUncover:
     HandleMapUncoverMessage(buffer);
     break;
+  case ServerToClientMessage::ChangeUnitType:
+    HandleChangeUnitTypeMessage(buffer);
+    break;
   case ServerToClientMessage::GameStepTime:
     HandleGameStepTimeMessage(buffer);
     break;
@@ -156,6 +159,7 @@ void GameController::HandleUnitMovementMessage(const QByteArray& buffer) {
   QPointF speed(
       *reinterpret_cast<const float*>(data + 15),
       *reinterpret_cast<const float*>(data + 19));
+  UnitAction action = static_cast<UnitAction>(data[23]);
   
   auto it = map->GetObjects().find(unitId);
   if (it == map->GetObjects().end()) {
@@ -168,7 +172,7 @@ void GameController::HandleUnitMovementMessage(const QByteArray& buffer) {
   }
   
   ClientUnit* unit = static_cast<ClientUnit*>(it->second);
-  unit->AddMovementSegment(currentGameStepServerTime, startPoint, speed);
+  unit->AddMovementSegment(currentGameStepServerTime, startPoint, speed, action);
 }
 
 void GameController::HandleGameStepTimeMessage(const QByteArray& buffer) {
@@ -205,5 +209,24 @@ void GameController::HandleBuildPercentageUpdate(const QByteArray& buffer) {
   
   ClientBuilding* building = static_cast<ClientBuilding*>(it->second);
   building->AddBuildPercentage(currentGameStepServerTime, percentage);
-  LOG(WARNING) << "Build progress: " << percentage;
+}
+
+void GameController::HandleChangeUnitTypeMessage(const QByteArray& buffer) {
+  const char* data = buffer.data();
+  
+  u32 buildingId = mango::uload32(data + 3);
+  auto it = map->GetObjects().find(buildingId);
+  if (it == map->GetObjects().end()) {
+    LOG(ERROR) << "Received a ChangeUnitType message for an object ID that is not in the map.";
+    return;
+  }
+  if (!it->second->isUnit()) {
+    LOG(ERROR) << "Received a ChangeUnitType message for an object ID that is a different type than a unit.";
+    return;
+  }
+  
+  UnitType newType = static_cast<UnitType>(mango::uload16(data + 7));
+  
+  ClientUnit* unit = static_cast<ClientUnit*>(it->second);
+  unit->SetType(newType);
 }

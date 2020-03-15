@@ -13,8 +13,7 @@ ServerBuilding::ServerBuilding(int playerIndex, BuildingType type, const QPoint&
 bool ServerBuilding::CanProduce(UnitType unitType, PlayerInGame* /*player*/) {
   // Can the building produce this unit in principle?
   if (type == BuildingType::TownCenter) {
-    if (unitType != UnitType::FemaleVillager &&
-        unitType != UnitType::MaleVillager) {
+    if (!IsVillager(unitType)) {
       return false;
     }
   } else {

@@ -1572,8 +1572,7 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
     
     if (object->isUnit()) {
       ClientUnit* unit = static_cast<ClientUnit*>(object);
-      if (unit->GetType() == UnitType::FemaleVillager ||
-          unit->GetType() == UnitType::MaleVillager) {
+      if (IsVillager(unit->GetType())) {
         atLeastOneVillagerSelected = true;
         break;
       }
@@ -1661,7 +1660,7 @@ void RenderWindow::initializeGL() {
   
   isLoading = true;
   loadingStep = 0;
-  maxLoadingStep = 42;
+  maxLoadingStep = 44;
   loadingThread->start();
   
   // Create resources right now which are required for rendering the loading screen:
@@ -1890,7 +1889,7 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
         haveOwnUnitSelected |= isOwnUnit;
         if (isOwnUnit) {
           UnitType type = static_cast<ClientUnit*>(objectIt->second)->GetType();
-          bool isVillager = type == UnitType::FemaleVillager || type == UnitType::MaleVillager;
+          bool isVillager = IsVillager(type);
           selectionIsVillager[i] = isVillager;
           haveOwnVillagerSelected |= isOwnUnit && isVillager;
         }

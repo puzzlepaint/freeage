@@ -15,6 +15,9 @@ class ServerUnit : public ServerObject {
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   inline void SetMapCoord(const QPointF& mapCoord) { this->mapCoord = mapCoord; }
   
+  inline UnitAction GetCurrentAction() const { return currentAction; }
+  inline void SetCurrentAction(UnitAction newAction) { currentAction = newAction; }
+  
   /// Attempts to command the unit to interact with the given target object.
   /// If the unit cannot actually interact with that object, this call does nothing.
   void SetTarget(u32 targetObjectId, ServerObject* targetObject);
@@ -29,7 +32,7 @@ class ServerUnit : public ServerObject {
   // TODO: Accept more complex paths (rather than just a single target).
   inline bool HasPath() const { return hasPath; }
   inline void SetPath(const QPointF& pathTarget) { hasPath = true; this->pathTarget = pathTarget; }
-  inline void StopMovement() { hasMoveToTarget = false; hasPath = false; currentMovementDirection = QPointF(0, 0); }
+  inline void StopMovement() { currentAction = UnitAction::Idle; hasMoveToTarget = false; hasPath = false; currentMovementDirection = QPointF(0, 0); }
   inline const QPointF& GetPathTarget() const { return pathTarget; }
   
   inline const QPointF& GetMovementDirection() const { return currentMovementDirection; }
@@ -44,6 +47,8 @@ class ServerUnit : public ServerObject {
   
   UnitType type;
   QPointF mapCoord;
+  
+  UnitAction currentAction;
   
   /// The unit's target object (if any). Set to kInvalidObjectId if the unit does not have a target.
   u32 targetObjectId = kInvalidObjectId;

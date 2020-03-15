@@ -7,6 +7,7 @@
 
 #include "FreeAge/common/building_types.hpp"
 #include "FreeAge/common/free_age.hpp"
+#include "FreeAge/common/unit_types.hpp"
 
 
 struct ResourceAmount;
@@ -151,8 +152,6 @@ enum class ServerToClientMessage {
   MapUncover,
   
   /// A new map object (building or unit) is created respectively enters the client's view.
-  /// TODO: TCP messages have quite some overhead. Add an option to batch such messages together with other in-game messages?
-  ///       Especially trees could be added quite frequently.
   AddObject,
   
   /// Tells the client that all messages following this one belong to the given game
@@ -168,6 +167,9 @@ enum class ServerToClientMessage {
   
   /// Tells the client about a new build percentage of a building being constructed.
   BuildPercentageUpdate,
+  
+  /// Tells the client that an existing unit seen by the client changed its UnitType.
+  ChangeUnitType,
 };
 
 QByteArray CreateWelcomeMessage();
@@ -197,8 +199,11 @@ QByteArray CreateGameStepTimeMessage(double gameStepServerTime);
 QByteArray CreateUnitMovementMessage(
     u32 unitId,
     const QPointF& startPoint,
-    const QPointF& speed);
+    const QPointF& speed,
+    UnitAction action);
 
 QByteArray CreateResourcesUpdateMessage(const ResourceAmount& amount);
 
 QByteArray CreateBuildPercentageUpdateMessage(u32 buildingId, float progress);
+
+QByteArray CreateChangeUnitTypeMessage(u32 unitId, UnitType type);

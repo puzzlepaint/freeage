@@ -369,9 +369,9 @@ QByteArray CreateGameStepTimeMessage(double gameStepServerTime) {
   return msg;
 }
 
-QByteArray CreateUnitMovementMessage(u32 unitId, const QPointF& startPoint, const QPointF& speed) {
+QByteArray CreateUnitMovementMessage(u32 unitId, const QPointF& startPoint, const QPointF& speed, UnitAction action) {
   // Create buffer
-  QByteArray msg(23, Qt::Initialization::Uninitialized);
+  QByteArray msg(24, Qt::Initialization::Uninitialized);
   char* data = msg.data();
   
   // Set buffer header (3 bytes)
@@ -384,6 +384,7 @@ QByteArray CreateUnitMovementMessage(u32 unitId, const QPointF& startPoint, cons
   *reinterpret_cast<float*>(data + 11) = startPoint.y();
   *reinterpret_cast<float*>(data + 15) = speed.x();
   *reinterpret_cast<float*>(data + 19) = speed.y();
+  data[23] = static_cast<u8>(action);
   
   return msg;
 }
@@ -418,6 +419,22 @@ QByteArray CreateBuildPercentageUpdateMessage(u32 buildingId, float progress) {
   // Fill buffer
   mango::ustore32(data + 3, buildingId);
   memcpy(data + 3 + 4, &progress, 4);
+  
+  return msg;
+}
+
+QByteArray CreateChangeUnitTypeMessage(u32 unitId, UnitType type) {
+  // Create buffer
+  QByteArray msg(1 + 2 + 4 + 2, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::ChangeUnitType);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore32(data + 3, unitId);
+  mango::ustore16(data + 7, static_cast<u16>(type));
   
   return msg;
 }

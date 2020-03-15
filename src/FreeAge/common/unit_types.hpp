@@ -8,15 +8,36 @@
 /// since they are used to index into a std::vector.
 enum class UnitType {
   FemaleVillager = 0,
+  FemaleVillagerBuilder,
   MaleVillager,
+  MaleVillagerBuilder,
+  
+  FirstVillager = FemaleVillager,
+  LastVillager = MaleVillagerBuilder,
+  
   Scout,
   
   NumUnits
 };
 
+/// Unit actions, leading to different animations.
+enum class UnitAction {
+  Idle = 0,
+  Moving,
+  Building
+};
+
 inline bool IsVillager(UnitType type) {
-  return type == UnitType::FemaleVillager ||
-         type == UnitType::MaleVillager;
+  return type >= UnitType::FirstVillager &&
+         type <= UnitType::LastVillager;
+}
+inline bool IsFemaleVillager(UnitType type) {
+  return type >= UnitType::FemaleVillager &&
+         type <= UnitType::FemaleVillagerBuilder;
+}
+inline bool IsMaleVillager(UnitType type) {
+  return type >= UnitType::MaleVillager &&
+         type <= UnitType::MaleVillagerBuilder;
 }
 
 float GetUnitRadius(UnitType type);

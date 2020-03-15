@@ -246,7 +246,19 @@ void Game::HandleSetTargetMessage(const QByteArray& msg, PlayerInGame* player, u
     }
     
     ServerUnit* unit = static_cast<ServerUnit*>(it->second);
+    UnitType oldUnitType = unit->GetUnitType();
+    
     unit->SetTarget(targetId, targetIt->second);
+    
+    if (oldUnitType != unit->GetUnitType()) {
+      // Notify all clients that see the unit about its change of type.
+      // TODO: Batch this message into the message batches for the game time steps instead of sending it directly.
+      //       Right now, the message uses the time step preceding this message handling ...
+      QByteArray msg = CreateChangeUnitTypeMessage(id, unit->GetUnitType());
+      for (auto& player : *playersInGame) {
+        player->socket->write(msg);
+      }
+    }
   }
 }
 
@@ -492,8 +504,7 @@ void Game::StartGame() {
         }
       } else {  // if (item.second->isUnit()) {
         ServerUnit* unit = static_cast<ServerUnit*>(item.second);
-        if (unit->GetUnitType() == UnitType::FemaleVillager ||
-            unit->GetUnitType() == UnitType::MaleVillager) {
+        if (IsVillager(unit->GetUnitType())) {
           initialViewCenter = unit->GetMapCoord();
         }
       }
@@ -634,6 +645,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
     float moveDistance = unit->GetMoveSpeed() * stepLengthInSeconds;
     
     QPointF newMapCoord = unit->GetMapCoord() + moveDistance * unit->GetMovementDirection();
+    bool stayInPlace = false;
     
     // If the unit has a target object, test whether it touches this target.
     u32 targetObjectId = unit->GetTargetObjectId();
@@ -653,7 +665,6 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
                 targetBuilding->GetPlayerIndex() == unit->GetPlayerIndex() &&
                 targetBuilding->GetBuildPercentage() < 100) {
               // A villager constructs a building.
-              LOG(INFO) << "Server: Vill touches foundation!";
               
               // Special case for the start: If the foundation has 0 percent build progress,
               // we must first verify that the foundation space is free. If yes:
@@ -666,8 +677,6 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
               bool canConstruct = true;
               if (targetBuilding->GetBuildPercentage() == 0) {
                 if (IsFoundationFree(targetBuilding, map.get())) {
-                  LOG(ERROR) << "Server: Foundation -> construction site!!!";
-                  
                   // Add the foundation's occupancy to the map.
                   // TODO: The foundation's occupancy may differ from the final building's occupancy, e.g., for town centers. Handle this case properly.
                   map->AddBuildingOccupancy(targetBuilding);
@@ -682,7 +691,6 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
                   }
                 } else {
                   // TODO: Construction blocked.
-                  LOG(ERROR) << "Server: Construction blocked!";
                   canConstruct = false;
                 }
               }
@@ -690,8 +698,6 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
               // Add progress to the construction.
               // TODO: In the original game, two villagers building does not result in twice the speed. Account for this.
               if (canConstruct) {
-                LOG(ERROR) << "Server: adding build progress!!!";
-                
                 double constructionTime = GetBuildingConstructionTime(targetBuilding->GetBuildingType());
                 double constructionStepInPercent = 100 * stepLengthInSeconds / constructionTime;
                 double newPercentage = std::min<double>(100, targetBuilding->GetBuildPercentage() + constructionStepInPercent);
@@ -703,9 +709,19 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
                 for (auto& player : *playersInGame) {
                   (*accumulatedMessages)[player->index] += msg;
                 }
+                
+                if (unit->GetCurrentAction() != UnitAction::Building) {
+                  unitMovementChanged = true;
+                  unit->SetCurrentAction(UnitAction::Building);
+                }
+              } else {
+                if (unit->GetCurrentAction() != UnitAction::Idle) {
+                  unitMovementChanged = true;
+                  unit->SetCurrentAction(UnitAction::Idle);
+                }
               }
               
-              return;
+              stayInPlace = true;
             }
           }
         } else if (targetObject->isUnit()) {
@@ -715,42 +731,52 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
       }
     }
     
-    // Test whether the current goal was reached.
-    QPointF toGoal = unit->GetPathTarget() - unit->GetMapCoord();
-    float squaredDistanceToGoal = toGoal.x() * toGoal.x() + toGoal.y() * toGoal.y();
-    float directionDotToGoal =
-        unit->GetMovementDirection().x() * toGoal.x() +
-        unit->GetMovementDirection().y() * toGoal.y();
-    if (squaredDistanceToGoal <= moveDistance * moveDistance || directionDotToGoal <= 0) {
-      // The goal was reached.
-      if (!map->DoesUnitCollide(unit, unit->GetPathTarget())) {
-        unit->SetMapCoord(unit->GetPathTarget());
-      }
-      unit->StopMovement();
-      unitMovementChanged = true;
-    } else {
-      // Move the unit if the path is free.
-      if (map->DoesUnitCollide(unit, newMapCoord)) {
+    if (!stayInPlace) {
+      // Test whether the current goal was reached.
+      QPointF toGoal = unit->GetPathTarget() - unit->GetMapCoord();
+      float squaredDistanceToGoal = toGoal.x() * toGoal.x() + toGoal.y() * toGoal.y();
+      float directionDotToGoal =
+          unit->GetMovementDirection().x() * toGoal.x() +
+          unit->GetMovementDirection().y() * toGoal.y();
+      
+      if (squaredDistanceToGoal <= moveDistance * moveDistance || directionDotToGoal <= 0) {
+        // The goal was reached.
+        if (!map->DoesUnitCollide(unit, unit->GetPathTarget())) {
+          unit->SetMapCoord(unit->GetPathTarget());
+        }
         unit->StopMovement();
         unitMovementChanged = true;
       } else {
-        unit->SetMapCoord(newMapCoord);
+        // Move the unit if the path is free.
+        if (map->DoesUnitCollide(unit, newMapCoord)) {
+          unit->StopMovement();
+          unitMovementChanged = true;
+        } else {
+          unit->SetMapCoord(newMapCoord);
+          
+          if (unit->GetCurrentAction() != UnitAction::Moving) {
+            unitMovementChanged = true;
+            unit->SetCurrentAction(UnitAction::Moving);
+          }
+        }
+        
+        // Check whether the unit moves over to the next segment in its planned path.
+        // TODO
       }
-      
-      // Check whether the unit moves over to the next segment in its planned path.
-      // TODO
     }
   }
   
   if (unitMovementChanged) {
-    // Notify all clients that see the unit about its new movement / about it having stopped moving.
+    // Notify all clients that see the unit about its new movement / animation.
     for (usize playerIndex = 0; playerIndex < playersInGame->size(); ++ playerIndex) {
       // TODO: Only do this if the player sees the unit.
+      
       (*accumulatedMessages)[playerIndex] +=
           CreateUnitMovementMessage(
               unitId,
               unit->GetMapCoord(),
-              unit->GetMoveSpeed() * unit->GetMovementDirection());
+              unit->GetMoveSpeed() * unit->GetMovementDirection(),
+              unit->GetCurrentAction());
     }
   }
 }

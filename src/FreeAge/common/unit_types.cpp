@@ -6,14 +6,16 @@
 
 float GetUnitRadius(UnitType type) {
   // TODO: Load this from some data file
-  switch (type) {
-  case UnitType::FemaleVillager:
-  case UnitType::MaleVillager:
+  
+  if (IsVillager(type)) {
     return 0.15;
+  }
+  
+  switch (type) {
   case UnitType::Scout:
     return 0.3;
-  case UnitType::NumUnits:
-    LOG(ERROR) << "GetUnitRadius() called on UnitType::NumUnits";
+  default:
+    LOG(ERROR) << "GetUnitRadius() called on unsupported type: " << static_cast<int>(type);
     break;
   }
   
@@ -26,6 +28,9 @@ QString GetUnitName(UnitType type) {
   case UnitType::FemaleVillager:
   case UnitType::MaleVillager:
     return QObject::tr("Villager");
+  case UnitType::FemaleVillagerBuilder:
+  case UnitType::MaleVillagerBuilder:
+    return QObject::tr("Builder");
   case UnitType::Scout:
     return QObject::tr("Scout Cavalry");
   case UnitType::NumUnits:
@@ -38,14 +43,16 @@ QString GetUnitName(UnitType type) {
 
 ResourceAmount GetUnitCost(UnitType type) {
   // TODO: Load this from some data file
-  switch (type) {
-  case UnitType::FemaleVillager:
-  case UnitType::MaleVillager:
+  
+  if (IsVillager(type)) {
     return ResourceAmount(0, 50, 0, 0);
+  }
+  
+  switch (type) {
   case UnitType::Scout:
     return ResourceAmount(0, 80, 0, 0);
-  case UnitType::NumUnits:
-    LOG(ERROR) << "GetUnitName() called on UnitType::NumUnits";
+  default:
+    LOG(ERROR) << "GetUnitName() called on unsupported type: " << static_cast<int>(type);
     break;
   }
   
@@ -54,14 +61,16 @@ ResourceAmount GetUnitCost(UnitType type) {
 
 float GetUnitProductionTime(UnitType type) {
   // TODO: Load this from some data file
-  switch (type) {
-  case UnitType::FemaleVillager:
-  case UnitType::MaleVillager:
+  
+  if (IsVillager(type)) {
     return 1;  // TODO: Set too short on purpose for testing
+  }
+  
+  switch (type) {
   case UnitType::Scout:
     return 4;  // TODO: Set too short on purpose for testing
-  case UnitType::NumUnits:
-    LOG(ERROR) << "GetUnitProductionTime() called on UnitType::NumUnits";
+  default:
+    LOG(ERROR) << "GetUnitProductionTime() called on unsupported type: " << static_cast<int>(type);
     break;
   }
   

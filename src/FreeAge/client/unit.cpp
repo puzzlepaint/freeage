@@ -22,12 +22,30 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     ok = ok && LoadAnimation(0, "u_vil_female_villager_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
     iconTexture.Load(ingameUnitsPath / "016_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);
     break;
+  case UnitType::FemaleVillagerBuilder:
+    animations[static_cast<int>(UnitAnimation::Idle)].resize(1);
+    ok = ok && LoadAnimation(0, "u_vil_female_builder_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
+    animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
+    ok = ok && LoadAnimation(0, "u_vil_female_builder_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
+    animations[static_cast<int>(UnitAnimation::Task)].resize(1);
+    ok = ok && LoadAnimation(0, "u_vil_female_builder_taskA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Task);
+    iconTexture.Load(ingameUnitsPath / "016_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);  // TODO: Do not load the icon multiple times
+    break;
   case UnitType::MaleVillager:
     animations[static_cast<int>(UnitAnimation::Idle)].resize(1);
     ok = ok && LoadAnimation(0, "u_vil_male_villager_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
     animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
     ok = ok && LoadAnimation(0, "u_vil_male_villager_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
     iconTexture.Load(ingameUnitsPath / "015_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);
+    break;
+  case UnitType::MaleVillagerBuilder:
+    animations[static_cast<int>(UnitAnimation::Idle)].resize(1);
+    ok = ok && LoadAnimation(0, "u_vil_male_builder_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
+    animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
+    ok = ok && LoadAnimation(0, "u_vil_male_builder_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
+    animations[static_cast<int>(UnitAnimation::Task)].resize(1);
+    ok = ok && LoadAnimation(0, "u_vil_male_builder_taskA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Task);
+    iconTexture.Load(ingameUnitsPath / "015_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);  // TODO: Do not load the icon multiple times
     break;
   case UnitType::Scout:
     animations[static_cast<int>(UnitAnimation::Idle)].resize(2);
@@ -205,7 +223,11 @@ void ClientUnit::UpdateGameState(double serverTime) {
     }
     
     // Update the unit's movment according to segment 0.
-    mapCoord = movementSegments.front().startPoint + (serverTime - movementSegments.front().serverTime) * movementSegments.front().speed;
+    if (movementSegments.front().action == UnitAction::Building) {
+      mapCoord = movementSegments.front().startPoint;
+    } else {
+      mapCoord = movementSegments.front().startPoint + (serverTime - movementSegments.front().serverTime) * movementSegments.front().speed;
+    }
     
     // Update facing direction.
     if (movementSegments.front().speed != QPointF(0, 0)) {
@@ -220,9 +242,10 @@ void ClientUnit::UpdateGameState(double serverTime) {
       }
     }
     
-    // If the movement is zero, set the unit to the final position and delete the segment.
-    if (movementSegments.front().speed == QPointF(0, 0)) {
-      // Use idle animation
+    if (movementSegments.front().action == UnitAction::Building) {
+      SetCurrentAnimation(UnitAnimation::Task, serverTime);
+    } else if (movementSegments.front().speed == QPointF(0, 0)) {
+      // If the movement is zero, set the unit to the final position and delete the segment.
       SetCurrentAnimation(UnitAnimation::Idle, serverTime);
       
       mapCoord = movementSegments.front().startPoint;

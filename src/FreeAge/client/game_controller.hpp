@@ -48,6 +48,7 @@ class GameController : public QObject {
   void HandleGameStepTimeMessage(const QByteArray& buffer);
   void HandleResourcesUpdateMessage(const QByteArray& buffer);
   void HandleBuildPercentageUpdate(const QByteArray& buffer);
+  void HandleChangeUnitTypeMessage(const QByteArray& buffer);
   
   std::shared_ptr<ServerConnection> connection;
   std::shared_ptr<Match> match;

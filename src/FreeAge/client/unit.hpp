@@ -16,6 +16,7 @@ constexpr int kNumFacingDirections = 16;
 enum class UnitAnimation {
   Idle = 0,
   Walk,
+  Task,
   NumAnimationTypes
 };
 
@@ -90,6 +91,8 @@ class ClientUnit : public ClientObject {
       bool outline);
   
   inline UnitType GetType() const { return type; }
+  inline void SetType(UnitType newType) { type = newType; }
+  
   inline QString GetUnitName() const { return ::GetUnitName(type); }
   inline const Texture* GetIconTexture() const { return ClientUnitType::GetUnitTypes()[static_cast<int>(type)].GetIconTexture(); };
   
@@ -98,8 +101,8 @@ class ClientUnit : public ClientObject {
   
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   
-  void AddMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed) {
-    movementSegments.emplace_back(serverTime, startPoint, speed);
+  void AddMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action) {
+    movementSegments.emplace_back(serverTime, startPoint, speed, action);
   }
   
   /// Updates the unit's state to the given server time.
@@ -121,10 +124,11 @@ class ClientUnit : public ClientObject {
   
   /// Represents a segment of linear unit movement.
   struct MovementSegment {
-    inline MovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed)
+    inline MovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action)
         : serverTime(serverTime),
           startPoint(startPoint),
-          speed(speed) {}
+          speed(speed),
+          action(action) {}
     
     /// The server time at which the unit starts moving from startPoint.
     double serverTime;
@@ -135,6 +139,11 @@ class ClientUnit : public ClientObject {
     /// The direction & speed vector of movement. This may be zero, which means
     /// that the unit stops moving at startPoint at the given serverTime.
     QPointF speed;
+    
+    /// The unit's action, affecting the animation used and even the interpretation of the
+    /// movement: for example, for the "Build" action, the unit stays in place even though
+    /// a speed is given (which in this case only indicates the unit's facing direction).
+    UnitAction action;
   };
   
   /// Ordered list of scheduled movement segments, sorted by increasing server time.
