@@ -7,13 +7,19 @@ void CommandButton::SetInvisible() {
   type = Type::Invisible;
 }
 
+void CommandButton::SetBuilding(BuildingType type) {
+  this->type = Type::ConstructBuilding;
+  buildingConstructionType = type;
+}
+
 void CommandButton::SetProduceUnit(UnitType type) {
   this->type = Type::ProduceUnit;
   unitProductionType = type;
 }
 
-void CommandButton::SetAction(const Texture* texture) {
+void CommandButton::SetAction(ActionType actionType, const Texture* texture) {
   this->type = Type::Action;
+  this->actionType = actionType;
   this->texture = texture;
 }
 
@@ -23,10 +29,13 @@ void CommandButton::Render(
     UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer) {
   if (type == Type::Invisible) {
     return;
-  } else if (type == Type::ProduceUnit ||
+  } else if (type == Type::ConstructBuilding ||
+             type == Type::ProduceUnit ||
              type == Type::Action) {
     const Texture* texture;
-    if (type == Type::ProduceUnit) {
+    if (type == Type::ConstructBuilding) {
+      texture = ClientBuildingType::GetBuildingTypes()[static_cast<int>(buildingConstructionType)].GetIconTexture();
+    } else if (type == Type::ProduceUnit) {
       texture = ClientUnitType::GetUnitTypes()[static_cast<int>(unitProductionType)].GetIconTexture();
     } else {  // if (type == Type::Action) {
       texture = this->texture;

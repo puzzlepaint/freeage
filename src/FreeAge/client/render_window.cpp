@@ -123,6 +123,8 @@ RenderWindow::~RenderWindow() {
   commandPanelTexture.reset();
   buildEconomyBuildingsTexture.reset();
   buildMilitaryBuildingsTexture.reset();
+  toggleBuildingsCategoryTexture.reset();
+  quitTexture.reset();
   
   selectionPanelTexture.reset();
   singleObjectNameDisplay.reset();
@@ -279,6 +281,14 @@ void RenderWindow::LoadResources() {
   
   buildMilitaryBuildingsTexture.reset(new Texture());
   buildMilitaryBuildingsTexture->Load(ingameActionsPath / "031_.png", GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  toggleBuildingsCategoryTexture.reset(new Texture());
+  toggleBuildingsCategoryTexture->Load(ingameActionsPath / "032_.png", GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  quitTexture.reset(new Texture());
+  quitTexture->Load(ingameActionsPath / "000_.png", GL_CLAMP, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   selectionPanelTexture.reset(new Texture());
@@ -1328,57 +1338,7 @@ void RenderWindow::AddToSelection(u32 objectId) {
 }
 
 void RenderWindow::SelectionChanged() {
-  for (int row = 0; row < kCommandButtonRows; ++ row) {
-    for (int col = 0; col < kCommandButtonCols; ++ col) {
-      commandButtons[row][col].SetInvisible();
-    }
-  }
-  
-  // Check whether a single type of building is selected only.
-  // In this case, show the buttons corresponding to this building type.
-  bool singleBuildingTypeSelected = true;
-  BuildingType selectedBuildingType = BuildingType::NumBuildings;
-  for (usize i = 0; i < selection.size(); ++ i) {
-    u32 objectId = selection[i];
-    ClientObject* object = map->GetObjects().at(objectId);
-    
-    if (object->isUnit()) {
-      singleBuildingTypeSelected = false;
-      break;
-    } else if (object->isBuilding()) {
-      ClientBuilding* building = static_cast<ClientBuilding*>(object);
-      if (i == 0) {
-        selectedBuildingType = building->GetType();
-      } else if (selectedBuildingType != building->GetType()) {
-        singleBuildingTypeSelected = false;
-        break;
-      }
-    }
-  }
-  if (!selection.empty() && singleBuildingTypeSelected) {
-    ClientBuildingType::GetBuildingTypes()[static_cast<int>(selectedBuildingType)].SetCommandButtons(commandButtons);
-    return;
-  }
-  
-  // If at least one villager is selected, show the build buttons.
-  bool atLeastOneVillagerSelected = false;
-  for (usize i = 0; i < selection.size(); ++ i) {
-    u32 objectId = selection[i];
-    ClientObject* object = map->GetObjects().at(objectId);
-    
-    if (object->isUnit()) {
-      ClientUnit* unit = static_cast<ClientUnit*>(object);
-      if (unit->GetType() == UnitType::FemaleVillager ||
-          unit->GetType() == UnitType::MaleVillager) {
-        atLeastOneVillagerSelected = true;
-        break;
-      }
-    }
-  }
-  if (atLeastOneVillagerSelected) {
-    commandButtons[0][0].SetAction(buildEconomyBuildingsTexture.get());
-    commandButtons[0][1].SetAction(buildMilitaryBuildingsTexture.get());
-  }
+  ShowDefaultCommandButtonsForSelection();
 }
 
 void RenderWindow::RenderLoadingScreen() {
@@ -1443,6 +1403,97 @@ void RenderWindow::UpdateGameState(double displayedServerTime) {
   }
 }
 
+void RenderWindow::ShowDefaultCommandButtonsForSelection() {
+  for (int row = 0; row < kCommandButtonRows; ++ row) {
+    for (int col = 0; col < kCommandButtonCols; ++ col) {
+      commandButtons[row][col].SetInvisible();
+    }
+  }
+  
+  // Check whether a single type of building is selected only.
+  // In this case, show the buttons corresponding to this building type.
+  bool singleBuildingTypeSelected = true;
+  BuildingType selectedBuildingType = BuildingType::NumBuildings;
+  for (usize i = 0; i < selection.size(); ++ i) {
+    u32 objectId = selection[i];
+    ClientObject* object = map->GetObjects().at(objectId);
+    
+    if (object->isUnit()) {
+      singleBuildingTypeSelected = false;
+      break;
+    } else if (object->isBuilding()) {
+      ClientBuilding* building = static_cast<ClientBuilding*>(object);
+      if (i == 0) {
+        selectedBuildingType = building->GetType();
+      } else if (selectedBuildingType != building->GetType()) {
+        singleBuildingTypeSelected = false;
+        break;
+      }
+    }
+  }
+  if (!selection.empty() && singleBuildingTypeSelected) {
+    ClientBuildingType::GetBuildingTypes()[static_cast<int>(selectedBuildingType)].SetCommandButtons(commandButtons);
+    return;
+  }
+  
+  // If at least one villager is selected, show the build buttons.
+  bool atLeastOneVillagerSelected = false;
+  for (usize i = 0; i < selection.size(); ++ i) {
+    u32 objectId = selection[i];
+    ClientObject* object = map->GetObjects().at(objectId);
+    
+    if (object->isUnit()) {
+      ClientUnit* unit = static_cast<ClientUnit*>(object);
+      if (unit->GetType() == UnitType::FemaleVillager ||
+          unit->GetType() == UnitType::MaleVillager) {
+        atLeastOneVillagerSelected = true;
+        break;
+      }
+    }
+  }
+  if (atLeastOneVillagerSelected) {
+    commandButtons[0][0].SetAction(CommandButton::ActionType::BuildEconomyBuilding, buildEconomyBuildingsTexture.get());
+    commandButtons[0][1].SetAction(CommandButton::ActionType::BuildMilitaryBuilding, buildMilitaryBuildingsTexture.get());
+  }
+}
+
+void RenderWindow::ShowEconomyBuildingCommandButtons() {
+  showingEconomyBuildingCommandButtons = true;
+  
+  for (int row = 0; row < kCommandButtonRows; ++ row) {
+    for (int col = 0; col < kCommandButtonCols; ++ col) {
+      commandButtons[row][col].SetInvisible();
+    }
+  }
+  
+  commandButtons[0][0].SetBuilding(BuildingType::House);
+  commandButtons[0][1].SetBuilding(BuildingType::Mill);
+  commandButtons[0][2].SetBuilding(BuildingType::MiningCamp);
+  commandButtons[0][3].SetBuilding(BuildingType::LumberCamp);
+  commandButtons[0][4].SetBuilding(BuildingType::Dock);
+  
+  commandButtons[2][3].SetAction(CommandButton::ActionType::ToggleBuildingsCategory, toggleBuildingsCategoryTexture.get());
+  commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quitTexture.get());
+}
+
+void RenderWindow::ShowMilitaryBuildingCommandButtons() {
+  showingEconomyBuildingCommandButtons = false;
+  
+  for (int row = 0; row < kCommandButtonRows; ++ row) {
+    for (int col = 0; col < kCommandButtonCols; ++ col) {
+      commandButtons[row][col].SetInvisible();
+    }
+  }
+  
+  commandButtons[0][0].SetBuilding(BuildingType::Barracks);
+  commandButtons[1][0].SetBuilding(BuildingType::Outpost);
+  commandButtons[1][1].SetBuilding(BuildingType::PalisadeWall);
+  commandButtons[2][1].SetBuilding(BuildingType::PalisadeGate);
+  
+  commandButtons[2][3].SetAction(CommandButton::ActionType::ToggleBuildingsCategory, toggleBuildingsCategoryTexture.get());
+  commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quitTexture.get());
+}
+
 void RenderWindow::initializeGL() {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   CHECK_OPENGL_NO_ERROR();
@@ -1482,7 +1533,7 @@ void RenderWindow::initializeGL() {
   
   isLoading = true;
   loadingStep = 0;
-  maxLoadingStep = 32;
+  maxLoadingStep = 42;
   loadingThread->start();
   
   // Create resources right now which are required for rendering the loading screen:
@@ -1721,9 +1772,33 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
     
     if (pressedCommandButtonRow >= 0 &&
         pressedCommandButtonCol >= 0) {
-      commandButtons[pressedCommandButtonRow][pressedCommandButtonCol].Pressed(selection, gameController.get());
+      CommandButton& button = commandButtons[pressedCommandButtonRow][pressedCommandButtonCol];
+      button.Pressed(selection, gameController.get());
       pressedCommandButtonRow = -1;
       pressedCommandButtonCol = -1;
+      
+      // "Action" buttons are handled here.
+      if (button.GetType() == CommandButton::Type::Action) {
+        switch (button.GetActionType()) {
+        case CommandButton::ActionType::BuildEconomyBuilding:
+          ShowEconomyBuildingCommandButtons();
+          break;
+        case CommandButton::ActionType::BuildMilitaryBuilding:
+          ShowMilitaryBuildingCommandButtons();
+          break;
+        case CommandButton::ActionType::ToggleBuildingsCategory:
+          if (showingEconomyBuildingCommandButtons) {
+            ShowMilitaryBuildingCommandButtons();
+          } else {
+            ShowEconomyBuildingCommandButtons();
+          }
+          break;
+        case CommandButton::ActionType::Quit:
+          ShowDefaultCommandButtonsForSelection();
+          break;
+        }
+      }
+      
       return;
     }
     

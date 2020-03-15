@@ -81,19 +81,23 @@ class RenderWindow : public QOpenGLWidget {
   /// returned in objectId.
   bool GetObjectToSelectAt(float x, float y, u32* objectId);
   
-  void BoxSelection(const QPoint& p0, const QPoint& p1);
-  
   QPointF ScreenCoordToProjectedCoord(float x, float y);
   
   void ClearSelection();
   void AddToSelection(u32 objectId);
   /// This must be called after making changes to the selection.
   void SelectionChanged();
+  /// Performs box selection. This already calls SelectionChanged() internally.
+  void BoxSelection(const QPoint& p0, const QPoint& p1);
   
   void RenderLoadingScreen();
   
   /// Updates the game state to the given server time for which the state should be rendered.
   void UpdateGameState(double displayedServerTime);
+  
+  void ShowDefaultCommandButtonsForSelection();
+  void ShowEconomyBuildingCommandButtons();
+  void ShowMilitaryBuildingCommandButtons();
   
   virtual void initializeGL() override;
   virtual void paintGL() override;
@@ -192,6 +196,8 @@ class RenderWindow : public QOpenGLWidget {
   std::shared_ptr<Texture> commandPanelTexture;
   std::shared_ptr<Texture> buildEconomyBuildingsTexture;
   std::shared_ptr<Texture> buildMilitaryBuildingsTexture;
+  std::shared_ptr<Texture> toggleBuildingsCategoryTexture;
+  std::shared_ptr<Texture> quitTexture;
   
   std::shared_ptr<Texture> selectionPanelTexture;
   std::shared_ptr<TextDisplay> singleObjectNameDisplay;
@@ -205,6 +211,8 @@ class RenderWindow : public QOpenGLWidget {
   CommandButton commandButtons[kCommandButtonRows][kCommandButtonCols];
   int pressedCommandButtonRow = -1;
   int pressedCommandButtonCol = -1;
+  
+  bool showingEconomyBuildingCommandButtons = false;
   
   // Resources.
   GLuint pointBuffer;

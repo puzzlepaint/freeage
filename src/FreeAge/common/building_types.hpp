@@ -13,7 +13,17 @@ enum class BuildingType {
   TownCenterCenter,  // Not used as building, just for loading the sprite
   TownCenterFront,   // Not used as building, just for loading the sprite
   TownCenterMain,    // Not used as building, just for loading the sprite
+  
   House,
+  Mill,
+  MiningCamp,
+  LumberCamp,
+  Dock,
+  
+  Barracks,
+  Outpost,
+  PalisadeWall,
+  PalisadeGate,
   
   // Gaia "buildings"
   TreeOak,

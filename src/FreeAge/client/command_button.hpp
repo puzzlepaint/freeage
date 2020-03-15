@@ -1,5 +1,6 @@
 #pragma once
 
+#include "FreeAge/common/building_types.hpp"
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/unit_types.hpp"
 #include "FreeAge/client/shader_ui.hpp"
@@ -14,19 +15,30 @@ class CommandButton {
  public:
   enum class Type {
     Invisible = 0,
+    ConstructBuilding,
     ProduceUnit,
     Action
   };
   
+  enum class ActionType {
+    BuildEconomyBuilding,
+    BuildMilitaryBuilding,
+    ToggleBuildingsCategory,
+    Quit
+  };
+  
   /// Hides this button.
   void SetInvisible();
+  
+  /// Makes this a button to construct the given building type.
+  void SetBuilding(BuildingType type);
   
   /// Makes this a button to produce the given unit type.
   void SetProduceUnit(UnitType type);
   
   // TODO: SetResearchTechnology(TechType type);
   
-  void SetAction(const Texture* texture);
+  void SetAction(ActionType actionType, const Texture* texture);
   
   void Render(
       float x, float y, float size, float iconInset,
@@ -40,10 +52,14 @@ class CommandButton {
   bool IsPointInButton(const QPoint& point) { return type != Type::Invisible && buttonRect.contains(point); }
   
   inline Type GetType() const { return type; }
+  inline ActionType GetActionType() const { return actionType; }
+  inline BuildingType GetBuildingConstructionType() const { return buildingConstructionType; }
   inline UnitType GetUnitProductionType() const { return unitProductionType; }
   
  private:
   Type type = Type::Invisible;
+  ActionType actionType;
+  BuildingType buildingConstructionType;
   UnitType unitProductionType;
   const Texture* texture = nullptr;
   QRectF buttonRect;

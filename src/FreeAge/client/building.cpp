@@ -40,7 +40,7 @@ QSize ClientBuildingType::GetSize() const {
 }
 
 QString ClientBuildingType::GetFilename() const {
-  // TODO: Load this from some data file?
+  // TODO: Load this from some data file
   
   switch (type) {
   case BuildingType::TownCenter:       return QStringLiteral("b_dark_town_center_age1_x1.smx");
@@ -49,6 +49,14 @@ QString ClientBuildingType::GetFilename() const {
   case BuildingType::TownCenterFront:  return QStringLiteral("b_dark_town_center_age1_front_x1.smx");
   case BuildingType::TownCenterMain:   return QStringLiteral("b_dark_town_center_age1_main_x1.smx");
   case BuildingType::House:            return QStringLiteral("b_dark_house_age1_x1.smx");
+  case BuildingType::Mill:             return QStringLiteral("b_dark_mill_age1_x1.smx");
+  case BuildingType::MiningCamp:       return QStringLiteral("b_misc_foundation_mining_camp_x1.smx");  // TODO: Correct?
+  case BuildingType::LumberCamp:       return QStringLiteral("b_misc_foundation_lumber_camp_x1.smx");  // TODO: Correct?
+  case BuildingType::Dock:             return QStringLiteral("b_dark_dock_age1_x1.smx");
+  case BuildingType::Barracks:         return QStringLiteral("b_dark_barracks_age1_x1.smx");
+  case BuildingType::Outpost:          return QStringLiteral("b_dark_outpost_age1_x1.smx");
+  case BuildingType::PalisadeWall:     return QStringLiteral("b_dark_gate_palisade_corner_x1.smx");  // b_dark_wall_palisade_x1.smx
+  case BuildingType::PalisadeGate:     return QStringLiteral("b_dark_gate_palisade_e_closed_x1.smx");
   case BuildingType::TreeOak:          return QStringLiteral("n_tree_oak_x1.smx");
   case BuildingType::NumBuildings:
     LOG(ERROR) << "Invalid type given: BuildingType::NumBuildings";
@@ -59,7 +67,7 @@ QString ClientBuildingType::GetFilename() const {
 }
 
 std::filesystem::path ClientBuildingType::GetIconFilename() const {
-  // TODO: Load this from some data file?
+  // TODO: Load this from some data file
   
   switch (type) {
   case BuildingType::TownCenter:       return std::filesystem::path("buildings") / "028_town_center.DDS";
@@ -68,6 +76,14 @@ std::filesystem::path ClientBuildingType::GetIconFilename() const {
   case BuildingType::TownCenterFront:  return std::filesystem::path();
   case BuildingType::TownCenterMain:   return std::filesystem::path();
   case BuildingType::House:            return std::filesystem::path("buildings") / "034_house.DDS";
+  case BuildingType::Mill:             return std::filesystem::path("buildings") / "019_mill_1.DDS";
+  case BuildingType::MiningCamp:       return std::filesystem::path("buildings") / "039_mining_camp.DDS";
+  case BuildingType::LumberCamp:       return std::filesystem::path("buildings") / "040_lumber_camp.DDS";
+  case BuildingType::Dock:             return std::filesystem::path("buildings") / "013_dock_1.DDS";
+  case BuildingType::Barracks:         return std::filesystem::path("buildings") / "002_barracks_1.DDS";
+  case BuildingType::Outpost:          return std::filesystem::path("buildings") / "038_outpost.DDS";
+  case BuildingType::PalisadeWall:     return std::filesystem::path("buildings") / "030_palisade.DDS";
+  case BuildingType::PalisadeGate:     return std::filesystem::path("buildings") / "044_palisade_gate.DDS";
   case BuildingType::TreeOak:          return std::filesystem::path("units") / "032_50730.DDS";
   case BuildingType::NumBuildings:
     LOG(ERROR) << "Invalid type given: BuildingType::NumBuildings";
