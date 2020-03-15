@@ -142,7 +142,8 @@ std::filesystem::path ClientBuildingType::GetIconFilename() const {
 bool ClientBuildingType::UsesRandomSpriteFrame() const {
   return (static_cast<int>(type) >= static_cast<int>(BuildingType::FirstTree) &&
           static_cast<int>(type) <= static_cast<int>(BuildingType::LastTree)) ||
-         type == BuildingType::House;
+         type == BuildingType::House ||
+         type == BuildingType::PalisadeWall;
 }
 
 float ClientBuildingType::GetHealthBarHeightAboveCenter(int frameIndex) const {

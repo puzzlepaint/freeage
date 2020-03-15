@@ -648,34 +648,36 @@ void RenderWindow::RenderBuildings(double displayedServerTime) {
 }
 
 void RenderWindow::RenderBuildingFoundation(double displayedServerTime) {
-  QPoint foundationBaseTile;
+  QPoint foundationBaseTile(-1, -1);
   bool canBePlacedHere = CanBuildingFoundationBePlacedHere(constructBuildingType, lastCursorPos, &foundationBaseTile);
   
-  // Render the building foundation, colored either in gray if it can be placed at this location,
-  // or in red if it cannot be placed there.
-  ClientBuilding* tempBuilding = new ClientBuilding(match->GetPlayerIndex(), constructBuildingType, foundationBaseTile.x(), foundationBaseTile.y(), 100, -1);
-  tempBuilding->SetFixedFrameIndex(0);
-  
-  if (canBePlacedHere) {
-    spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 0.8, 0.8, 0.8, 1);
-  } else {
-    spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 0.4, 0.4, 1);
+  if (foundationBaseTile.x() >= 0 && foundationBaseTile.y() >= 0) {
+    // Render the building foundation, colored either in gray if it can be placed at this location,
+    // or in red if it cannot be placed there.
+    ClientBuilding* tempBuilding = new ClientBuilding(match->GetPlayerIndex(), constructBuildingType, foundationBaseTile.x(), foundationBaseTile.y(), 100, -1);
+    tempBuilding->SetFixedFrameIndex(0);
+    
+    if (canBePlacedHere) {
+      spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 0.8, 0.8, 0.8, 1);
+    } else {
+      spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 0.4, 0.4, 1);
+    }
+    tempBuilding->Render(
+        map.get(),
+        playerColors,
+        spriteShader.get(),
+        pointBuffer,
+        viewMatrix,
+        zoom,
+        widgetWidth,
+        widgetHeight,
+        displayedServerTime,
+        false,
+        false);
+    spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
+    
+    delete tempBuilding;
   }
-  tempBuilding->Render(
-      map.get(),
-      playerColors,
-      spriteShader.get(),
-      pointBuffer,
-      viewMatrix,
-      zoom,
-      widgetWidth,
-      widgetHeight,
-      displayedServerTime,
-      false,
-      false);
-  spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
-  
-  delete tempBuilding;
 }
 
 void RenderWindow::RenderSelectionGroundOutlines(double displayedServerTime) {
@@ -1496,19 +1498,32 @@ QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y(
     foundationBaseTile.setY(std::max<int>(0, std::min<int>(map->GetHeight() - 1, static_cast<int>(cursorMapCoord.y() + 0.5f) - foundationSize.height() / 2)));
   }
   
+  *baseTile = foundationBaseTile;
+  
   // Check whether the building can be placed at the given location.
   // TODO: The same logic is implemented on the server, can that be unified?
   // TODO: Docks need a special case
   
   // 1) Check whether any map tile at this location is occupied.
-  for (int y = foundationBaseTile.y(); y < foundationBaseTile.y() + foundationSize.height(); ++ y) {
-    for (int x = foundationBaseTile.x(); x < foundationBaseTile.x() + foundationSize.width(); ++ x) {
-      // TODO: Track occupancy on the client
-      // if (map->occupiedAt(x, y)) {
-      //   return false;
-      // }
+  QRect foundationRect(foundationBaseTile, foundationSize);
+  for (const auto& item : map->GetObjects()) {
+    if (item.second->isBuilding()) {
+      ClientBuilding* building = static_cast<ClientBuilding*>(item.second);
+      QRect occupiedRect(building->GetBaseTile(), GetBuildingSize(building->GetType()));
+      if (foundationRect.intersects(occupiedRect)) {
+        return false;
+      }
     }
   }
+  
+  // NOTE: Code if we were to track the map occupancy on the client:
+  // for (int y = foundationBaseTile.y(); y < foundationBaseTile.y() + foundationSize.height(); ++ y) {
+  //   for (int x = foundationBaseTile.x(); x < foundationBaseTile.x() + foundationSize.width(); ++ x) {
+  //     if (map->occupiedAt(x, y)) {
+  //       return false;
+  //     }
+  //   }
+  // }
   
   // 2) Check whether the maximum elevation difference within the building space does not exceed 2.
   //    TODO: I made this criterion up without testing it; is that actually how the original game works?
@@ -1527,7 +1542,6 @@ QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y(
     return false;
   }
   
-  *baseTile = foundationBaseTile;
   return true;
 }
 
@@ -2027,6 +2041,7 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
           break;
         case CommandButton::ActionType::Quit:
           ShowDefaultCommandButtonsForSelection();
+          constructBuildingType = BuildingType::NumBuildings;
           break;
         }
       }
