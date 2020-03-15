@@ -237,29 +237,7 @@ void Game::HandleSetTargetMessage(const QByteArray& msg, PlayerInGame* player, u
   }
   
   // Handle command (for all suitable IDs which are actually units of the sending client)
-  for (u32 id : unitIds) {
-    auto it = map->GetObjects().find(id);
-    if (it == map->GetObjects().end() ||
-        !it->second->isUnit() ||
-        it->second->GetPlayerIndex() != player->index) {
-      continue;
-    }
-    
-    ServerUnit* unit = static_cast<ServerUnit*>(it->second);
-    UnitType oldUnitType = unit->GetUnitType();
-    
-    unit->SetTarget(targetId, targetIt->second);
-    
-    if (oldUnitType != unit->GetUnitType()) {
-      // Notify all clients that see the unit about its change of type.
-      // TODO: Batch this message into the message batches for the game time steps instead of sending it directly.
-      //       Right now, the message uses the time step preceding this message handling ...
-      QByteArray msg = CreateChangeUnitTypeMessage(id, unit->GetUnitType());
-      for (auto& player : *playersInGame) {
-        player->socket->write(msg);
-      }
-    }
-  }
+  SetUnitTargets(unitIds, player->index, targetId, targetIt->second);
 }
 
 void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player) {
@@ -281,6 +259,10 @@ void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player)
   }
   ServerBuilding* productionBuilding = static_cast<ServerBuilding*>(buildingObject);
   
+  if (productionBuilding->GetBuildPercentage() != 100) {
+    LOG(ERROR) << "Received a ProduceUnit message for a building that is not fully constructed";
+    return;
+  }
   if (!productionBuilding->CanProduce(unitType, player)) {
     LOG(ERROR) << "Received a ProduceUnit message for a unit that either cannot be produced from the given building or for which the player does not have the right civilization/technologies";
     return;
@@ -307,6 +289,14 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
   QPoint baseTile(
       mango::uload16(data + 5),
       mango::uload16(data + 7));
+  
+  u16 villagerIdsSize = mango::uload16(data + 9);
+  std::vector<u32> villagerIds(villagerIdsSize);
+  int offset = 11;
+  for (usize i = 0; i < villagerIdsSize; ++ i) {
+    villagerIds[i] = mango::uload32(data + offset);
+    offset += 4;
+  }
   
   // Can the foundation be placed at the given location?
   // TODO: The same logic is implemented on the client, can that be unified?
@@ -361,6 +351,9 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
   //       one wants to make changes here.
   QByteArray addObjectMsg = CreateAddObjectMessage(newBuildingId, newBuildingFoundation);
   player->socket->write(addObjectMsg);
+  
+  // For all given villagers, set the target to the new foundation.
+  SetUnitTargets(villagerIds, player->index, newBuildingId, newBuildingFoundation);
 }
 
 Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players) {
@@ -890,5 +883,31 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction, std:
   QByteArray addObjectMsg = CreateAddObjectMessage(newUnitId, newUnit);
   for (auto& player : *playersInGame) {
     (*accumulatedMessages)[player->index] += addObjectMsg;
+  }
+}
+
+void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject) {
+  for (u32 id : unitIds) {
+    auto it = map->GetObjects().find(id);
+    if (it == map->GetObjects().end() ||
+        !it->second->isUnit() ||
+        it->second->GetPlayerIndex() != playerIndex) {
+      continue;
+    }
+    
+    ServerUnit* unit = static_cast<ServerUnit*>(it->second);
+    UnitType oldUnitType = unit->GetUnitType();
+    
+    unit->SetTarget(targetId, targetObject);
+    
+    if (oldUnitType != unit->GetUnitType()) {
+      // Notify all clients that see the unit about its change of type.
+      // TODO: Batch this message into the message batches for the game time steps instead of sending it directly.
+      //       Right now, the message uses the time step preceding this message handling ...
+      QByteArray msg = CreateChangeUnitTypeMessage(id, unit->GetUnitType());
+      for (auto& player : *playersInGame) {
+        player->socket->write(msg);
+      }
+    }
   }
 }

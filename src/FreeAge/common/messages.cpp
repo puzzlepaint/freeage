@@ -217,9 +217,9 @@ QByteArray CreateProduceUnitMessage(u32 buildingId, u16 unitType) {
   return msg;
 }
 
-QByteArray CreatePlaceBuildingFoundationMessage(BuildingType type, const QPoint& baseTile) {
+QByteArray CreatePlaceBuildingFoundationMessage(BuildingType type, const QPoint& baseTile, const std::vector<u32>& selectedVillagerIds) {
   // Create buffer
-  QByteArray msg(9, Qt::Initialization::Uninitialized);
+  QByteArray msg(11 + 4 * selectedVillagerIds.size(), Qt::Initialization::Uninitialized);
   char* data = msg.data();
   
   // Set buffer header (3 bytes)
@@ -230,6 +230,13 @@ QByteArray CreatePlaceBuildingFoundationMessage(BuildingType type, const QPoint&
   mango::ustore16(data + 3, static_cast<u16>(type));
   mango::ustore16(data + 5, baseTile.x());
   mango::ustore16(data + 7, baseTile.y());
+  
+  mango::ustore16(data + 9, selectedVillagerIds.size());  // TODO: This could also be derived from the message length
+  int offset = 11;
+  for (u32 unitId : selectedVillagerIds) {
+    mango::ustore32(data + offset, unitId);
+    offset += 4;
+  }
   
   return msg;
 }

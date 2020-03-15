@@ -107,7 +107,8 @@ QByteArray CreateProduceUnitMessage(
 
 QByteArray CreatePlaceBuildingFoundationMessage(
     BuildingType type,
-    const QPoint& baseTile);
+    const QPoint& baseTile,
+    const std::vector<u32>& selectedVillagerIds);
 
 
 /// Types of messages sent by the server to clients.

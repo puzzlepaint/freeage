@@ -85,6 +85,8 @@ class Game {
   
   void ProduceUnit(ServerBuilding* building, UnitType unitInProduction, std::vector<QByteArray>* accumulatedMessages);
   
+  void SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject);
+  
   
   std::shared_ptr<ServerMap> map;
   

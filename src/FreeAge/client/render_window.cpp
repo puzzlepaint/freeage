@@ -1555,6 +1555,7 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
   // Check whether a single type of building is selected only.
   // In this case, show the buttons corresponding to this building type.
   bool singleBuildingTypeSelected = true;
+  bool atLeastOneBuildingFullyConstructed = false;
   BuildingType selectedBuildingType = BuildingType::NumBuildings;
   for (usize i = 0; i < selection.size(); ++ i) {
     u32 objectId = selection[i];
@@ -1565,6 +1566,11 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
       break;
     } else if (object->isBuilding()) {
       ClientBuilding* building = static_cast<ClientBuilding*>(object);
+      
+      if (building->GetBuildPercentage(lastDisplayedServerTime) == 100) {
+        atLeastOneBuildingFullyConstructed = true;
+      }
+      
       if (i == 0) {
         selectedBuildingType = building->GetType();
       } else if (selectedBuildingType != building->GetType()) {
@@ -1573,7 +1579,7 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
       }
     }
   }
-  if (!selection.empty() && singleBuildingTypeSelected) {
+  if (!selection.empty() && singleBuildingTypeSelected && atLeastOneBuildingFullyConstructed) {
     ClientBuildingType::GetBuildingTypes()[static_cast<int>(selectedBuildingType)].SetCommandButtons(commandButtons);
     return;
   }
@@ -1734,6 +1740,22 @@ void RenderWindow::paintGL() {
     lastDisplayedServerTime = displayedServerTime;
   }
   
+  // If a building in the selection has finished construction, update the command buttons
+  // TODO: Currently we always update if we have any building selected
+  bool haveBuildingSelected = false;
+  for (u32 id : selection) {
+    auto it = map->GetObjects().find(id);
+    if (it != map->GetObjects().end()) {
+      if (it->second->isBuilding()) {
+        haveBuildingSelected = true;
+        break;
+      }
+    }
+  }
+  if (haveBuildingSelected) {
+    ShowDefaultCommandButtonsForSelection();
+  }
+  
   // Update scrolling and compute the view transformation.
   UpdateView(now);
   CHECK_OPENGL_NO_ERROR();
@@ -1862,7 +1884,22 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
       QPoint foundationBaseTile;
       bool canBePlacedHere = CanBuildingFoundationBePlacedHere(constructBuildingType, lastCursorPos, &foundationBaseTile);
       if (canBePlacedHere) {
-        connection->Write(CreatePlaceBuildingFoundationMessage(constructBuildingType, foundationBaseTile));
+        // Get the IDs of all selected villagers
+        std::vector<u32> selectedVillagerIds;
+        selectedVillagerIds.reserve(selection.size());
+        for (u32 id : selection) {
+          auto it = map->GetObjects().find(id);
+          if (it != map->GetObjects().end()) {
+            if (it->second->isUnit()) {
+              ClientUnit* unit = static_cast<ClientUnit*>(it->second);
+              if (IsVillager(unit->GetType())) {
+                selectedVillagerIds.push_back(it->first);
+              }
+            }
+          }
+        }
+        
+        connection->Write(CreatePlaceBuildingFoundationMessage(constructBuildingType, foundationBaseTile, selectedVillagerIds));
         
         constructBuildingType = BuildingType::NumBuildings;
         return;
