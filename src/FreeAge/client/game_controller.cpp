@@ -58,6 +58,9 @@ void GameController::ParseMessage(const QByteArray& buffer, ServerToClientMessag
   case ServerToClientMessage::AddObject:
     HandleAddObjectMessage(buffer);
     break;
+  case ServerToClientMessage::BuildPercentageUpdate:
+    HandleBuildPercentageUpdate(buffer);
+    break;
   case ServerToClientMessage::MapUncover:
     HandleMapUncoverMessage(buffer);
     break;
@@ -181,4 +184,26 @@ void GameController::HandleResourcesUpdateMessage(const QByteArray& buffer) {
   u32 stone = mango::uload32(data + 15);
   
   playerResources.push_back(std::make_pair(currentGameStepServerTime, ResourceAmount(wood, food, gold, stone)));
+}
+
+void GameController::HandleBuildPercentageUpdate(const QByteArray& buffer) {
+  const char* data = buffer.data();
+  
+  u32 buildingId = mango::uload32(data + 3);
+  auto it = map->GetObjects().find(buildingId);
+  if (it == map->GetObjects().end()) {
+    LOG(ERROR) << "Received a BuildPercentageUpdate message for an object ID that is not in the map.";
+    return;
+  }
+  if (!it->second->isBuilding()) {
+    LOG(ERROR) << "Received a BuildPercentageUpdate message for an object ID that is a different type than a building.";
+    return;
+  }
+  
+  float percentage;
+  memcpy(&percentage, data + 3 + 4, 4);
+  
+  ClientBuilding* building = static_cast<ClientBuilding*>(it->second);
+  building->AddBuildPercentage(currentGameStepServerTime, percentage);
+  LOG(WARNING) << "Build progress: " << percentage;
 }

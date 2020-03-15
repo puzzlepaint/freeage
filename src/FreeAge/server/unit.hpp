@@ -15,6 +15,12 @@ class ServerUnit : public ServerObject {
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   inline void SetMapCoord(const QPointF& mapCoord) { this->mapCoord = mapCoord; }
   
+  /// Attempts to command the unit to interact with the given target object.
+  /// If the unit cannot actually interact with that object, this call does nothing.
+  void SetTarget(u32 targetObjectId, ServerObject* targetObject);
+  void RemoveTarget();
+  inline u32 GetTargetObjectId() const { return targetObjectId; }
+  
   /// Commands the unit to move to the given mapCoord.
   void SetMoveToTarget(const QPointF& mapCoord);
   inline bool HasMoveToTarget() const { return hasMoveToTarget; }
@@ -33,19 +39,25 @@ class ServerUnit : public ServerObject {
   inline float GetMoveSpeed() const { return (type == UnitType::Scout) ? 2.f : 1.f; }
   
  private:
+  void SetTargetInternal(u32 targetObjectId, ServerObject* targetObject);
+  
+  
   UnitType type;
   QPointF mapCoord;
   
-  // The unit's target.
+  /// The unit's target object (if any). Set to kInvalidObjectId if the unit does not have a target.
+  u32 targetObjectId = kInvalidObjectId;
+  
+  /// The unit's map coord target (if any).
   bool hasMoveToTarget = false;
   QPointF moveToTarget;
   
-  // The currenly planned path to the unit's target.
+  /// The currenly planned path to the unit's target.
   bool hasPath = false;
   QPointF pathTarget;
   
-  // The current movement direction of the unit for the current linear segment of its planned path.
-  // This is in general the only movement-related piece of information that the clients know about.
-  // If this changes, the clients that see the unit need to be notified.
+  /// The current movement direction of the unit for the current linear segment of its planned path.
+  /// This is in general the only movement-related piece of information that the clients know about.
+  /// If this changes, the clients that see the unit need to be notified.
   QPointF currentMovementDirection = QPointF(0, 0);
 };

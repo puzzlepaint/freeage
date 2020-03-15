@@ -332,15 +332,20 @@ ServerBuilding* ServerMap::AddBuilding(int player, BuildingType type, const QPoi
   
   // Mark the occupied tiles as such
   if (addOccupancy) {
-    QRect occupancyRect = GetBuildingOccupancy(type);
-    for (int y = baseTile.y() + occupancyRect.y(), endY = baseTile.y() + occupancyRect.y() + occupancyRect.height(); y < endY; ++ y) {
-      for (int x = baseTile.x() + occupancyRect.x(), endX = baseTile.x() + occupancyRect.x() + occupancyRect.width(); x < endX; ++ x) {
-        occupiedAt(x, y) = true;
-      }
-    }
+    AddBuildingOccupancy(newBuilding);
   }
   
   return newBuilding;
+}
+
+void ServerMap::AddBuildingOccupancy(ServerBuilding* building) {
+  const QPoint& baseTile = building->GetBaseTile();
+  QRect occupancyRect = GetBuildingOccupancy(building->GetBuildingType());
+  for (int y = baseTile.y() + occupancyRect.y(), endY = baseTile.y() + occupancyRect.y() + occupancyRect.height(); y < endY; ++ y) {
+    for (int x = baseTile.x() + occupancyRect.x(), endX = baseTile.x() + occupancyRect.x() + occupancyRect.width(); x < endX; ++ x) {
+      occupiedAt(x, y) = true;
+    }
+  }
 }
 
 ServerUnit* ServerMap::AddUnit(int player, UnitType type, const QPointF& position, u32* id) {

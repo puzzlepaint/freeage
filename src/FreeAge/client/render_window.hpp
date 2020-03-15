@@ -70,7 +70,8 @@ class RenderWindow : public QOpenGLWidget {
   void RenderShadows(double displayedServerTime);
   void RenderBuildings(double displayedServerTime);
   void RenderBuildingFoundation(double displayedServerTime);
-  void RenderSelectionGroundOutlines();
+  void RenderSelectionGroundOutlines(double displayedServerTime);
+  void RenderSelectionGroundOutline(QRgb color, ClientObject* object);
   void RenderOutlines(double displayedServerTime);
   void RenderUnits(double displayedServerTime);
   void RenderMoveToMarker(const TimePoint& now);
@@ -80,7 +81,7 @@ class RenderWindow : public QOpenGLWidget {
   /// Given screen-space coordinates (x, y), finds the next object to select at
   /// this point. If an object is found, true is returned, and the object's ID is
   /// returned in objectId.
-  bool GetObjectToSelectAt(float x, float y, u32* objectId);
+  bool GetObjectToSelectAt(float x, float y, u32* objectId, std::vector<u32>* currentSelection);
   
   QPointF ScreenCoordToProjectedCoord(float x, float y);
   
@@ -90,6 +91,8 @@ class RenderWindow : public QOpenGLWidget {
   void SelectionChanged();
   /// Performs box selection. This already calls SelectionChanged() internally.
   void BoxSelection(const QPoint& p0, const QPoint& p1);
+  
+  void LetObjectGroundOutlineFlash(u32 objectId);
   
   void RenderLoadingScreen();
   
@@ -235,6 +238,9 @@ class RenderWindow : public QOpenGLWidget {
   QPointF moveToMapCoord;
   TimePoint moveToTime;
   bool haveMoveTo = false;
+  
+  u32 flashingObjectId = kInvalidObjectId;
+  double flashingObjectStartTime;
   
   std::shared_ptr<Match> match;
   std::shared_ptr<GameController> gameController;

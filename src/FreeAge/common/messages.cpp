@@ -175,6 +175,32 @@ QByteArray CreateMoveToMapCoordMessage(const std::vector<u32>& selectedUnitIds, 
   return msg;
 }
 
+QByteArray CreateSetTargetMessage(const std::vector<u32>& unitIds, u32 targetObjectId) {
+  if (unitIds.empty()) {
+    return QByteArray();
+  }
+  
+  // Create buffer
+  QByteArray msg(9 + 4 * unitIds.size(), Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ClientToServerMessage::SetTarget);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore32(data + 3, targetObjectId);
+  
+  mango::ustore16(data + 7, unitIds.size());  // TODO: This could also be derived from the message length
+  int offset = 9;
+  for (u32 unitId : unitIds) {
+    mango::ustore32(data + offset, unitId);
+    offset += 4;
+  }
+  
+  return msg;
+}
+
 QByteArray CreateProduceUnitMessage(u32 buildingId, u16 unitType) {
   // Create buffer
   QByteArray msg(9, Qt::Initialization::Uninitialized);
@@ -376,6 +402,22 @@ QByteArray CreateResourcesUpdateMessage(const ResourceAmount& amount) {
   mango::ustore32(data + 7, amount.food());
   mango::ustore32(data + 11, amount.gold());
   mango::ustore32(data + 15, amount.stone());
+  
+  return msg;
+}
+
+QByteArray CreateBuildPercentageUpdateMessage(u32 buildingId, float progress) {
+  // Create buffer
+  QByteArray msg(1 + 2 + 4 + 4, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::BuildPercentageUpdate);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore32(data + 3, buildingId);
+  memcpy(data + 3 + 4, &progress, 4);
   
   return msg;
 }

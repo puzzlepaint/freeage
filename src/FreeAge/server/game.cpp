@@ -174,6 +174,7 @@ void Game::HandlePing(const QByteArray& msg, PlayerInGame* player) {
 void Game::HandleMoveToMapCoordMessage(const QByteArray& msg, PlayerInGame* player, u32 len) {
   // Parse message
   if (len < 13 + 4) {
+    LOG(ERROR) << "Server: Erroneous MoveToMapCoord message (1)";
     return;
   }
   const char* data = msg.data();
@@ -184,6 +185,7 @@ void Game::HandleMoveToMapCoordMessage(const QByteArray& msg, PlayerInGame* play
   
   usize selectedUnitIdsSize = mango::uload16(data + 11);
   if (len != 13 + 4 * selectedUnitIdsSize) {
+    LOG(ERROR) << "Server: Erroneous MoveToMapCoord message (2)";
     return;
   }
   std::vector<u32> selectedUnitIds(selectedUnitIdsSize);
@@ -204,6 +206,47 @@ void Game::HandleMoveToMapCoordMessage(const QByteArray& msg, PlayerInGame* play
     
     ServerUnit* unit = static_cast<ServerUnit*>(it->second);
     unit->SetMoveToTarget(targetMapCoord);
+  }
+}
+
+void Game::HandleSetTargetMessage(const QByteArray& msg, PlayerInGame* player, u32 len) {
+  // Parse message
+  if (len < 9 + 4) {
+    LOG(ERROR) << "Server: Erroneous SetTarget message (1)";
+    return;
+  }
+  const char* data = msg.data();
+  
+  u32 targetId = mango::uload32(data + 3);
+  auto targetIt = map->GetObjects().find(targetId);
+  if (targetIt == map->GetObjects().end()) {
+    LOG(WARNING) << "Server: Received a SetTarget message for a target ID that does not exist (anymore?)";
+    return;
+  }
+  
+  usize selectedUnitIdsSize = mango::uload16(data + 7);
+  if (len != 9 + 4 * selectedUnitIdsSize) {
+    LOG(ERROR) << "Server: Erroneous SetTarget message (2)";
+    return;
+  }
+  std::vector<u32> unitIds(selectedUnitIdsSize);
+  int offset = 9;
+  for (usize i = 0; i < selectedUnitIdsSize; ++ i) {
+    unitIds[i] = mango::uload32(data + offset);
+    offset += 4;
+  }
+  
+  // Handle command (for all suitable IDs which are actually units of the sending client)
+  for (u32 id : unitIds) {
+    auto it = map->GetObjects().find(id);
+    if (it == map->GetObjects().end() ||
+        !it->second->isUnit() ||
+        it->second->GetPlayerIndex() != player->index) {
+      continue;
+    }
+    
+    ServerUnit* unit = static_cast<ServerUnit*>(it->second);
+    unit->SetTarget(targetId, targetIt->second);
   }
 }
 
@@ -326,6 +369,9 @@ Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, con
     switch (msgType) {
     case ClientToServerMessage::MoveToMapCoord:
       HandleMoveToMapCoordMessage(player->unparsedBuffer, player, msgLength);
+      break;
+    case ClientToServerMessage::SetTarget:
+      HandleSetTargetMessage(player->unparsedBuffer, player, msgLength);
       break;
     case ClientToServerMessage::ProduceUnit:
       HandleProduceUnitMessage(player->unparsedBuffer, player);
@@ -528,6 +574,46 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
   }
 }
 
+static bool DoesUnitTouchBuildingArea(ServerUnit* unit, const QPointF& unitMapCoord, ServerBuilding* building, float errorMargin) {
+  // Get the point withing the building's area which is closest to the unit
+  QSize buildingSize = GetBuildingSize(building->GetBuildingType());
+  const QPoint& baseTile = building->GetBaseTile();
+  QPointF closestPointInBuilding(
+      std::max<float>(baseTile.x(), std::min<float>(baseTile.x() + buildingSize.width(), unitMapCoord.x())),
+      std::max<float>(baseTile.y(), std::min<float>(baseTile.y() + buildingSize.height(), unitMapCoord.y())));
+  
+  // Check whether this point is closer to the unit than the unit's radius.
+  QPointF offset = unitMapCoord - closestPointInBuilding;
+  float offsetLength = sqrt(offset.x() * offset.x() + offset.y() * offset.y());
+  float unitRadius = GetUnitRadius(unit->GetUnitType());
+  return offsetLength + errorMargin < unitRadius;
+}
+
+static bool IsFoundationFree(ServerBuilding* foundation, ServerMap* map) {
+  // Check whether map tiles are occupied
+  const QPoint& baseTile = foundation->GetBaseTile();
+  QSize foundationSize = GetBuildingSize(foundation->GetBuildingType());
+  for (int y = baseTile.y(); y < baseTile.y() + foundationSize.height(); ++ y) {
+    for (int x = baseTile.x(); x < baseTile.x() + foundationSize.width(); ++ x) {
+      if (map->occupiedAt(x, y)) {
+        return false;
+      }
+    }
+  }
+  
+  // Check whether units are on top of the foundation
+  for (const auto& item : map->GetObjects()) {
+    if (item.second->isUnit()) {
+      ServerUnit* unit = static_cast<ServerUnit*>(item.second);
+      if (DoesUnitTouchBuildingArea(unit, unit->GetMapCoord(), foundation, 0.01f)) {
+        return false;
+      }
+    }
+  }
+  
+  return true;
+}
+
 void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengthInSeconds, std::vector<QByteArray>* accumulatedMessages) {
   bool unitMovementChanged = false;
   
@@ -547,6 +633,88 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
   if (unit->GetMovementDirection() != QPointF(0, 0)) {
     float moveDistance = unit->GetMoveSpeed() * stepLengthInSeconds;
     
+    QPointF newMapCoord = unit->GetMapCoord() + moveDistance * unit->GetMovementDirection();
+    
+    // If the unit has a target object, test whether it touches this target.
+    u32 targetObjectId = unit->GetTargetObjectId();
+    if (targetObjectId != kInvalidObjectId) {
+      auto targetIt = map->GetObjects().find(targetObjectId);
+      if (targetIt == map->GetObjects().end()) {
+        unit->RemoveTarget();
+      } else {
+        ServerObject* targetObject = static_cast<ServerObject*>(targetIt->second);
+        if (targetObject->isBuilding()) {
+          ServerBuilding* targetBuilding = static_cast<ServerBuilding*>(targetObject);
+          if (DoesUnitTouchBuildingArea(unit, newMapCoord, targetBuilding, 0)) {
+            // TODO: This duplicates code in SetTarget() in server/unit.cpp. Make a function GetTargetInteractionType().
+            // If the unit is a villager and the target building is a foundation of the same player,
+            // let the villager construct the building.
+            if (IsVillager(unit->GetUnitType()) &&
+                targetBuilding->GetPlayerIndex() == unit->GetPlayerIndex() &&
+                targetBuilding->GetBuildPercentage() < 100) {
+              // A villager constructs a building.
+              LOG(INFO) << "Server: Vill touches foundation!";
+              
+              // Special case for the start: If the foundation has 0 percent build progress,
+              // we must first verify that the foundation space is free. If yes:
+              // * Add the foundation's occupancy to the map.
+              // * Tell all clients that observe the foundation about it (except the client which
+              //   is constructing it, which already knows it).
+              // If the space is occupied, notify the constructing player that construction has halted.
+              // TODO: In the latter case, if only allied units obstruct the foundation, we should first
+              //       try to make these units move off of the foudation. Only if this fails then the construction should halt.
+              bool canConstruct = true;
+              if (targetBuilding->GetBuildPercentage() == 0) {
+                if (IsFoundationFree(targetBuilding, map.get())) {
+                  LOG(ERROR) << "Server: Foundation -> construction site!!!";
+                  
+                  // Add the foundation's occupancy to the map.
+                  // TODO: The foundation's occupancy may differ from the final building's occupancy, e.g., for town centers. Handle this case properly.
+                  map->AddBuildingOccupancy(targetBuilding);
+                  
+                  // Tell all clients that observe the foundation about it (except the client which
+                  // is constructing it, which already knows it).
+                  QByteArray addObjectMsg = CreateAddObjectMessage(targetObjectId, targetBuilding);
+                  for (auto& player : *playersInGame) {
+                    if (player->index != targetBuilding->GetPlayerIndex()) {
+                      (*accumulatedMessages)[player->index] += addObjectMsg;
+                    }
+                  }
+                } else {
+                  // TODO: Construction blocked.
+                  LOG(ERROR) << "Server: Construction blocked!";
+                  canConstruct = false;
+                }
+              }
+              
+              // Add progress to the construction.
+              // TODO: In the original game, two villagers building does not result in twice the speed. Account for this.
+              if (canConstruct) {
+                LOG(ERROR) << "Server: adding build progress!!!";
+                
+                double constructionTime = GetBuildingConstructionTime(targetBuilding->GetBuildingType());
+                double constructionStepInPercent = 100 * stepLengthInSeconds / constructionTime;
+                double newPercentage = std::min<double>(100, targetBuilding->GetBuildPercentage() + constructionStepInPercent);
+                targetBuilding->SetBuildPercentage(newPercentage);
+                
+                // Tell all clients that see the building about the new build percentage.
+                // TODO: Group those updates together for each frame (together with the build speed handling in case multiple villagers are building at the same time)
+                QByteArray msg = CreateBuildPercentageUpdateMessage(targetObjectId, targetBuilding->GetBuildPercentage());
+                for (auto& player : *playersInGame) {
+                  (*accumulatedMessages)[player->index] += msg;
+                }
+              }
+              
+              return;
+            }
+          }
+        } else if (targetObject->isUnit()) {
+          // ServerUnit* targetUnit = static_cast<ServerUnit*>(targetUnit);
+          // TODO: unit interactions with units
+        }
+      }
+    }
+    
     // Test whether the current goal was reached.
     QPointF toGoal = unit->GetPathTarget() - unit->GetMapCoord();
     float squaredDistanceToGoal = toGoal.x() * toGoal.x() + toGoal.y() * toGoal.y();
@@ -554,6 +722,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
         unit->GetMovementDirection().x() * toGoal.x() +
         unit->GetMovementDirection().y() * toGoal.y();
     if (squaredDistanceToGoal <= moveDistance * moveDistance || directionDotToGoal <= 0) {
+      // The goal was reached.
       if (!map->DoesUnitCollide(unit, unit->GetPathTarget())) {
         unit->SetMapCoord(unit->GetPathTarget());
       }
@@ -561,8 +730,6 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
       unitMovementChanged = true;
     } else {
       // Move the unit if the path is free.
-      // TODO: Only perform this mapCoord update if the target position is not occupied by a building or other unit.
-      QPointF newMapCoord = unit->GetMapCoord() + moveDistance * unit->GetMovementDirection();
       if (map->DoesUnitCollide(unit, newMapCoord)) {
         unit->StopMovement();
         unitMovementChanged = true;
@@ -694,8 +861,8 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction, std:
   }
   
   // Send messages to clients that see the new unit
+  QByteArray addObjectMsg = CreateAddObjectMessage(newUnitId, newUnit);
   for (auto& player : *playersInGame) {
-    QByteArray addObjectMsg = CreateAddObjectMessage(newUnitId, newUnit);
     (*accumulatedMessages)[player->index] += addObjectMsg;
   }
 }

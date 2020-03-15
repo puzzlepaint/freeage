@@ -38,6 +38,7 @@ enum class BuildingType {
 QSize GetBuildingSize(BuildingType type);
 QRect GetBuildingOccupancy(BuildingType type);
 QString GetBuildingName(BuildingType type);
+double GetBuildingConstructionTime(BuildingType type);
 
 /// TODO: This needs to consider the player's civilization and researched technologies
 ResourceAmount GetBuildingCost(BuildingType type);

@@ -65,6 +65,7 @@ class Game {
   void HandleChat(const QByteArray& msg, PlayerInGame* player, u32 len, const std::vector<std::shared_ptr<PlayerInGame>>& players);
   void HandlePing(const QByteArray& msg, PlayerInGame* player);
   void HandleMoveToMapCoordMessage(const QByteArray& msg, PlayerInGame* player, u32 len);
+  void HandleSetTargetMessage(const QByteArray& msg, PlayerInGame* player, u32 len);
   void HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player);
   void HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInGame* player);
   ParseMessagesResult TryParseClientMessages(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players);

@@ -565,6 +565,7 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
       if (!building.GetSprite().HasShadow()) {
         continue;
       }
+      building.GetBuildPercentage(displayedServerTime);  // update build percentage
       
       QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
           map.get(),
@@ -621,6 +622,7 @@ void RenderWindow::RenderBuildings(double displayedServerTime) {
       continue;
     }
     ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
+    building.GetBuildPercentage(displayedServerTime);  // update build percentage
     
     QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
         map.get(),
@@ -676,58 +678,80 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime) {
   delete tempBuilding;
 }
 
-void RenderWindow::RenderSelectionGroundOutlines() {
+void RenderWindow::RenderSelectionGroundOutlines(double displayedServerTime) {
   for (u32 objectId : selection) {
     auto it = map->GetObjects().find(objectId);
     if (it != map->GetObjects().end()) {
-      if (it->second->isBuilding()) {
-        ClientBuilding& building = *static_cast<ClientBuilding*>(it->second);
-        
-        QSize size = GetBuildingSize(building.GetType());
-        std::vector<QPointF> outlineVertices(4 + 2 * (size.width() - 1) + 2 * (size.height() - 1));
-        
-        QPointF base = building.GetBaseTile();
-        int index = 0;
-        for (int x = 0; x <= size.width(); ++ x) {
-          outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(x, 0));
+      RenderSelectionGroundOutline(qRgba(255, 255, 255, 255), it->second);
+    }
+  }
+  
+  if (flashingObjectId != kInvalidObjectId) {
+    auto flashingObjectIt = map->GetObjects().find(flashingObjectId);
+    if (flashingObjectIt != map->GetObjects().end()) {
+      constexpr int kFlashCount = 3;
+      constexpr double kFlashShowDuration = 0.2;
+      constexpr double kFlashHideDuration = 0.1;
+      
+      double timeSinceFlashStart = displayedServerTime - flashingObjectStartTime;
+      if (timeSinceFlashStart > 0 &&
+          timeSinceFlashStart < kFlashCount * (kFlashShowDuration + kFlashHideDuration)) {
+        double phase = fmod(timeSinceFlashStart, kFlashShowDuration + kFlashHideDuration);
+        if (phase <= kFlashShowDuration) {
+          RenderSelectionGroundOutline(qRgba(80, 255, 80, 255), flashingObjectIt->second);
         }
-        for (int y = 1; y <= size.height(); ++ y) {
-          outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(size.width(), y));
-        }
-        for (int x = static_cast<int>(size.width()) - 1; x >= 0; -- x) {
-          outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(x, size.height()));
-        }
-        for (int y = static_cast<int>(size.height()) - 1; y > 0; -- y) {
-          outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(0, y));
-        }
-        CHECK_EQ(index, outlineVertices.size());
-        for (usize i = 0; i < outlineVertices.size(); ++ i) {
-          outlineVertices[i] =
-              QPointF(((viewMatrix[0] * outlineVertices[i].x() + viewMatrix[2]) * 0.5f + 0.5f) * width(),
-                      ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
-        }
-        
-        RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2));
-        RenderClosedPath(zoom * 1.1f, qRgba(255, 255, 255, 255), outlineVertices, QPointF(0, 0));
-      } else if (it->second->isUnit()) {
-        ClientUnit& unit = *static_cast<ClientUnit*>(it->second);
-        
-        float radius = GetUnitRadius(unit.GetType());
-        
-        std::vector<QPointF> outlineVertices(16);
-        for (usize i = 0; i < outlineVertices.size(); ++ i) {
-          float angle = (2 * M_PI) * i / (1.f * outlineVertices.size());
-          outlineVertices[i] =
-              map->MapCoordToProjectedCoord(unit.GetMapCoord() + radius * QPointF(sin(angle), cos(angle)));
-          outlineVertices[i] =
-              QPointF(((viewMatrix[0] * outlineVertices[i].x() + viewMatrix[2]) * 0.5f + 0.5f) * width(),
-                      ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
-        }
-        
-        RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2));
-        RenderClosedPath(zoom * 1.1f, qRgba(255, 255, 255, 255), outlineVertices, QPointF(0, 0));
       }
     }
+  }
+}
+
+void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object) {
+  if (object->isBuilding()) {
+    ClientBuilding& building = *static_cast<ClientBuilding*>(object);
+    
+    QSize size = GetBuildingSize(building.GetType());
+    std::vector<QPointF> outlineVertices(4 + 2 * (size.width() - 1) + 2 * (size.height() - 1));
+    
+    QPointF base = building.GetBaseTile();
+    int index = 0;
+    for (int x = 0; x <= size.width(); ++ x) {
+      outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(x, 0));
+    }
+    for (int y = 1; y <= size.height(); ++ y) {
+      outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(size.width(), y));
+    }
+    for (int x = static_cast<int>(size.width()) - 1; x >= 0; -- x) {
+      outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(x, size.height()));
+    }
+    for (int y = static_cast<int>(size.height()) - 1; y > 0; -- y) {
+      outlineVertices[index++] = map->MapCoordToProjectedCoord(base + QPointF(0, y));
+    }
+    CHECK_EQ(index, outlineVertices.size());
+    for (usize i = 0; i < outlineVertices.size(); ++ i) {
+      outlineVertices[i] =
+          QPointF(((viewMatrix[0] * outlineVertices[i].x() + viewMatrix[2]) * 0.5f + 0.5f) * width(),
+                  ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
+    }
+    
+    RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2));
+    RenderClosedPath(zoom * 1.1f, color, outlineVertices, QPointF(0, 0));
+  } else if (object->isUnit()) {
+    ClientUnit& unit = *static_cast<ClientUnit*>(object);
+    
+    float radius = GetUnitRadius(unit.GetType());
+    
+    std::vector<QPointF> outlineVertices(16);
+    for (usize i = 0; i < outlineVertices.size(); ++ i) {
+      float angle = (2 * M_PI) * i / (1.f * outlineVertices.size());
+      outlineVertices[i] =
+          map->MapCoordToProjectedCoord(unit.GetMapCoord() + radius * QPointF(sin(angle), cos(angle)));
+      outlineVertices[i] =
+          QPointF(((viewMatrix[0] * outlineVertices[i].x() + viewMatrix[2]) * 0.5f + 0.5f) * width(),
+                  ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
+    }
+    
+    RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2));
+    RenderClosedPath(zoom * 1.1f, color, outlineVertices, QPointF(0, 0));
   }
 }
 
@@ -1195,7 +1219,7 @@ struct PossibleSelectedObject {
   float score;
 };
 
-bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId) {
+bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vector<u32>* currentSelection) {
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   
   // First, collect all objects at the given position.
@@ -1288,10 +1312,10 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId) {
   
   // Given the list of objects at the given position, and considering the current selection,
   // return the next object to select.
-  if (selection.size() == 1) {
+  if (currentSelection && currentSelection->size() == 1) {
     // If the selection is in the list, select the next object.
     for (usize i = 0; i < possibleSelectedObjects.size(); ++ i) {
-      if (possibleSelectedObjects[i].id == selection.front()) {
+      if (possibleSelectedObjects[i].id == currentSelection->front()) {
         *objectId = possibleSelectedObjects[(i + 1) % possibleSelectedObjects.size()].id;
         return true;
       }
@@ -1375,6 +1399,13 @@ void RenderWindow::AddToSelection(u32 objectId) {
 
 void RenderWindow::SelectionChanged() {
   ShowDefaultCommandButtonsForSelection();
+}
+
+void RenderWindow::LetObjectGroundOutlineFlash(u32 objectId) {
+  flashingObjectId = objectId;
+  // NOTE: We could use a local time here to make it a bit more smooth than with the server time.
+  //       It will not matter in practice though.
+  flashingObjectStartTime = lastDisplayedServerTime;
 }
 
 void RenderWindow::RenderLoadingScreen() {
@@ -1728,7 +1759,7 @@ void RenderWindow::paintGL() {
   
   // Render selection outlines below buildings.
   CHECK_OPENGL_NO_ERROR();
-  RenderSelectionGroundOutlines();
+  RenderSelectionGroundOutlines(displayedServerTime);
   CHECK_OPENGL_NO_ERROR();
   
   // Enable the depth buffer for sprite rendering.
@@ -1843,27 +1874,85 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
     dragging = false;
   } else if (event->button() == Qt::RightButton) {
     bool haveOwnUnitSelected = false;
+    bool haveOwnVillagerSelected = false;
     bool haveBuildingSelected = false;
     
-    for (u32 id : selection) {
+    std::vector<bool> selectionIsVillager(selection.size(), false);
+    
+    for (usize i = 0; i < selection.size(); ++ i) {
+      u32 id = selection[i];
       auto objectIt = map->GetObjects().find(id);
       if (objectIt == map->GetObjects().end()) {
         LOG(ERROR) << "Selected object ID not found in map->GetObjects().";
       } else {
         haveBuildingSelected |= objectIt->second->isBuilding();
-        haveOwnUnitSelected |= objectIt->second->isUnit() && objectIt->second->GetPlayerIndex() == match->GetPlayerIndex();
+        bool isOwnUnit = objectIt->second->isUnit() && objectIt->second->GetPlayerIndex() == match->GetPlayerIndex();
+        haveOwnUnitSelected |= isOwnUnit;
+        if (isOwnUnit) {
+          UnitType type = static_cast<ClientUnit*>(objectIt->second)->GetType();
+          bool isVillager = type == UnitType::FemaleVillager || type == UnitType::MaleVillager;
+          selectionIsVillager[i] = isVillager;
+          haveOwnVillagerSelected |= isOwnUnit && isVillager;
+        }
       }
     }
     
     if (haveOwnUnitSelected && !haveBuildingSelected) {
+      // Command units.
+      std::vector<bool> unitsCommanded(selection.size(), false);
+      
+      // Check whether the units are right-clicked onto a suitable target object.
+      // TODO: In the target selection, factor in whether villagers / military units are selected to prefer selecting suitable targets.
+      //       Also, exclude own units (except when commanding monks, or targeting transport ships, siege towers, etc.)
+      u32 targetObjectId;
+      if (GetObjectToSelectAt(event->x(), event->y(), &targetObjectId, nullptr)) {
+        auto targetIt = map->GetObjects().find(targetObjectId);
+        if (targetIt != map->GetObjects().end()) {
+          ClientObject* targetObject = targetIt->second;
+          if (targetObject->isBuilding()) {
+            ClientBuilding* targetBuilding = static_cast<ClientBuilding*>(targetObject);
+            if (targetBuilding->GetBuildPercentage(lastDisplayedServerTime) < 100) {
+              // The target is an own building foundation. Command all selected villagers to build the foundation.
+              std::vector<u32> suitableUnits;
+              suitableUnits.reserve(selection.size());
+              for (usize i = 0; i < selection.size(); ++ i) {
+                if (!unitsCommanded[i] && selectionIsVillager[i]) {
+                  suitableUnits.push_back(selection[i]);
+                  unitsCommanded[i] = true;
+                }
+              }
+              
+              if (!suitableUnits.empty()) {
+                connection->Write(CreateSetTargetMessage(suitableUnits, targetObjectId));
+                
+                // Make the ground outline of the target flash green three times
+                LetObjectGroundOutlineFlash(targetObjectId);
+              }
+            }
+          }
+        }
+      }
+      
+      // Send the remaining selected units to the clicked map coordinate.
       QPointF projectedCoord = ScreenCoordToProjectedCoord(event->x(), event->y());
       if (map->ProjectedCoordToMapCoord(projectedCoord, &moveToMapCoord)) {
-        // Send the move command to the server.
-        connection->Write(CreateMoveToMapCoordMessage(selection, moveToMapCoord));
+        std::vector<u32> remainingUnits;
+        remainingUnits.reserve(selection.size());
+        for (usize i = 0; i < selection.size(); ++ i) {
+          if (!unitsCommanded[i]) {
+            remainingUnits.push_back(selection[i]);
+            unitsCommanded[i] = true;
+          }
+        }
         
-        // Show the move-to marker.
-        moveToTime = Clock::now();
-        haveMoveTo = true;
+        if (!remainingUnits.empty()) {
+          // Send the move command to the server.
+          connection->Write(CreateMoveToMapCoordMessage(remainingUnits, moveToMapCoord));
+          
+          // Show the move-to marker.
+          moveToTime = Clock::now();
+          haveMoveTo = true;
+        }
       }
     }
   }
@@ -1949,7 +2038,7 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
     // TODO: Only do this when not dragging and not clicking the UI
     
     u32 objectId;
-    if (GetObjectToSelectAt(event->x(), event->y(), &objectId)) {
+    if (GetObjectToSelectAt(event->x(), event->y(), &objectId, &selection)) {
       // Note: We need to keep the selection during GetObjectToSelectAt() to make the
       // mechanism work which selects the next object on repeated clicks.
       ClearSelection();

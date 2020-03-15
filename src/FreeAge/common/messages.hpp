@@ -65,7 +65,6 @@ enum class ClientToServerMessage {
   /// * Moving a unit to a building in which it can be garrisoned performs the garrisoning.
   /// * Moving a monk with a relic to a monastery drops off the relic in the monastery.
   /// * Moving a trade cart / cog to an allied market / dock starts trading with it.
-  /// TODO: Implement this message
   SetTarget,
   
   /// Sent upon pressing the button / hotkey to produce a unit.
@@ -96,6 +95,10 @@ QByteArray CreateLoadingProgressMessage(u8 percentage);
 QByteArray CreateMoveToMapCoordMessage(
     const std::vector<u32>& selectedUnitIds,
     const QPointF& targetMapCoord);
+
+QByteArray CreateSetTargetMessage(
+    const std::vector<u32>& unitIds,
+    u32 targetObjectId);
 
 QByteArray CreateProduceUnitMessage(
     u32 buildingId,
@@ -162,6 +165,9 @@ enum class ServerToClientMessage {
   
   /// Tells the client about updates to its game resource amounts (wood, food, etc.)
   ResourcesUpdate,
+  
+  /// Tells the client about a new build percentage of a building being constructed.
+  BuildPercentageUpdate,
 };
 
 QByteArray CreateWelcomeMessage();
@@ -194,3 +200,5 @@ QByteArray CreateUnitMovementMessage(
     const QPointF& speed);
 
 QByteArray CreateResourcesUpdateMessage(const ResourceAmount& amount);
+
+QByteArray CreateBuildPercentageUpdateMessage(u32 buildingId, float progress);

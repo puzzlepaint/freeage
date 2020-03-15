@@ -75,6 +75,33 @@ QString GetBuildingName(BuildingType type) {
   return "";
 }
 
+double GetBuildingConstructionTime(BuildingType type) {
+  // TODO: These values are chosen arbitrarily (and small for testing). Use the correct values.
+  
+  switch (type) {
+  case BuildingType::TownCenter: return 10;
+  case BuildingType::TownCenterBack: LOG(ERROR) << "GetBuildingConstructionTime() called on BuildingType::TownCenterBack"; return 0;
+  case BuildingType::TownCenterCenter: LOG(ERROR) << "GetBuildingConstructionTime() called on BuildingType::TownCenterCenter"; return 0;
+  case BuildingType::TownCenterFront: LOG(ERROR) << "GetBuildingConstructionTime() called on BuildingType::TownCenterFront"; return 0;
+  case BuildingType::TownCenterMain: LOG(ERROR) << "GetBuildingConstructionTime() called on BuildingType::TownCenterMain"; return 0;
+  case BuildingType::House: return 3;
+  
+  case BuildingType::Mill: return 5;
+  case BuildingType::MiningCamp: return 5;
+  case BuildingType::LumberCamp: return 5;
+  case BuildingType::Dock: return 7;
+  
+  case BuildingType::Barracks: return 7;
+  case BuildingType::Outpost: return 2;
+  case BuildingType::PalisadeWall: return 1;
+  case BuildingType::PalisadeGate: return 3;
+  
+  case BuildingType::TreeOak: LOG(ERROR) << "GetBuildingConstructionTime() called on BuildingType::TreeOak"; return 0;
+  case BuildingType::NumBuildings: LOG(ERROR) << "GetBuildingConstructionTime() called on BuildingType::NumBuildings"; return 0;
+  }
+  return 0;
+}
+
 ResourceAmount GetBuildingCost(BuildingType type) {
   switch (type) {
   case BuildingType::TownCenter: return ResourceAmount(275, 0, 0, 100);

@@ -28,6 +28,7 @@ class ServerMap {
   void PlaceElevation(int tileX, int tileY, int elevationValue);
   
   ServerBuilding* AddBuilding(int player, BuildingType type, const QPoint& baseTile, float buildPercentage, u32* id = nullptr, bool addOccupancy = true);
+  void AddBuildingOccupancy(ServerBuilding* building);
   ServerUnit* AddUnit(int player, UnitType type, const QPointF& position, u32* id = nullptr);
   
   /// Tests whether the given unit could stand at the given mapCoord without

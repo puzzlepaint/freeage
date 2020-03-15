@@ -7,12 +7,17 @@
 /// Unit types. The numbers must be sequential, starting from zero,
 /// since they are used to index into a std::vector.
 enum class UnitType {
-  FemaleVillager,
+  FemaleVillager = 0,
   MaleVillager,
   Scout,
   
   NumUnits
 };
+
+inline bool IsVillager(UnitType type) {
+  return type == UnitType::FemaleVillager ||
+         type == UnitType::MaleVillager;
+}
 
 float GetUnitRadius(UnitType type);
 QString GetUnitName(UnitType type);
