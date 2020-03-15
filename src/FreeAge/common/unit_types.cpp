@@ -12,6 +12,8 @@ float GetUnitRadius(UnitType type) {
   }
   
   switch (type) {
+  case UnitType::Militia:
+    return 0.15;
   case UnitType::Scout:
     return 0.3;
   default:
@@ -31,6 +33,8 @@ QString GetUnitName(UnitType type) {
   case UnitType::FemaleVillagerBuilder:
   case UnitType::MaleVillagerBuilder:
     return QObject::tr("Builder");
+  case UnitType::Militia:
+    return QObject::tr("Militia");
   case UnitType::Scout:
     return QObject::tr("Scout Cavalry");
   case UnitType::NumUnits:
@@ -49,6 +53,8 @@ ResourceAmount GetUnitCost(UnitType type) {
   }
   
   switch (type) {
+  case UnitType::Militia:
+    return ResourceAmount(0, 60, 20, 0);
   case UnitType::Scout:
     return ResourceAmount(0, 80, 0, 0);
   default:
@@ -67,6 +73,8 @@ float GetUnitProductionTime(UnitType type) {
   }
   
   switch (type) {
+  case UnitType::Militia:
+    return 2;
   case UnitType::Scout:
     return 4;  // TODO: Set too short on purpose for testing
   default:

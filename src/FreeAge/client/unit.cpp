@@ -47,6 +47,14 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     ok = ok && LoadAnimation(0, "u_vil_male_builder_taskA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Task);
     iconTexture.Load(ingameUnitsPath / "015_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);  // TODO: Do not load the icon multiple times
     break;
+  case UnitType::Militia:
+    animations[static_cast<int>(UnitAnimation::Idle)].resize(2);
+    ok = ok && LoadAnimation(0, "u_inf_militia_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
+    ok = ok && LoadAnimation(1, "u_inf_militia_idleB_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
+    animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
+    ok = ok && LoadAnimation(0, "u_inf_militia_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
+    iconTexture.Load(ingameUnitsPath / "008_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);
+    break;
   case UnitType::Scout:
     animations[static_cast<int>(UnitAnimation::Idle)].resize(2);
     ok = ok && LoadAnimation(0, "u_cav_scout_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);

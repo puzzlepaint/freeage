@@ -166,6 +166,8 @@ void ClientBuildingType::SetCommandButtons(CommandButton commandButtons[3][5]) {
     
     // TODO: Set loom button
     // TODO: Set age-up button
+  } else if (type == BuildingType::Barracks) {
+    commandButtons[0][0].SetProduceUnit(UnitType::Militia);
   }
 }
 

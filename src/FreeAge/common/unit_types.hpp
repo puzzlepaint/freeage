@@ -15,6 +15,8 @@ enum class UnitType {
   FirstVillager = FemaleVillager,
   LastVillager = MaleVillagerBuilder,
   
+  Militia,
+  
   Scout,
   
   NumUnits

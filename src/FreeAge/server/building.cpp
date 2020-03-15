@@ -16,6 +16,10 @@ bool ServerBuilding::CanProduce(UnitType unitType, PlayerInGame* /*player*/) {
     if (!IsVillager(unitType)) {
       return false;
     }
+  } else if (type == BuildingType::Barracks) {
+    if (unitType != UnitType::Militia) {
+      return false;
+    }
   } else {
     return false;
   }

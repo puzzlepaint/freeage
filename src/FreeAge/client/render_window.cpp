@@ -1680,7 +1680,7 @@ void RenderWindow::initializeGL() {
   
   isLoading = true;
   loadingStep = 0;
-  maxLoadingStep = 44;
+  maxLoadingStep = 45;
   loadingThread->start();
   
   // Create resources right now which are required for rendering the loading screen:
