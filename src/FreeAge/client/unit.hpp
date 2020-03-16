@@ -101,8 +101,8 @@ class ClientUnit : public ClientObject {
   
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   
-  void AddMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action) {
-    movementSegments.emplace_back(serverTime, startPoint, speed, action);
+  void SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action) {
+    movementSegment = MovementSegment(serverTime, startPoint, speed, action);
   }
   
   /// Updates the unit's state to the given server time.
@@ -146,8 +146,8 @@ class ClientUnit : public ClientObject {
     UnitAction action;
   };
   
-  /// Ordered list of scheduled movement segments, sorted by increasing server time.
-  /// If the unit stands still, this is empty. Otherwise, it contains at least the current
-  /// segment of movement, and possibly additional segments for later.
-  std::vector<MovementSegment> movementSegments;
+  /// Current movement segment of the unit.
+  /// TODO: Move the attributes of this struct directly into the ClientUnit now that
+  ///       we only store one segment at a time?
+  MovementSegment movementSegment;
 };

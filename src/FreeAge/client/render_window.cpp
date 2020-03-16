@@ -565,7 +565,6 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
       if (!building.GetSprite().HasShadow()) {
         continue;
       }
-      building.GetBuildPercentage(displayedServerTime);  // update build percentage
       
       QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
           map.get(),
@@ -622,7 +621,6 @@ void RenderWindow::RenderBuildings(double displayedServerTime) {
       continue;
     }
     ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
-    building.GetBuildPercentage(displayedServerTime);  // update build percentage
     
     QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
         map.get(),
@@ -963,7 +961,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
 void RenderWindow::RenderGameUI() {
   constexpr float kUIScale = 0.5f;  // TODO: Make configurable
   
-  const ResourceAmount& resources = gameController->GetCurrentResourceAmount(lastDisplayedServerTime);
+  const ResourceAmount& resources = gameController->GetCurrentResourceAmount();
   
   // Render the resource panel.
   RenderUIGraphic(
@@ -1567,7 +1565,7 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
     } else if (object->isBuilding()) {
       ClientBuilding* building = static_cast<ClientBuilding*>(object);
       
-      if (building->GetBuildPercentage(lastDisplayedServerTime) == 100) {
+      if (building->GetBuildPercentage() == 100) {
         atLeastOneBuildingFullyConstructed = true;
       }
       
@@ -1736,8 +1734,14 @@ void RenderWindow::paintGL() {
   // Update the game state to the server time that should be displayed.
   double displayedServerTime = connection->GetDisplayedServerTime();
   if (displayedServerTime > lastDisplayedServerTime) {
+    // 1) Parse messages until the displayed server time
+    gameController->ParseMessagesUntil(displayedServerTime);
+    
+    // 2) Smoothly update the game state to exactly the displayed time point
     UpdateGameState(displayedServerTime);
+    
     lastDisplayedServerTime = displayedServerTime;
+    gameController->SetLastDisplayedServerTime(displayedServerTime);
   }
   
   // If a building in the selection has finished construction, update the command buttons
@@ -1961,7 +1965,7 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
           ClientObject* targetObject = targetIt->second;
           if (targetObject->isBuilding()) {
             ClientBuilding* targetBuilding = static_cast<ClientBuilding*>(targetObject);
-            if (targetBuilding->GetBuildPercentage(lastDisplayedServerTime) < 100) {
+            if (targetBuilding->GetBuildPercentage() < 100) {
               // The target is an own building foundation. Command all selected villagers to build the foundation.
               std::vector<u32> suitableUnits;
               suitableUnits.reserve(selection.size());

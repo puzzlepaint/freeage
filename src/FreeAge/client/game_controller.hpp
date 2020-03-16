@@ -21,34 +21,38 @@ class GameController : public QObject {
   
   inline void SetRenderWindow(const std::shared_ptr<RenderWindow> renderWindow) { this->renderWindow = renderWindow; }
   
-  inline double GetGameStartServerTimeSeconds() const { return gameStartServerTimeSeconds; }
+  void ParseMessagesUntil(double displayedServerTime);
   
   void ProduceUnit(const std::vector<u32>& selection, UnitType type);
   
-  /// Returns the resource amount of the player at the queried server time.
-  /// The returned reference is only valid until the next call to this function.
-  /// Server times must be queried in increasing order only (since old values are dropped).
-  const ResourceAmount& GetCurrentResourceAmount(double serverTime);
+  /// Returns the current resource amount of the player.
+  inline const ResourceAmount& GetCurrentResourceAmount() { return playerResources; }
   
   /// Returns the latest known resource amount, even if this is for a server time that
   /// should not be displayed yet. This value is used to determine whether to make
   /// "produce unit" or "research technology" buttons active or inactive.
-  inline const ResourceAmount& GetLatestKnownResourceAmount() { return playerResources.back().second; }
+  inline const ResourceAmount& GetLatestKnownResourceAmount() { return latestKnownPlayerResources; }
+  
+  inline double GetGameStartServerTimeSeconds() const { return gameStartServerTimeSeconds; }
+  
+  inline void SetLastDisplayedServerTime(double serverTime) { lastDisplayedServerTime = serverTime; }
   
  private slots:
-  void ParseMessage(const QByteArray& buffer, ServerToClientMessage msgType, u16 msgLength);
+  void HandleMessage(const QByteArray& buffer, ServerToClientMessage msgType, u16 msgLength);
   
  private:
+  void ParseMessage(const char* data, ServerToClientMessage msgType, u16 msgLength);
+  
   // Network message handlers
-  void HandleLoadingProgressBroadcast(const QByteArray& buffer, u16 msgLength);
-  void HandleGameBeginMessage(const QByteArray& buffer);
-  void HandleMapUncoverMessage(const QByteArray& buffer);
-  void HandleAddObjectMessage(const QByteArray& buffer);
-  void HandleUnitMovementMessage(const QByteArray& buffer);
-  void HandleGameStepTimeMessage(const QByteArray& buffer);
-  void HandleResourcesUpdateMessage(const QByteArray& buffer);
-  void HandleBuildPercentageUpdate(const QByteArray& buffer);
-  void HandleChangeUnitTypeMessage(const QByteArray& buffer);
+  void HandleLoadingProgressBroadcast(const char* data, u16 msgLength);
+  void HandleGameBeginMessage(const char* data);
+  void HandleMapUncoverMessage(const char* data);
+  void HandleAddObjectMessage(const char* data);
+  void HandleUnitMovementMessage(const char* data);
+  void HandleGameStepTimeMessage(const char* data);
+  void HandleResourcesUpdateMessage(const char* data, ResourceAmount* resources);
+  void HandleBuildPercentageUpdate(const char* data);
+  void HandleChangeUnitTypeMessage(const char* data);
   
   std::shared_ptr<ServerConnection> connection;
   std::shared_ptr<Match> match;
@@ -63,13 +67,38 @@ class GameController : public QObject {
   /// is set to a negative value.
   double currentGameStepServerTime;
   
-  /// Player resources over time. The double in the pair gives the server time
-  /// from which on the resource amount is valid. Entries in the list are ordered
-  /// by increasing server time.
-  ///
-  /// Outdated entries are deleted. Thus:
-  /// * The first entry is the one which should currently be displayed.
-  /// * The last entry is the most up-to-date one, which should be used for deciding
-  ///   whether unit/technology buttons are active.
-  std::vector<std::pair<double, ResourceAmount>> playerResources;
+  /// The resources of the player at the last rendered server time.
+  ResourceAmount playerResources;
+  
+  /// The most up-to-date known resources of the player (possibly for a server time in the future).
+  ResourceAmount latestKnownPlayerResources;
+  
+  /// The last server time that has been used to display the game state in the render window.
+  /// - All network packets for server times *before* this should be applied immediately.
+  ///   However, this case should be avoided if possible (by displaying a server time that
+  ///   is sufficiently behind the actual current time on the server) since it leads to
+  ///   visual jumps.
+  /// - All network packets for server times *after* this should be cached. They will be
+  ///   applied before the first rendering iteration for a server time after the packet time.
+  double lastDisplayedServerTime = -1;
+  
+  /// Cache for messages for a server time that should be displayed in the future.
+  /// Pairs of (server time, message(s)). Ordered by increasing server time.
+  std::vector<std::pair<double, QByteArray>> futureMessages;
+  
+  // -- Statistics to debug the server time handling. --
+  
+  /// The number of game step time messages that arrived after when they should have arrived
+  /// to be rendered without a jump. Should ideally remain zero.
+  int numGameStepsArrivedTooLate = 0;
+  
+  /// For all game step time messages that arrive for the future (as intended), measures the
+  /// average time in the future in seconds. This should be as low as possible to minimize the
+  /// lag.
+  double averageGameStepTimeInFuture = 0;
+  
+  /// Counter for averageGameStepTimeInFuture.
+  u32 numGameStepsArrivedForFuture = 0;
+  
+  u32 statisticsDebugOutputCounter = 0;
 };

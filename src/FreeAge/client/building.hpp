@@ -113,8 +113,8 @@ class ClientBuilding : public ClientObject {
   inline const Texture* GetIconTexture() const { return ClientBuildingType::GetBuildingTypes()[static_cast<int>(type)].GetIconTexture(); };
   inline QPoint GetBaseTile() const { return QPoint(baseTileX, baseTileY); }
   
-  float GetBuildPercentage(double serverTime);
-  void AddBuildPercentage(double serverTime, float percentage);
+  inline float GetBuildPercentage() const { return buildPercentage; }
+  inline void SetBuildPercentage(float percentage) { buildPercentage = percentage; }
   
  private:
   BuildingType type;
@@ -131,7 +131,4 @@ class ClientBuilding : public ClientObject {
   /// * Exactly 100 means that the building is finished.
   /// * Exactly   0 means that this is a building foundation (i.e., it does not affect map occupancy (yet)).
   float buildPercentage;
-  
-  /// Pairs of (server time, build percentage).
-  std::vector<std::pair<double, float>> futureBuildPercentages;
 };

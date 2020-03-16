@@ -114,7 +114,8 @@ ClientUnit::ClientUnit(int playerIndex, UnitType type, const QPointF& mapCoord, 
       direction(rand() % kNumFacingDirections),
       currentAnimation(UnitAnimation::Idle),
       currentAnimationVariant(0),
-      lastAnimationStartTime(-1) {}
+      lastAnimationStartTime(-1),
+      movementSegment(-1, mapCoord, QPointF(0, 0), UnitAction::Idle) {}
 
 QPointF ClientUnit::GetCenterProjectedCoord(Map* map) {
   return map->MapCoordToProjectedCoord(mapCoord);
@@ -219,51 +220,35 @@ void ClientUnit::SetCurrentAnimation(UnitAnimation animation, double serverTime)
 }
 
 void ClientUnit::UpdateGameState(double serverTime) {
-  for (int i = static_cast<int>(movementSegments.size()) - 1; i >= 0; -- i) {
-    if (serverTime < movementSegments[i].serverTime) {
-      continue;
+  // Update the unit's movment according to the movement segment.
+  if (movementSegment.action == UnitAction::Building) {
+    mapCoord = movementSegment.startPoint;
+  } else {
+    mapCoord = movementSegment.startPoint + (serverTime - movementSegment.serverTime) * movementSegment.speed;
+  }
+  
+  // Update facing direction.
+  if (movementSegment.speed != QPointF(0, 0)) {
+    // This angle goes from (-3) * M_PI / 4 to (+5) * M_PI / 4, with 0 being the right direction in the projected view.
+    double angle = -1 * (atan2(movementSegment.speed.y(), movementSegment.speed.x()) - M_PI / 4);
+    if (angle < 0) {
+      angle += 2 * M_PI;
     }
-    
-    if (i > 0) {
-      // Delete previous outdated movement segments.
-      movementSegments.erase(movementSegments.begin(), movementSegments.begin() + i);
-      i = 0;
+    direction = std::max(0, std::min(kNumFacingDirections, static_cast<int>(kNumFacingDirections * angle / (2 * M_PI) + 0.5f)));
+    if (direction == kNumFacingDirections) {
+      direction = 0;
     }
+  }
+  
+  if (movementSegment.action == UnitAction::Building) {
+    SetCurrentAnimation(UnitAnimation::Task, serverTime);
+  } else if (movementSegment.speed == QPointF(0, 0)) {
+    // If the movement is zero, set the unit to the final position and delete the segment.
+    SetCurrentAnimation(UnitAnimation::Idle, serverTime);
     
-    // Update the unit's movment according to segment 0.
-    if (movementSegments.front().action == UnitAction::Building) {
-      mapCoord = movementSegments.front().startPoint;
-    } else {
-      mapCoord = movementSegments.front().startPoint + (serverTime - movementSegments.front().serverTime) * movementSegments.front().speed;
-    }
-    
-    // Update facing direction.
-    if (movementSegments.front().speed != QPointF(0, 0)) {
-      // This angle goes from (-3) * M_PI / 4 to (+5) * M_PI / 4, with 0 being the right direction in the projected view.
-      double angle = -1 * (atan2(movementSegments.front().speed.y(), movementSegments.front().speed.x()) - M_PI / 4);
-      if (angle < 0) {
-        angle += 2 * M_PI;
-      }
-      direction = std::max(0, std::min(kNumFacingDirections, static_cast<int>(kNumFacingDirections * angle / (2 * M_PI) + 0.5f)));
-      if (direction == kNumFacingDirections) {
-        direction = 0;
-      }
-    }
-    
-    if (movementSegments.front().action == UnitAction::Building) {
-      SetCurrentAnimation(UnitAnimation::Task, serverTime);
-    } else if (movementSegments.front().speed == QPointF(0, 0)) {
-      // If the movement is zero, set the unit to the final position and delete the segment.
-      SetCurrentAnimation(UnitAnimation::Idle, serverTime);
-      
-      mapCoord = movementSegments.front().startPoint;
-      
-      movementSegments.erase(movementSegments.begin());
-    } else {
-      // Use moving animation
-      SetCurrentAnimation(UnitAnimation::Walk, serverTime);
-    }
-    
-    break;
+    mapCoord = movementSegment.startPoint;
+  } else {
+    // Use moving animation
+    SetCurrentAnimation(UnitAnimation::Walk, serverTime);
   }
 }

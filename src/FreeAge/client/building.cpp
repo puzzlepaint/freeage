@@ -331,19 +331,3 @@ int ClientBuilding::GetFrameIndex(
     return static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % buildingType.GetSprite().NumFrames();
   }
 }
-
-float ClientBuilding::GetBuildPercentage(double serverTime) {
-  for (int i = static_cast<int>(futureBuildPercentages.size()) - 1; i >= 0; -- i) {
-    if (serverTime >= futureBuildPercentages[i].first) {
-      buildPercentage = futureBuildPercentages[i].second;
-      futureBuildPercentages.erase(futureBuildPercentages.begin(), futureBuildPercentages.begin() + i);
-      return buildPercentage;
-    }
-  }
-  
-  return buildPercentage;
-}
-
-void ClientBuilding::AddBuildPercentage(double serverTime, float percentage) {
-  futureBuildPercentages.emplace_back(serverTime, percentage);
-}
