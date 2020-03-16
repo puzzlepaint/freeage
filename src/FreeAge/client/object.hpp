@@ -35,7 +35,7 @@ class ClientObject {
   /// the object must not be displayed on the client.
   double creationServerTime;
   
-  u8 playerIndex;
+  int playerIndex;
   
   /// 0 for buildings, 1 for units.
   u8 objectType;

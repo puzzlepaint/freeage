@@ -32,6 +32,10 @@ enum class BuildingType {
   FirstTree = TreeOak,
   LastTree = TreeOak,
   
+  ForageBush,
+  GoldMine,
+  StoneMine,
+  
   NumBuildings
 };
 

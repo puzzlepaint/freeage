@@ -206,7 +206,7 @@ void GameController::HandleMapUncoverMessage(const char* data) {
 void GameController::HandleAddObjectMessage(const char* data) {
   ObjectType objectType = static_cast<ObjectType>(data[3]);
   u32 objectId = mango::uload32(data + 4);
-  u8 playerIndex = data[8];
+  int playerIndex = (data[8] == 127) ? -1 : data[8];
   
   if (objectType == ObjectType::Building) {
     BuildingType buildingType = static_cast<BuildingType>(mango::uload16(data + 9));

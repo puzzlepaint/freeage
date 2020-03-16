@@ -452,7 +452,7 @@ QByteArray Game::CreateAddObjectMessage(u32 objectId, ServerObject* object) {
   // Fill buffer
   data[3] = static_cast<u8>(object->GetObjectType());  // TODO: Currently unneeded since this could be derived from the message length
   mango::ustore32(data + 4, objectId);  // TODO: Maybe save bytes here as long as e.g. less than 16 bits are non-zero?
-  data[8] = object->GetPlayerIndex();
+  data[8] = (object->GetPlayerIndex() == -1) ? 127 : object->GetPlayerIndex();
   
   if (object->isBuilding()) {
     ServerBuilding* building = static_cast<ServerBuilding*>(object);

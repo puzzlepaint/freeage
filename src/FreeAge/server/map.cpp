@@ -147,6 +147,69 @@ retryForest:  // TODO: Ugly implementation, improve this
     }
   }
   
+  // Generate forage bushes, stone and gold mines
+  for (int player = 0; player < playerCount; ++ player) {
+    for (int i = 0; i < 3; ++ i) {
+      BuildingType type;
+      int count;
+      int baseRadius;
+      
+      if (i == 0) {
+        type = BuildingType::ForageBush;
+        count = 5;
+        baseRadius = 6;
+      } else if (i == 1) {
+        type = BuildingType::GoldMine;
+        count = 5;
+        baseRadius = 8;
+      } else {  // if (i == 2) {
+        type = BuildingType::StoneMine;
+        count = 4;
+        baseRadius = 9;
+      }
+      
+      while (true) {
+        // TODO: Prevent this from potentially being an endless loop
+        float radius = baseRadius + 3 * ((rand() % 10000) / 10000.f);
+        float angle = 2 * M_PI * ((rand() % 10000) / 10000.f);
+        QPoint spawnLoc(
+            townCenterCenters[player].x() + radius * sin(angle),
+            townCenterCenters[player].y() + radius * cos(angle));
+        if (occupiedAt(spawnLoc.x(), spawnLoc.y())) {
+          continue;
+        }
+        
+        for (int t = 0; t < count; ++ t) {
+          AddBuilding(-1, type, spawnLoc, /*buildPercentage*/ 100);
+          if (t == count - 1) {
+            break;
+          }
+          
+          // Proceed to a random neighboring tile that is not occupied.
+          bool foundFreeSpace = false;
+          int startDirection = rand() % 4;
+          for (int dirOffset = 0; dirOffset < 4; ++ dirOffset) {
+            int testDirection = (startDirection + dirOffset) % 4;
+            QPoint testLoc(
+                spawnLoc.x() + ((testDirection == 0) ? 1 : ((testDirection == 1) ? -1 : 0)),
+                spawnLoc.y() + ((testDirection == 2) ? 1 : ((testDirection == 3) ? -1 : 0)));
+            if (!occupiedAt(testLoc.x(), testLoc.y())) {
+              spawnLoc = testLoc;
+              foundFreeSpace = true;
+              break;
+            }
+          }
+          
+          if (!foundFreeSpace) {
+            // TODO: Prevent this from happening / retry in another place.
+            break;
+          }
+        }
+        break;
+      }
+    }
+  }
+  
   // Generate hills
   const int kHillMinDistanceFromTCs = maxElevation + 2 + 8;  // TODO: Make configurable
   constexpr int numHills = 40;  // TODO: Make configurable

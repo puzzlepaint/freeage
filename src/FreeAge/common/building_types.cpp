@@ -33,6 +33,12 @@ QSize GetBuildingSize(BuildingType type) {
     return QSize(1, 1);
   case BuildingType::PalisadeGate:
     return QSize(1, 4);  // TODO: Make this rotatable.
+  case BuildingType::ForageBush:
+    return QSize(1, 1);
+  case BuildingType::GoldMine:
+    return QSize(1, 1);
+  case BuildingType::StoneMine:
+    return QSize(1, 1);
   default:
     LOG(ERROR) << "Invalid type given: " << static_cast<int>(type);
     break;
@@ -70,6 +76,9 @@ QString GetBuildingName(BuildingType type) {
   case BuildingType::PalisadeGate: return QObject::tr("Palisade Gate");
   
   case BuildingType::TreeOak: return QObject::tr("Oak Tree");
+  case BuildingType::ForageBush: return QObject::tr("Forage Bush");
+  case BuildingType::GoldMine: return QObject::tr("Gold Mine");
+  case BuildingType::StoneMine: return QObject::tr("Stone Mine");
   case BuildingType::NumBuildings: LOG(ERROR) << "GetBuildingName() called on BuildingType::NumBuildings"; return "";
   }
   return "";
@@ -97,6 +106,9 @@ double GetBuildingConstructionTime(BuildingType type) {
   case BuildingType::PalisadeGate: return 3;
   
   case BuildingType::TreeOak: LOG(ERROR) << "GetBuildingConstructionTime() called on BuildingType::TreeOak"; return 0;
+  case BuildingType::ForageBush: LOG(ERROR) << "GetBuildingConstructionTime() called on BuildingType::ForageBush"; return 0;
+  case BuildingType::GoldMine: LOG(ERROR) << "GetBuildingConstructionTime() called on BuildingType::GoldMine"; return 0;
+  case BuildingType::StoneMine: LOG(ERROR) << "GetBuildingConstructionTime() called on BuildingType::StoneMine"; return 0;
   case BuildingType::NumBuildings: LOG(ERROR) << "GetBuildingConstructionTime() called on BuildingType::NumBuildings"; return 0;
   }
   return 0;
@@ -122,6 +134,9 @@ ResourceAmount GetBuildingCost(BuildingType type) {
   case BuildingType::PalisadeGate: return ResourceAmount(5, 0, 0, 0);
   
   case BuildingType::TreeOak: LOG(ERROR) << "GetBuildingCost() called on BuildingType::TreeOak"; return ResourceAmount(0, 0, 0, 0);
+  case BuildingType::ForageBush: LOG(ERROR) << "GetBuildingCost() called on BuildingType::ForageBush"; return ResourceAmount(0, 0, 0, 0);
+  case BuildingType::GoldMine: LOG(ERROR) << "GetBuildingCost() called on BuildingType::GoldMine"; return ResourceAmount(0, 0, 0, 0);
+  case BuildingType::StoneMine: LOG(ERROR) << "GetBuildingCost() called on BuildingType::StoneMine"; return ResourceAmount(0, 0, 0, 0);
   case BuildingType::NumBuildings: LOG(ERROR) << "GetBuildingCost() called on BuildingType::NumBuildings"; return ResourceAmount(0, 0, 0, 0);
   }
   return ResourceAmount(0, 0, 0, 0);

@@ -77,6 +77,9 @@ QString ClientBuildingType::GetFilename() const {
   case BuildingType::PalisadeWall:     return QStringLiteral("b_dark_wall_palisade_x1.smx");
   case BuildingType::PalisadeGate:     return QStringLiteral("b_dark_gate_palisade_e_closed_x1.smx");  // TODO: This consists of multiple parts and has multiple orientations
   case BuildingType::TreeOak:          return QStringLiteral("n_tree_oak_x1.smx");
+  case BuildingType::ForageBush:       return QStringLiteral("n_forage_bush_x1.smx");  // TODO: Partly depleted variants: n_forage_bush_66_x1.smx, n_forage_bush_33_x1.smx
+  case BuildingType::GoldMine:         return QStringLiteral("n_mine_gold_x1.smx");  // TODO: Partly depleted variants: n_mine_gold_66_x1.smx, n_mine_gold_33_x1.smx
+  case BuildingType::StoneMine:        return QStringLiteral("n_mine_stone_x1.smx");  // TODO: Partly depleted variants: n_mine_stone_66_x1.smx, n_mine_stone_66_x1.smx
   case BuildingType::NumBuildings:
     LOG(ERROR) << "Invalid type given: BuildingType::NumBuildings";
     break;
@@ -103,7 +106,10 @@ QString ClientBuildingType::GetFoundationFilename() const {
   case BuildingType::Outpost:          return QStringLiteral("b_misc_foundation_outpost_x1.smx");
   case BuildingType::PalisadeWall:     return QStringLiteral("b_misc_foundation_1x1_x1.smx");  // TODO: Is this correct?
   case BuildingType::PalisadeGate:     return QStringLiteral("b_dark_gate_palisade_e_constr_x1.smx");  // TODO: This has multiple orientations
-  case BuildingType::TreeOak:          return QStringLiteral("n_tree_oak_x1.smx");
+  case BuildingType::TreeOak:          return QStringLiteral("");
+  case BuildingType::ForageBush:       return QStringLiteral("");
+  case BuildingType::GoldMine:         return QStringLiteral("");
+  case BuildingType::StoneMine:        return QStringLiteral("");
   case BuildingType::NumBuildings:
     LOG(ERROR) << "Invalid type given: BuildingType::NumBuildings";
     break;
@@ -131,6 +137,9 @@ std::filesystem::path ClientBuildingType::GetIconFilename() const {
   case BuildingType::PalisadeWall:     return std::filesystem::path("buildings") / "030_palisade.DDS";
   case BuildingType::PalisadeGate:     return std::filesystem::path("buildings") / "044_palisade_gate.DDS";
   case BuildingType::TreeOak:          return std::filesystem::path("units") / "032_50730.DDS";
+  case BuildingType::ForageBush:       return std::filesystem::path("units") / "006_50730.DDS";
+  case BuildingType::GoldMine:         return std::filesystem::path("units") / "014_50730.DDS";
+  case BuildingType::StoneMine:        return std::filesystem::path("units") / "009_50730.DDS";
   case BuildingType::NumBuildings:
     LOG(ERROR) << "Invalid type given: BuildingType::NumBuildings";
     break;
@@ -143,7 +152,10 @@ bool ClientBuildingType::UsesRandomSpriteFrame() const {
   return (static_cast<int>(type) >= static_cast<int>(BuildingType::FirstTree) &&
           static_cast<int>(type) <= static_cast<int>(BuildingType::LastTree)) ||
          type == BuildingType::House ||
-         type == BuildingType::PalisadeWall;
+         type == BuildingType::PalisadeWall ||
+         type == BuildingType::ForageBush ||
+         type == BuildingType::GoldMine ||
+         type == BuildingType::StoneMine;
 }
 
 float ClientBuildingType::GetHealthBarHeightAboveCenter(int frameIndex) const {

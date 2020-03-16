@@ -1109,7 +1109,12 @@ void DrawSprite(
     program->SetUniform2f(spriteShader->GetTextureSizeLocation(), texture.GetWidth(), texture.GetHeight());
   }
   if (outline) {
-    program->SetUniform3f(spriteShader->GetPlayerColorLocation(), qRed(playerColors[playerIndex]), qGreen(playerColors[playerIndex]), qBlue(playerColors[playerIndex]));
+    // TODO: Handle this special case in a more suitable location, not in this generic sprite drawing function
+    if (playerIndex == -1) {
+      program->SetUniform3f(spriteShader->GetPlayerColorLocation(), 1, 1, 1);
+    } else {
+      program->SetUniform3f(spriteShader->GetPlayerColorLocation(), qRed(playerColors[playerIndex]), qGreen(playerColors[playerIndex]), qBlue(playerColors[playerIndex]));
+    }
   }
   
   program->SetUniform2f(
