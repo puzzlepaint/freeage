@@ -27,8 +27,7 @@ class ServerConnection : public QObject {
   /// Make sure that a suitable message receiver exists to prevent the messages from getting lost.
   void SetParseMessages(bool enable);
   
-  /// Returns the server time at which the game state should be displayed by the client right now.
-  inline double GetDisplayedServerTime() {
+  inline void EstimateCurrentPingAndOffset(double* filteredPing, double* filteredOffset) {
     // Smoothly estimate the current ping and the offset to the server.
     // TODO: Drop ping outliers
     // TODO: Change the offset on the client time *smoothly* once new measurements come in and
@@ -39,8 +38,15 @@ class ServerConnection : public QObject {
       offsetSum += lastTimeOffsets[i];
       pingSum += lastPings[i];
     }
-    double filteredOffset = offsetSum / lastTimeOffsets.size();
-    double filteredPing = pingSum / lastPings.size();
+    *filteredOffset = offsetSum / lastTimeOffsets.size();
+    *filteredPing = pingSum / lastPings.size();
+  }
+  
+  /// Returns the server time at which the game state should be displayed by the client right now.
+  inline double GetDisplayedServerTime() {
+    double filteredPing;
+    double filteredOffset;
+    EstimateCurrentPingAndOffset(&filteredPing, &filteredOffset);
     
     // First, estimate the current server time.
     double clientTimeSeconds = SecondsDuration(Clock::now() - connectionStartTime).count();

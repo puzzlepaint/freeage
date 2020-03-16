@@ -23,7 +23,7 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
   bool firstLoopIteration = true;
   
   while (true) {
-    // Communicate with player connections.
+    // Read data from player connections and handle broken connections.
     for (auto it = playersInGame->begin(); it != playersInGame->end(); ) {
       PlayerInGame& player = **it;
       
@@ -61,10 +61,10 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
       ++ it;
     }
     
-    // Handle Qt events.
+    // Process Qt events.
     qApp->processEvents(QEventLoop::AllEvents);
     
-    // Simulate the game.
+    // Simulate a game step if it is due.
     // TODO: Do we need to consider the possibility of falling behind more and more with the simulation?
     //       I guess that the game would break anyway then.
     if (map) {
@@ -76,10 +76,13 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
         lastSimulationTime += kSimulationTimeInterval;
       }
       
-      // Sleep until the next simulation iteration is due (in case it is due in the future).
+      // If the next game step is due far enough in the future, sleep a bit to avoid "busy waiting" and reduce the CPU load.
+      // However, we must not sleep for the whole time, since we should keep handling client messages
+      // and processing Qt events in the meantime.
+      constexpr double kMaxSleepTimeSeconds = 0.0005;  // 0.5 milliseconds
       double nextIterationTime = lastSimulationTime + kSimulationTimeInterval;
       serverTime = GetCurrentServerTime();
-      double sleepTimeSeconds = nextIterationTime - serverTime;
+      double sleepTimeSeconds = std::min(kMaxSleepTimeSeconds, nextIterationTime - serverTime);
       if (sleepTimeSeconds > 0) {
         constexpr double kSecondsToMicroseconds = 1000 * 1000;
         QThread::usleep(kSecondsToMicroseconds * sleepTimeSeconds + 0.5);

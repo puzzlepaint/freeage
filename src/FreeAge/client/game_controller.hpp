@@ -88,6 +88,10 @@ class GameController : public QObject {
   
   // -- Statistics to debug the server time handling. --
   
+  /// For all game step time messages that arrive late, measures the
+  /// average time in the past in seconds. This shows by how far they are late.
+  double averageGameStepTimeInPast = 0;
+  
   /// The number of game step time messages that arrived after when they should have arrived
   /// to be rendered without a jump. Should ideally remain zero.
   int numGameStepsArrivedTooLate = 0;

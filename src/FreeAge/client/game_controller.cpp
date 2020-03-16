@@ -70,6 +70,8 @@ void GameController::HandleMessage(const QByteArray& buffer, ServerToClientMessa
     
     // Keep statistics about when game steps arrive to help debug the server time handling.
     if (currentGameStepServerTime <= lastDisplayedServerTime) {
+      double timeInPast = lastDisplayedServerTime - currentGameStepServerTime;
+      averageGameStepTimeInPast = (numGameStepsArrivedTooLate * averageGameStepTimeInPast + timeInPast) / (numGameStepsArrivedTooLate + 1);
       ++ numGameStepsArrivedTooLate;
     } else {
       double timeInFuture = currentGameStepServerTime - lastDisplayedServerTime;
@@ -80,13 +82,23 @@ void GameController::HandleMessage(const QByteArray& buffer, ServerToClientMessa
     ++ statisticsDebugOutputCounter;
     if (statisticsDebugOutputCounter % 5 * 30 == 0) {
       LOG(INFO) << "--- Networking debug statistics ---";
+      
+      double filteredPing;
+      double filteredOffset;
+      connection->EstimateCurrentPingAndOffset(&filteredPing, &filteredOffset);
+      LOG(INFO) << "- cur ping: " << filteredPing;
+      
       if (numGameStepsArrivedTooLate > 0) {
-        LOG(WARNING) << "- num game steps arrived too late: " << numGameStepsArrivedTooLate;
+        LOG(WARNING) << "- # late steps: " << numGameStepsArrivedTooLate;
+        LOG(WARNING) << "  avg time in past: " << averageGameStepTimeInPast << " s";
       } else {
-        LOG(INFO) << "- num game steps arrived too late: " << numGameStepsArrivedTooLate;
+        LOG(INFO) << "- # late steps: " << numGameStepsArrivedTooLate;
+        LOG(INFO) << "  avg time in past: --";
       }
-      LOG(INFO) << "- num game steps arrived in time: " << numGameStepsArrivedForFuture;
-      LOG(INFO) << "- average time in future for steps arrived in time: " << averageGameStepTimeInFuture << " s";
+      LOG(INFO) << "- # good steps: " << numGameStepsArrivedForFuture;
+      LOG(INFO) << "  avg time in future: " << averageGameStepTimeInFuture << " s";
+      
+      LOG(INFO) << "-----------------------------------";
     }
     
     return;
