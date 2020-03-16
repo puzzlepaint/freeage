@@ -683,7 +683,11 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
                     }
                   }
                 } else {
-                  // TODO: Construction blocked.
+                  // Construction blocked.
+                  // TODO: Rather than stopping, try to move to the nearest point next to the building (if necessary),
+                  //       and try to command all allied units on the foundation to do the same.
+                  unit->StopMovement();
+                  
                   canConstruct = false;
                 }
               }
