@@ -80,7 +80,7 @@ void GameController::HandleMessage(const QByteArray& buffer, ServerToClientMessa
     }
     
     ++ statisticsDebugOutputCounter;
-    if (statisticsDebugOutputCounter % 5 * 30 == 0) {
+    if (statisticsDebugOutputCounter % 5 == 0) {
       LOG(INFO) << "--- Networking debug statistics ---";
       
       double filteredPing;

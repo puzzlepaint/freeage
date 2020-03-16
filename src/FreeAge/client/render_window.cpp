@@ -1708,6 +1708,14 @@ void RenderWindow::initializeGL() {
 }
 
 void RenderWindow::paintGL() {
+  // Regularly print timing info
+  static int renderStatisticsCounter = 0;
+  ++ renderStatisticsCounter;
+  if (renderStatisticsCounter % (3 * 120) == 0) {
+    Timing::print(std::cout);
+  }
+  
+  // Render loading screen?
   if (isLoading) {
     // Switch to the game once it starts.
     if (connection->GetDisplayedServerTime() >= gameController->GetGameStartServerTimeSeconds()) {
@@ -1717,10 +1725,14 @@ void RenderWindow::paintGL() {
       loadingIcon.reset();
       loadingTextDisplay.reset();
     } else {
+      Timer renderTimer("paintGL() for loading screen");
       RenderLoadingScreen();
       return;
     }
   }
+  
+  // Render game.
+  Timer renderTimer("paintGL() for game");
   
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   CHECK_OPENGL_NO_ERROR();

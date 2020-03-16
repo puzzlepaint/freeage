@@ -16,6 +16,8 @@
 #include "FreeAge/server/match_setup.hpp"
 #include "FreeAge/server/settings.hpp"
 
+#include <mango/core/endian.hpp>
+
 int main(int argc, char** argv) {
   // Seed the random number generator.
   srand(time(nullptr));

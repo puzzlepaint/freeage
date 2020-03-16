@@ -7,6 +7,7 @@
 #include <QTimer>
 
 #include "FreeAge/common/free_age.hpp"
+#include "FreeAge/common/logging.hpp"
 #include "FreeAge/common/messages.hpp"
 
 /// Handles the basics of the connection to the server:
@@ -58,12 +59,19 @@ class ServerConnection : public QObject {
     return estimatedServerTimeNow - 0.5 * filteredPing - kSafetyMargin;
   }
   
-  /// Thread-safe writing to the connection's socket.
-  /// TODO: We can probably drop this, since a QTcpSocket can only be accessed from one thread anyway, otherwise it breaks.
+  /// Writes to the connection's socket and flushes it.
+  /// NOTE: This may only be done by the thread that owns the socket.
   inline void Write(const QByteArray& message) {
-    socketMutex.lock();
-    socket.write(message);
-    socketMutex.unlock();
+    qint64 result = socket.write(message);
+    if (result != message.size()) {
+      LOG(ERROR) << "Error sending message: write() returned " << result << ", but the message size is " << message.size();
+    }
+    
+    // We generally want to send inputs to the server immediately to minimize the delay,
+    // so flush the socket. Without flushing, I observed a ~16.5 ms delay for sending
+    // while the game loop was running. For some reason, this did not happen during the
+    // match setup stage though.
+    socket.flush();
   }
   
   inline bool ConnectionToServerLost() const { return connectionToServerLost; }
@@ -88,9 +96,6 @@ class ServerConnection : public QObject {
   
   /// Socket which is connected to the server.
   QTcpSocket socket;
-  
-  /// Mutex for thread-safe access to the socket.
-  std::mutex socketMutex;
   
   /// Contains data which has been received from the server but was not parsed yet.
   QByteArray unparsedReceivedBuffer;

@@ -56,20 +56,21 @@ void ServerConnection::Shutdown() {
 
 bool ServerConnection::WaitForWelcomeMessage(int timeout) {
   TimePoint welcomeWaitStartTime = Clock::now();
-  bool welcomeReceived = false;
   
   while (MillisecondsDuration(Clock::now() - welcomeWaitStartTime).count() <= timeout) {
     unparsedReceivedBuffer += socket.readAll();
     
-    if (unparsedReceivedBuffer.size() >= 3) {
-      if (unparsedReceivedBuffer.at(0) == static_cast<char>(ServerToClientMessage::Welcome)) {
-        u16 msgLength = mango::uload16(unparsedReceivedBuffer.data() + 1);
-        if (msgLength == 3) {
+    while (unparsedReceivedBuffer.size() >= 3) {
+      u16 msgLength = mango::uload16(unparsedReceivedBuffer.data() + 1);
+      if (unparsedReceivedBuffer.size() >= msgLength) {
+        if (unparsedReceivedBuffer.at(0) == static_cast<char>(ServerToClientMessage::Welcome) && msgLength == 3) {
           unparsedReceivedBuffer.remove(0, 3);
           
-          welcomeReceived = true;
-          break;
+          return true;
         }
+        unparsedReceivedBuffer.remove(0, msgLength);
+      } else {
+        break;
       }
     }
     
@@ -77,7 +78,7 @@ bool ServerConnection::WaitForWelcomeMessage(int timeout) {
     QThread::msleep(1);
   }
   
-  return welcomeReceived;
+  return false;
 }
 
 void ServerConnection::SetParseMessages(bool enable) {

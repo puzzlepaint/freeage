@@ -259,6 +259,7 @@ static void HandlePing(const QByteArray& msg, PlayerInMatch* player, const Serve
   
   double serverTimeSeconds = SecondsDuration(pingHandleTime - settings.serverStartTime).count();
   player->socket->write(CreatePingResponseMessage(number, serverTimeSeconds));
+  player->socket->flush();
 }
 
 void HandleLeave(const QByteArray& /*msg*/, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {

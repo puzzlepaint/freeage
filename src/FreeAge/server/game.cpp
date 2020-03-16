@@ -141,6 +141,7 @@ void Game::SendChatBroadcast(u16 sendingPlayerIndex, const QString& text, const 
   QByteArray chatBroadcastMsg = CreateChatBroadcastMessage(sendingPlayerIndex, text);
   for (const auto& player : players) {
     player->socket->write(chatBroadcastMsg);
+    player->socket->flush();
   }
 }
 
@@ -171,7 +172,12 @@ void Game::HandlePing(const QByteArray& msg, PlayerInGame* player) {
   player->lastPingTime = pingHandleTime;
   
   double serverTimeSeconds = SecondsDuration(pingHandleTime - settings->serverStartTime).count();
-  player->socket->write(CreatePingResponseMessage(number, serverTimeSeconds));
+  QByteArray response = CreatePingResponseMessage(number, serverTimeSeconds);
+  qint64 result = player->socket->write(response);
+  if (result != response.size()) {
+    LOG(ERROR) << "Error sending PingResponse message: write() returned " << result << ", but the message size is " << response.size();
+  }
+  player->socket->flush();
 }
 
 void Game::HandleMoveToMapCoordMessage(const QByteArray& msg, PlayerInGame* player, u32 len) {
@@ -354,6 +360,7 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
   //       one wants to make changes here.
   QByteArray addObjectMsg = CreateAddObjectMessage(newBuildingId, newBuildingFoundation);
   player->socket->write(addObjectMsg);
+  player->socket->flush();
   
   // For all given villagers, set the target to the new foundation.
   SetUnitTargets(villagerIds, player->index, newBuildingId, newBuildingFoundation);
@@ -533,6 +540,8 @@ void Game::StartGame() {
       QByteArray addObjectMsg = CreateAddObjectMessage(item.first, object);
       player->socket->write(addObjectMsg);
     }
+    
+    player->socket->flush();
   }
   
   LOG(INFO) << "Server: Game start prepared";
@@ -577,6 +586,7 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
       player->socket->write(
           CreateGameStepTimeMessage(gameStepServerTime) +
           accumulatedMessages[playerIndex]);
+      player->socket->flush();
     }
   }
 }
@@ -690,6 +700,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
                   // TODO: Rather than stopping, try to move to the nearest point next to the building (if necessary),
                   //       and try to command all allied units on the foundation to do the same.
                   unit->StopMovement();
+                  unitMovementChanged = true;
                   
                   canConstruct = false;
                 }
@@ -914,6 +925,7 @@ void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 
       QByteArray msg = CreateChangeUnitTypeMessage(id, unit->GetUnitType());
       for (auto& player : *playersInGame) {
         player->socket->write(msg);
+        player->socket->flush();
       }
     }
   }
