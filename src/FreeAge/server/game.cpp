@@ -670,16 +670,18 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
                        interaction == InteractionType::CollectGold ||
                        interaction == InteractionType::CollectStone) {
               SimulateResourceGathering(stepLengthInSeconds, unitId, unit, targetBuilding, &unitMovementChanged, &stayInPlace);
+            } else if (interaction == InteractionType::DropOffResource) {
+              SimulateResourceDropOff(unitId, unit, &unitMovementChanged);
             }
           }
         } else if (targetObject->isUnit()) {
           // ServerUnit* targetUnit = static_cast<ServerUnit*>(targetUnit);
-          // TODO: unit interactions with units
+          // TODO: Implement unit interactions with units (e.g., fighting).
         }
       }
     }
     
-    if (!stayInPlace) {
+    if (!stayInPlace && unit->HasPath()) {
       // Test whether the current goal was reached.
       QPointF toGoal = unit->GetPathTarget() - unit->GetMapCoord();
       float squaredDistanceToGoal = toGoal.x() * toGoal.x() + toGoal.y() * toGoal.y();
@@ -821,12 +823,12 @@ void Game::SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, 
   constexpr double gatherRate = 2.0;
   double resourcesGathered = gatherRate * stepLengthInSeconds;
   
-  constexpr double carryCapacity = 10;  // TODO: Should depend on technologies etc.
+  constexpr int carryCapacity = 10;  // TODO: Should depend on technologies etc.
   
-  int previousIntegerAmount = static_cast<int>(villager->GetCarriedResourceAmount());
+  int previousIntegerAmount = villager->GetCarriedResourceAmount();
   villager->SetCarriedResourceAmount(
-      std::min(carryCapacity, villager->GetCarriedResourceAmount() + resourcesGathered));
-  int currentIntegerAmount = static_cast<int>(villager->GetCarriedResourceAmount());
+      std::min<float>(carryCapacity, villager->GetCarriedResourceAmountInternalFloat() + resourcesGathered));
+  int currentIntegerAmount = villager->GetCarriedResourceAmount();
   
   if (resourcesDropped || currentIntegerAmount != previousIntegerAmount) {
     // Notify the client that owns the villager about its new carry amount
@@ -835,13 +837,68 @@ void Game::SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, 
   
   // Make the villager target a resource drop-off point if its carrying capacity is reached.
   if (villager->GetCarriedResourceAmount() == carryCapacity) {
-    // TODO
+    // TODO: Speed up this search?
+    float bestDistance = std::numeric_limits<float>::infinity();
+    u32 bestDropOffPointId;
+    ServerBuilding* bestDropOffPoint = nullptr;
+    
+    for (auto& item : map->GetObjects()) {
+      if (item.second->GetPlayerIndex() == villager->GetPlayerIndex() &&
+          item.second->isBuilding()) {
+        ServerBuilding* candidateDropOffPoint = static_cast<ServerBuilding*>(item.second);
+        if (IsDropOffPointForResource(candidateDropOffPoint->GetBuildingType(), villager->GetCarriedResourceType())) {
+          // TODO: Improve the distance computation. Ideally we would use the distance that the
+          //       villager has to walk to the edge of the building, not the straight-line distance to its center.
+          QSize candidateSize = GetBuildingSize(candidateDropOffPoint->GetBuildingType());
+          QPointF candidateCenter = candidateDropOffPoint->GetBaseTile() + 0.5f * QPointF(candidateSize.width(), candidateSize.height());
+          QPointF offset = candidateCenter - villager->GetMapCoord();
+          float distance = offset.x() * offset.x() + offset.y() * offset.y();
+          
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestDropOffPoint = candidateDropOffPoint;
+            bestDropOffPointId = item.first;
+          }
+        }
+      }
+    }
+    
+    if (bestDropOffPoint) {
+      villager->SetTarget(bestDropOffPointId, bestDropOffPoint, /*isManualTargeting*/ false);
+    } else {
+      // TODO: Should we explicitly stop the gathering action here?
+    }
   } else {
     if (villager->GetCurrentAction() != UnitAction::Task) {
       *unitMovementChanged = true;
       villager->SetCurrentAction(UnitAction::Task);
     }
     *stayInPlace = true;
+  }
+}
+
+void Game::SimulateResourceDropOff(u32 villagerId, ServerUnit* villager, bool* unitMovementChanged) {
+  ResourceAmount amount(0, 0, 0, 0);
+  amount.resources[static_cast<int>(villager->GetCarriedResourceType())] = villager->GetCarriedResourceAmount();
+  (*playersInGame)[villager->GetPlayerIndex()]->resources.Add(amount);
+  
+  villager->SetCarriedResourceAmount(0);
+  accumulatedMessages[villager->GetPlayerIndex()] += CreateSetCarriedResourcesMessage(villagerId, villager->GetCarriedResourceType(), 0);
+  
+  // If the villager was originally tasked onto a resource, make it return to this resource.
+  if (villager->GetManuallyTargetedObjectId() != villager->GetTargetObjectId()) {
+    auto it = map->GetObjects().find(villager->GetManuallyTargetedObjectId());
+    if (it != map->GetObjects().end()) {
+      villager->SetTarget(villager->GetManuallyTargetedObjectId(), it->second, /*isManualTargeting*/ false);
+    } else {
+      // The manually targeted object does not exist anymore, stop.
+      // TODO: This happens when a resource is depleted. In this case, make the villager move on to a nearby resource of the same type.
+      villager->StopMovement();
+      *unitMovementChanged = true;
+    }
+  } else {
+    villager->StopMovement();
+    *unitMovementChanged = true;
   }
 }
 
@@ -963,13 +1020,14 @@ void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 
     if (it == map->GetObjects().end() ||
         !it->second->isUnit() ||
         it->second->GetPlayerIndex() != playerIndex) {
+      LOG(WARNING) << "Got SetTarget message for invalid unit ID: " << id;
       continue;
     }
     
     ServerUnit* unit = static_cast<ServerUnit*>(it->second);
     UnitType oldUnitType = unit->GetUnitType();
     
-    unit->SetTarget(targetId, targetObject);
+    unit->SetTarget(targetId, targetObject, /*isManualTargeting*/ true);
     
     if (oldUnitType != unit->GetUnitType()) {
       // Notify all clients that see the unit about its change of type.

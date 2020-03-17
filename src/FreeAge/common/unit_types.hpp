@@ -60,7 +60,6 @@ inline ResourceType GetResourceTypeOfVillagerType(UnitType type) {
   } else if (type == UnitType::FemaleVillagerStoneMiner || type == UnitType::MaleVillagerStoneMiner) {
     return ResourceType::Stone;
   }
-  LOG(ERROR) << "GetResourceTypeOfVillagerType() called for a villager type that is not a resource gatherer type.";
   return ResourceType::NumTypes;
 }
 

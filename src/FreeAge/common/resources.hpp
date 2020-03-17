@@ -48,6 +48,12 @@ struct ResourceAmount {
     return true;
   }
   
+  inline void Add(const ResourceAmount& value) {
+    for (int i = 0; i < static_cast<int>(ResourceType::NumTypes); ++ i) {
+      resources[i] += value.resources[i];
+    }
+  }
+  
   inline void Subtract(const ResourceAmount& value) {
     for (int i = 0; i < static_cast<int>(ResourceType::NumTypes); ++ i) {
       resources[i] -= value.resources[i];

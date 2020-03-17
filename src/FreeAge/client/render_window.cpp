@@ -2011,7 +2011,7 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
                 targetBuilding->GetType() == BuildingType::ForageBush ||
                 targetBuilding->GetType() == BuildingType::GoldMine ||
                 targetBuilding->GetType() == BuildingType::StoneMine) {
-              // The target is an own building foundation or resource. Command all selected villagers to build the foundation.
+              // Command all selected villagers to the target.
               std::vector<u32> suitableUnits;
               suitableUnits.reserve(selection.size());
               for (usize i = 0; i < selection.size(); ++ i) {
@@ -2027,6 +2027,28 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
                 // Make the ground outline of the target flash green three times
                 LetObjectGroundOutlineFlash(targetObjectId);
               }
+            }
+            
+            // Command each villager carrying resources to the target building if it
+            // acts as a resource drop-off point for the villager's resource type.
+            std::vector<u32> suitableUnits;
+            suitableUnits.reserve(selection.size());
+            for (usize i = 0; i < selection.size(); ++ i) {
+              if (!unitsCommanded[i] && selectionIsVillager[i]) {
+                ClientUnit* villager = static_cast<ClientUnit*>(map->GetObjects().at(selection[i]));
+                if (villager->GetCarriedResourceAmount() > 0 &&
+                    IsDropOffPointForResource(targetBuilding->GetType(), villager->GetCarriedResourceType())) {
+                  suitableUnits.push_back(selection[i]);
+                  unitsCommanded[i] = true;
+                }
+              }
+            }
+            
+            if (!suitableUnits.empty()) {
+              connection->Write(CreateSetTargetMessage(suitableUnits, targetObjectId));
+              
+              // Make the ground outline of the target flash green three times
+              LetObjectGroundOutlineFlash(targetObjectId);
             }
           }
         }

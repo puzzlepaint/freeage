@@ -141,3 +141,19 @@ ResourceAmount GetBuildingCost(BuildingType type) {
   }
   return ResourceAmount(0, 0, 0, 0);
 }
+
+bool IsDropOffPointForResource(BuildingType building, ResourceType resource) {
+  if (building == BuildingType::TownCenter) {
+    return true;
+  } else if (building == BuildingType::LumberCamp &&
+             resource == ResourceType::Wood) {
+    return true;
+  } else if (building == BuildingType::MiningCamp &&
+             (resource == ResourceType::Gold || resource == ResourceType::Stone)) {
+    return true;
+  } else if (building == BuildingType::Mill &&
+             resource == ResourceType::Food) {
+    return true;
+  }
+  return false;
+}

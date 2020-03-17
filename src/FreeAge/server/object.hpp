@@ -7,13 +7,16 @@ enum class InteractionType {
   // A villager constructs a building.
   Construct = 0,
   
-  // A villager collects a resource
+  // A villager collects a resource.
   CollectBerries,
   CollectWood,
   CollectGold,
   CollectStone,
   
-  // No valid interaction
+  // A villager drops off carried resources at a resource drop-off building.
+  DropOffResource,
+  
+  // No valid interaction.
   Invalid
 };
 

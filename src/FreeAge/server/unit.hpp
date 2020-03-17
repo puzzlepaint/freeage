@@ -20,9 +20,10 @@ class ServerUnit : public ServerObject {
   
   /// Attempts to command the unit to interact with the given target object.
   /// If the unit cannot actually interact with that object, this call does nothing.
-  void SetTarget(u32 targetObjectId, ServerObject* targetObject);
+  void SetTarget(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting);
   void RemoveTarget();
   inline u32 GetTargetObjectId() const { return targetObjectId; }
+  inline u32 GetManuallyTargetedObjectId() const { return manuallyTargetedObjectId; }
   
   /// Commands the unit to move to the given mapCoord.
   void SetMoveToTarget(const QPointF& mapCoord);
@@ -41,14 +42,15 @@ class ServerUnit : public ServerObject {
   inline ResourceType GetCarriedResourceType() const { return carriedResourceType; }
   inline void SetCarriedResourceType(ResourceType type) { carriedResourceType = type; }
   
-  inline float GetCarriedResourceAmount() const { return carriedResourceAmount; }
+  inline int GetCarriedResourceAmount() const { return static_cast<int>(carriedResourceAmount); }
+  inline float GetCarriedResourceAmountInternalFloat() const { return carriedResourceAmount; }
   inline void SetCarriedResourceAmount(float amount) { carriedResourceAmount = amount; }
   
   // TODO: Load this from some database for each unit type
   inline float GetMoveSpeed() const { return (type == UnitType::Scout) ? 2.f : 1.f; }
   
  private:
-  void SetTargetInternal(u32 targetObjectId, ServerObject* targetObject);
+  void SetTargetInternal(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting);
   
   
   UnitType type;
@@ -58,6 +60,13 @@ class ServerUnit : public ServerObject {
   
   /// The unit's target object (if any). Set to kInvalidObjectId if the unit does not have a target.
   u32 targetObjectId = kInvalidObjectId;
+  
+  /// The last object that was targeted manually (by the player). For example, if the player sends
+  /// a villager to gather gold, and the villager is currently walking back to a mining camp to drop
+  /// off the gold it has gathered, then manuallyTargetedObjectId is the gold mine, and targetObjectId
+  /// is the mining camp. This allows the villager to know that it should return to mine gold after dropping
+  /// off its currently carried resources.
+  u32 manuallyTargetedObjectId = kInvalidObjectId;
   
   /// The unit's map coord target (if any).
   bool hasMoveToTarget = false;

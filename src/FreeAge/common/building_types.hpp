@@ -51,3 +51,6 @@ double GetBuildingConstructionTime(BuildingType type);
 
 /// TODO: This needs to consider the player's civilization and researched technologies
 ResourceAmount GetBuildingCost(BuildingType type);
+
+/// Returns whether the given building type acts as a drop-off point for the given resource type.
+bool IsDropOffPointForResource(BuildingType building, ResourceType resource);

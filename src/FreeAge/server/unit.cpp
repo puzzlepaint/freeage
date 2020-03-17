@@ -8,30 +8,35 @@ ServerUnit::ServerUnit(int playerIndex, UnitType type, const QPointF& mapCoord)
       mapCoord(mapCoord),
       currentAction(UnitAction::Idle) {}
 
-void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject) {
+void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting) {
   InteractionType interaction = GetInteractionType(this, targetObject);
   
   if (interaction == InteractionType::Construct) {
     type = IsMaleVillager(type) ? UnitType::MaleVillagerBuilder : UnitType::FemaleVillagerBuilder;
-    SetTargetInternal(targetObjectId, targetObject);
+    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
     return;
   } else if (interaction == InteractionType::CollectBerries) {
     type = IsMaleVillager(type) ? UnitType::MaleVillagerForager : UnitType::FemaleVillagerForager;
-    SetTargetInternal(targetObjectId, targetObject);
+    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
     return;
   } else if (interaction == InteractionType::CollectWood) {
     type = IsMaleVillager(type) ? UnitType::MaleVillagerLumberjack : UnitType::FemaleVillagerLumberjack;
-    SetTargetInternal(targetObjectId, targetObject);
+    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
     return;
   } else if (interaction == InteractionType::CollectGold) {
     type = IsMaleVillager(type) ? UnitType::MaleVillagerGoldMiner : UnitType::FemaleVillagerGoldMiner;
-    SetTargetInternal(targetObjectId, targetObject);
+    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
     return;
   } else if (interaction == InteractionType::CollectStone) {
     type = IsMaleVillager(type) ? UnitType::MaleVillagerStoneMiner : UnitType::FemaleVillagerStoneMiner;
-    SetTargetInternal(targetObjectId, targetObject);
+    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
+    return;
+  } else if (interaction == InteractionType::DropOffResource) {
+    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
     return;
   }
+  
+  LOG(WARNING) << "ServerUnit::SetTarget() did not handle the interaction type.";
 }
 
 void ServerUnit::RemoveTarget() {
@@ -48,7 +53,7 @@ void ServerUnit::SetMoveToTarget(const QPointF& mapCoord) {
   targetObjectId = kInvalidObjectId;
 }
 
-void ServerUnit::SetTargetInternal(u32 targetObjectId, ServerObject* targetObject) {
+void ServerUnit::SetTargetInternal(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting) {
   // The path will be computed on the next game state update.
   hasPath = false;
   
@@ -68,4 +73,7 @@ void ServerUnit::SetTargetInternal(u32 targetObjectId, ServerObject* targetObjec
   hasMoveToTarget = true;
   
   this->targetObjectId = targetObjectId;
+  if (isManualTargeting) {
+    manuallyTargetedObjectId = targetObjectId;
+  }
 }
