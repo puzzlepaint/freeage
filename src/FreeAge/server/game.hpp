@@ -80,10 +80,10 @@ class Game {
   
   void StartGame();
   void SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds);
-  void SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengthInSeconds, std::vector<QByteArray>* accumulatedMessages);
-  void SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building, float stepLengthInSeconds, std::vector<QByteArray>* accumulatedMessages);
+  void SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengthInSeconds);
+  void SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building, float stepLengthInSeconds);
   
-  void ProduceUnit(ServerBuilding* building, UnitType unitInProduction, std::vector<QByteArray>* accumulatedMessages);
+  void ProduceUnit(ServerBuilding* building, UnitType unitInProduction);
   
   void SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject);
   
@@ -99,5 +99,15 @@ class Game {
   double lastSimulationTime;
   
   std::vector<std::shared_ptr<PlayerInGame>>* playersInGame;
+  
+  /// For each player, stores accumulated messages that will be sent out
+  /// upon the next conclusion of a game simulation step. Accumulating
+  /// messages helps to reduce the overhead that many individual messages
+  /// would have. In addition, as a convenience feature, each batch of
+  /// accumulated messages gets prefixed by a GameStepTime message, such
+  /// that other individual messages do not need to repeat the current server
+  /// time in each message.
+  std::vector<QByteArray> accumulatedMessages;
+  
   ServerSettings* settings;  // not owned
 };

@@ -36,14 +36,12 @@ class GameDialog : public QDialog {
       const std::vector<QRgb>& playerColors,
       QWidget* parent = nullptr);
   
-  ~GameDialog();
-  
   void GetPlayerList(Match* match);
   
   inline bool GameWasAborted() const { return gameWasAborted; }
   
  private slots:
-  void TryParseServerMessage(const QByteArray& buffer, ServerToClientMessage msgType, u16 msgLength);
+  void TryParseServerMessages();
   void NewPingMeasurement(int milliseconds);
   
   void SendPing(u64 number);
@@ -58,8 +56,8 @@ class GameDialog : public QDialog {
   void AddPlayerWidget(const PlayerInMatch& player);
   
   void HandleSettingsUpdateBroadcast(const QByteArray& msg);
-  void HandlePlayerListMessage(const QByteArray& msg, int len);
-  void HandleChatBroadcastMessage(const QByteArray& msg, int len);
+  void HandlePlayerListMessage(const QByteArray& msg);
+  void HandleChatBroadcastMessage(const QByteArray& msg);
   
   std::vector<PlayerInMatch> playersInMatch;
   int playerIndexInList = -1;

@@ -19,6 +19,11 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
   constexpr float kTargetFPS = 30;
   constexpr float kSimulationTimeInterval = 1 / kTargetFPS;
   
+  accumulatedMessages.resize(playersInGame->size());
+  for (usize playerIndex = 0; playerIndex < playersInGame->size(); ++ playerIndex) {
+    accumulatedMessages[playerIndex].reserve(1024);
+  }
+  
   this->playersInGame = playersInGame;
   bool firstLoopIteration = true;
   
@@ -355,12 +360,8 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
   u32 newBuildingId;
   ServerBuilding* newBuildingFoundation = map->AddBuilding(player->index, type, baseTile, /*buildPercentage*/ 0, &newBuildingId, /*addOccupancy*/ false);
   
-  // NOTE: This addObject message will be interpreted on the client together with the last
-  //       sent game step server time. This should be fine, but should be kept in mind in case
-  //       one wants to make changes here.
   QByteArray addObjectMsg = CreateAddObjectMessage(newBuildingId, newBuildingFoundation);
-  player->socket->write(addObjectMsg);
-  player->socket->flush();
+  accumulatedMessages[player->index] += addObjectMsg;
   
   // For all given villagers, set the target to the new foundation.
   SetUnitTargets(villagerIds, player->index, newBuildingId, newBuildingFoundation);
@@ -548,11 +549,6 @@ void Game::StartGame() {
 }
 
 void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds) {
-  std::vector<QByteArray> accumulatedMessages(playersInGame->size());
-  for (usize playerIndex = 0; playerIndex < playersInGame->size(); ++ playerIndex) {
-    accumulatedMessages[playerIndex].reserve(1024);
-  }
-  
   // Iterate over all game objects to update their state.
   auto end = map->GetObjects().end();
   for (auto it = map->GetObjects().begin(); it != end; ++ it) {
@@ -561,10 +557,10 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
     
     if (object->isUnit()) {
       ServerUnit* unit = static_cast<ServerUnit*>(object);
-      SimulateGameStepForUnit(objectId, unit, stepLengthInSeconds, &accumulatedMessages);
+      SimulateGameStepForUnit(objectId, unit, stepLengthInSeconds);
     } else if (object->isBuilding()) {
       ServerBuilding* building = static_cast<ServerBuilding*>(object);
-      SimulateGameStepForBuilding(objectId, building, stepLengthInSeconds, &accumulatedMessages);
+      SimulateGameStepForBuilding(objectId, building, stepLengthInSeconds);
     }
   }
   
@@ -586,6 +582,7 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
       player->socket->write(
           CreateGameStepTimeMessage(gameStepServerTime) +
           accumulatedMessages[playerIndex]);
+      accumulatedMessages[playerIndex].clear();
       player->socket->flush();
     }
   }
@@ -631,7 +628,7 @@ static bool IsFoundationFree(ServerBuilding* foundation, ServerMap* map) {
   return true;
 }
 
-void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengthInSeconds, std::vector<QByteArray>* accumulatedMessages) {
+void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengthInSeconds) {
   bool unitMovementChanged = false;
   
   // If the unit's goal has been updated, plan a path towards the goal.
@@ -692,7 +689,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
                   QByteArray addObjectMsg = CreateAddObjectMessage(targetObjectId, targetBuilding);
                   for (auto& player : *playersInGame) {
                     if (player->index != targetBuilding->GetPlayerIndex()) {
-                      (*accumulatedMessages)[player->index] += addObjectMsg;
+                      accumulatedMessages[player->index] += addObjectMsg;
                     }
                   }
                 } else {
@@ -718,7 +715,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
                 // TODO: Group those updates together for each frame (together with the build speed handling in case multiple villagers are building at the same time)
                 QByteArray msg = CreateBuildPercentageUpdateMessage(targetObjectId, targetBuilding->GetBuildPercentage());
                 for (auto& player : *playersInGame) {
-                  (*accumulatedMessages)[player->index] += msg;
+                  accumulatedMessages[player->index] += msg;
                 }
                 
                 if (unit->GetCurrentAction() != UnitAction::Building) {
@@ -782,7 +779,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
     for (usize playerIndex = 0; playerIndex < playersInGame->size(); ++ playerIndex) {
       // TODO: Only do this if the player sees the unit.
       
-      (*accumulatedMessages)[playerIndex] +=
+      accumulatedMessages[playerIndex] +=
           CreateUnitMovementMessage(
               unitId,
               unit->GetMapCoord(),
@@ -792,7 +789,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
   }
 }
 
-void Game::SimulateGameStepForBuilding(u32 /*buildingId*/, ServerBuilding* building, float stepLengthInSeconds, std::vector<QByteArray>* accumulatedMessages) {
+void Game::SimulateGameStepForBuilding(u32 /*buildingId*/, ServerBuilding* building, float stepLengthInSeconds) {
   // If the building's production queue is non-empty, add progress on the item that is currently being produced / researched.
   UnitType unitInProduction;
   if (building->IsUnitQueued(&unitInProduction)) {
@@ -806,7 +803,7 @@ void Game::SimulateGameStepForBuilding(u32 /*buildingId*/, ServerBuilding* build
       }
       
       // Create the unit.
-      ProduceUnit(building, unitInProduction, accumulatedMessages);
+      ProduceUnit(building, unitInProduction);
       building->RemoveCurrentItemFromQueue();
       
       newPercentage = 0;
@@ -815,7 +812,7 @@ void Game::SimulateGameStepForBuilding(u32 /*buildingId*/, ServerBuilding* build
   }
 }
 
-void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction, std::vector<QByteArray>* accumulatedMessages) {
+void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   // Create the unit object.
   u32 newUnitId;
   ServerUnit* newUnit = map->AddUnit(building->GetPlayerIndex(), unitInProduction, QPointF(-999, -999), &newUnitId);
@@ -900,7 +897,7 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction, std:
   // Send messages to clients that see the new unit
   QByteArray addObjectMsg = CreateAddObjectMessage(newUnitId, newUnit);
   for (auto& player : *playersInGame) {
-    (*accumulatedMessages)[player->index] += addObjectMsg;
+    accumulatedMessages[player->index] += addObjectMsg;
   }
 }
 
@@ -920,12 +917,9 @@ void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 
     
     if (oldUnitType != unit->GetUnitType()) {
       // Notify all clients that see the unit about its change of type.
-      // TODO: Batch this message into the message batches for the game time steps instead of sending it directly.
-      //       Right now, the message uses the time step preceding this message handling ...
       QByteArray msg = CreateChangeUnitTypeMessage(id, unit->GetUnitType());
       for (auto& player : *playersInGame) {
-        player->socket->write(msg);
-        player->socket->flush();
+        accumulatedMessages[player->index] += msg;
       }
     }
   }

@@ -128,8 +128,8 @@ GameDialog::GameDialog(
   
   // --- Connections ---
   connect(connection, &ServerConnection::NewPingMeasurement, this, &GameDialog::NewPingMeasurement);
-  connect(connection, &ServerConnection::NewMessage, this, &GameDialog::TryParseServerMessage);
-  connection->SetParseMessages(true);
+  connect(connection, &ServerConnection::NewMessage, this, &GameDialog::TryParseServerMessages);
+  TryParseServerMessages();
   
   connect(chatEdit, &QLineEdit::textChanged, [&]() {
     chatButton->setEnabled(!chatEdit->text().isEmpty());
@@ -142,10 +142,6 @@ GameDialog::GameDialog(
   if (isHost) {
     connect(startButton, &QPushButton::clicked, this, &GameDialog::StartGame);
   }
-}
-
-GameDialog::~GameDialog() {
-  connection->SetParseMessages(false);
 }
 
 void GameDialog::GetPlayerList(Match* match) {
@@ -166,33 +162,41 @@ QString ColorToHTML(const QRgb& color) {
       .arg(static_cast<uint>(qBlue(color)), 2, 16, QLatin1Char('0'));
 }
 
-void GameDialog::TryParseServerMessage(const QByteArray& buffer, ServerToClientMessage msgType, u16 msgLength) {
-  switch (msgType) {
-  case ServerToClientMessage::Welcome:
-    // We do not expect to get a(nother) welcome message, but we do not
-    // treat it as an error either.
-    LOG(WARNING) << "Received an extra welcome message";
-    break;
-  case ServerToClientMessage::SettingsUpdateBroadcast:
-    HandleSettingsUpdateBroadcast(buffer);
-    break;
-  case ServerToClientMessage::GameAborted:
-    LOG(INFO) << "Got game aborted message";
-    gameWasAborted = true;
-    connection->Shutdown();
-    reject();
-    break;
-  case ServerToClientMessage::PlayerList:
-    HandlePlayerListMessage(buffer, msgLength);
-    break;
-  case ServerToClientMessage::ChatBroadcast:
-    HandleChatBroadcastMessage(buffer, msgLength);
-    break;
-  case ServerToClientMessage::StartGameBroadcast:
-    accept();
-    break;
-  default:;
+void GameDialog::TryParseServerMessages() {
+  connection->Lock();
+  
+  auto* messages = connection->GetReceivedMessages();
+  for (const ReceivedMessage& msg : *messages) {
+    switch (msg.type) {
+    case ServerToClientMessage::Welcome:
+      // We do not expect to get a(nother) welcome message, but we do not
+      // treat it as an error either.
+      LOG(WARNING) << "Received an extra welcome message";
+      break;
+    case ServerToClientMessage::SettingsUpdateBroadcast:
+      HandleSettingsUpdateBroadcast(msg.data);
+      break;
+    case ServerToClientMessage::GameAborted:
+      LOG(INFO) << "Got game aborted message";
+      gameWasAborted = true;
+      connection->Shutdown();
+      reject();
+      break;
+    case ServerToClientMessage::PlayerList:
+      HandlePlayerListMessage(msg.data);
+      break;
+    case ServerToClientMessage::ChatBroadcast:
+      HandleChatBroadcastMessage(msg.data);
+      break;
+    case ServerToClientMessage::StartGameBroadcast:
+      accept();
+      break;
+    default:;
+    }
   }
+  messages->clear();
+  
+  connection->Unlock();
 }
 
 void GameDialog::NewPingMeasurement(int milliseconds) {
@@ -255,21 +259,21 @@ void GameDialog::AddPlayerWidget(const PlayerInMatch& player) {
 }
 
 void GameDialog::HandleSettingsUpdateBroadcast(const QByteArray& msg) {
-  bool allowMorePlayersToJoin = msg.data()[3] > 0;
-  u16 mapSize = mango::uload16(msg.data() + 4);
+  bool allowMorePlayersToJoin = msg.data()[0] > 0;
+  u16 mapSize = mango::uload16(msg.data() + 1);
   
   allowJoinCheck->setChecked(allowMorePlayersToJoin);
   mapSizeEdit->setText(QString::number(mapSize));
 }
 
-void GameDialog::HandlePlayerListMessage(const QByteArray& msg, int len) {
+void GameDialog::HandlePlayerListMessage(const QByteArray& msg) {
   LOG(INFO) << "Got player list message";
   
   // Parse the message to update playersInMatch
   bool allPlayersAreReady = true;
   playersInMatch.clear();
-  int index = 4;
-  while (index < len) {
+  int index = 1;
+  while (index < msg.size()) {
     u16 nameLength = mango::uload16(msg.data() + index);
     index += 2;
     
@@ -285,11 +289,11 @@ void GameDialog::HandlePlayerListMessage(const QByteArray& msg, int len) {
     
     playersInMatch.emplace_back(name, playerColorIndex, playerIsReady);
   }
-  if (index != len) {
+  if (index != msg.size()) {
     LOG(WARNING) << "index != len after parsing a PlayerList message";
   }
   
-  playerIndexInList = std::min<int>(msg.data()[3], playersInMatch.size() - 1);
+  playerIndexInList = std::min<int>(msg.data()[0], playersInMatch.size() - 1);
   
   // Remove all items from playerListLayout
   while (QLayoutItem* item = playerListLayout->takeAt(0)) {
@@ -312,14 +316,14 @@ void GameDialog::HandlePlayerListMessage(const QByteArray& msg, int len) {
   }
 }
 
-void GameDialog::HandleChatBroadcastMessage(const QByteArray& msg, int len) {
+void GameDialog::HandleChatBroadcastMessage(const QByteArray& msg) {
   LOG(INFO) << "Got chat broadcast message";
   
-  int index = 3;
+  int index = 0;
   u16 sendingPlayerIndex = mango::uload16(msg.data() + index);
   index += 2;
   
-  QString chatText = QString::fromUtf8(msg.mid(index, len - index));
+  QString chatText = QString::fromUtf8(msg.mid(index, msg.size() - index));
   
   if (sendingPlayerIndex == std::numeric_limits<u16>::max()) {
     // Use the chatText without modification.

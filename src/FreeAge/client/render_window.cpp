@@ -1717,8 +1717,11 @@ void RenderWindow::paintGL() {
   
   // Render loading screen?
   if (isLoading) {
+    // Parse server messages.
+    gameController->ParseMessagesUntil(/*displayedServerTime*/ 0);
+    
     // Switch to the game once it starts.
-    if (connection->GetDisplayedServerTime() >= gameController->GetGameStartServerTimeSeconds()) {
+    if (connection->GetServerTimeToDisplayNow() >= gameController->GetGameStartServerTimeSeconds()) {
       isLoading = false;
       
       // Unload loading screen resources
@@ -1744,7 +1747,7 @@ void RenderWindow::paintGL() {
   // double elapsedSeconds = std::chrono::duration<double>(now - renderStartTime).count();
   
   // Update the game state to the server time that should be displayed.
-  double displayedServerTime = connection->GetDisplayedServerTime();
+  double displayedServerTime = connection->GetServerTimeToDisplayNow();
   if (displayedServerTime > lastDisplayedServerTime) {
     // 1) Parse messages until the displayed server time
     gameController->ParseMessagesUntil(displayedServerTime);
