@@ -50,6 +50,19 @@ inline bool IsMaleVillager(UnitType type) {
   return type >= UnitType::MaleVillager &&
          type <= UnitType::MaleVillagerStoneMiner;
 }
+inline ResourceType GetResourceTypeOfVillagerType(UnitType type) {
+  if (type == UnitType::FemaleVillagerForager || type == UnitType::MaleVillagerForager) {
+    return ResourceType::Food;
+  } else if (type == UnitType::FemaleVillagerLumberjack || type == UnitType::MaleVillagerLumberjack) {
+    return ResourceType::Wood;
+  } else if (type == UnitType::FemaleVillagerGoldMiner || type == UnitType::MaleVillagerGoldMiner) {
+    return ResourceType::Gold;
+  } else if (type == UnitType::FemaleVillagerStoneMiner || type == UnitType::MaleVillagerStoneMiner) {
+    return ResourceType::Stone;
+  }
+  LOG(ERROR) << "GetResourceTypeOfVillagerType() called for a villager type that is not a resource gatherer type.";
+  return ResourceType::NumTypes;
+}
 
 float GetUnitRadius(UnitType type);
 QString GetUnitName(UnitType type);

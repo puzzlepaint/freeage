@@ -14,6 +14,7 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   // TODO: Automatically check how many animations (A, B) for each type are available.
   
   std::string spriteBaseName;
+  std::string spriteBaseNameFallback;
   std::string iconPath;
   
   bool ok = true;
@@ -39,7 +40,8 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::FemaleVillagerStoneMiner:
-    spriteBaseName = "u_vil_female_miner_gold";  // TODO: Use the same animations as for the gold miner (without loading them twice!), except for u_vil_female_miner_stone_carrywalkA_x1.smx
+    spriteBaseName = "u_vil_female_miner_stone";
+    spriteBaseNameFallback = "u_vil_female_miner_gold";  // TODO: Use the same animations as for the gold miner without loading them twice!
     iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::MaleVillager:
@@ -63,7 +65,8 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::MaleVillagerStoneMiner:
-    spriteBaseName = "u_vil_male_miner_gold";  // TODO: Use the same animations as for the gold miner (without loading them twice!), except for u_vil_male_miner_stone_carrywalkA_x1.smx
+    spriteBaseName = "u_vil_male_miner_stone";
+    spriteBaseNameFallback = "u_vil_male_miner_gold";  // TODO: Use the same animations as for the gold miner without loading them twice!
     iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::Militia:
@@ -80,8 +83,8 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     break;
   }
   
-  auto makeSpriteFilename = [&](const std::string& animationFilename, int variant) {
-    return spriteBaseName + "_" + animationFilename + static_cast<char>('A' + variant) + "_x1.smx";
+  auto makeSpriteFilename = [&](const std::string& baseName, const std::string& animationFilename, int variant) {
+    return baseName + "_" + animationFilename + static_cast<char>('A' + variant) + "_x1.smx";
   };
   
   for (int animationTypeInt = 0; animationTypeInt < static_cast<int>(UnitAnimation::NumAnimationTypes); ++ animationTypeInt) {
@@ -90,7 +93,9 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     std::string animationFilenameComponent;
     switch (animationType) {
     case UnitAnimation::Idle: animationFilenameComponent = "idle"; break;
+    case UnitAnimation::CarryIdle: animationFilenameComponent = "carryidle"; break;
     case UnitAnimation::Walk: animationFilenameComponent = "walk"; break;
+    case UnitAnimation::CarryWalk: animationFilenameComponent = "carrywalk"; break;
     case UnitAnimation::Task: animationFilenameComponent = "task"; break;
     case UnitAnimation::NumAnimationTypes: LOG(ERROR) << "Invalid animation type.";
     }
@@ -98,18 +103,26 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     // Determine the number of animation variants.
     int numVariants = 0;
     for (int variant = 0; variant < 99; ++ variant) {
-      std::string filename = makeSpriteFilename(animationFilenameComponent, variant);
+      std::string filename = makeSpriteFilename(spriteBaseName, animationFilenameComponent, variant);
       if (std::filesystem::exists(graphicsPath / filename)) {
         ++ numVariants;
       } else {
-        break;
+        filename = makeSpriteFilename(spriteBaseNameFallback, animationFilenameComponent, variant);
+        if (std::filesystem::exists(graphicsPath / filename)) {
+          ++ numVariants;
+        } else {
+          break;
+        }
       }
     }
     
     // Load each variant.
     animations[animationTypeInt].resize(numVariants);
     for (int variant = 0; variant < numVariants; ++ variant) {
-      std::string filename = makeSpriteFilename(animationFilenameComponent, variant);
+      std::string filename = makeSpriteFilename(spriteBaseName, animationFilenameComponent, variant);
+      if (!std::filesystem::exists(graphicsPath / filename)) {
+        filename = makeSpriteFilename(spriteBaseNameFallback, animationFilenameComponent, variant);
+      }
       ok = ok && LoadAnimation(variant, filename.c_str(), graphicsPath, cachePath, palettes, animationType);
     }
   }
@@ -255,12 +268,23 @@ void ClientUnit::Render(
 }
 
 void ClientUnit::SetCurrentAnimation(UnitAnimation animation, double serverTime) {
+  const ClientUnitType& unitType = ClientUnitType::GetUnitTypes()[static_cast<int>(type)];
+  
+  // If this unit is a villager carrying the resource type corresponding to the villager type,
+  // turn the idle/walk/death/decay animations into the corresponding "carry" variants if they exist.
+  if (IsVillager(type) && carriedResourceAmount > 0 && GetResourceTypeOfVillagerType(type) == carriedResourceType) {
+    if (animation == UnitAnimation::Idle &&
+        !unitType.GetAnimations(UnitAnimation::CarryIdle).empty()) {
+      animation = UnitAnimation::CarryIdle;
+    } else if (animation == UnitAnimation::Walk &&
+               !unitType.GetAnimations(UnitAnimation::CarryWalk).empty()) {
+      animation = UnitAnimation::CarryWalk;
+    }
+  }
+  
   if (currentAnimation == animation) {
     return;
   }
-  
-  auto& unitTypes = ClientUnitType::GetUnitTypes();
-  const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
   
   currentAnimation = animation;
   lastAnimationStartTime = serverTime;

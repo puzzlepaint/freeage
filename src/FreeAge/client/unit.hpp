@@ -15,7 +15,9 @@ constexpr int kNumFacingDirections = 16;
 
 enum class UnitAnimation {
   Idle = 0,
+  CarryIdle,
   Walk,
+  CarryWalk,
   Task,
   NumAnimationTypes
 };
@@ -159,7 +161,7 @@ class ClientUnit : public ClientObject {
   MovementSegment movementSegment;
   
   // For villagers: carried resource type.
-  ResourceType carriedResourceType;
+  ResourceType carriedResourceType = ResourceType::NumTypes;
   // For villagers: carried resource amount.
-  u8 carriedResourceAmount;
+  u8 carriedResourceAmount = 0;
 };
