@@ -31,10 +31,11 @@ enum class UnitType {
 };
 
 /// Unit actions, leading to different animations.
+/// TODO: Can we drop this and directly use the UnitAnimation enum instead?
 enum class UnitAction {
   Idle = 0,
   Moving,
-  Building
+  Task
 };
 
 inline bool IsVillager(UnitType type) {

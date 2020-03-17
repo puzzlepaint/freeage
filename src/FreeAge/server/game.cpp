@@ -665,6 +665,11 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
             
             if (interaction == InteractionType::Construct) {
               SimulateBuildingConstruction(stepLengthInSeconds, unit, targetObjectId, targetBuilding, &unitMovementChanged, &stayInPlace);
+            } else if (interaction == InteractionType::CollectBerries ||
+                       interaction == InteractionType::CollectWood ||
+                       interaction == InteractionType::CollectGold ||
+                       interaction == InteractionType::CollectStone) {
+              SimulateResourceGathering(stepLengthInSeconds, unitId, unit, targetBuilding, &unitMovementChanged, &stayInPlace);
             }
           }
         } else if (targetObject->isUnit()) {
@@ -774,9 +779,9 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
       accumulatedMessages[player->index] += msg;
     }
     
-    if (villager->GetCurrentAction() != UnitAction::Building) {
+    if (villager->GetCurrentAction() != UnitAction::Task) {
       *unitMovementChanged = true;
-      villager->SetCurrentAction(UnitAction::Building);
+      villager->SetCurrentAction(UnitAction::Task);
     }
   } else {
     if (villager->GetCurrentAction() != UnitAction::Idle) {
@@ -786,6 +791,58 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
   }
   
   *stayInPlace = true;
+}
+
+void Game::SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, ServerUnit* villager, ServerBuilding* targetBuilding, bool* unitMovementChanged, bool* stayInPlace) {
+  // Determine the resource type to gather.
+  ResourceType gatheredType;
+  if (IsTree(targetBuilding->GetBuildingType())) {
+    gatheredType = ResourceType::Wood;
+  } else if (targetBuilding->GetBuildingType() == BuildingType::ForageBush) {
+    gatheredType = ResourceType::Food;
+  } else if (targetBuilding->GetBuildingType() == BuildingType::GoldMine) {
+    gatheredType = ResourceType::Gold;
+  } else if (targetBuilding->GetBuildingType() == BuildingType::StoneMine) {
+    gatheredType = ResourceType::Stone;
+  } else {
+    LOG(ERROR) << "Server: Failed to determine the resource type to gather.";
+    return;
+  }
+  
+  // If the villager carried any other resource type than the type gathered, drop it.
+  bool resourcesDropped = villager->GetCarriedResourceType() != gatheredType;
+  if (resourcesDropped) {
+    villager->SetCarriedResourceAmount(0);
+    villager->SetCarriedResourceType(gatheredType);
+  }
+  
+  // Determine the number of resource units collected.
+  // TODO: The gather rate should vary per resource type and depend on the player's civilization and technologies
+  constexpr double gatherRate = 2.0;
+  double resourcesGathered = gatherRate * stepLengthInSeconds;
+  
+  constexpr double carryCapacity = 10;  // TODO: Should depend on technologies etc.
+  
+  int previousIntegerAmount = static_cast<int>(villager->GetCarriedResourceAmount());
+  villager->SetCarriedResourceAmount(
+      std::min(carryCapacity, villager->GetCarriedResourceAmount() + resourcesGathered));
+  int currentIntegerAmount = static_cast<int>(villager->GetCarriedResourceAmount());
+  
+  if (resourcesDropped || currentIntegerAmount != previousIntegerAmount) {
+    // Notify the client that owns the villager about its new carry amount
+    accumulatedMessages[villager->GetPlayerIndex()] += CreateSetCarriedResourcesMessage(villagerId, gatheredType, currentIntegerAmount);
+  }
+  
+  // Make the villager target a resource drop-off point if its carrying capacity is reached.
+  if (villager->GetCarriedResourceAmount() == carryCapacity) {
+    // TODO
+  } else {
+    if (villager->GetCurrentAction() != UnitAction::Task) {
+      *unitMovementChanged = true;
+      villager->SetCurrentAction(UnitAction::Task);
+    }
+    *stayInPlace = true;
+  }
 }
 
 void Game::SimulateGameStepForBuilding(u32 /*buildingId*/, ServerBuilding* building, float stepLengthInSeconds) {

@@ -86,6 +86,9 @@ void GameController::ProduceUnit(const std::vector<u32>& selection, UnitType typ
 void GameController::ParseMessage(const QByteArray& data, ServerToClientMessage msgType) {
   // The messages are sorted by the frequency in which we expect to get them.
   switch (msgType) {
+  case ServerToClientMessage::SetCarriedResources:
+    HandleSetCarriedResourcesMessage(data);
+    break;
   case ServerToClientMessage::UnitMovement:
     HandleUnitMovementMessage(data);
     break;
@@ -264,4 +267,29 @@ void GameController::HandleChangeUnitTypeMessage(const QByteArray& data) {
   
   ClientUnit* unit = static_cast<ClientUnit*>(it->second);
   unit->SetType(newType);
+}
+
+void GameController::HandleSetCarriedResourcesMessage(const QByteArray& data) {
+  const char* buffer = data.data();
+  
+  u32 unitId = mango::uload32(buffer + 0);
+  auto it = map->GetObjects().find(unitId);
+  if (it == map->GetObjects().end()) {
+    LOG(ERROR) << "Received a SetCarriedResources message for an object ID that is not in the map.";
+    return;
+  }
+  if (!it->second->isUnit()) {
+    LOG(ERROR) << "Received a SetCarriedResources message for an object ID that is a different type than a unit.";
+    return;
+  }
+  ClientUnit* villager = static_cast<ClientUnit*>(it->second);
+  if (!IsVillager(villager->GetType())) {
+    LOG(ERROR) << "Received a SetCarriedResources message for a unit that is not a villager.";
+    return;
+  }
+  
+  ResourceType type = static_cast<ResourceType>(buffer[4]);
+  u8 amount = buffer[5];
+  
+  villager->SetCarriedResources(type, amount);
 }

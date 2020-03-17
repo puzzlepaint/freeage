@@ -50,6 +50,7 @@ class GameController : public QObject {
   void HandleResourcesUpdateMessage(const QByteArray& data, ResourceAmount* resources);
   void HandleBuildPercentageUpdate(const QByteArray& data);
   void HandleChangeUnitTypeMessage(const QByteArray& data);
+  void HandleSetCarriedResourcesMessage(const QByteArray& data);
   
   
   std::shared_ptr<ServerConnection> connection;

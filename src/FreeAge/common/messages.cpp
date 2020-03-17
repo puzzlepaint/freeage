@@ -445,3 +445,20 @@ QByteArray CreateChangeUnitTypeMessage(u32 unitId, UnitType type) {
   
   return msg;
 }
+
+QByteArray CreateSetCarriedResourcesMessage(u32 unitId, ResourceType type, u8 amount) {
+  // Create buffer
+  QByteArray msg(9, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::SetCarriedResources);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore32(data + 3, unitId);
+  data[7] = static_cast<u8>(type);
+  data[8] = amount;
+  
+  return msg;
+}

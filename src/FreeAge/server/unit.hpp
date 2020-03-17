@@ -38,6 +38,12 @@ class ServerUnit : public ServerObject {
   inline const QPointF& GetMovementDirection() const { return currentMovementDirection; }
   inline void SetMovementDirection(const QPointF& direction) { currentMovementDirection = direction; }
   
+  inline ResourceType GetCarriedResourceType() const { return carriedResourceType; }
+  inline void SetCarriedResourceType(ResourceType type) { carriedResourceType = type; }
+  
+  inline float GetCarriedResourceAmount() const { return carriedResourceAmount; }
+  inline void SetCarriedResourceAmount(float amount) { carriedResourceAmount = amount; }
+  
   // TODO: Load this from some database for each unit type
   inline float GetMoveSpeed() const { return (type == UnitType::Scout) ? 2.f : 1.f; }
   
@@ -65,4 +71,10 @@ class ServerUnit : public ServerObject {
   /// This is in general the only movement-related piece of information that the clients know about.
   /// If this changes, the clients that see the unit need to be notified.
   QPointF currentMovementDirection = QPointF(0, 0);
+  
+  /// Amount of resources carried (for villagers).
+  float carriedResourceAmount = 0;
+  
+  // Type of resources carried (for villagers).
+  ResourceType carriedResourceType = ResourceType::NumTypes;
 };

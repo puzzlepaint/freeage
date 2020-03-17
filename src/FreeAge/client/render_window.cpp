@@ -129,6 +129,7 @@ RenderWindow::~RenderWindow() {
   
   selectionPanelTexture.reset();
   singleObjectNameDisplay.reset();
+  carriedResourcesDisplay.reset();
   
   iconOverlayNormalTexture.reset();
   iconOverlayNormalExpensiveTexture.reset();
@@ -1127,6 +1128,31 @@ void RenderWindow::RenderGameUI() {
               kUIScale * 2*16),
         Qt::AlignLeft | Qt::AlignTop,
         uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+    
+    // Display unit details?
+    if (singleSelectedObject->isUnit()) {
+      ClientUnit* singleSelectedUnit = static_cast<ClientUnit*>(singleSelectedObject);
+      if (IsVillager(singleSelectedUnit->GetType())) {
+        // Display the villager's carried resources?
+        if (singleSelectedUnit->GetCarriedResourceAmount() > 0) {
+          if (!carriedResourcesDisplay) {
+            carriedResourcesDisplay.reset(new TextDisplay());
+          }
+          carriedResourcesDisplay->Render(
+              georgiaFontLarger,
+              qRgba(58, 29, 21, 255),
+              QObject::tr("Carries %1 %2")
+                  .arg(singleSelectedUnit->GetCarriedResourceAmount())
+                  .arg(GetResourceName(singleSelectedUnit->GetCarriedResourceType())),
+              QRect(selectionPanelLeft + kUIScale * 2*32,
+                    selectionPanelTop + kUIScale * 50 + kUIScale * 2*46 + kUIScale * 2*60 + kUIScale * 2*10,
+                    kUIScale * 2*172,
+                    kUIScale * 2*16),
+              Qt::AlignLeft | Qt::AlignTop,
+              uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+        }
+      }
+    }
     
     // Render icon of single selected object
     const Texture* iconTexture = singleSelectedObject->GetIconTexture();

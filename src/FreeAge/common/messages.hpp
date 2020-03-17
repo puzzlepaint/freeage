@@ -171,6 +171,9 @@ enum class ServerToClientMessage {
   
   /// Tells the client that an existing unit seen by the client changed its UnitType.
   ChangeUnitType,
+  
+  /// Sets the type and amount of carried resources for a villager.
+  SetCarriedResources,
 };
 
 QByteArray CreateWelcomeMessage();
@@ -208,3 +211,5 @@ QByteArray CreateResourcesUpdateMessage(const ResourceAmount& amount);
 QByteArray CreateBuildPercentageUpdateMessage(u32 buildingId, float progress);
 
 QByteArray CreateChangeUnitTypeMessage(u32 unitId, UnitType type);
+
+QByteArray CreateSetCarriedResourcesMessage(u32 unitId, ResourceType type, u8 amount);

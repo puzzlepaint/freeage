@@ -1,6 +1,10 @@
 #pragma once
 
+#include <QObject>
+#include <QString>
+
 #include "FreeAge/common/free_age.hpp"
+#include "FreeAge/common/logging.hpp"
 
 enum class ResourceType {
   Wood = 0,
@@ -9,6 +13,21 @@ enum class ResourceType {
   Stone = 3,
   NumTypes = 4
 };
+
+inline QString GetResourceName(ResourceType type) {
+  if (type == ResourceType::Wood) {
+    return QObject::tr("wood");
+  } else if (type == ResourceType::Food) {
+    return QObject::tr("food");
+  } else if (type == ResourceType::Gold) {
+    return QObject::tr("gold");
+  } else if (type == ResourceType::Stone) {
+    return QObject::tr("stone");
+  }
+  
+  LOG(ERROR) << "GetResourceName() called on invalid resource type: " << static_cast<int>(type);
+  return "";
+}
 
 struct ResourceAmount {
   inline ResourceAmount()

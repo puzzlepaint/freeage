@@ -105,6 +105,13 @@ class ClientUnit : public ClientObject {
     movementSegment = MovementSegment(serverTime, startPoint, speed, action);
   }
   
+  inline void SetCarriedResources(ResourceType type, u8 amount) {
+    carriedResourceType = type;
+    carriedResourceAmount = amount;
+  }
+  inline ResourceType GetCarriedResourceType() const { return carriedResourceType; }
+  inline int GetCarriedResourceAmount() const { return carriedResourceAmount; }
+  
   /// Updates the unit's state to the given server time.
   void UpdateGameState(double serverTime);
   
@@ -150,4 +157,9 @@ class ClientUnit : public ClientObject {
   /// TODO: Move the attributes of this struct directly into the ClientUnit now that
   ///       we only store one segment at a time?
   MovementSegment movementSegment;
+  
+  // For villagers: carried resource type.
+  ResourceType carriedResourceType;
+  // For villagers: carried resource amount.
+  u8 carriedResourceAmount;
 };

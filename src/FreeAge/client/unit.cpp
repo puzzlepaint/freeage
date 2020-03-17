@@ -269,7 +269,7 @@ void ClientUnit::SetCurrentAnimation(UnitAnimation animation, double serverTime)
 
 void ClientUnit::UpdateGameState(double serverTime) {
   // Update the unit's movment according to the movement segment.
-  if (movementSegment.action == UnitAction::Building) {
+  if (movementSegment.action == UnitAction::Task) {
     mapCoord = movementSegment.startPoint;
   } else {
     mapCoord = movementSegment.startPoint + (serverTime - movementSegment.serverTime) * movementSegment.speed;
@@ -288,7 +288,7 @@ void ClientUnit::UpdateGameState(double serverTime) {
     }
   }
   
-  if (movementSegment.action == UnitAction::Building) {
+  if (movementSegment.action == UnitAction::Task) {
     SetCurrentAnimation(UnitAnimation::Task, serverTime);
   } else if (movementSegment.speed == QPointF(0, 0)) {
     // If the movement is zero, set the unit to the final position and delete the segment.
