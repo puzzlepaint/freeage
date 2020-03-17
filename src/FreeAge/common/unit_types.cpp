@@ -33,6 +33,18 @@ QString GetUnitName(UnitType type) {
   case UnitType::FemaleVillagerBuilder:
   case UnitType::MaleVillagerBuilder:
     return QObject::tr("Builder");
+  case UnitType::FemaleVillagerForager:
+  case UnitType::MaleVillagerForager:
+    return QObject::tr("Forager");
+  case UnitType::FemaleVillagerLumberjack:
+  case UnitType::MaleVillagerLumberjack:
+    return QObject::tr("Lumberjack");
+  case UnitType::FemaleVillagerGoldMiner:
+  case UnitType::MaleVillagerGoldMiner:
+    return QObject::tr("Gold Miner");
+  case UnitType::FemaleVillagerStoneMiner:
+  case UnitType::MaleVillagerStoneMiner:
+    return QObject::tr("Stone Miner");
   case UnitType::Militia:
     return QObject::tr("Militia");
   case UnitType::Scout:

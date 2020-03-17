@@ -661,75 +661,10 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
         if (targetObject->isBuilding()) {
           ServerBuilding* targetBuilding = static_cast<ServerBuilding*>(targetObject);
           if (DoesUnitTouchBuildingArea(unit, newMapCoord, targetBuilding, 0)) {
-            // TODO: This duplicates code in SetTarget() in server/unit.cpp. Make a function GetTargetInteractionType().
-            // If the unit is a villager and the target building is a foundation of the same player,
-            // let the villager construct the building.
-            if (IsVillager(unit->GetUnitType()) &&
-                targetBuilding->GetPlayerIndex() == unit->GetPlayerIndex() &&
-                targetBuilding->GetBuildPercentage() < 100) {
-              // A villager constructs a building.
-              
-              // Special case for the start: If the foundation has 0 percent build progress,
-              // we must first verify that the foundation space is free. If yes:
-              // * Add the foundation's occupancy to the map.
-              // * Tell all clients that observe the foundation about it (except the client which
-              //   is constructing it, which already knows it).
-              // If the space is occupied, notify the constructing player that construction has halted.
-              // TODO: In the latter case, if only allied units obstruct the foundation, we should first
-              //       try to make these units move off of the foudation. Only if this fails then the construction should halt.
-              bool canConstruct = true;
-              if (targetBuilding->GetBuildPercentage() == 0) {
-                if (IsFoundationFree(targetBuilding, map.get())) {
-                  // Add the foundation's occupancy to the map.
-                  // TODO: The foundation's occupancy may differ from the final building's occupancy, e.g., for town centers. Handle this case properly.
-                  map->AddBuildingOccupancy(targetBuilding);
-                  
-                  // Tell all clients that observe the foundation about it (except the client which
-                  // is constructing it, which already knows it).
-                  QByteArray addObjectMsg = CreateAddObjectMessage(targetObjectId, targetBuilding);
-                  for (auto& player : *playersInGame) {
-                    if (player->index != targetBuilding->GetPlayerIndex()) {
-                      accumulatedMessages[player->index] += addObjectMsg;
-                    }
-                  }
-                } else {
-                  // Construction blocked.
-                  // TODO: Rather than stopping, try to move to the nearest point next to the building (if necessary),
-                  //       and try to command all allied units on the foundation to do the same.
-                  unit->StopMovement();
-                  unitMovementChanged = true;
-                  
-                  canConstruct = false;
-                }
-              }
-              
-              // Add progress to the construction.
-              // TODO: In the original game, two villagers building does not result in twice the speed. Account for this.
-              if (canConstruct) {
-                double constructionTime = GetBuildingConstructionTime(targetBuilding->GetBuildingType());
-                double constructionStepInPercent = 100 * stepLengthInSeconds / constructionTime;
-                double newPercentage = std::min<double>(100, targetBuilding->GetBuildPercentage() + constructionStepInPercent);
-                targetBuilding->SetBuildPercentage(newPercentage);
-                
-                // Tell all clients that see the building about the new build percentage.
-                // TODO: Group those updates together for each frame (together with the build speed handling in case multiple villagers are building at the same time)
-                QByteArray msg = CreateBuildPercentageUpdateMessage(targetObjectId, targetBuilding->GetBuildPercentage());
-                for (auto& player : *playersInGame) {
-                  accumulatedMessages[player->index] += msg;
-                }
-                
-                if (unit->GetCurrentAction() != UnitAction::Building) {
-                  unitMovementChanged = true;
-                  unit->SetCurrentAction(UnitAction::Building);
-                }
-              } else {
-                if (unit->GetCurrentAction() != UnitAction::Idle) {
-                  unitMovementChanged = true;
-                  unit->SetCurrentAction(UnitAction::Idle);
-                }
-              }
-              
-              stayInPlace = true;
+            InteractionType interaction = GetInteractionType(unit, targetBuilding);
+            
+            if (interaction == InteractionType::Construct) {
+              SimulateBuildingConstruction(stepLengthInSeconds, unit, targetObjectId, targetBuilding, &unitMovementChanged, &stayInPlace);
             }
           }
         } else if (targetObject->isUnit()) {
@@ -787,6 +722,70 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
               unit->GetCurrentAction());
     }
   }
+}
+
+void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* villager, u32 targetObjectId, ServerBuilding* targetBuilding, bool* unitMovementChanged, bool* stayInPlace) {
+  // Special case for the start: If the foundation has 0 percent build progress,
+  // we must first verify that the foundation space is free. If yes:
+  // * Add the foundation's occupancy to the map.
+  // * Tell all clients that observe the foundation about it (except the client which
+  //   is constructing it, which already knows it).
+  // If the space is occupied, notify the constructing player that construction has halted.
+  // TODO: In the latter case, if only allied units obstruct the foundation, we should first
+  //       try to make these units move off of the foudation. Only if this fails then the construction should halt.
+  bool canConstruct = true;
+  if (targetBuilding->GetBuildPercentage() == 0) {
+    if (IsFoundationFree(targetBuilding, map.get())) {
+      // Add the foundation's occupancy to the map.
+      // TODO: The foundation's occupancy may differ from the final building's occupancy, e.g., for town centers. Handle this case properly.
+      map->AddBuildingOccupancy(targetBuilding);
+      
+      // Tell all clients that observe the foundation about it (except the client which
+      // is constructing it, which already knows it).
+      QByteArray addObjectMsg = CreateAddObjectMessage(targetObjectId, targetBuilding);
+      for (auto& player : *playersInGame) {
+        if (player->index != targetBuilding->GetPlayerIndex()) {
+          accumulatedMessages[player->index] += addObjectMsg;
+        }
+      }
+    } else {
+      // Construction blocked.
+      // TODO: Rather than stopping, try to move to the nearest point next to the building (if necessary),
+      //       and try to command all allied units on the foundation to do the same.
+      villager->StopMovement();
+      *unitMovementChanged = true;
+      
+      canConstruct = false;
+    }
+  }
+  
+  // Add progress to the construction.
+  // TODO: In the original game, two villagers building does not result in twice the speed. Account for this.
+  if (canConstruct) {
+    double constructionTime = GetBuildingConstructionTime(targetBuilding->GetBuildingType());
+    double constructionStepInPercent = 100 * stepLengthInSeconds / constructionTime;
+    double newPercentage = std::min<double>(100, targetBuilding->GetBuildPercentage() + constructionStepInPercent);
+    targetBuilding->SetBuildPercentage(newPercentage);
+    
+    // Tell all clients that see the building about the new build percentage.
+    // TODO: Group those updates together for each frame (together with the build speed handling in case multiple villagers are building at the same time)
+    QByteArray msg = CreateBuildPercentageUpdateMessage(targetObjectId, targetBuilding->GetBuildPercentage());
+    for (auto& player : *playersInGame) {
+      accumulatedMessages[player->index] += msg;
+    }
+    
+    if (villager->GetCurrentAction() != UnitAction::Building) {
+      *unitMovementChanged = true;
+      villager->SetCurrentAction(UnitAction::Building);
+    }
+  } else {
+    if (villager->GetCurrentAction() != UnitAction::Idle) {
+      *unitMovementChanged = true;
+      villager->SetCurrentAction(UnitAction::Idle);
+    }
+  }
+  
+  *stayInPlace = true;
 }
 
 void Game::SimulateGameStepForBuilding(u32 /*buildingId*/, ServerBuilding* building, float stepLengthInSeconds) {

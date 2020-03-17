@@ -9,11 +9,19 @@
 enum class UnitType {
   FemaleVillager = 0,
   FemaleVillagerBuilder,
+  FemaleVillagerForager,
+  FemaleVillagerLumberjack,
+  FemaleVillagerGoldMiner,
+  FemaleVillagerStoneMiner,
   MaleVillager,
   MaleVillagerBuilder,
+  MaleVillagerForager,
+  MaleVillagerLumberjack,
+  MaleVillagerGoldMiner,
+  MaleVillagerStoneMiner,
   
   FirstVillager = FemaleVillager,
-  LastVillager = MaleVillagerBuilder,
+  LastVillager = MaleVillagerStoneMiner,
   
   Militia,
   
@@ -35,11 +43,11 @@ inline bool IsVillager(UnitType type) {
 }
 inline bool IsFemaleVillager(UnitType type) {
   return type >= UnitType::FemaleVillager &&
-         type <= UnitType::FemaleVillagerBuilder;
+         type <= UnitType::FemaleVillagerStoneMiner;
 }
 inline bool IsMaleVillager(UnitType type) {
   return type >= UnitType::MaleVillager &&
-         type <= UnitType::MaleVillagerBuilder;
+         type <= UnitType::MaleVillagerStoneMiner;
 }
 
 float GetUnitRadius(UnitType type);

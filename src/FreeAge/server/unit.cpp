@@ -9,18 +9,28 @@ ServerUnit::ServerUnit(int playerIndex, UnitType type, const QPointF& mapCoord)
       currentAction(UnitAction::Idle) {}
 
 void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject) {
-  if (IsVillager(type)) {
-    // Is the target a building foundation that the villager could construct?
-    if (targetObject->isBuilding()) {
-      ServerBuilding* targetBuilding = static_cast<ServerBuilding*>(targetObject);
-      if (targetBuilding->GetPlayerIndex() == GetPlayerIndex() &&
-          targetBuilding->GetBuildPercentage() < 100) {
-        // Make the villager construct the target building.
-        type = IsMaleVillager(type) ? UnitType::MaleVillagerBuilder : UnitType::FemaleVillagerBuilder;
-        SetTargetInternal(targetObjectId, targetObject);
-        return;
-      }
-    }
+  InteractionType interaction = GetInteractionType(this, targetObject);
+  
+  if (interaction == InteractionType::Construct) {
+    type = IsMaleVillager(type) ? UnitType::MaleVillagerBuilder : UnitType::FemaleVillagerBuilder;
+    SetTargetInternal(targetObjectId, targetObject);
+    return;
+  } else if (interaction == InteractionType::CollectBerries) {
+    type = IsMaleVillager(type) ? UnitType::MaleVillagerForager : UnitType::FemaleVillagerForager;
+    SetTargetInternal(targetObjectId, targetObject);
+    return;
+  } else if (interaction == InteractionType::CollectWood) {
+    type = IsMaleVillager(type) ? UnitType::MaleVillagerLumberjack : UnitType::FemaleVillagerLumberjack;
+    SetTargetInternal(targetObjectId, targetObject);
+    return;
+  } else if (interaction == InteractionType::CollectGold) {
+    type = IsMaleVillager(type) ? UnitType::MaleVillagerGoldMiner : UnitType::FemaleVillagerGoldMiner;
+    SetTargetInternal(targetObjectId, targetObject);
+    return;
+  } else if (interaction == InteractionType::CollectStone) {
+    type = IsMaleVillager(type) ? UnitType::MaleVillagerStoneMiner : UnitType::FemaleVillagerStoneMiner;
+    SetTargetInternal(targetObjectId, targetObject);
+    return;
   }
 }
 

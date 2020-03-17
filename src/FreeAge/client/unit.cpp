@@ -8,66 +8,114 @@
 bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes) {
   animations.resize(static_cast<int>(UnitAnimation::NumAnimationTypes));
   
-  // TODO: Automatically check how many animations (A, B) for each type are available.
-  
   std::filesystem::path ingameUnitsPath =
       graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame" / "units";
+  
+  // TODO: Automatically check how many animations (A, B) for each type are available.
+  
+  std::string spriteBaseName;
+  std::string iconPath;
   
   bool ok = true;
   switch (type) {
   case UnitType::FemaleVillager:
-    animations[static_cast<int>(UnitAnimation::Idle)].resize(1);
-    ok = ok && LoadAnimation(0, "u_vil_female_villager_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
-    animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
-    ok = ok && LoadAnimation(0, "u_vil_female_villager_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
-    iconTexture.Load(ingameUnitsPath / "016_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);
+    spriteBaseName = "u_vil_female_villager";
+    iconPath = ingameUnitsPath / "016_50730.DDS";
     break;
   case UnitType::FemaleVillagerBuilder:
-    animations[static_cast<int>(UnitAnimation::Idle)].resize(1);
-    ok = ok && LoadAnimation(0, "u_vil_female_builder_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
-    animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
-    ok = ok && LoadAnimation(0, "u_vil_female_builder_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
-    animations[static_cast<int>(UnitAnimation::Task)].resize(1);
-    ok = ok && LoadAnimation(0, "u_vil_female_builder_taskA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Task);
-    iconTexture.Load(ingameUnitsPath / "016_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);  // TODO: Do not load the icon multiple times
+    spriteBaseName = "u_vil_female_builder";
+    iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
+    break;
+  case UnitType::FemaleVillagerForager:
+    spriteBaseName = "u_vil_female_forager";
+    iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
+    break;
+  case UnitType::FemaleVillagerLumberjack:
+    spriteBaseName = "u_vil_female_lumberjack";
+    iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
+    break;
+  case UnitType::FemaleVillagerGoldMiner:
+    spriteBaseName = "u_vil_female_miner_gold";
+    iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
+    break;
+  case UnitType::FemaleVillagerStoneMiner:
+    spriteBaseName = "u_vil_female_miner_gold";  // TODO: Use the same animations as for the gold miner (without loading them twice!), except for u_vil_female_miner_stone_carrywalkA_x1.smx
+    iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::MaleVillager:
-    animations[static_cast<int>(UnitAnimation::Idle)].resize(1);
-    ok = ok && LoadAnimation(0, "u_vil_male_villager_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
-    animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
-    ok = ok && LoadAnimation(0, "u_vil_male_villager_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
-    iconTexture.Load(ingameUnitsPath / "015_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);
+    spriteBaseName = "u_vil_male_villager";
+    iconPath = ingameUnitsPath / "015_50730.DDS";
     break;
   case UnitType::MaleVillagerBuilder:
-    animations[static_cast<int>(UnitAnimation::Idle)].resize(1);
-    ok = ok && LoadAnimation(0, "u_vil_male_builder_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
-    animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
-    ok = ok && LoadAnimation(0, "u_vil_male_builder_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
-    animations[static_cast<int>(UnitAnimation::Task)].resize(1);
-    ok = ok && LoadAnimation(0, "u_vil_male_builder_taskA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Task);
-    iconTexture.Load(ingameUnitsPath / "015_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);  // TODO: Do not load the icon multiple times
+    spriteBaseName = "u_vil_male_builder";
+    iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load the icon multiple times
+    break;
+  case UnitType::MaleVillagerForager:
+    spriteBaseName = "u_vil_male_forager";
+    iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
+    break;
+  case UnitType::MaleVillagerLumberjack:
+    spriteBaseName = "u_vil_male_lumberjack";
+    iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
+    break;
+  case UnitType::MaleVillagerGoldMiner:
+    spriteBaseName = "u_vil_male_miner_gold";
+    iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
+    break;
+  case UnitType::MaleVillagerStoneMiner:
+    spriteBaseName = "u_vil_male_miner_gold";  // TODO: Use the same animations as for the gold miner (without loading them twice!), except for u_vil_male_miner_stone_carrywalkA_x1.smx
+    iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::Militia:
-    animations[static_cast<int>(UnitAnimation::Idle)].resize(2);
-    ok = ok && LoadAnimation(0, "u_inf_militia_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
-    ok = ok && LoadAnimation(1, "u_inf_militia_idleB_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
-    animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
-    ok = ok && LoadAnimation(0, "u_inf_militia_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
-    iconTexture.Load(ingameUnitsPath / "008_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);
+    spriteBaseName = "u_inf_militia";
+    iconPath = ingameUnitsPath / "008_50730.DDS";
     break;
   case UnitType::Scout:
-    animations[static_cast<int>(UnitAnimation::Idle)].resize(2);
-    ok = ok && LoadAnimation(0, "u_cav_scout_idleA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
-    ok = ok && LoadAnimation(1, "u_cav_scout_idleB_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Idle);
-    animations[static_cast<int>(UnitAnimation::Walk)].resize(1);
-    ok = ok && LoadAnimation(0, "u_cav_scout_walkA_x1.smx", graphicsPath, cachePath, palettes, UnitAnimation::Walk);
-    iconTexture.Load(ingameUnitsPath / "064_50730.DDS", GL_CLAMP, GL_LINEAR, GL_LINEAR);
+    spriteBaseName = "u_cav_scout";
+    iconPath = ingameUnitsPath / "064_50730.DDS";
     break;
   case UnitType::NumUnits:
     LOG(ERROR) << "Invalid unit type in ClientUnitType constructor: " << static_cast<int>(type);
     ok = false;
     break;
   }
+  
+  auto makeSpriteFilename = [&](const std::string& animationFilename, int variant) {
+    return spriteBaseName + "_" + animationFilename + static_cast<char>('A' + variant) + "_x1.smx";
+  };
+  
+  for (int animationTypeInt = 0; animationTypeInt < static_cast<int>(UnitAnimation::NumAnimationTypes); ++ animationTypeInt) {
+    UnitAnimation animationType = static_cast<UnitAnimation>(animationTypeInt);
+    
+    std::string animationFilenameComponent;
+    switch (animationType) {
+    case UnitAnimation::Idle: animationFilenameComponent = "idle"; break;
+    case UnitAnimation::Walk: animationFilenameComponent = "walk"; break;
+    case UnitAnimation::Task: animationFilenameComponent = "task"; break;
+    case UnitAnimation::NumAnimationTypes: LOG(ERROR) << "Invalid animation type.";
+    }
+    
+    // Determine the number of animation variants.
+    int numVariants = 0;
+    for (int variant = 0; variant < 99; ++ variant) {
+      std::string filename = makeSpriteFilename(animationFilenameComponent, variant);
+      if (std::filesystem::exists(graphicsPath / filename)) {
+        ++ numVariants;
+      } else {
+        break;
+      }
+    }
+    
+    // Load each variant.
+    animations[animationTypeInt].resize(numVariants);
+    for (int variant = 0; variant < numVariants; ++ variant) {
+      std::string filename = makeSpriteFilename(animationFilenameComponent, variant);
+      ok = ok && LoadAnimation(variant, filename.c_str(), graphicsPath, cachePath, palettes, animationType);
+    }
+  }
+  
+  // Load the icon.
+  iconTexture.Load(iconPath, GL_CLAMP, GL_LINEAR, GL_LINEAR);
   
   if (!ok) {
     return false;

@@ -81,6 +81,7 @@ class Game {
   void StartGame();
   void SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds);
   void SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengthInSeconds);
+  void SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* villager, u32 targetObjectId, ServerBuilding* targetBuilding, bool* unitMovementChanged, bool* stayInPlace);
   void SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building, float stepLengthInSeconds);
   
   void ProduceUnit(ServerBuilding* building, UnitType unitInProduction);

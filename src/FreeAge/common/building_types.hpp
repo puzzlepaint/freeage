@@ -39,6 +39,11 @@ enum class BuildingType {
   NumBuildings
 };
 
+inline bool IsTree(BuildingType type) {
+  return type >= BuildingType::FirstTree &&
+         type <= BuildingType::LastTree;
+}
+
 QSize GetBuildingSize(BuildingType type);
 QRect GetBuildingOccupancy(BuildingType type);
 QString GetBuildingName(BuildingType type);

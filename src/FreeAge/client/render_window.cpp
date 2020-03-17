@@ -1678,7 +1678,7 @@ void RenderWindow::initializeGL() {
   
   isLoading = true;
   loadingStep = 0;
-  maxLoadingStep = 48;
+  maxLoadingStep = 56;
   loadingThread->start();
   
   // Create resources right now which are required for rendering the loading screen:
@@ -1980,8 +1980,12 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
           ClientObject* targetObject = targetIt->second;
           if (targetObject->isBuilding()) {
             ClientBuilding* targetBuilding = static_cast<ClientBuilding*>(targetObject);
-            if (targetBuilding->GetBuildPercentage() < 100) {
-              // The target is an own building foundation. Command all selected villagers to build the foundation.
+            if (targetBuilding->GetBuildPercentage() < 100 ||
+                IsTree(targetBuilding->GetType()) ||
+                targetBuilding->GetType() == BuildingType::ForageBush ||
+                targetBuilding->GetType() == BuildingType::GoldMine ||
+                targetBuilding->GetType() == BuildingType::StoneMine) {
+              // The target is an own building foundation or resource. Command all selected villagers to build the foundation.
               std::vector<u32> suitableUnits;
               suitableUnits.reserve(selection.size());
               for (usize i = 0; i < selection.size(); ++ i) {
