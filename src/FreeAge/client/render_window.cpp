@@ -1229,7 +1229,7 @@ void RenderWindow::RenderSelectionPanel(float uiScale) {
           qRgba(58, 29, 21, 255),
           QStringLiteral("%1 / %2").arg(singleSelectedObject->GetHP()).arg(maxHP),
           QRect(topLeft.x() + uiScale * 2*32,
-                topLeft.y() + uiScale * 50 + uiScale * 2*46 + uiScale * 2*60 + uiScale * 2*5,
+                topLeft.y() + uiScale * 50 + uiScale * 2*46 + uiScale * 2*60,
                 uiScale * 2*172,
                 uiScale * 2*16),
           Qt::AlignLeft | Qt::AlignTop,
@@ -1737,21 +1737,22 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
     return;
   }
   
-  // If at least one villager is selected, show the build buttons.
-  bool atLeastOneVillagerSelected = false;
+  // If at least one own villager is selected, show the build buttons.
+  bool atLeastOneOwnVillagerSelected = false;
   for (usize i = 0; i < selection.size(); ++ i) {
     u32 objectId = selection[i];
     ClientObject* object = map->GetObjects().at(objectId);
     
     if (object->isUnit()) {
       ClientUnit* unit = static_cast<ClientUnit*>(object);
-      if (IsVillager(unit->GetType())) {
-        atLeastOneVillagerSelected = true;
+      if (unit->GetPlayerIndex() == match->GetPlayerIndex() &&
+          IsVillager(unit->GetType())) {
+        atLeastOneOwnVillagerSelected = true;
         break;
       }
     }
   }
-  if (atLeastOneVillagerSelected) {
+  if (atLeastOneOwnVillagerSelected) {
     commandButtons[0][0].SetAction(CommandButton::ActionType::BuildEconomyBuilding, buildEconomyBuildingsTexture.get());
     commandButtons[0][1].SetAction(CommandButton::ActionType::BuildMilitaryBuilding, buildMilitaryBuildingsTexture.get());
   }

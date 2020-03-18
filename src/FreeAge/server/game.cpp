@@ -679,15 +679,27 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
   
   // If the unit's goal has been updated, plan a path towards the goal.
   if (unit->HasMoveToTarget() && !unit->HasPath()) {
-    // TODO: Actually plan a path. For now, we just set the move-to target as a single path target point.
-    unit->SetPath(unit->GetMoveToTargetMapCoord());
-    
-    // Start traversing the path:
-    // Set the unit's movement direction to the first segment of the path.
-    QPointF direction = unit->GetMoveToTargetMapCoord() - unit->GetMapCoord();
-    direction = direction / std::max(1e-4f, sqrtf(direction.x() * direction.x() + direction.y() * direction.y()));
-    unit->SetMovementDirection(direction);
+    PlanUnitPath(unit);
     unitMovementChanged = true;
+  } else if (unit->HasMoveToTarget() && unit->GetTargetObjectId() != kInvalidObjectId) {
+    // Check whether we target a moving object. If yes and the target has moved too much,
+    // re-plan our path to the target.
+    auto targetIt = map->GetObjects().find(unit->GetTargetObjectId());
+    if (targetIt == map->GetObjects().end()) {
+      unit->RemoveTarget();
+    } else if (targetIt->second->isUnit()) {
+      ServerUnit* targetUnit = static_cast<ServerUnit*>(targetIt->second);
+      
+      QPointF offset = targetUnit->GetMapCoord() - unit->GetMoveToTargetMapCoord();
+      float offsetLengthSquared = offset.x() * offset.x() + offset.y() * offset.y();
+      constexpr float kReplanThresholdDistance = 0.05f * 0.05f;
+      
+      if (offsetLengthSquared > kReplanThresholdDistance) {
+        unit->SetTarget(unit->GetTargetObjectId(), targetUnit, false);
+        PlanUnitPath(unit);
+        unitMovementChanged = true;
+      }
+    }
   }
   
   if (unit->GetMovementDirection() != QPointF(0, 0)) {
@@ -703,7 +715,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
       if (targetIt == map->GetObjects().end()) {
         unit->RemoveTarget();
       } else {
-        ServerObject* targetObject = static_cast<ServerObject*>(targetIt->second);
+        ServerObject* targetObject = targetIt->second;
         if (targetObject->isBuilding()) {
           ServerBuilding* targetBuilding = static_cast<ServerBuilding*>(targetObject);
           if (DoesUnitTouchBuildingArea(unit, newMapCoord, targetBuilding, 0)) {
@@ -783,6 +795,17 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
               unit->GetCurrentAction());
     }
   }
+}
+
+void Game::PlanUnitPath(ServerUnit* unit) {
+  // TODO: Actually plan a path. For now, we just set the move-to target as a single path target point.
+  unit->SetPath(unit->GetMoveToTargetMapCoord());
+  
+  // Start traversing the path:
+  // Set the unit's movement direction to the first segment of the path.
+  QPointF direction = unit->GetMoveToTargetMapCoord() - unit->GetMapCoord();
+  direction = direction / std::max(1e-4f, sqrtf(direction.x() * direction.x() + direction.y() * direction.y()));
+  unit->SetMovementDirection(direction);
 }
 
 void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* villager, u32 targetObjectId, ServerBuilding* targetBuilding, bool* unitMovementChanged, bool* stayInPlace) {
