@@ -35,7 +35,8 @@ enum class UnitType {
 enum class UnitAction {
   Idle = 0,
   Moving,
-  Task
+  Task,
+  Attack,
 };
 
 inline bool IsVillager(UnitType type) {
@@ -72,3 +73,5 @@ ResourceAmount GetUnitCost(UnitType type);
 /// Returns the production time for the unit in seconds.
 /// TODO: This needs to consider the player's civilization and researched technologies
 float GetUnitProductionTime(UnitType type);
+
+int GetUnitAttackFrames(UnitType type);

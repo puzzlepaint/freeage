@@ -80,11 +80,13 @@ class Game {
   
   void StartGame();
   void SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds);
-  void SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengthInSeconds);
+  void SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStepServerTime, float stepLengthInSeconds);
   void SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* villager, u32 targetObjectId, ServerBuilding* targetBuilding, bool* unitMovementChanged, bool* stayInPlace);
   void SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, ServerUnit* villager, ServerBuilding* targetBuilding, bool* unitMovementChanged, bool* stayInPlace);
   void SimulateResourceDropOff(u32 villagerId, ServerUnit* villager, bool* unitMovementChanged);
   void SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building, float stepLengthInSeconds);
+  /// Returns true if the attack is still in progress, false if it finished.
+  bool SimulateMeleeAttack(u32 unitId, ServerUnit* unit, u32 targetId, ServerObject* target, double gameStepServerTime, float stepLengthInSeconds, bool* unitMovementChanged, bool* stayInPlace);
   
   void ProduceUnit(ServerBuilding* building, UnitType unitInProduction);
   

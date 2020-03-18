@@ -27,9 +27,19 @@ class ServerMap {
   /// (i.e., neighboring tiles may be modified as well).
   void PlaceElevation(int tileX, int tileY, int elevationValue);
   
+  /// Adds a new building to the map and returns it. Optionally returns the new building's ID in id.
+  /// Optionally calls AddBuildingOccupancy() on the building.
   ServerBuilding* AddBuilding(int player, BuildingType type, const QPoint& baseTile, float buildPercentage, u32* id = nullptr, bool addOccupancy = true);
+  /// Adds the given building to the map and returns the ID that it received.
+  /// Optionally calls AddBuildingOccupancy() on the building.
+  u32 AddBuilding(ServerBuilding* newBuilding, bool addOccupancy = true);
+  
   void AddBuildingOccupancy(ServerBuilding* building);
+  
+  /// Adds a new unit to the map and returns it. Optionally returns the new unit's ID in id.
   ServerUnit* AddUnit(int player, UnitType type, const QPointF& position, u32* id = nullptr);
+  /// Adds the given unit to the map and returns the ID that it received.
+  u32 AddUnit(ServerUnit* newUnit);
   
   /// Tests whether the given unit could stand at the given mapCoord without
   /// colliding with other units or occupied space (buildings, etc.)

@@ -13,68 +13,79 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   
   // TODO: Automatically check how many animations (A, B) for each type are available.
   
-  std::string spriteBaseName;
-  std::string spriteBaseNameFallback;
+  // Later entries are used as fallbacks if the previous do not contain an animation type
+  constexpr int kMaxNumBaseNames = 3;
+  std::string spriteBaseName[3];
   std::string iconPath;
   
   bool ok = true;
   switch (type) {
   case UnitType::FemaleVillager:
-    spriteBaseName = "u_vil_female_villager";
+    spriteBaseName[0] = "u_vil_female_villager";
     iconPath = ingameUnitsPath / "016_50730.DDS";
     break;
   case UnitType::FemaleVillagerBuilder:
-    spriteBaseName = "u_vil_female_builder";
+    spriteBaseName[0] = "u_vil_female_builder";
+    spriteBaseName[1] = "u_vil_female_villager";
     iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::FemaleVillagerForager:
-    spriteBaseName = "u_vil_female_forager";
+    spriteBaseName[0] = "u_vil_female_forager";
+    spriteBaseName[1] = "u_vil_female_villager";
     iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::FemaleVillagerLumberjack:
-    spriteBaseName = "u_vil_female_lumberjack";
+    spriteBaseName[0] = "u_vil_female_lumberjack";
+    spriteBaseName[1] = "u_vil_female_villager";
     iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::FemaleVillagerGoldMiner:
-    spriteBaseName = "u_vil_female_miner_gold";
+    spriteBaseName[0] = "u_vil_female_miner_gold";
+    spriteBaseName[1] = "u_vil_female_villager";
     iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::FemaleVillagerStoneMiner:
-    spriteBaseName = "u_vil_female_miner_stone";
-    spriteBaseNameFallback = "u_vil_female_miner_gold";  // TODO: Use the same animations as for the gold miner without loading them twice!
+    spriteBaseName[0] = "u_vil_female_miner_stone";
+    spriteBaseName[1] = "u_vil_female_miner_gold";  // TODO: Use the same animations as for the gold miner without loading them twice!
+    spriteBaseName[2] = "u_vil_female_villager";
     iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::MaleVillager:
-    spriteBaseName = "u_vil_male_villager";
+    spriteBaseName[0] = "u_vil_male_villager";
     iconPath = ingameUnitsPath / "015_50730.DDS";
     break;
   case UnitType::MaleVillagerBuilder:
-    spriteBaseName = "u_vil_male_builder";
+    spriteBaseName[0] = "u_vil_male_builder";
+    spriteBaseName[1] = "u_vil_male_villager";
     iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load the icon multiple times
     break;
   case UnitType::MaleVillagerForager:
-    spriteBaseName = "u_vil_male_forager";
+    spriteBaseName[0] = "u_vil_male_forager";
+    spriteBaseName[1] = "u_vil_male_villager";
     iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::MaleVillagerLumberjack:
-    spriteBaseName = "u_vil_male_lumberjack";
+    spriteBaseName[0] = "u_vil_male_lumberjack";
+    spriteBaseName[1] = "u_vil_male_villager";
     iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::MaleVillagerGoldMiner:
-    spriteBaseName = "u_vil_male_miner_gold";
+    spriteBaseName[0] = "u_vil_male_miner_gold";
+    spriteBaseName[1] = "u_vil_male_villager";
     iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::MaleVillagerStoneMiner:
-    spriteBaseName = "u_vil_male_miner_stone";
-    spriteBaseNameFallback = "u_vil_male_miner_gold";  // TODO: Use the same animations as for the gold miner without loading them twice!
+    spriteBaseName[0] = "u_vil_male_miner_stone";
+    spriteBaseName[1] = "u_vil_male_miner_gold";  // TODO: Use the same animations as for the gold miner without loading them twice!
+    spriteBaseName[2] = "u_vil_male_villager";
     iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
     break;
   case UnitType::Militia:
-    spriteBaseName = "u_inf_militia";
+    spriteBaseName[0] = "u_inf_militia";
     iconPath = ingameUnitsPath / "008_50730.DDS";
     break;
   case UnitType::Scout:
-    spriteBaseName = "u_cav_scout";
+    spriteBaseName[0] = "u_cav_scout";
     iconPath = ingameUnitsPath / "064_50730.DDS";
     break;
   case UnitType::NumUnits:
@@ -97,33 +108,38 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     case UnitAnimation::Walk: animationFilenameComponent = "walk"; break;
     case UnitAnimation::CarryWalk: animationFilenameComponent = "carrywalk"; break;
     case UnitAnimation::Task: animationFilenameComponent = "task"; break;
+    case UnitAnimation::Attack: animationFilenameComponent = "attack"; break;
     case UnitAnimation::NumAnimationTypes: LOG(ERROR) << "Invalid animation type.";
     }
     
     // Determine the number of animation variants.
-    int numVariants = 0;
+    std::vector<std::string> animationVariants;
     for (int variant = 0; variant < 99; ++ variant) {
-      std::string filename = makeSpriteFilename(spriteBaseName, animationFilenameComponent, variant);
-      if (std::filesystem::exists(graphicsPath / filename)) {
-        ++ numVariants;
-      } else {
-        filename = makeSpriteFilename(spriteBaseNameFallback, animationFilenameComponent, variant);
+      bool fileExists = false;
+      for (int fallbackNumber = 0; fallbackNumber < kMaxNumBaseNames; ++ fallbackNumber) {
+        std::string filename = makeSpriteFilename(spriteBaseName[fallbackNumber], animationFilenameComponent, variant);
         if (std::filesystem::exists(graphicsPath / filename)) {
-          ++ numVariants;
-        } else {
+          animationVariants.push_back(filename);
+          fileExists = true;
           break;
         }
+      }
+      
+      if (!fileExists) {
+        break;
       }
     }
     
     // Load each variant.
-    animations[animationTypeInt].resize(numVariants);
-    for (int variant = 0; variant < numVariants; ++ variant) {
-      std::string filename = makeSpriteFilename(spriteBaseName, animationFilenameComponent, variant);
-      if (!std::filesystem::exists(graphicsPath / filename)) {
-        filename = makeSpriteFilename(spriteBaseNameFallback, animationFilenameComponent, variant);
+    animations[animationTypeInt].resize(animationVariants.size());
+    for (usize variant = 0; variant < animationVariants.size(); ++ variant) {
+      ok = ok && LoadAnimation(variant, animationVariants[variant].c_str(), graphicsPath, cachePath, palettes, animationType);
+      
+      // For extracting attack durations.
+      // TODO: Remove this once we get those in a better way.
+      if (animationType == UnitAnimation::Attack) {
+        LOG(INFO) << "Attack animation " << animationVariants[variant] << " has " << (animations[static_cast<int>(animationType)][variant].sprite.NumFrames() / kNumFacingDirections) << " frames per facing direction";
       }
-      ok = ok && LoadAnimation(variant, filename.c_str(), graphicsPath, cachePath, palettes, animationType);
     }
   }
   
@@ -293,7 +309,8 @@ void ClientUnit::SetCurrentAnimation(UnitAnimation animation, double serverTime)
 
 void ClientUnit::UpdateGameState(double serverTime) {
   // Update the unit's movment according to the movement segment.
-  if (movementSegment.action == UnitAction::Task) {
+  if (movementSegment.action == UnitAction::Task ||
+      movementSegment.action == UnitAction::Attack) {
     mapCoord = movementSegment.startPoint;
   } else {
     mapCoord = movementSegment.startPoint + (serverTime - movementSegment.serverTime) * movementSegment.speed;
@@ -314,6 +331,8 @@ void ClientUnit::UpdateGameState(double serverTime) {
   
   if (movementSegment.action == UnitAction::Task) {
     SetCurrentAnimation(UnitAnimation::Task, serverTime);
+  } else if (movementSegment.action == UnitAction::Attack) {
+    SetCurrentAnimation(UnitAnimation::Attack, serverTime);
   } else if (movementSegment.speed == QPointF(0, 0)) {
     // If the movement is zero, set the unit to the final position and delete the segment.
     SetCurrentAnimation(UnitAnimation::Idle, serverTime);

@@ -28,6 +28,10 @@ InteractionType GetInteractionType(ServerObject* actor, ServerObject* target) {
         }
       }
     }
+    
+    if (target->GetPlayerIndex() != actor->GetPlayerIndex()) {
+      return InteractionType::Attack;
+    }
   }
   
   return InteractionType::Invalid;

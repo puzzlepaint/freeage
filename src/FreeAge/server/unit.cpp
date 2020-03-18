@@ -34,6 +34,9 @@ void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject, bool 
   } else if (interaction == InteractionType::DropOffResource) {
     SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
     return;
+  } else if (interaction == InteractionType::Attack) {
+    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
+    return;
   }
   
   LOG(WARNING) << "ServerUnit::SetTarget() did not handle the interaction type.";
@@ -51,6 +54,7 @@ void ServerUnit::SetMoveToTarget(const QPointF& mapCoord) {
   hasMoveToTarget = true;
   
   targetObjectId = kInvalidObjectId;
+  manuallyTargetedObjectId = kInvalidObjectId;
 }
 
 void ServerUnit::SetTargetInternal(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting) {
@@ -72,7 +76,9 @@ void ServerUnit::SetTargetInternal(u32 targetObjectId, ServerObject* targetObjec
   }
   hasMoveToTarget = true;
   
-  this->targetObjectId = targetObjectId;
+  if (currentAction != UnitAction::Attack) {
+    this->targetObjectId = targetObjectId;
+  }
   if (isManualTargeting) {
     manuallyTargetedObjectId = targetObjectId;
   }

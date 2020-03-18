@@ -557,7 +557,7 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
     
     if (object->isUnit()) {
       ServerUnit* unit = static_cast<ServerUnit*>(object);
-      SimulateGameStepForUnit(objectId, unit, stepLengthInSeconds);
+      SimulateGameStepForUnit(objectId, unit, gameStepServerTime, stepLengthInSeconds);
     } else if (object->isBuilding()) {
       ServerBuilding* building = static_cast<ServerBuilding*>(object);
       SimulateGameStepForBuilding(objectId, building, stepLengthInSeconds);
@@ -598,9 +598,20 @@ static bool DoesUnitTouchBuildingArea(ServerUnit* unit, const QPointF& unitMapCo
   
   // Check whether this point is closer to the unit than the unit's radius.
   QPointF offset = unitMapCoord - closestPointInBuilding;
-  float offsetLength = sqrt(offset.x() * offset.x() + offset.y() * offset.y());
+  float offsetLengthSquared = offset.x() * offset.x() + offset.y() * offset.y();
   float unitRadius = GetUnitRadius(unit->GetUnitType());
-  return offsetLength + errorMargin < unitRadius;
+  float threshold = unitRadius - errorMargin;
+  return offsetLengthSquared < threshold * threshold;
+}
+
+static bool DoUnitsTouch(ServerUnit* unit, const QPointF& unitMapCoord, ServerUnit* otherUnit, float errorMargin) {
+  float unitRadius = GetUnitRadius(unit->GetUnitType());
+  float otherUnitRadius = GetUnitRadius(otherUnit->GetUnitType());
+  
+  QPointF offset = unitMapCoord - otherUnit->GetMapCoord();
+  float offsetLengthSquared = offset.x() * offset.x() + offset.y() * offset.y();
+  float threshold = unitRadius + otherUnitRadius - errorMargin;
+  return offsetLengthSquared < threshold * threshold;
 }
 
 static bool IsFoundationFree(ServerBuilding* foundation, ServerMap* map) {
@@ -628,8 +639,36 @@ static bool IsFoundationFree(ServerBuilding* foundation, ServerMap* map) {
   return true;
 }
 
-void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengthInSeconds) {
+void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStepServerTime, float stepLengthInSeconds) {
   bool unitMovementChanged = false;
+  
+  // If the unit is currently attacking, continue this, since it cannot be interrupted.
+  if (unit->GetCurrentAction() == UnitAction::Attack) {
+    bool stayInPlace = false;
+    
+    auto targetIt = map->GetObjects().find(unit->GetTargetObjectId());
+    u32 targetId;
+    ServerObject* target;
+    if (targetIt == map->GetObjects().end()) {
+      targetId = kInvalidObjectId;
+      target = nullptr;
+    } else {
+      targetId = targetIt->first;
+      target = targetIt->second;
+    }
+    
+    if (SimulateMeleeAttack(unitId, unit, targetId, target, gameStepServerTime, stepLengthInSeconds, &unitMovementChanged, &stayInPlace)) {
+      // The attack is still in progress.
+      return;
+    }
+    
+    // The attack finished.
+    // If any other command has been given to the unit in the meantime, follow the other command.
+    auto manualTargetIt = map->GetObjects().find(unit->GetManuallyTargetedObjectId());
+    if (manualTargetIt != map->GetObjects().end()) {
+      unit->SetTarget(manualTargetIt->first, manualTargetIt->second, false);
+    }
+  }
   
   // If the unit's goal has been updated, plan a path towards the goal.
   if (unit->HasMoveToTarget() && !unit->HasPath()) {
@@ -672,11 +711,19 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, float stepLengt
               SimulateResourceGathering(stepLengthInSeconds, unitId, unit, targetBuilding, &unitMovementChanged, &stayInPlace);
             } else if (interaction == InteractionType::DropOffResource) {
               SimulateResourceDropOff(unitId, unit, &unitMovementChanged);
+            } else if (interaction == InteractionType::Attack) {
+              SimulateMeleeAttack(unitId, unit, targetIt->first, targetBuilding, gameStepServerTime, stepLengthInSeconds, &unitMovementChanged, &stayInPlace);
             }
           }
         } else if (targetObject->isUnit()) {
-          // ServerUnit* targetUnit = static_cast<ServerUnit*>(targetUnit);
-          // TODO: Implement unit interactions with units (e.g., fighting).
+          ServerUnit* targetUnit = static_cast<ServerUnit*>(targetObject);
+          if (DoUnitsTouch(unit, newMapCoord, targetUnit, 0)) {
+            InteractionType interaction = GetInteractionType(unit, targetUnit);
+            
+            if (interaction == InteractionType::Attack) {
+              SimulateMeleeAttack(unitId, unit, targetIt->first, targetUnit, gameStepServerTime, stepLengthInSeconds, &unitMovementChanged, &stayInPlace);
+            }
+          }
         }
       }
     }
@@ -923,6 +970,37 @@ void Game::SimulateGameStepForBuilding(u32 /*buildingId*/, ServerBuilding* build
     }
     building->SetProductionPercentage(newPercentage);
   }
+}
+
+bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 /*targetId*/, ServerObject* /*target*/, double gameStepServerTime, float stepLengthInSeconds, bool* unitMovementChanged, bool* stayInPlace) {
+  if (unit->GetCurrentAction() != UnitAction::Attack) {
+    *unitMovementChanged = true;
+    unit->SetCurrentAction(UnitAction::Attack);
+    unit->SetCurrentActionStartTime(gameStepServerTime);
+  }
+  *stayInPlace = true;
+  
+  int numAttackFrames = GetUnitAttackFrames(unit->GetUnitType());
+  constexpr int kFramesPerSecond = 30;
+  double fullAttackTime = numAttackFrames / (1.f * kFramesPerSecond);
+  double attackDamageTime = 0.5 * fullAttackTime;  // TODO: Does this differ among units? Is this available in some data file?
+  
+  double timeSinceActionStart = gameStepServerTime - unit->GetCurrentActionStartTime();
+  
+  if (timeSinceActionStart >= attackDamageTime &&
+      timeSinceActionStart - stepLengthInSeconds < attackDamageTime) {
+    // Do the attack damage.
+    LOG(WARNING) << "Debug: applying attack damage!";
+    // TODO
+  }
+  
+  if (timeSinceActionStart >= fullAttackTime) {
+    // The attack animation finished.
+    unit->SetCurrentActionStartTime(gameStepServerTime);
+    return false;
+  }
+  
+  return true;
 }
 
 void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {

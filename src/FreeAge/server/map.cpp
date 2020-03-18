@@ -175,7 +175,9 @@ retryForest:  // TODO: Ugly implementation, improve this
         QPoint spawnLoc(
             townCenterCenters[player].x() + radius * sin(angle),
             townCenterCenters[player].y() + radius * cos(angle));
-        if (occupiedAt(spawnLoc.x(), spawnLoc.y())) {
+        if (spawnLoc.x() < 0 || spawnLoc.y() < 0 ||
+            spawnLoc.x() >= width || spawnLoc.y() >= height ||
+            occupiedAt(spawnLoc.x(), spawnLoc.y())) {
           continue;
         }
         
@@ -193,7 +195,9 @@ retryForest:  // TODO: Ugly implementation, improve this
             QPoint testLoc(
                 spawnLoc.x() + ((testDirection == 0) ? 1 : ((testDirection == 1) ? -1 : 0)),
                 spawnLoc.y() + ((testDirection == 2) ? 1 : ((testDirection == 3) ? -1 : 0)));
-            if (!occupiedAt(testLoc.x(), testLoc.y())) {
+            if (!(testLoc.x() < 0 || testLoc.y() < 0 ||
+                  testLoc.x() >= width || testLoc.y() >= height) &&
+                !occupiedAt(testLoc.x(), testLoc.y())) {
               spawnLoc = testLoc;
               foundFreeSpace = true;
               break;
@@ -225,20 +229,18 @@ retryForest:  // TODO: Ugly implementation, improve this
   // Generate villagers
   for (int player = 0; player < playerCount; ++ player) {
     for (int villager = 0; villager < 3; ++ villager) {
+      ServerUnit* newUnit = new ServerUnit(player, (rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, QPointF(-1, -1));
+      
       while (true) {
-        // TODO: Account for collisions with other units too.
         // TODO: Prevent this from potentially being an endless loop
         float radius = 4 + 2 * ((rand() % 10000) / 10000.f);
         float angle = 2 * M_PI * ((rand() % 10000) / 10000.f);
         QPointF spawnLoc(
             townCenterCenters[player].x() + radius * sin(angle),
             townCenterCenters[player].y() + radius * cos(angle));
-        int spawnLocTileX = static_cast<int>(spawnLoc.x());
-        int spawnLocTileY = static_cast<int>(spawnLoc.y());
-        if (spawnLocTileX < 0 || spawnLocTileY < 0 ||
-            spawnLocTileX >= width || spawnLocTileY >= height ||
-            !occupiedAt(spawnLocTileX, spawnLocTileY)) {
-          AddUnit(player, (rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, spawnLoc);
+        if (!DoesUnitCollide(newUnit, spawnLoc)) {
+          newUnit->SetMapCoord(spawnLoc);
+          AddUnit(newUnit);
           break;
         }
       }
@@ -247,20 +249,18 @@ retryForest:  // TODO: Ugly implementation, improve this
   
   // Generate scouts
   for (int player = 0; player < playerCount; ++ player) {
+    ServerUnit* newUnit = new ServerUnit(player, UnitType::Scout, QPointF(-1, -1));
+    
     while (true) {
-      // TODO: Account for collisions with other units too.
       // TODO: Prevent this from potentially being an endless loop
       float radius = 6 + 2 * ((rand() % 10000) / 10000.f);
       float angle = 2 * M_PI * ((rand() % 10000) / 10000.f);
       QPointF spawnLoc(
           townCenterCenters[player].x() + radius * sin(angle),
           townCenterCenters[player].y() + radius * cos(angle));
-      int spawnLocTileX = static_cast<int>(spawnLoc.x());
-      int spawnLocTileY = static_cast<int>(spawnLoc.y());
-      if (spawnLocTileX < 0 || spawnLocTileY < 0 ||
-          spawnLocTileX >= width || spawnLocTileY >= height ||
-          !occupiedAt(spawnLocTileX, spawnLocTileY)) {
-        AddUnit(player, UnitType::Scout, spawnLoc);
+      if (!DoesUnitCollide(newUnit, spawnLoc)) {
+        newUnit->SetMapCoord(spawnLoc);
+        AddUnit(newUnit);
         break;
       }
     }
@@ -385,12 +385,16 @@ bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord) {
 
 ServerBuilding* ServerMap::AddBuilding(int player, BuildingType type, const QPoint& baseTile, float buildPercentage, u32* id, bool addOccupancy) {
   ServerBuilding* newBuilding = new ServerBuilding(player, type, baseTile, buildPercentage);
-  
+  int newId = AddBuilding(newBuilding, addOccupancy);
+  if (id) {
+    *id = newId;
+  }
+  return newBuilding;
+}
+
+u32 ServerMap::AddBuilding(ServerBuilding* newBuilding, bool addOccupancy) {
   // Insert into objects map
   objects.insert(std::make_pair(nextObjectID, newBuilding));
-  if (id) {
-    *id = nextObjectID;
-  }
   ++ nextObjectID;
   
   // Mark the occupied tiles as such
@@ -398,7 +402,7 @@ ServerBuilding* ServerMap::AddBuilding(int player, BuildingType type, const QPoi
     AddBuildingOccupancy(newBuilding);
   }
   
-  return newBuilding;
+  return nextObjectID - 1;
 }
 
 void ServerMap::AddBuildingOccupancy(ServerBuilding* building) {
@@ -413,10 +417,15 @@ void ServerMap::AddBuildingOccupancy(ServerBuilding* building) {
 
 ServerUnit* ServerMap::AddUnit(int player, UnitType type, const QPointF& position, u32* id) {
   ServerUnit* newUnit = new ServerUnit(player, type, position);
-  objects.insert(std::make_pair(nextObjectID, newUnit));
+  u32 newId = AddUnit(newUnit);
   if (id) {
-    *id = nextObjectID;
+    *id = newId;
   }
-  ++ nextObjectID;
   return newUnit;
+}
+
+u32 ServerMap::AddUnit(ServerUnit* newUnit) {
+  objects.insert(std::make_pair(nextObjectID, newUnit));
+  ++ nextObjectID;
+  return nextObjectID - 1;
 }

@@ -18,6 +18,9 @@ class ServerUnit : public ServerObject {
   inline UnitAction GetCurrentAction() const { return currentAction; }
   inline void SetCurrentAction(UnitAction newAction) { currentAction = newAction; }
   
+  inline double GetCurrentActionStartTime() const { return currentActionStartTime; }
+  inline void SetCurrentActionStartTime(double time) { currentActionStartTime = time; }
+  
   /// Attempts to command the unit to interact with the given target object.
   /// If the unit cannot actually interact with that object, this call does nothing.
   void SetTarget(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting);
@@ -58,6 +61,10 @@ class ServerUnit : public ServerObject {
   
   UnitAction currentAction;
   
+  /// The server time at which the current action started.
+  /// Only used for actions where it matters (e.g., attacking).
+  double currentActionStartTime;
+  
   /// The unit's target object (if any). Set to kInvalidObjectId if the unit does not have a target.
   u32 targetObjectId = kInvalidObjectId;
   
@@ -67,6 +74,10 @@ class ServerUnit : public ServerObject {
   /// is the mining camp. This allows the villager to know that it should return to mine gold after dropping
   /// off its currently carried resources.
   u32 manuallyTargetedObjectId = kInvalidObjectId;
+  
+  // /// The target being attacked. The unit remembers this at the start of its attack animation.
+  // /// This is to prevent the target from changing while the attack animation plays.
+  // u32 attackTargetObjectId;
   
   /// The unit's map coord target (if any).
   bool hasMoveToTarget = false;

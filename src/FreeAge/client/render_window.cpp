@@ -2133,12 +2133,13 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
           ClientObject* targetObject = targetIt->second;
           if (targetObject->isBuilding()) {
             ClientBuilding* targetBuilding = static_cast<ClientBuilding*>(targetObject);
-            if (targetBuilding->GetBuildPercentage() < 100 ||
+            
+            // Command selected villagers to construct buildings or gather resources
+            if ((targetBuilding->GetPlayerIndex() == match->GetPlayerIndex() && targetBuilding->GetBuildPercentage() < 100) ||
                 IsTree(targetBuilding->GetType()) ||
                 targetBuilding->GetType() == BuildingType::ForageBush ||
                 targetBuilding->GetType() == BuildingType::GoldMine ||
                 targetBuilding->GetType() == BuildingType::StoneMine) {
-              // Command all selected villagers to the target.
               std::vector<u32> suitableUnits;
               suitableUnits.reserve(selection.size());
               for (usize i = 0; i < selection.size(); ++ i) {
@@ -2177,9 +2178,28 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
               // Make the ground outline of the target flash green three times
               LetObjectGroundOutlineFlash(targetObjectId);
             }
+          } // end if (targetObject->isBuilding())
+          
+          // If the target is an enemy building or unit, command own units to attack it
+          if (targetObject->GetPlayerIndex() != match->GetPlayerIndex()) {
+            std::vector<u32> suitableUnits;
+            suitableUnits.reserve(selection.size());
+            for (usize i = 0; i < selection.size(); ++ i) {
+              if (!unitsCommanded[i]) {
+                suitableUnits.push_back(selection[i]);
+                unitsCommanded[i] = true;
+              }
+            }
+            
+            if (!suitableUnits.empty()) {
+              connection->Write(CreateSetTargetMessage(suitableUnits, targetObjectId));
+              
+              // Make the ground outline of the target flash green three times
+              LetObjectGroundOutlineFlash(targetObjectId);
+            }
           }
-        }
-      }
+        } // end if (targetIt != map->GetObjects().end())
+      } // end if (GetObjectToSelectAt(event->x(), event->y(), &targetObjectId, nullptr))
       
       // Send the remaining selected units to the clicked map coordinate.
       QPointF projectedCoord = ScreenCoordToProjectedCoord(event->x(), event->y());

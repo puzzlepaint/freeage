@@ -19,6 +19,7 @@ enum class UnitAnimation {
   Walk,
   CarryWalk,
   Task,
+  Attack,
   NumAnimationTypes
 };
 

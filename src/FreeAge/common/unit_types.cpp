@@ -96,3 +96,26 @@ float GetUnitProductionTime(UnitType type) {
   
   return -1;
 }
+
+int GetUnitAttackFrames(UnitType type) {
+  // TODO: Load this from some data file
+  // TODO: These could be extracted from the attack sprites.
+  
+  if (IsFemaleVillager(type)) {
+    return 45;
+  } else if (IsMaleVillager(type)) {
+    return 60;
+  }
+  
+  switch (type) {
+  case UnitType::Militia:
+    return 30;
+  case UnitType::Scout:
+    return 30;
+  default:
+    LOG(ERROR) << "GetUnitAttackFrames() called on unsupported type: " << static_cast<int>(type);
+    break;
+  }
+  
+  return 0;
+}

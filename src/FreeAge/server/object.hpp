@@ -16,6 +16,9 @@ enum class InteractionType {
   // A villager drops off carried resources at a resource drop-off building.
   DropOffResource,
   
+  // A unit attacks an enemy unit or building
+  Attack,
+  
   // No valid interaction.
   Invalid
 };
