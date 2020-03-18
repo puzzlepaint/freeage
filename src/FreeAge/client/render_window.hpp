@@ -60,6 +60,8 @@ class RenderWindow : public QOpenGLWidget {
   void SendLoadingProgress(int progress);
   void LoadingFinished();
   
+  void HandleMouseMoveEvent();
+  
  protected:
   void CreatePlayerColorPaletteTexture();
   
@@ -137,6 +139,10 @@ class RenderWindow : public QOpenGLWidget {
   
   
   /// Cursor handling.
+  bool haveMouseMoveEvent = false;
+  QPoint lastMouseMoveEventPos;
+  Qt::MouseButtons lastMouseMoveEventButtons;
+  
   QPoint lastCursorPos = QPoint(0, 0);
   
   QPoint dragStartPos = QPoint(0, 0);
@@ -144,6 +150,14 @@ class RenderWindow : public QOpenGLWidget {
   bool dragging = false;
   
   bool ignoreLeftMouseRelease = false;
+  
+  QCursor defaultCursor;
+  QCursor attackCursor;
+  QCursor buildCursor;
+  QCursor chopCursor;
+  QCursor gatherCursor;
+  QCursor mineGoldCursor;
+  QCursor mineStoneCursor;
   
   /// Current map scroll position in map coordinates.
   /// The "scroll" map coordinate is visible at the center of the screen.

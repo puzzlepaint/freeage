@@ -65,7 +65,13 @@ class Sprite {
   
   inline int NumFrames() const { return frames.size(); }
   inline Frame& frame(int index) { return frames[index]; }
-  inline const Frame& frame(int index) const { return frames[index]; }
+  inline const Frame& frame(int index) const {
+    #ifndef NDEBUG
+      CHECK_GE(index, 0);
+      CHECK_LT(index, frames.size());
+    #endif
+    return frames[index];
+  }
   
  private:
   bool LoadFromSMXFile(FILE* file, const Palettes& palettes);

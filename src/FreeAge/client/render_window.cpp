@@ -81,9 +81,10 @@ RenderWindow::RenderWindow(
   setUpdateBehavior(QOpenGLWidget::NoPartialUpdate);
   
   // Set the default cursor
-  setCursor(QCursor(QPixmap::fromImage(QImage((
+  defaultCursor = QCursor(QPixmap::fromImage(QImage((
       graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame" / "cursor" / "default32x32.cur").c_str())),
-      0, 0));
+      0, 0);
+  setCursor(defaultCursor);
   
   // Do continuous rendering via a timer
   float framesPerSecondCap = 120;
@@ -172,6 +173,17 @@ void RenderWindow::LoadResources() {
     // one thread. So, we notify the main thread via a queued signal/slot connection.
     emit LoadingProgressUpdated(static_cast<int>(100 * loadingStep / static_cast<float>(maxLoadingStep) + 0.5f));
   };
+  
+  // Load cursors.
+  std::filesystem::path cursorsPath =
+      graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame" / "cursor";
+  attackCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "attack32x32.cur").c_str())), 0, 0);
+  buildCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "build32x32.cur").c_str())), 0, 0);
+  chopCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "chop32x32.cur").c_str())), 0, 0);
+  gatherCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "gather32x32.cur").c_str())), 0, 0);
+  mineGoldCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "mine_gold32x32.cur").c_str())), 0, 0);
+  mineStoneCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "mine_stone32x32.cur").c_str())), 0, 0);
+  didLoadingStep();
   
   // Create shaders.
   spriteShader.reset(new SpriteShader(false, false));
@@ -1437,7 +1449,7 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
           false,
           false);
       if (!addToList && projectedCoordsRect.contains(projectedCoord)) {
-        const Sprite::Frame& frame = buildingType.GetSprite().frame(building.GetFrameIndex(buildingType, lastDisplayedServerTime));
+        const Sprite::Frame& frame = building.GetSprite().frame(building.GetFrameIndex(buildingType, lastDisplayedServerTime));
         // We add 1 here to account for the sprite border which is not included in projectedCoordsRect.
         // We further add 0.5f for rounding during the cast to integer.
         QPoint point(projectedCoord.x() - projectedCoordsRect.x() + 1 + 0.5f, projectedCoord.y() - projectedCoordsRect.y() + 1 + 0.5f);
@@ -1847,7 +1859,7 @@ void RenderWindow::initializeGL() {
   
   isLoading = true;
   loadingStep = 0;
-  maxLoadingStep = 56;
+  maxLoadingStep = 57;
   loadingThread->start();
   
   // Create resources right now which are required for rendering the loading screen:
@@ -2206,13 +2218,28 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
 }
 
 void RenderWindow::mouseMoveEvent(QMouseEvent* event) {
+  // Manually buffer the event. This is to improve performance, since we then
+  // only react to the last event that is in the queue. By default, Qt would do this
+  // itself, however, we explicitly disable it by disabling the Qt::AA_CompressHighFrequencyEvents
+  // attribute, which was necessary to fix wheel events getting buffered over a far too long
+  // time window in cases where the event loop was somewhat busy.
+  if (!haveMouseMoveEvent) {
+    // Queue handling the event at the back of the event queue.
+    QMetaObject::invokeMethod(this, &RenderWindow::HandleMouseMoveEvent, Qt::QueuedConnection);
+    haveMouseMoveEvent = true;
+  }
+  lastMouseMoveEventPos = event->pos();
+  lastMouseMoveEventButtons = event->buttons();
+}
+
+void RenderWindow::HandleMouseMoveEvent() {
+  haveMouseMoveEvent = false;
+  
   if (!map) {
     return;
   }
   
-  // TODO: Possibly manually batch these events together, since we disabled event batching globally.
-  
-  lastCursorPos = event->pos();
+  lastCursorPos = lastMouseMoveEventPos;
   
   if (possibleDragStart) {
     if ((lastCursorPos - dragStartPos).manhattanLength() >= QApplication::startDragDistance()) {
@@ -2223,10 +2250,36 @@ void RenderWindow::mouseMoveEvent(QMouseEvent* event) {
   // If a command button has been pressed but the cursor moves away from it, abort the button press.
   if (pressedCommandButtonRow >= 0 &&
       pressedCommandButtonCol >= 0 &&
-      !commandButtons[pressedCommandButtonRow][pressedCommandButtonCol].IsPointInButton(event->pos())) {
+      !commandButtons[pressedCommandButtonRow][pressedCommandButtonCol].IsPointInButton(lastMouseMoveEventPos)) {
     pressedCommandButtonRow = -1;
     pressedCommandButtonCol = -1;
   }
+  
+  // If hovering over the game area, possibly change the cursor to indicate possible interactions.
+  QCursor* cursor = &defaultCursor;
+  if (!IsUIAt(lastMouseMoveEventPos.x(), lastMouseMoveEventPos.y())) {
+    u32 targetObjectId;
+    if (GetObjectToSelectAt(lastMouseMoveEventPos.x(), lastMouseMoveEventPos.y(), &targetObjectId, &selection, false, true)) {
+      ClientObject* targetObject = map->GetObjects().at(targetObjectId);
+      for (u32 id : selection) {
+        auto it = map->GetObjects().find(id);
+        if (it != map->GetObjects().end()) {
+          switch (GetInteractionType(it->second, targetObject)) {
+          case InteractionType::Construct: cursor = &buildCursor; break;
+          case InteractionType::Attack: cursor = &attackCursor; break;
+          case InteractionType::DropOffResource: cursor = &defaultCursor; break;  // TODO: Use the different drop-off cursors
+          case InteractionType::CollectBerries: cursor = &gatherCursor; break;
+          case InteractionType::CollectWood: cursor = &chopCursor; break;
+          case InteractionType::CollectGold: cursor = &mineGoldCursor; break;
+          case InteractionType::CollectStone: cursor = &mineStoneCursor; break;
+          case InteractionType::Invalid: continue;
+          }
+          break;
+        }
+      }
+    }
+  }
+  setCursor(*cursor);
 }
 
 void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
