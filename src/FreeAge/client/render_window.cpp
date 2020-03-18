@@ -121,6 +121,9 @@ RenderWindow::~RenderWindow() {
   currentAgeShieldTexture.reset();
   currentAgeTextDisplay.reset();
   
+  gameTimeDisplay.reset();
+  pingDisplay.reset();
+  
   commandPanelTexture.reset();
   buildEconomyBuildingsTexture.reset();
   buildMilitaryBuildingsTexture.reset();
@@ -959,24 +962,75 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
   }
 }
 
-void RenderWindow::RenderGameUI() {
+void RenderWindow::RenderGameUI(double displayedServerTime) {
   constexpr float kUIScale = 0.5f;  // TODO: Make configurable
   
+  RenderResourcePanel(kUIScale);
+  
+  RenderSelectionPanel(kUIScale);
+  
+  RenderCommandPanel(kUIScale);
+  
+  // Render the current game time
+  double timeSinceGameStart = displayedServerTime - gameController->GetGameStartServerTimeSeconds();
+  int seconds = fmod(timeSinceGameStart, 60.0);
+  int minutes = fmod(std::floor(timeSinceGameStart / 60.0), 60);
+  int hours = std::floor(timeSinceGameStart / (60.0 * 60.0));
+  QString timeString = QObject::tr("%1:%2:%3").arg(hours, 2, 10, QChar('0')).arg(minutes, 2, 10, QChar('0')).arg(seconds, 2, 10, QChar('0'));
+  
+  if (!gameTimeDisplay) {
+    gameTimeDisplay.reset(new TextDisplay());
+  }
+  for (int i = 0; i < 2; ++ i) {
+    gameTimeDisplay->Render(
+      georgiaFontSmaller,
+      (i == 0) ? qRgba(0, 0, 0, 255) : qRgba(255, 255, 255, 255),
+      timeString,
+      QRect(kUIScale * (2*851 + ((i == 0) ? 2 : 0)),
+            kUIScale * (8 + ((i == 0) ? 2 : 0)),
+            0,
+            0),
+      Qt::AlignTop | Qt::AlignLeft,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  }
+  
+  // Render the current ping
+  double filteredPing, filteredOffset;
+  connection->EstimateCurrentPingAndOffset(&filteredPing, &filteredOffset);
+  QString pingString = QObject::tr("%1 ms").arg(static_cast<int>(1000 * filteredPing + 0.5f));
+  
+  if (!pingDisplay) {
+    pingDisplay.reset(new TextDisplay());
+  }
+  for (int i = 0; i < 2; ++ i) {
+    pingDisplay->Render(
+      georgiaFontSmaller,
+      (i == 0) ? qRgba(0, 0, 0, 255) : qRgba(255, 255, 255, 255),
+      pingString,
+      QRect(kUIScale * (2*851 + ((i == 0) ? 2 : 0)),
+            kUIScale * (40 + 8 + ((i == 0) ? 2 : 0)),
+            0,
+            0),
+      Qt::AlignTop | Qt::AlignLeft,
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+  }
+}
+
+void RenderWindow::RenderResourcePanel(float uiScale) {
   const ResourceAmount& resources = gameController->GetCurrentResourceAmount();
   
-  // Render the resource panel.
   RenderUIGraphic(
       0,
       0,
-      kUIScale * resourcePanelTexture->GetWidth(),
-      kUIScale * resourcePanelTexture->GetHeight(),
+      uiScale * resourcePanelTexture->GetWidth(),
+      uiScale * resourcePanelTexture->GetHeight(),
       *resourcePanelTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
   RenderUIGraphic(
-      kUIScale * (17 + 0 * 200), kUIScale * 16,
-      kUIScale * 83,
-      kUIScale * 83,
+      uiScale * (17 + 0 * 200), uiScale * 16,
+      uiScale * 83,
+      uiScale * 83,
       *resourceWoodTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   if (!woodTextDisplay) {
@@ -986,17 +1040,17 @@ void RenderWindow::RenderGameUI() {
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       QString::number(resources.wood()),
-      QRect(kUIScale * (17 + 0 * 200 + 83 + 16),
-            kUIScale * 16,
-            kUIScale * 82,
-            kUIScale * 83),
+      QRect(uiScale * (17 + 0 * 200 + 83 + 16),
+            uiScale * 16,
+            uiScale * 82,
+            uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
   RenderUIGraphic(
-      kUIScale * (17 + 1 * 200), kUIScale * 16,
-      kUIScale * 83,
-      kUIScale * 83,
+      uiScale * (17 + 1 * 200), uiScale * 16,
+      uiScale * 83,
+      uiScale * 83,
       *resourceFoodTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   if (!foodTextDisplay) {
@@ -1006,17 +1060,17 @@ void RenderWindow::RenderGameUI() {
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       QString::number(resources.food()),
-      QRect(kUIScale * (17 + 1 * 200 + 83 + 16),
-            kUIScale * 16,
-            kUIScale * 82,
-            kUIScale * 83),
+      QRect(uiScale * (17 + 1 * 200 + 83 + 16),
+            uiScale * 16,
+            uiScale * 82,
+            uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
   RenderUIGraphic(
-      kUIScale * (17 + 2 * 200), kUIScale * 16,
-      kUIScale * 83,
-      kUIScale * 83,
+      uiScale * (17 + 2 * 200), uiScale * 16,
+      uiScale * 83,
+      uiScale * 83,
       *resourceGoldTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   if (!goldTextDisplay) {
@@ -1026,17 +1080,17 @@ void RenderWindow::RenderGameUI() {
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       QString::number(resources.gold()),
-      QRect(kUIScale * (17 + 2 * 200 + 83 + 16),
-            kUIScale * 16,
-            kUIScale * 82,
-            kUIScale * 83),
+      QRect(uiScale * (17 + 2 * 200 + 83 + 16),
+            uiScale * 16,
+            uiScale * 82,
+            uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
   RenderUIGraphic(
-      kUIScale * (17 + 3 * 200), kUIScale * 16,
-      kUIScale * 83,
-      kUIScale * 83,
+      uiScale * (17 + 3 * 200), uiScale * 16,
+      uiScale * 83,
+      uiScale * 83,
       *resourceStoneTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   if (!stoneTextDisplay) {
@@ -1046,17 +1100,17 @@ void RenderWindow::RenderGameUI() {
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       QString::number(resources.stone()),
-      QRect(kUIScale * (17 + 3 * 200 + 83 + 16),
-            kUIScale * 16,
-            kUIScale * 82,
-            kUIScale * 83),
+      QRect(uiScale * (17 + 3 * 200 + 83 + 16),
+            uiScale * 16,
+            uiScale * 82,
+            uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
   RenderUIGraphic(
-      kUIScale * (17 + 4 * 200), kUIScale * 16,
-      kUIScale * 83,
-      kUIScale * 83,
+      uiScale * (17 + 4 * 200), uiScale * 16,
+      uiScale * 83,
+      uiScale * 83,
       *popTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   if (!popTextDisplay) {
@@ -1066,48 +1120,49 @@ void RenderWindow::RenderGameUI() {
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       "4 / 5",  // TODO
-      QRect(kUIScale * (17 + 4 * 200 + 83 + 16),
-            kUIScale * 16,
-            kUIScale * 82,
-            kUIScale * 83),
+      QRect(uiScale * (17 + 4 * 200 + 83 + 16),
+            uiScale * 16,
+            uiScale * 82,
+            uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
   RenderUIGraphic(
-      kUIScale * (17 + 4 * 200 + 234), kUIScale * 24,
-      kUIScale * 2 * 34,
-      kUIScale * 2 * 34,
+      uiScale * (17 + 4 * 200 + 234), uiScale * 24,
+      uiScale * 2 * 34,
+      uiScale * 2 * 34,
       *idleVillagerDisabledTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   RenderUIGraphic(
-      kUIScale * (17 + 4 * 200 + 234 + 154 - currentAgeShieldTexture->GetWidth() / 2), kUIScale * 0,
-      kUIScale * currentAgeShieldTexture->GetWidth(),
-      kUIScale * currentAgeShieldTexture->GetHeight(),
+      uiScale * (17 + 4 * 200 + 234 + 154 - currentAgeShieldTexture->GetWidth() / 2), uiScale * 0,
+      uiScale * currentAgeShieldTexture->GetWidth(),
+      uiScale * currentAgeShieldTexture->GetHeight(),
       *currentAgeShieldTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   if (!currentAgeTextDisplay) {
     currentAgeTextDisplay.reset(new TextDisplay());
   }
-  float currentAgeTextLeft = kUIScale * (17 + 4 * 200 + 234 + 154 + currentAgeShieldTexture->GetWidth() / 2);
+  float currentAgeTextLeft = uiScale * (17 + 4 * 200 + 234 + 154 + currentAgeShieldTexture->GetWidth() / 2);
   currentAgeTextDisplay->Render(
       georgiaFontLarger,
       qRgba(255, 255, 255, 255),
       tr("Dark Age"),
       QRect(currentAgeTextLeft,
-            kUIScale * 16,
-            kUIScale * (1623 - 8) - currentAgeTextLeft,
-            kUIScale * 83),
+            uiScale * 16,
+            uiScale * (1623 - 8) - currentAgeTextLeft,
+            uiScale * 83),
       Qt::AlignHCenter | Qt::AlignVCenter,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
-  
-  // Render the selection panel.
-  float selectionPanelLeft = kUIScale * 539;
-  float selectionPanelTop = widgetHeight - kUIScale * selectionPanelTexture->GetHeight();
+}
+
+void RenderWindow::RenderSelectionPanel(float uiScale) {
+  float selectionPanelLeft = uiScale * 539;
+  float selectionPanelTop = widgetHeight - uiScale * selectionPanelTexture->GetHeight();
   RenderUIGraphic(
       selectionPanelLeft,
       selectionPanelTop,
-      kUIScale * selectionPanelTexture->GetWidth(),
-      kUIScale * selectionPanelTexture->GetHeight(),
+      uiScale * selectionPanelTexture->GetWidth(),
+      uiScale * selectionPanelTexture->GetHeight(),
       *selectionPanelTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
@@ -1122,10 +1177,10 @@ void RenderWindow::RenderGameUI() {
         georgiaFontLarger,
         qRgba(58, 29, 21, 255),
         singleSelectedObject->GetObjectName(),
-        QRect(selectionPanelLeft + kUIScale * 2*32,
-              selectionPanelTop + kUIScale * 50 + kUIScale * 2*25,
-              kUIScale * 2*172,
-              kUIScale * 2*16),
+        QRect(selectionPanelLeft + uiScale * 2*32,
+              selectionPanelTop + uiScale * 50 + uiScale * 2*25,
+              uiScale * 2*172,
+              uiScale * 2*16),
         Qt::AlignLeft | Qt::AlignTop,
         uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
     
@@ -1144,10 +1199,10 @@ void RenderWindow::RenderGameUI() {
               QObject::tr("Carries %1 %2")
                   .arg(singleSelectedUnit->GetCarriedResourceAmount())
                   .arg(GetResourceName(singleSelectedUnit->GetCarriedResourceType())),
-              QRect(selectionPanelLeft + kUIScale * 2*32,
-                    selectionPanelTop + kUIScale * 50 + kUIScale * 2*46 + kUIScale * 2*60 + kUIScale * 2*10,
-                    kUIScale * 2*172,
-                    kUIScale * 2*16),
+              QRect(selectionPanelLeft + uiScale * 2*32,
+                    selectionPanelTop + uiScale * 50 + uiScale * 2*46 + uiScale * 2*60 + uiScale * 2*10,
+                    uiScale * 2*172,
+                    uiScale * 2*16),
               Qt::AlignLeft | Qt::AlignTop,
               uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
         }
@@ -1157,40 +1212,41 @@ void RenderWindow::RenderGameUI() {
     // Render icon of single selected object
     const Texture* iconTexture = singleSelectedObject->GetIconTexture();
     if (iconTexture) {
-      float iconInset = kUIScale * 4;
+      float iconInset = uiScale * 4;
       RenderUIGraphic(
-          selectionPanelLeft + kUIScale * 2*32 + iconInset,
-          selectionPanelTop + kUIScale * 50 + kUIScale * 2*46 + iconInset,
-          kUIScale * 2*60 - 2 * iconInset,
-          kUIScale * 2*60 - 2 * iconInset,
+          selectionPanelLeft + uiScale * 2*32 + iconInset,
+          selectionPanelTop + uiScale * 50 + uiScale * 2*46 + iconInset,
+          uiScale * 2*60 - 2 * iconInset,
+          uiScale * 2*60 - 2 * iconInset,
           *iconTexture,
           uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
       RenderUIGraphic(
-          selectionPanelLeft + kUIScale * 2*32,
-          selectionPanelTop + kUIScale * 50 + kUIScale * 2*46,
-          kUIScale * 2*60,
-          kUIScale * 2*60,
+          selectionPanelLeft + uiScale * 2*32,
+          selectionPanelTop + uiScale * 50 + uiScale * 2*46,
+          uiScale * 2*60,
+          uiScale * 2*60,
           *iconOverlayNormalTexture,
           uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
     }
   }
-  
-  // Render the command panel.
-  float commandPanelTop = widgetHeight - kUIScale * commandPanelTexture->GetHeight();
+}
+
+void RenderWindow::RenderCommandPanel(float uiScale) {
+  float commandPanelTop = widgetHeight - uiScale * commandPanelTexture->GetHeight();
   RenderUIGraphic(
       0,
       commandPanelTop,
-      kUIScale * commandPanelTexture->GetWidth(),
-      kUIScale * commandPanelTexture->GetHeight(),
+      uiScale * commandPanelTexture->GetWidth(),
+      uiScale * commandPanelTexture->GetHeight(),
       *commandPanelTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
-  float commandButtonsLeft = kUIScale * 49;
-  float commandButtonsTop = commandPanelTop + kUIScale * 93;
-  float commandButtonsRight = kUIScale * 499;
-  float commandButtonsBottom = commandPanelTop + kUIScale * 370;
+  float commandButtonsLeft = uiScale * 49;
+  float commandButtonsTop = commandPanelTop + uiScale * 93;
+  float commandButtonsRight = uiScale * 499;
+  float commandButtonsBottom = commandPanelTop + uiScale * 370;
   
-  float commandButtonSize = kUIScale * 80;
+  float commandButtonSize = uiScale * 80;
   
   for (int row = 0; row < kCommandButtonRows; ++ row) {
     for (int col = 0; col < kCommandButtonCols; ++ col) {
@@ -1221,7 +1277,7 @@ void RenderWindow::RenderGameUI() {
           buttonLeft,
           buttonTop,
           commandButtonSize,
-          kUIScale * 4,
+          uiScale * 4,
           disabled ? *iconOverlayNormalExpensiveTexture :
               (pressed ? *iconOverlayActiveTexture :
                   (mouseOver ? *iconOverlayHoverTexture : *iconOverlayNormalTexture)),
@@ -1909,7 +1965,7 @@ void RenderWindow::paintGL() {
   // TODO: Would it be faster to render this at the start and then prevent rendering over the UI pixels,
   //       for example by setting the z-buffer such that no further pixel will be rendered there?
   CHECK_OPENGL_NO_ERROR();
-  RenderGameUI();
+  RenderGameUI(displayedServerTime);
   CHECK_OPENGL_NO_ERROR();
 }
 

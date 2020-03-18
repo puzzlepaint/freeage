@@ -76,7 +76,10 @@ class RenderWindow : public QOpenGLWidget {
   void RenderUnits(double displayedServerTime);
   void RenderMoveToMarker(const TimePoint& now);
   void RenderHealthBars(double displayedServerTime);
-  void RenderGameUI();
+  void RenderGameUI(double displayedServerTime);
+  void RenderResourcePanel(float uiScale);
+  void RenderSelectionPanel(float uiScale);
+  void RenderCommandPanel(float uiScale);
   
   /// Given screen-space coordinates (x, y), finds the next object to select at
   /// this point. If an object is found, true is returned, and the object's ID is
@@ -201,6 +204,9 @@ class RenderWindow : public QOpenGLWidget {
   std::shared_ptr<Texture> idleVillagerDisabledTexture;
   std::shared_ptr<Texture> currentAgeShieldTexture;
   std::shared_ptr<TextDisplay> currentAgeTextDisplay;
+  
+  std::shared_ptr<TextDisplay> gameTimeDisplay;
+  std::shared_ptr<TextDisplay> pingDisplay;
   
   std::shared_ptr<Texture> commandPanelTexture;
   std::shared_ptr<Texture> buildEconomyBuildingsTexture;
