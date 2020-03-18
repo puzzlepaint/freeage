@@ -8,7 +8,9 @@ ServerBuilding::ServerBuilding(int playerIndex, BuildingType type, const QPoint&
       productionPercentage(0),
       type(type),
       baseTile(baseTile),
-      buildPercentage(buildPercentage) {}
+      buildPercentage(buildPercentage) {
+  SetHP(buildPercentage / 100.0 * GetBuildingMaxHP(type));
+}
 
 bool ServerBuilding::CanProduce(UnitType unitType, PlayerInGame* /*player*/) {
   // Can the building produce this unit in principle?

@@ -443,7 +443,7 @@ QByteArray Game::CreateMapUncoverMessage() {
 
 QByteArray Game::CreateAddObjectMessage(u32 objectId, ServerObject* object) {
   // Create buffer
-  QByteArray msg(object->isBuilding() ? 19 : 19, Qt::Initialization::Uninitialized);
+  QByteArray msg(object->isBuilding() ? 23 : 23, Qt::Initialization::Uninitialized);
   char* data = msg.data();
   
   // Set buffer header (3 bytes)
@@ -454,18 +454,19 @@ QByteArray Game::CreateAddObjectMessage(u32 objectId, ServerObject* object) {
   data[3] = static_cast<u8>(object->GetObjectType());  // TODO: Currently unneeded since this could be derived from the message length
   mango::ustore32(data + 4, objectId);  // TODO: Maybe save bytes here as long as e.g. less than 16 bits are non-zero?
   data[8] = (object->GetPlayerIndex() == -1) ? 127 : object->GetPlayerIndex();
+  mango::ustore32(data + 9, object->GetHP());
   
   if (object->isBuilding()) {
     ServerBuilding* building = static_cast<ServerBuilding*>(object);
-    mango::ustore16(data + 9, static_cast<u16>(building->GetBuildingType()));  // TODO: Would 8 bits be sufficient here?
-    mango::ustore16(data + 11, building->GetBaseTile().x());
-    mango::ustore16(data + 13, building->GetBaseTile().y());
-    *reinterpret_cast<float*>(data + 15) = building->GetBuildPercentage();
+    mango::ustore16(data + 13, static_cast<u16>(building->GetBuildingType()));  // TODO: Would 8 bits be sufficient here?
+    mango::ustore16(data + 15, building->GetBaseTile().x());
+    mango::ustore16(data + 17, building->GetBaseTile().y());
+    *reinterpret_cast<float*>(data + 19) = building->GetBuildPercentage();
   } else {
     ServerUnit* unit = static_cast<ServerUnit*>(object);
-    mango::ustore16(data + 9, static_cast<u16>(unit->GetUnitType()));  // TODO: Would 8 bits be sufficient here?
-    *reinterpret_cast<float*>(data + 11) = unit->GetMapCoord().x();
-    *reinterpret_cast<float*>(data + 15) = unit->GetMapCoord().y();
+    mango::ustore16(data + 13, static_cast<u16>(unit->GetUnitType()));  // TODO: Would 8 bits be sufficient here?
+    *reinterpret_cast<float*>(data + 15) = unit->GetMapCoord().x();
+    *reinterpret_cast<float*>(data + 19) = unit->GetMapCoord().y();
   }
   
   return msg;
@@ -563,6 +564,12 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
       SimulateGameStepForBuilding(objectId, building, stepLengthInSeconds);
     }
   }
+  
+  // Handle delayed object deletion.
+  for (u32 id : objectDeleteList) {
+    map->GetObjects().erase(id);
+  }
+  objectDeleteList.clear();
   
   // Send out the accumulated messages for each player. The advantage of the accumulation is that
   // the TCP header only has to be sent once for each player, rather than for each message.
@@ -817,8 +824,9 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
   // TODO: In the original game, two villagers building does not result in twice the speed. Account for this.
   if (canConstruct) {
     double constructionTime = GetBuildingConstructionTime(targetBuilding->GetBuildingType());
-    double constructionStepInPercent = 100 * stepLengthInSeconds / constructionTime;
-    double newPercentage = std::min<double>(100, targetBuilding->GetBuildPercentage() + constructionStepInPercent);
+    double constructionStepAmount = stepLengthInSeconds / constructionTime;
+    
+    double newPercentage = std::min<double>(100, targetBuilding->GetBuildPercentage() + 100 * constructionStepAmount);
     targetBuilding->SetBuildPercentage(newPercentage);
     
     // Tell all clients that see the building about the new build percentage.
@@ -826,6 +834,16 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
     QByteArray msg = CreateBuildPercentageUpdateMessage(targetObjectId, targetBuilding->GetBuildPercentage());
     for (auto& player : *playersInGame) {
       accumulatedMessages[player->index] += msg;
+    }
+    
+    u32 maxHP = GetBuildingMaxHP(targetBuilding->GetBuildingType());
+    double addedHP = constructionStepAmount * maxHP;
+    targetBuilding->SetHP(std::min<float>(targetBuilding->GetHPInternalFloat() + addedHP, maxHP));
+    
+    // TODO: Would it make sense to batch these together in case there are multiple updates to an object's HP in the same time step?
+    QByteArray msg2 = CreateHPUpdateMessage(targetObjectId, targetBuilding->GetHP());
+    for (auto& player : *playersInGame) {
+      accumulatedMessages[player->index] += msg2;
     }
     
     if (villager->GetCurrentAction() != UnitAction::Task) {
@@ -972,7 +990,7 @@ void Game::SimulateGameStepForBuilding(u32 /*buildingId*/, ServerBuilding* build
   }
 }
 
-bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 /*targetId*/, ServerObject* /*target*/, double gameStepServerTime, float stepLengthInSeconds, bool* unitMovementChanged, bool* stayInPlace) {
+bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, ServerObject* target, double gameStepServerTime, float stepLengthInSeconds, bool* unitMovementChanged, bool* stayInPlace) {
   if (unit->GetCurrentAction() != UnitAction::Attack) {
     *unitMovementChanged = true;
     unit->SetCurrentAction(UnitAction::Attack);
@@ -988,10 +1006,48 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 /*targetId*
   double timeSinceActionStart = gameStepServerTime - unit->GetCurrentActionStartTime();
   
   if (timeSinceActionStart >= attackDamageTime &&
-      timeSinceActionStart - stepLengthInSeconds < attackDamageTime) {
+      timeSinceActionStart - stepLengthInSeconds < attackDamageTime &&
+      target != nullptr) {
+    // Compute the attack damage.
+    int meleeArmor;
+    if (target->isUnit()) {
+      meleeArmor = GetUnitMeleeArmor(static_cast<ServerUnit*>(target)->GetUnitType());
+    } else {
+      CHECK(target->isBuilding());
+      meleeArmor = GetBuildingMeleeArmor(static_cast<ServerBuilding*>(target)->GetBuildingType());
+    }
+    int meleeDamage = std::max(0, static_cast<int>(GetUnitMeleeAttack(unit->GetUnitType())) - meleeArmor);
+    
+    // TODO: Pierce damage
+    // TODO: Damage bonuses
+    // TODO: Elevation multiplier 5/4 or 3/4
+    
+    int totalDamage = std::max(1, meleeDamage);
+    
     // Do the attack damage.
-    LOG(WARNING) << "Debug: applying attack damage!";
-    // TODO
+    float hp = target->GetHPInternalFloat() - totalDamage;
+    if (hp > 0.5f) {
+      target->SetHP(hp);
+      
+      // Notify all clients that see the target about its HP change
+      // TODO: Would it make sense to batch these together in case there are multiple updates to an object's HP in the same time step?
+      QByteArray msg = CreateHPUpdateMessage(targetId, target->GetHP());
+      for (auto& player : *playersInGame) {
+        accumulatedMessages[player->index] += msg;
+      }
+    } else {
+      // Remove the target.
+      // TODO: Convert the object into some other form to remember
+      //       the potential destroy / death animation and rubble / decay sprite.
+      //       We need to store this so we can tell other clients about its existence
+      //       which currently do not see the object but may explore its location later.
+      QByteArray msg = CreateObjectDeathMessage(targetId);
+      for (auto& player : *playersInGame) {
+        accumulatedMessages[player->index] += msg;
+      }
+      
+      objectDeleteList.push_back(targetId);
+    }
   }
   
   if (timeSinceActionStart >= fullAttackTime) {

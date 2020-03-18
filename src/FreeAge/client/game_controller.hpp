@@ -45,12 +45,14 @@ class GameController : public QObject {
   void HandleGameBeginMessage(const QByteArray& data);
   void HandleMapUncoverMessage(const QByteArray& data);
   void HandleAddObjectMessage(const QByteArray& data);
+  void HandleObjectDeathMessage(const QByteArray& data);
   void HandleUnitMovementMessage(const QByteArray& data);
   void HandleGameStepTimeMessage(const QByteArray& data);
   void HandleResourcesUpdateMessage(const QByteArray& data, ResourceAmount* resources);
   void HandleBuildPercentageUpdate(const QByteArray& data);
   void HandleChangeUnitTypeMessage(const QByteArray& data);
   void HandleSetCarriedResourcesMessage(const QByteArray& data);
+  void HandleHPUpdateMessage(const QByteArray& data);
   
   
   std::shared_ptr<ServerConnection> connection;

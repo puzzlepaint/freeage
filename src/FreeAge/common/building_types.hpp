@@ -54,3 +54,7 @@ ResourceAmount GetBuildingCost(BuildingType type);
 
 /// Returns whether the given building type acts as a drop-off point for the given resource type.
 bool IsDropOffPointForResource(BuildingType building, ResourceType resource);
+
+/// TODO: This needs to consider the player's civilization and researched technologies
+u32 GetBuildingMaxHP(BuildingType type);
+u32 GetBuildingMeleeArmor(BuildingType type);

@@ -462,3 +462,34 @@ QByteArray CreateSetCarriedResourcesMessage(u32 unitId, ResourceType type, u8 am
   
   return msg;
 }
+
+QByteArray CreateHPUpdateMessage(u32 objectId, u32 newHP) {
+  // Create buffer
+  QByteArray msg(11, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::HPUpdate);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore32(data + 3, objectId);
+  mango::ustore32(data + 7, newHP);
+  
+  return msg;
+}
+
+QByteArray CreateObjectDeathMessage(u32 objectId) {
+  // Create buffer
+  QByteArray msg(7, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::ObjectDeath);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore32(data + 3, objectId);
+  
+  return msg;
+}

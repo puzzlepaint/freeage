@@ -119,3 +119,63 @@ int GetUnitAttackFrames(UnitType type) {
   
   return 0;
 }
+
+u32 GetUnitMaxHP(UnitType type) {
+  // TODO: Load this from some data file
+  
+  if (IsVillager(type)) {
+    return 25;
+  }
+  
+  switch (type) {
+  case UnitType::Militia:
+    return 40;
+  case UnitType::Scout:
+    return 45;
+  default:
+    LOG(ERROR) << "Function called on unsupported type: " << static_cast<int>(type);
+    break;
+  }
+  
+  return 0;
+}
+
+u32 GetUnitMeleeAttack(UnitType type) {
+  // TODO: Load this from some data file
+  
+  if (IsVillager(type)) {
+    return 3;
+  }
+  
+  switch (type) {
+  case UnitType::Militia:
+    return 4;
+  case UnitType::Scout:
+    return 3;
+  default:
+    LOG(ERROR) << "Function called on unsupported type: " << static_cast<int>(type);
+    break;
+  }
+  
+  return 0;
+}
+
+u32 GetUnitMeleeArmor(UnitType type) {
+  // TODO: Load this from some data file
+  
+  if (IsVillager(type)) {
+    return 0;
+  }
+  
+  switch (type) {
+  case UnitType::Militia:
+    return 0;
+  case UnitType::Scout:
+    return 0;
+  default:
+    LOG(ERROR) << "Function called on unsupported type: " << static_cast<int>(type);
+    break;
+  }
+  
+  return 0;
+}

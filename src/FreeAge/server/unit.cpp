@@ -6,7 +6,9 @@ ServerUnit::ServerUnit(int playerIndex, UnitType type, const QPointF& mapCoord)
     : ServerObject(ObjectType::Unit, playerIndex),
       type(type),
       mapCoord(mapCoord),
-      currentAction(UnitAction::Idle) {}
+      currentAction(UnitAction::Idle) {
+  SetHP(GetUnitMaxHP(type));
+}
 
 void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting) {
   InteractionType interaction = GetInteractionType(this, targetObject);

@@ -29,7 +29,8 @@ InteractionType GetInteractionType(ServerObject* actor, ServerObject* target) {
       }
     }
     
-    if (target->GetPlayerIndex() != actor->GetPlayerIndex()) {
+    if (target->GetPlayerIndex() != actor->GetPlayerIndex() &&
+        target->GetPlayerIndex() != kGaiaPlayerIndex) {
       return InteractionType::Attack;
     }
   }

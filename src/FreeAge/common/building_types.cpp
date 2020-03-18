@@ -121,7 +121,7 @@ ResourceAmount GetBuildingCost(BuildingType type) {
   case BuildingType::TownCenterCenter: LOG(ERROR) << "GetBuildingCost() called on BuildingType::TownCenterCenter"; return ResourceAmount(0, 0, 0, 0);
   case BuildingType::TownCenterFront: LOG(ERROR) << "GetBuildingCost() called on BuildingType::TownCenterFront"; return ResourceAmount(0, 0, 0, 0);
   case BuildingType::TownCenterMain: LOG(ERROR) << "GetBuildingCost() called on BuildingType::TownCenterMain"; return ResourceAmount(0, 0, 0, 0);
-  case BuildingType::House: return ResourceAmount(30, 0, 0, 0);
+  case BuildingType::House: return ResourceAmount(25, 0, 0, 0);
   
   case BuildingType::Mill: return ResourceAmount(100, 0, 0, 0);
   case BuildingType::MiningCamp: return ResourceAmount(100, 0, 0, 0);
@@ -156,4 +156,60 @@ bool IsDropOffPointForResource(BuildingType building, ResourceType resource) {
     return true;
   }
   return false;
+}
+
+u32 GetBuildingMaxHP(BuildingType type) {
+  switch (type) {
+  case BuildingType::TownCenter: return 2400;
+  case BuildingType::TownCenterBack: LOG(ERROR) << "GetBuildingMaxHP() called on BuildingType::TownCenterBack"; return 0;
+  case BuildingType::TownCenterCenter: LOG(ERROR) << "GetBuildingMaxHP() called on BuildingType::TownCenterCenter"; return 0;
+  case BuildingType::TownCenterFront: LOG(ERROR) << "GetBuildingMaxHP() called on BuildingType::TownCenterFront"; return 0;
+  case BuildingType::TownCenterMain: LOG(ERROR) << "GetBuildingMaxHP() called on BuildingType::TownCenterMain"; return 0;
+  case BuildingType::House: return 550;
+  
+  case BuildingType::Mill: return 600;
+  case BuildingType::MiningCamp: return 600;
+  case BuildingType::LumberCamp: return 600;
+  case BuildingType::Dock: return 1800;
+  
+  case BuildingType::Barracks: return 1200;
+  case BuildingType::Outpost: return 500;
+  case BuildingType::PalisadeWall: return 250;
+  case BuildingType::PalisadeGate: return 400;
+  
+  case BuildingType::TreeOak: return 0;
+  case BuildingType::ForageBush: return 0;
+  case BuildingType::GoldMine: return 0;
+  case BuildingType::StoneMine: return 0;
+  case BuildingType::NumBuildings: LOG(ERROR) << "GetBuildingMaxHP() called on BuildingType::NumBuildings"; return 0;
+  }
+  return 0;
+}
+
+u32 GetBuildingMeleeArmor(BuildingType type) {
+  switch (type) {
+  case BuildingType::TownCenter: return 3;
+  case BuildingType::TownCenterBack: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterBack"; return 0;
+  case BuildingType::TownCenterCenter: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterCenter"; return 0;
+  case BuildingType::TownCenterFront: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterFront"; return 0;
+  case BuildingType::TownCenterMain: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterMain"; return 0;
+  case BuildingType::House: return 0;
+  
+  case BuildingType::Mill: return 0;
+  case BuildingType::MiningCamp: return 0;
+  case BuildingType::LumberCamp: return 0;
+  case BuildingType::Dock: return 0;
+  
+  case BuildingType::Barracks: return 0;
+  case BuildingType::Outpost: return 0;
+  case BuildingType::PalisadeWall: return 2;  // TODO: 0 during construction?
+  case BuildingType::PalisadeGate: return 2;  // TODO: 0 during construction?
+  
+  case BuildingType::TreeOak: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TreeOak"; return 0;
+  case BuildingType::ForageBush: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::ForageBush"; return 0;
+  case BuildingType::GoldMine: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::GoldMine"; return 0;
+  case BuildingType::StoneMine: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::StoneMine"; return 0;
+  case BuildingType::NumBuildings: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::NumBuildings"; return 0;
+  }
+  return 0;
 }

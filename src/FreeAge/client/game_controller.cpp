@@ -92,8 +92,14 @@ void GameController::ParseMessage(const QByteArray& data, ServerToClientMessage 
   case ServerToClientMessage::UnitMovement:
     HandleUnitMovementMessage(data);
     break;
+  case ServerToClientMessage::HPUpdate:
+    HandleHPUpdateMessage(data);
+    break;
   case ServerToClientMessage::AddObject:
     HandleAddObjectMessage(data);
+    break;
+  case ServerToClientMessage::ObjectDeath:
+    HandleObjectDeathMessage(data);
     break;
   case ServerToClientMessage::BuildPercentageUpdate:
     HandleBuildPercentageUpdate(data);
@@ -170,21 +176,40 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
   ObjectType objectType = static_cast<ObjectType>(buffer[0]);
   u32 objectId = mango::uload32(buffer + 1);
   int playerIndex = (buffer[5] == 127) ? -1 : buffer[5];
+  u32 initialHP = mango::uload32(buffer + 6);
   
   if (objectType == ObjectType::Building) {
-    BuildingType buildingType = static_cast<BuildingType>(mango::uload16(buffer + 6));
-    QPoint baseTile(mango::uload16(buffer + 8),
-                    mango::uload16(buffer + 10));
-    float buildPercentage = *reinterpret_cast<const float*>(buffer + 12);
+    BuildingType buildingType = static_cast<BuildingType>(mango::uload16(buffer + 10));
+    QPoint baseTile(mango::uload16(buffer + 12),
+                    mango::uload16(buffer + 14));
+    float buildPercentage = *reinterpret_cast<const float*>(buffer + 16);
     
-    map->AddObject(objectId, new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y(), buildPercentage, currentGameStepServerTime));
+    map->AddObject(objectId, new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y(), buildPercentage, initialHP));
   } else {
-    UnitType unitType = static_cast<UnitType>(mango::uload16(buffer + 6));
-    QPointF mapCoord(*reinterpret_cast<const float*>(buffer + 8),
-                     *reinterpret_cast<const float*>(buffer + 12));
+    UnitType unitType = static_cast<UnitType>(mango::uload16(buffer + 10));
+    QPointF mapCoord(*reinterpret_cast<const float*>(buffer + 12),
+                     *reinterpret_cast<const float*>(buffer + 16));
     
-    map->AddObject(objectId, new ClientUnit(playerIndex, unitType, mapCoord, currentGameStepServerTime));
+    map->AddObject(objectId, new ClientUnit(playerIndex, unitType, mapCoord, initialHP));
   }
+}
+
+void GameController::HandleObjectDeathMessage(const QByteArray& data) {
+  const char* buffer = data.data();
+  
+  u32 objectId = mango::uload32(buffer + 0);
+  auto it = map->GetObjects().find(objectId);
+  if (it == map->GetObjects().end()) {
+    LOG(ERROR) << "Received an ObjectDeath message for an object ID that is not in the map.";
+    return;
+  }
+  // ClientObject* object = it->second;
+  
+  // TODO: Convert the object into a decal that:
+  // - First plays the destruction / death animation (if any)
+  // - Then displays a rubble pile / decay sprite (if any)
+  
+  map->GetObjects().erase(it);
 }
 
 void GameController::HandleUnitMovementMessage(const QByteArray& data) {
@@ -292,4 +317,20 @@ void GameController::HandleSetCarriedResourcesMessage(const QByteArray& data) {
   u8 amount = buffer[5];
   
   villager->SetCarriedResources(type, amount);
+}
+
+void GameController::HandleHPUpdateMessage(const QByteArray& data) {
+  const char* buffer = data.data();
+  
+  u32 objectId = mango::uload32(buffer + 0);
+  auto it = map->GetObjects().find(objectId);
+  if (it == map->GetObjects().end()) {
+    LOG(ERROR) << "Received a HPUpdate message for an object ID that is not in the map.";
+    return;
+  }
+  ClientObject* object = it->second;
+  
+  u32 newHP = mango::uload32(buffer + 4);
+  
+  object->SetHP(newHP);
 }

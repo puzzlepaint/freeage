@@ -228,6 +228,7 @@ class RenderWindow : public QOpenGLWidget {
   std::shared_ptr<Texture> selectionPanelTexture;
   OpaquenessMap selectionPanelOpaquenessMap;
   std::shared_ptr<TextDisplay> singleObjectNameDisplay;
+  std::shared_ptr<TextDisplay> hpDisplay;
   std::shared_ptr<TextDisplay> carriedResourcesDisplay;
   
   std::shared_ptr<Texture> iconOverlayNormalTexture;

@@ -184,8 +184,8 @@ bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::f
 }
 
 
-ClientUnit::ClientUnit(int playerIndex, UnitType type, const QPointF& mapCoord, double creationServerTime)
-    : ClientObject(ObjectType::Unit, playerIndex, creationServerTime),
+ClientUnit::ClientUnit(int playerIndex, UnitType type, const QPointF& mapCoord, u32 hp)
+    : ClientObject(ObjectType::Unit, playerIndex, hp),
       type(type),
       mapCoord(mapCoord),
       direction(rand() % kNumFacingDirections),

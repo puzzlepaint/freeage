@@ -132,6 +132,7 @@ RenderWindow::~RenderWindow() {
   
   selectionPanelTexture.reset();
   singleObjectNameDisplay.reset();
+  hpDisplay.reset();
   carriedResourcesDisplay.reset();
   
   iconOverlayNormalTexture.reset();
@@ -571,10 +572,6 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
   for (auto& object : map->GetObjects()) {
-    if (!object.second->ShallBeDisplayed(displayedServerTime)) {
-      continue;
-    }
-    
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
     if (object.second->isBuilding()) {
@@ -634,7 +631,7 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
 void RenderWindow::RenderBuildings(double displayedServerTime) {
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
-    if (!object.second->isBuilding() || !object.second->ShallBeDisplayed(displayedServerTime)) {
+    if (!object.second->isBuilding()) {
       continue;
     }
     ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
@@ -669,7 +666,7 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime) {
   if (foundationBaseTile.x() >= 0 && foundationBaseTile.y() >= 0) {
     // Render the building foundation, colored either in gray if it can be placed at this location,
     // or in red if it cannot be placed there.
-    ClientBuilding* tempBuilding = new ClientBuilding(match->GetPlayerIndex(), constructBuildingType, foundationBaseTile.x(), foundationBaseTile.y(), 100, -1);
+    ClientBuilding* tempBuilding = new ClientBuilding(match->GetPlayerIndex(), constructBuildingType, foundationBaseTile.x(), foundationBaseTile.y(), 100, /*hp*/ 0);
     tempBuilding->SetFixedFrameIndex(0);
     
     if (canBePlacedHere) {
@@ -777,10 +774,6 @@ void RenderWindow::RenderOutlines(double displayedServerTime) {
   
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
-    if (!object.second->ShallBeDisplayed(displayedServerTime)) {
-      continue;
-    }
-    
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
     if (object.second->isBuilding()) {
@@ -840,7 +833,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime) {
 void RenderWindow::RenderUnits(double displayedServerTime) {
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
-    if (!object.second->isUnit() || !object.second->ShallBeDisplayed(displayedServerTime)) {
+    if (!object.second->isUnit()) {
       continue;
     }
     ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
@@ -907,7 +900,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
   QRgb gaiaColor = qRgb(255, 255, 255);
   
   for (auto& object : map->GetObjects()) {
-    if (!object.second->IsSelected() || !object.second->ShallBeDisplayed(displayedServerTime)) {
+    if (!object.second->IsSelected()) {
       continue;
     }
     
@@ -933,7 +926,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
         RenderHealthBar(
             barRect,
             centerProjectedCoord.y(),
-            1.f,  // TODO: Determine fill amount based on HP
+            building.GetHP() / (1.f * GetBuildingMaxHP(building.GetType())),
             (building.GetPlayerIndex() < 0) ? gaiaColor : playerColors[building.GetPlayerIndex()],
             healthBarShader.get(),
             pointBuffer,
@@ -962,7 +955,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
         RenderHealthBar(
             barRect,
             centerProjectedCoord.y(),
-            1.f,  // TODO: Determine fill amount based on HP
+            unit.GetHP() / (1.f * GetUnitMaxHP(unit.GetType())),
             (unit.GetPlayerIndex() < 0) ? gaiaColor : playerColors[unit.GetPlayerIndex()],
             healthBarShader.get(),
             pointBuffer,
@@ -1199,10 +1192,11 @@ void RenderWindow::RenderSelectionPanel(float uiScale) {
       *selectionPanelTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
+  // Is only a single object selected?
   if (selection.size() == 1) {
     ClientObject* singleSelectedObject = map->GetObjects().at(selection.front());
     
-    // Render name of single selected object
+    // Display the object name
     if (!singleObjectNameDisplay) {
       singleObjectNameDisplay.reset(new TextDisplay());
     }
@@ -1217,6 +1211,31 @@ void RenderWindow::RenderSelectionPanel(float uiScale) {
         Qt::AlignLeft | Qt::AlignTop,
         uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
     
+    // Display the object's HP
+    if (singleSelectedObject->GetHP() > 0) {
+      u32 maxHP;
+      if (singleSelectedObject->isUnit()) {
+        maxHP = GetUnitMaxHP(static_cast<ClientUnit*>(singleSelectedObject)->GetType());
+      } else {
+        CHECK(singleSelectedObject->isBuilding());
+        maxHP = GetBuildingMaxHP(static_cast<ClientBuilding*>(singleSelectedObject)->GetType());
+      }
+      
+      if (!hpDisplay) {
+        hpDisplay.reset(new TextDisplay());
+      }
+      hpDisplay->Render(
+          georgiaFontSmaller,
+          qRgba(58, 29, 21, 255),
+          QStringLiteral("%1 / %2").arg(singleSelectedObject->GetHP()).arg(maxHP),
+          QRect(topLeft.x() + uiScale * 2*32,
+                topLeft.y() + uiScale * 50 + uiScale * 2*46 + uiScale * 2*60 + uiScale * 2*5,
+                uiScale * 2*172,
+                uiScale * 2*16),
+          Qt::AlignLeft | Qt::AlignTop,
+          uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+    }
+    
     // Display unit details?
     if (singleSelectedObject->isUnit()) {
       ClientUnit* singleSelectedUnit = static_cast<ClientUnit*>(singleSelectedObject);
@@ -1227,13 +1246,13 @@ void RenderWindow::RenderSelectionPanel(float uiScale) {
             carriedResourcesDisplay.reset(new TextDisplay());
           }
           carriedResourcesDisplay->Render(
-              georgiaFontLarger,
+              georgiaFontSmaller,
               qRgba(58, 29, 21, 255),
               QObject::tr("Carries %1 %2")
                   .arg(singleSelectedUnit->GetCarriedResourceAmount())
                   .arg(GetResourceName(singleSelectedUnit->GetCarriedResourceType())),
               QRect(topLeft.x() + uiScale * 2*32,
-                    topLeft.y() + uiScale * 50 + uiScale * 2*46 + uiScale * 2*60 + uiScale * 2*10,
+                    topLeft.y() + uiScale * 50 + uiScale * 2*46 + uiScale * 2*60 + uiScale * 2*20,
                     uiScale * 2*172,
                     uiScale * 2*16),
               Qt::AlignLeft | Qt::AlignTop,
@@ -1381,10 +1400,6 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
   };
   
   for (auto& object : map->GetObjects()) {
-    if (!object.second->ShallBeDisplayed(lastDisplayedServerTime)) {
-      continue;
-    }
-    
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
     if (object.second->isBuilding()) {
@@ -1489,10 +1504,6 @@ void RenderWindow::BoxSelection(const QPoint& p0, const QPoint& p1) {
       std::abs(pr0.y() - pr1.y()));
   
   for (auto& object : map->GetObjects()) {
-    if (!object.second->ShallBeDisplayed(lastDisplayedServerTime)) {
-      continue;
-    }
-    
     if (object.second->isUnit()) {
       ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
       
@@ -1901,6 +1912,19 @@ void RenderWindow::paintGL() {
     
     lastDisplayedServerTime = displayedServerTime;
     gameController->SetLastDisplayedServerTime(displayedServerTime);
+    
+    // Remove any objects that have been deleted from the selection.
+    usize outputIndex = 0;
+    for (usize i = 0; i < selection.size(); ++ i) {
+      if (map->GetObjects().find(selection[i]) == map->GetObjects().end()) {
+        continue;
+      }
+      if (outputIndex != i) {
+        selection[outputIndex] = selection[i];
+      }
+      ++ outputIndex;
+    }
+    selection.resize(outputIndex);
   }
   
   // If a building in the selection has finished construction, update the command buttons
@@ -2181,7 +2205,8 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
           } // end if (targetObject->isBuilding())
           
           // If the target is an enemy building or unit, command own units to attack it
-          if (targetObject->GetPlayerIndex() != match->GetPlayerIndex()) {
+          if (targetObject->GetPlayerIndex() != match->GetPlayerIndex() &&
+              targetObject->GetPlayerIndex() != kGaiaPlayerIndex) {
             std::vector<u32> suitableUnits;
             suitableUnits.reserve(selection.size());
             for (usize i = 0; i < selection.size(); ++ i) {

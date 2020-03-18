@@ -72,7 +72,7 @@ class ClientBuildingType {
 /// Represents a building on the client side.
 class ClientBuilding : public ClientObject {
  public:
-  ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY, float buildPercentage, double creationServerTime);
+  ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY, float buildPercentage, u32 hp);
   
   /// Returns the projected coordinates of this building's center point.
   QPointF GetCenterProjectedCoord(

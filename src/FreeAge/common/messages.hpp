@@ -174,6 +174,18 @@ enum class ServerToClientMessage {
   
   /// Sets the type and amount of carried resources for a villager.
   SetCarriedResources,
+  
+  /// Tells the client about a new HP value for a unit or building.
+  HPUpdate,
+  
+  /// An object was destroyed / killed / deleted and should be removed from the object list.
+  /// - If there is a destruction / death animation for the object,
+  ///   it starts playing on the client after receiving this message.
+  /// - Afterwards, the object potentially turns into a rubble pile or leaves a decay sprite.
+  /// These two items are handled separately (without an object instance) since in
+  /// both cases this entity will not affect the remaining objects anymore, and units / buildings
+  /// in this state should not be selectable anymore.
+  ObjectDeath,
 };
 
 QByteArray CreateWelcomeMessage();
@@ -213,3 +225,7 @@ QByteArray CreateBuildPercentageUpdateMessage(u32 buildingId, float progress);
 QByteArray CreateChangeUnitTypeMessage(u32 unitId, UnitType type);
 
 QByteArray CreateSetCarriedResourcesMessage(u32 unitId, ResourceType type, u8 amount);
+
+QByteArray CreateHPUpdateMessage(u32 objectId, u32 newHP);
+
+QByteArray CreateObjectDeathMessage(u32 objectId);

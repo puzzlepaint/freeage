@@ -68,7 +68,7 @@ class ClientUnitType {
 /// Represents a unit on the client side.
 class ClientUnit : public ClientObject {
  public:
-  ClientUnit(int playerIndex, UnitType type, const QPointF& mapCoord, double creationServerTime);
+  ClientUnit(int playerIndex, UnitType type, const QPointF& mapCoord, u32 hp);
   
   /// Returns the projected coordinates of this unit's center point.
   QPointF GetCenterProjectedCoord(Map* map);

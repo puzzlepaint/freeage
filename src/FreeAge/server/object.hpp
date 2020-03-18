@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cmath>
+
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/object_types.hpp"
 
@@ -36,7 +38,15 @@ class ServerObject {
   
   inline int GetPlayerIndex() const { return playerIndex; }
   
+  inline u32 GetHP() const { return std::round(hp); }
+  inline float GetHPInternalFloat() const { return hp; };
+  inline void SetHP(float newHP) { hp = newHP; }
+  
  private:
+  /// Current hitpoints of the object.
+  /// For display on the client, those are rounded to the nearest integer.
+  float hp;
+  
   u8 playerIndex;
   
   /// 0 for buildings, 1 for units.

@@ -184,8 +184,8 @@ void ClientBuildingType::SetCommandButtons(CommandButton commandButtons[3][5]) {
 }
 
 
-ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY, float buildPercentage, double creationServerTime)
-    : ClientObject(ObjectType::Building, playerIndex, creationServerTime),
+ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY, float buildPercentage, u32 hp)
+    : ClientObject(ObjectType::Building, playerIndex, hp),
       type(type),
       fixedFrameIndex(-1),
       baseTileX(baseTileX),

@@ -93,6 +93,7 @@ class Game {
   void SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject);
   
   
+  /// Stores the game map and the objects on it.
   std::shared_ptr<ServerMap> map;
   
   /// The server time in seconds at which the actual game begins (after all clients
@@ -103,7 +104,15 @@ class Game {
   /// The next iteration is due 1 / FPS seconds after this time.
   double lastSimulationTime;
   
+  /// List of players in the game.
   std::vector<std::shared_ptr<PlayerInGame>>* playersInGame;
+  
+  /// Stores the object IDs that should be deleted at the end of the current
+  /// game step. This list is required since we generally cannot directly delete
+  //  arbitrary objects during the game step simulation. This is because
+  /// this consists of iterating over the objects list, and direct deletion of arbitrary
+  /// elements could invalidate the iterator.
+  std::vector<u32> objectDeleteList;
   
   /// For each player, stores accumulated messages that will be sent out
   /// upon the next conclusion of a game simulation step. Accumulating

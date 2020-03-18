@@ -75,3 +75,8 @@ ResourceAmount GetUnitCost(UnitType type);
 float GetUnitProductionTime(UnitType type);
 
 int GetUnitAttackFrames(UnitType type);
+
+/// TODO: This needs to consider the player's civilization and researched technologies
+u32 GetUnitMaxHP(UnitType type);
+u32 GetUnitMeleeAttack(UnitType type);
+u32 GetUnitMeleeArmor(UnitType type);
