@@ -247,8 +247,17 @@ void RenderWindow::LoadResources() {
   std::filesystem::path ingameActionsPath =
       widgetuiTexturesPath / "ingame" / "actions";
   
+  // Note: I profiled the loading below and replacing the QImage() variants with the mango variants
+  // was significantly slower.
+  // Initial times:
+  //   0.0421275, 0.0420974, 0.0429374
+  // With QImage loading replaced by mango loading:
+  //   0.286818,  0.285423
+  
   resourcePanelTexture.reset(new Texture());
-  resourcePanelTexture->Load(QImage((architecturePanelsPath / "resource-panel.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  QImage resourcePanelImage((architecturePanelsPath / "resource-panel.png").c_str());
+  resourcePanelTexture->Load(resourcePanelImage, GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  resourcePanelOpaquenessMap.Create(resourcePanelImage);
   didLoadingStep();
   
   resourceWoodTexture.reset(new Texture());
@@ -280,7 +289,9 @@ void RenderWindow::LoadResources() {
   didLoadingStep();
   
   commandPanelTexture.reset(new Texture());
-  commandPanelTexture->Load(QImage((architecturePanelsPath / "command-panel_extended.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  QImage commandPanelImage((architecturePanelsPath / "command-panel_extended.png").c_str());
+  commandPanelTexture->Load(commandPanelImage, GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  commandPanelOpaquenessMap.Create(commandPanelImage);
   didLoadingStep();
   
   buildEconomyBuildingsTexture.reset(new Texture());
@@ -300,7 +311,9 @@ void RenderWindow::LoadResources() {
   didLoadingStep();
   
   selectionPanelTexture.reset(new Texture());
-  selectionPanelTexture->Load(QImage((architecturePanelsPath / "single-selection-panel.png").c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  QImage selectionPanelImage((architecturePanelsPath / "single-selection-panel.png").c_str());
+  selectionPanelTexture->Load(selectionPanelImage, GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  selectionPanelOpaquenessMap.Create(selectionPanelImage);
   didLoadingStep();
   
   iconOverlayNormalTexture.reset(new Texture());
@@ -963,7 +976,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
 }
 
 void RenderWindow::RenderGameUI(double displayedServerTime) {
-  constexpr float kUIScale = 0.5f;  // TODO: Make configurable
+  const float kUIScale = GetUIScale();
   
   RenderResourcePanel(kUIScale);
   
@@ -1016,19 +1029,26 @@ void RenderWindow::RenderGameUI(double displayedServerTime) {
   }
 }
 
+QPointF RenderWindow::GetResourcePanelTopLeft() {
+  return QPointF(0, 0);
+}
+
 void RenderWindow::RenderResourcePanel(float uiScale) {
   const ResourceAmount& resources = gameController->GetCurrentResourceAmount();
   
+  QPointF topLeft = GetResourcePanelTopLeft();
+  
   RenderUIGraphic(
-      0,
-      0,
+      topLeft.x(),
+      topLeft.y(),
       uiScale * resourcePanelTexture->GetWidth(),
       uiScale * resourcePanelTexture->GetHeight(),
       *resourcePanelTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
   RenderUIGraphic(
-      uiScale * (17 + 0 * 200), uiScale * 16,
+      topLeft.x() + uiScale * (17 + 0 * 200),
+      topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
       *resourceWoodTexture,
@@ -1040,15 +1060,16 @@ void RenderWindow::RenderResourcePanel(float uiScale) {
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       QString::number(resources.wood()),
-      QRect(uiScale * (17 + 0 * 200 + 83 + 16),
-            uiScale * 16,
+      QRect(topLeft.x() + uiScale * (17 + 0 * 200 + 83 + 16),
+            topLeft.y() + uiScale * 16,
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
   RenderUIGraphic(
-      uiScale * (17 + 1 * 200), uiScale * 16,
+      topLeft.x() + uiScale * (17 + 1 * 200),
+      topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
       *resourceFoodTexture,
@@ -1060,15 +1081,16 @@ void RenderWindow::RenderResourcePanel(float uiScale) {
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       QString::number(resources.food()),
-      QRect(uiScale * (17 + 1 * 200 + 83 + 16),
-            uiScale * 16,
+      QRect(topLeft.x() + uiScale * (17 + 1 * 200 + 83 + 16),
+            topLeft.y() + uiScale * 16,
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
   RenderUIGraphic(
-      uiScale * (17 + 2 * 200), uiScale * 16,
+      topLeft.x() + uiScale * (17 + 2 * 200),
+      topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
       *resourceGoldTexture,
@@ -1080,15 +1102,16 @@ void RenderWindow::RenderResourcePanel(float uiScale) {
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       QString::number(resources.gold()),
-      QRect(uiScale * (17 + 2 * 200 + 83 + 16),
-            uiScale * 16,
+      QRect(topLeft.x() + uiScale * (17 + 2 * 200 + 83 + 16),
+            topLeft.y() + uiScale * 16,
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
   RenderUIGraphic(
-      uiScale * (17 + 3 * 200), uiScale * 16,
+      topLeft.x() + uiScale * (17 + 3 * 200),
+      topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
       *resourceStoneTexture,
@@ -1100,15 +1123,16 @@ void RenderWindow::RenderResourcePanel(float uiScale) {
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       QString::number(resources.stone()),
-      QRect(uiScale * (17 + 3 * 200 + 83 + 16),
-            uiScale * 16,
+      QRect(topLeft.x() + uiScale * (17 + 3 * 200 + 83 + 16),
+            topLeft.y() + uiScale * 16,
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
   RenderUIGraphic(
-      uiScale * (17 + 4 * 200), uiScale * 16,
+      topLeft.x() + uiScale * (17 + 4 * 200),
+      topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
       *popTexture,
@@ -1120,21 +1144,23 @@ void RenderWindow::RenderResourcePanel(float uiScale) {
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       "4 / 5",  // TODO
-      QRect(uiScale * (17 + 4 * 200 + 83 + 16),
-            uiScale * 16,
+      QRect(topLeft.x() + uiScale * (17 + 4 * 200 + 83 + 16),
+            topLeft.y() + uiScale * 16,
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
   RenderUIGraphic(
-      uiScale * (17 + 4 * 200 + 234), uiScale * 24,
+      topLeft.x() + uiScale * (17 + 4 * 200 + 234),
+      topLeft.y() + uiScale * 24,
       uiScale * 2 * 34,
       uiScale * 2 * 34,
       *idleVillagerDisabledTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   RenderUIGraphic(
-      uiScale * (17 + 4 * 200 + 234 + 154 - currentAgeShieldTexture->GetWidth() / 2), uiScale * 0,
+      topLeft.x() + uiScale * (17 + 4 * 200 + 234 + 154 - currentAgeShieldTexture->GetWidth() / 2),
+      topLeft.y() + uiScale * 0,
       uiScale * currentAgeShieldTexture->GetWidth(),
       uiScale * currentAgeShieldTexture->GetHeight(),
       *currentAgeShieldTexture,
@@ -1142,25 +1168,32 @@ void RenderWindow::RenderResourcePanel(float uiScale) {
   if (!currentAgeTextDisplay) {
     currentAgeTextDisplay.reset(new TextDisplay());
   }
-  float currentAgeTextLeft = uiScale * (17 + 4 * 200 + 234 + 154 + currentAgeShieldTexture->GetWidth() / 2);
+  float currentAgeTextLeft = topLeft.x() + uiScale * (17 + 4 * 200 + 234 + 154 + currentAgeShieldTexture->GetWidth() / 2);
   currentAgeTextDisplay->Render(
       georgiaFontLarger,
       qRgba(255, 255, 255, 255),
       tr("Dark Age"),
       QRect(currentAgeTextLeft,
-            uiScale * 16,
+            topLeft.y() + uiScale * 16,
             uiScale * (1623 - 8) - currentAgeTextLeft,
             uiScale * 83),
       Qt::AlignHCenter | Qt::AlignVCenter,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
 }
 
+QPointF RenderWindow::GetSelectionPanelTopLeft() {
+  const float uiScale = GetUIScale();
+  return QPointF(
+      uiScale * 539,
+      widgetHeight - uiScale * selectionPanelTexture->GetHeight());
+}
+
 void RenderWindow::RenderSelectionPanel(float uiScale) {
-  float selectionPanelLeft = uiScale * 539;
-  float selectionPanelTop = widgetHeight - uiScale * selectionPanelTexture->GetHeight();
+  QPointF topLeft = GetSelectionPanelTopLeft();
+  
   RenderUIGraphic(
-      selectionPanelLeft,
-      selectionPanelTop,
+      topLeft.x(),
+      topLeft.y(),
       uiScale * selectionPanelTexture->GetWidth(),
       uiScale * selectionPanelTexture->GetHeight(),
       *selectionPanelTexture,
@@ -1177,8 +1210,8 @@ void RenderWindow::RenderSelectionPanel(float uiScale) {
         georgiaFontLarger,
         qRgba(58, 29, 21, 255),
         singleSelectedObject->GetObjectName(),
-        QRect(selectionPanelLeft + uiScale * 2*32,
-              selectionPanelTop + uiScale * 50 + uiScale * 2*25,
+        QRect(topLeft.x() + uiScale * 2*32,
+              topLeft.y() + uiScale * 50 + uiScale * 2*25,
               uiScale * 2*172,
               uiScale * 2*16),
         Qt::AlignLeft | Qt::AlignTop,
@@ -1199,8 +1232,8 @@ void RenderWindow::RenderSelectionPanel(float uiScale) {
               QObject::tr("Carries %1 %2")
                   .arg(singleSelectedUnit->GetCarriedResourceAmount())
                   .arg(GetResourceName(singleSelectedUnit->GetCarriedResourceType())),
-              QRect(selectionPanelLeft + uiScale * 2*32,
-                    selectionPanelTop + uiScale * 50 + uiScale * 2*46 + uiScale * 2*60 + uiScale * 2*10,
+              QRect(topLeft.x() + uiScale * 2*32,
+                    topLeft.y() + uiScale * 50 + uiScale * 2*46 + uiScale * 2*60 + uiScale * 2*10,
                     uiScale * 2*172,
                     uiScale * 2*16),
               Qt::AlignLeft | Qt::AlignTop,
@@ -1214,15 +1247,15 @@ void RenderWindow::RenderSelectionPanel(float uiScale) {
     if (iconTexture) {
       float iconInset = uiScale * 4;
       RenderUIGraphic(
-          selectionPanelLeft + uiScale * 2*32 + iconInset,
-          selectionPanelTop + uiScale * 50 + uiScale * 2*46 + iconInset,
+          topLeft.x() + uiScale * 2*32 + iconInset,
+          topLeft.y() + uiScale * 50 + uiScale * 2*46 + iconInset,
           uiScale * 2*60 - 2 * iconInset,
           uiScale * 2*60 - 2 * iconInset,
           *iconTexture,
           uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
       RenderUIGraphic(
-          selectionPanelLeft + uiScale * 2*32,
-          selectionPanelTop + uiScale * 50 + uiScale * 2*46,
+          topLeft.x() + uiScale * 2*32,
+          topLeft.y() + uiScale * 50 + uiScale * 2*46,
           uiScale * 2*60,
           uiScale * 2*60,
           *iconOverlayNormalTexture,
@@ -1231,20 +1264,28 @@ void RenderWindow::RenderSelectionPanel(float uiScale) {
   }
 }
 
-void RenderWindow::RenderCommandPanel(float uiScale) {
-  float commandPanelTop = widgetHeight - uiScale * commandPanelTexture->GetHeight();
-  RenderUIGraphic(
+QPointF RenderWindow::GetCommandPanelTopLeft() {
+  float uiScale = GetUIScale();
+  return QPointF(
       0,
-      commandPanelTop,
+      widgetHeight - uiScale * commandPanelTexture->GetHeight());
+}
+
+void RenderWindow::RenderCommandPanel(float uiScale) {
+  QPointF topLeft = GetCommandPanelTopLeft();
+  
+  RenderUIGraphic(
+      topLeft.x(),
+      topLeft.y(),
       uiScale * commandPanelTexture->GetWidth(),
       uiScale * commandPanelTexture->GetHeight(),
       *commandPanelTexture,
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   
-  float commandButtonsLeft = uiScale * 49;
-  float commandButtonsTop = commandPanelTop + uiScale * 93;
-  float commandButtonsRight = uiScale * 499;
-  float commandButtonsBottom = commandPanelTop + uiScale * 370;
+  float commandButtonsLeft = topLeft.x() + uiScale * 49;
+  float commandButtonsTop = topLeft.y() + uiScale * 93;
+  float commandButtonsRight = topLeft.x() + uiScale * 499;
+  float commandButtonsBottom = topLeft.y() + uiScale * 370;
   
   float commandButtonSize = uiScale * 80;
   
@@ -1284,6 +1325,27 @@ void RenderWindow::RenderCommandPanel(float uiScale) {
           uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
     }
   }
+}
+
+bool RenderWindow::IsUIAt(int x, int y) {
+  float factor = 1.f / GetUIScale();
+  
+  QPointF resourcePanelTopLeft = GetResourcePanelTopLeft();
+  if (resourcePanelOpaquenessMap.IsOpaque(factor * (x - resourcePanelTopLeft.x()), factor * (y - resourcePanelTopLeft.y()))) {
+    return true;
+  }
+  
+  QPointF selectionPanelTopLeft = GetSelectionPanelTopLeft();
+  if (selectionPanelOpaquenessMap.IsOpaque(factor * (x - selectionPanelTopLeft.x()), factor * (y - selectionPanelTopLeft.y()))) {
+    return true;
+  }
+  
+  QPointF commandPanelTopLeft = GetCommandPanelTopLeft();
+  if (commandPanelOpaquenessMap.IsOpaque(factor * (x - commandPanelTopLeft.x()), factor * (y - commandPanelTopLeft.y()))) {
+    return true;
+  }
+  
+  return false;
 }
 
 struct PossibleSelectedObject {
@@ -1979,9 +2041,28 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
     return;
   }
   
+  bool isUIClick = IsUIAt(event->x(), event->y());
+  
   if (event->button() == Qt::LeftButton) {
+    // Has a command button been pressed?
+    for (int row = 0; row < kCommandButtonRows; ++ row) {
+      for (int col = 0; col < kCommandButtonCols; ++ col) {
+        if (commandButtons[row][col].IsPointInButton(event->pos())) {
+          pressedCommandButtonRow = row;
+          pressedCommandButtonCol = col;
+          return;
+        }
+      }
+    }
+    
+    if (isUIClick) {
+      return;
+    }
+    
     // Place a building foundation?
     if (constructBuildingType != BuildingType::NumBuildings) {
+      ignoreLeftMouseRelease = true;
+      
       QPoint foundationBaseTile;
       bool canBePlacedHere = CanBuildingFoundationBePlacedHere(constructBuildingType, lastCursorPos, &foundationBaseTile);
       if (canBePlacedHere) {
@@ -2007,23 +2088,13 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
       }
     }
     
-    // Has a command button been pressed?
-    for (int row = 0; row < kCommandButtonRows; ++ row) {
-      for (int col = 0; col < kCommandButtonCols; ++ col) {
-        if (commandButtons[row][col].IsPointInButton(event->pos())) {
-          pressedCommandButtonRow = row;
-          pressedCommandButtonCol = col;
-          return;
-        }
-      }
-    }
-    
     // Clicked into the game area. Remember the position in case the user
     // starts dragging the mouse later.
     dragStartPos = event->pos();
     possibleDragStart = true;
     dragging = false;
-  } else if (event->button() == Qt::RightButton) {
+  } else if (event->button() == Qt::RightButton &&
+             !isUIClick) {
     bool haveOwnUnitSelected = false;
     bool haveOwnVillagerSelected = false;
     bool haveBuildingSelected = false;
@@ -2164,8 +2235,16 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
     return;
   }
   
+  bool isUIClick = IsUIAt(event->x(), event->y());
+  
   if (event->button() == Qt::LeftButton) {
     possibleDragStart = false;
+    
+    if (ignoreLeftMouseRelease) {
+      dragging = false;
+      ignoreLeftMouseRelease = false;
+      return;
+    }
     
     if (dragging) {
       BoxSelection(dragStartPos, event->pos());
@@ -2213,7 +2292,9 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
       return;
     }
     
-    // TODO: Only do this when not dragging and not clicking the UI
+    if (isUIClick) {
+      return;
+    }
     
     u32 objectId;
     if (GetObjectToSelectAt(event->x(), event->y(), &objectId, &selection)) {

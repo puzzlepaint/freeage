@@ -113,6 +113,7 @@ set(FREEAGE_SRCS
   src/FreeAge/client/map.cpp
   src/FreeAge/client/match.cpp
   src/FreeAge/client/object.cpp
+  src/FreeAge/client/opaqueness_map.cpp
   src/FreeAge/client/opengl.cpp
   src/FreeAge/client/render_window.cpp
   src/FreeAge/client/server_connection.cpp

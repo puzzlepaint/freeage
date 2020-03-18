@@ -11,6 +11,7 @@
 #include "FreeAge/client/command_button.hpp"
 #include "FreeAge/client/map.hpp"
 #include "FreeAge/client/match.hpp"
+#include "FreeAge/client/opaqueness_map.hpp"
 #include "FreeAge/client/shader_health_bar.hpp"
 #include "FreeAge/client/shader_sprite.hpp"
 #include "FreeAge/client/shader_ui.hpp"
@@ -76,10 +77,16 @@ class RenderWindow : public QOpenGLWidget {
   void RenderUnits(double displayedServerTime);
   void RenderMoveToMarker(const TimePoint& now);
   void RenderHealthBars(double displayedServerTime);
+  
   void RenderGameUI(double displayedServerTime);
+  inline float GetUIScale() const { return 0.5f; }  // TODO: Make configurable
+  QPointF GetResourcePanelTopLeft();
   void RenderResourcePanel(float uiScale);
+  QPointF GetSelectionPanelTopLeft();
   void RenderSelectionPanel(float uiScale);
+  QPointF GetCommandPanelTopLeft();
   void RenderCommandPanel(float uiScale);
+  bool IsUIAt(int x, int y);
   
   /// Given screen-space coordinates (x, y), finds the next object to select at
   /// this point. If an object is found, true is returned, and the object's ID is
@@ -128,6 +135,8 @@ class RenderWindow : public QOpenGLWidget {
   QPoint dragStartPos = QPoint(0, 0);
   bool possibleDragStart = false;
   bool dragging = false;
+  
+  bool ignoreLeftMouseRelease = false;
   
   /// Current map scroll position in map coordinates.
   /// The "scroll" map coordinate is visible at the center of the screen.
@@ -191,6 +200,7 @@ class RenderWindow : public QOpenGLWidget {
   
   // Game UI.
   std::shared_ptr<Texture> resourcePanelTexture;
+  OpaquenessMap resourcePanelOpaquenessMap;
   std::shared_ptr<Texture> resourceWoodTexture;
   std::shared_ptr<TextDisplay> woodTextDisplay;
   std::shared_ptr<Texture> resourceFoodTexture;
@@ -209,12 +219,14 @@ class RenderWindow : public QOpenGLWidget {
   std::shared_ptr<TextDisplay> pingDisplay;
   
   std::shared_ptr<Texture> commandPanelTexture;
+  OpaquenessMap commandPanelOpaquenessMap;
   std::shared_ptr<Texture> buildEconomyBuildingsTexture;
   std::shared_ptr<Texture> buildMilitaryBuildingsTexture;
   std::shared_ptr<Texture> toggleBuildingsCategoryTexture;
   std::shared_ptr<Texture> quitTexture;
   
   std::shared_ptr<Texture> selectionPanelTexture;
+  OpaquenessMap selectionPanelOpaquenessMap;
   std::shared_ptr<TextDisplay> singleObjectNameDisplay;
   std::shared_ptr<TextDisplay> carriedResourcesDisplay;
   
