@@ -31,6 +31,7 @@ class RenderWindow : public QOpenGLWidget {
       const std::shared_ptr<Match>& match,
       const std::shared_ptr<GameController>& gameController,
       const std::shared_ptr<ServerConnection>& connection,
+      float uiScale,
       int georgiaFontID,
       const Palettes& palettes,
       const std::filesystem::path& graphicsPath,
@@ -79,19 +80,25 @@ class RenderWindow : public QOpenGLWidget {
   void RenderHealthBars(double displayedServerTime);
   
   void RenderGameUI(double displayedServerTime);
-  inline float GetUIScale() const { return 0.5f; }  // TODO: Make configurable
   QPointF GetResourcePanelTopLeft();
-  void RenderResourcePanel(float uiScale);
+  void RenderResourcePanel();
   QPointF GetSelectionPanelTopLeft();
-  void RenderSelectionPanel(float uiScale);
+  void RenderSelectionPanel();
   QPointF GetCommandPanelTopLeft();
-  void RenderCommandPanel(float uiScale);
+  void RenderCommandPanel();
   bool IsUIAt(int x, int y);
   
-  /// Given screen-space coordinates (x, y), finds the next object to select at
+  /// Given screen-space coordinates (x, y), finds the (next) object to select at
   /// this point. If an object is found, true is returned, and the object's ID is
   /// returned in objectId.
-  bool GetObjectToSelectAt(float x, float y, u32* objectId, std::vector<u32>* currentSelection);
+  ///
+  /// If toggleThroughObjects is true, then repeated selections at the same location
+  /// will toggle through all objects at this location.
+  ///
+  /// If selectSuitableTargetsOnly is true, then this function considers to return
+  /// only objects that at least one of the currently selected objects could interact
+  /// with.
+  bool GetObjectToSelectAt(float x, float y, u32* objectId, std::vector<u32>* currentSelection, bool toggleThroughObjects, bool selectSuitableTargetsOnly);
   
   QPointF ScreenCoordToProjectedCoord(float x, float y);
   
@@ -199,6 +206,8 @@ class RenderWindow : public QOpenGLWidget {
   std::shared_ptr<TextDisplay> loadingTextDisplay;
   
   // Game UI.
+  float uiScale;
+  
   std::shared_ptr<Texture> resourcePanelTexture;
   OpaquenessMap resourcePanelOpaquenessMap;
   std::shared_ptr<Texture> resourceWoodTexture;

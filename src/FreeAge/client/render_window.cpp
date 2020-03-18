@@ -47,12 +47,14 @@ RenderWindow::RenderWindow(
       const std::shared_ptr<Match>& match,
       const std::shared_ptr<GameController>& gameController,
       const std::shared_ptr<ServerConnection>& connection,
+      float uiScale,
       int georgiaFontID,
       const Palettes& palettes,
       const std::filesystem::path& graphicsPath,
       const std::filesystem::path& cachePath,
       QWidget* parent)
     : QOpenGLWidget(parent),
+      uiScale(uiScale),
       match(match),
       gameController(gameController),
       connection(connection),
@@ -61,11 +63,11 @@ RenderWindow::RenderWindow(
       graphicsPath(graphicsPath),
       cachePath(cachePath) {
   georgiaFontLarger = georgiaFont;
-  georgiaFontLarger.setPixelSize(17);
+  georgiaFontLarger.setPixelSize(uiScale * 2*17);
   georgiaFontLarger.setBold(true);
   
   georgiaFontSmaller = georgiaFont;
-  georgiaFontSmaller.setPixelSize(15);
+  georgiaFontSmaller.setPixelSize(uiScale * 2*15);
   
   setAttribute(Qt::WA_OpaquePaintEvent);
   setAutoFillBackground(false);
@@ -969,13 +971,11 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
 }
 
 void RenderWindow::RenderGameUI(double displayedServerTime) {
-  const float kUIScale = GetUIScale();
+  RenderResourcePanel();
   
-  RenderResourcePanel(kUIScale);
+  RenderSelectionPanel();
   
-  RenderSelectionPanel(kUIScale);
-  
-  RenderCommandPanel(kUIScale);
+  RenderCommandPanel();
   
   // Render the current game time
   double timeSinceGameStart = displayedServerTime - gameController->GetGameStartServerTimeSeconds();
@@ -992,8 +992,8 @@ void RenderWindow::RenderGameUI(double displayedServerTime) {
       georgiaFontSmaller,
       (i == 0) ? qRgba(0, 0, 0, 255) : qRgba(255, 255, 255, 255),
       timeString,
-      QRect(kUIScale * (2*851 + ((i == 0) ? 2 : 0)),
-            kUIScale * (8 + ((i == 0) ? 2 : 0)),
+      QRect(uiScale * (2*851 + ((i == 0) ? 2 : 0)),
+            uiScale * (8 + ((i == 0) ? 2 : 0)),
             0,
             0),
       Qt::AlignTop | Qt::AlignLeft,
@@ -1013,8 +1013,8 @@ void RenderWindow::RenderGameUI(double displayedServerTime) {
       georgiaFontSmaller,
       (i == 0) ? qRgba(0, 0, 0, 255) : qRgba(255, 255, 255, 255),
       pingString,
-      QRect(kUIScale * (2*851 + ((i == 0) ? 2 : 0)),
-            kUIScale * (40 + 8 + ((i == 0) ? 2 : 0)),
+      QRect(uiScale * (2*851 + ((i == 0) ? 2 : 0)),
+            uiScale * (40 + 8 + ((i == 0) ? 2 : 0)),
             0,
             0),
       Qt::AlignTop | Qt::AlignLeft,
@@ -1026,7 +1026,7 @@ QPointF RenderWindow::GetResourcePanelTopLeft() {
   return QPointF(0, 0);
 }
 
-void RenderWindow::RenderResourcePanel(float uiScale) {
+void RenderWindow::RenderResourcePanel() {
   const ResourceAmount& resources = gameController->GetCurrentResourceAmount();
   
   QPointF topLeft = GetResourcePanelTopLeft();
@@ -1175,13 +1175,12 @@ void RenderWindow::RenderResourcePanel(float uiScale) {
 }
 
 QPointF RenderWindow::GetSelectionPanelTopLeft() {
-  const float uiScale = GetUIScale();
   return QPointF(
       uiScale * 539,
       widgetHeight - uiScale * selectionPanelTexture->GetHeight());
 }
 
-void RenderWindow::RenderSelectionPanel(float uiScale) {
+void RenderWindow::RenderSelectionPanel() {
   QPointF topLeft = GetSelectionPanelTopLeft();
   
   RenderUIGraphic(
@@ -1284,13 +1283,12 @@ void RenderWindow::RenderSelectionPanel(float uiScale) {
 }
 
 QPointF RenderWindow::GetCommandPanelTopLeft() {
-  float uiScale = GetUIScale();
   return QPointF(
       0,
       widgetHeight - uiScale * commandPanelTexture->GetHeight());
 }
 
-void RenderWindow::RenderCommandPanel(float uiScale) {
+void RenderWindow::RenderCommandPanel() {
   QPointF topLeft = GetCommandPanelTopLeft();
   
   RenderUIGraphic(
@@ -1347,7 +1345,7 @@ void RenderWindow::RenderCommandPanel(float uiScale) {
 }
 
 bool RenderWindow::IsUIAt(int x, int y) {
-  float factor = 1.f / GetUIScale();
+  float factor = 1.f / uiScale;
   
   QPointF resourcePanelTopLeft = GetResourcePanelTopLeft();
   if (resourcePanelOpaquenessMap.IsOpaque(factor * (x - resourcePanelTopLeft.x()), factor * (y - resourcePanelTopLeft.y()))) {
@@ -1382,8 +1380,21 @@ struct PossibleSelectedObject {
   float score;
 };
 
-bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vector<u32>* currentSelection) {
+bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vector<u32>* currentSelection, bool toggleThroughObjects, bool selectSuitableTargetsOnly) {
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
+  
+  std::vector<ClientObject*> currentSelectedObjects;
+  if (selectSuitableTargetsOnly) {
+    currentSelectedObjects.resize(currentSelection->size());
+    for (usize i = 0; i < currentSelection->size(); ++ i) {
+      auto it = map->GetObjects().find(currentSelection->at(i));
+      if (it == map->GetObjects().end()) {
+        currentSelectedObjects[i] = nullptr;
+      } else {
+        currentSelectedObjects[i] = it->second;
+      }
+    }
+  }
   
   // First, collect all objects at the given position.
   std::vector<PossibleSelectedObject> possibleSelectedObjects;
@@ -1401,13 +1412,14 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
   
   for (auto& object : map->GetObjects()) {
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
+    bool addToList = false;
+    QRectF projectedCoordsRect;
     
     if (object.second->isBuilding()) {
       ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
       const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
       
       // Is the position within the tiles which the building stands on?
-      bool addToList = false;
       if (haveMapCoord) {
         QSize size = buildingType.GetSize();
         if (mapCoord.x() >= building.GetBaseTile().x() &&
@@ -1419,7 +1431,7 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
       }
       
       // Is the position within the building sprite?
-      QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
+      projectedCoordsRect = building.GetRectInProjectedCoords(
           map.get(),
           lastDisplayedServerTime,
           false,
@@ -1437,19 +1449,13 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
           addToList = true;
         }
       }
-      
-      if (addToList) {
-        // TODO: Also consider distance between given position and sprite center in score?
-        possibleSelectedObjects.emplace_back(object.first, computeScore(projectedCoordsRect, projectedCoord));
-      }
     } else if (object.second->isUnit()) {
       ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
       
       // Is the position close to the unit sprite?
       constexpr float kExtendSize = 8;
       
-      bool addToList = false;
-      QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
+      projectedCoordsRect = unit.GetRectInProjectedCoords(
           map.get(),
           lastDisplayedServerTime,
           false,
@@ -1458,33 +1464,40 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
       if (!addToList && projectedCoordsRect.contains(projectedCoord)) {
         addToList = true;
       }
-      
-      if (addToList) {
-        // TODO: Also consider distance between given position and sprite center in score?
-        possibleSelectedObjects.emplace_back(object.first, computeScore(projectedCoordsRect, projectedCoord));
+    }
+    
+    if (addToList && selectSuitableTargetsOnly) {
+      addToList = false;
+      for (ClientObject* selectedObject : currentSelectedObjects) {
+        if (selectedObject && GetInteractionType(selectedObject, object.second) != InteractionType::Invalid) {
+          addToList = true;
+          break;
+        }
       }
     }
-  }
-  
-  // Sort the detected objects by score.
-  std::sort(possibleSelectedObjects.begin(), possibleSelectedObjects.end());
-  
-  // Given the list of objects at the given position, and considering the current selection,
-  // return the next object to select.
-  if (currentSelection && currentSelection->size() == 1) {
-    // If the selection is in the list, select the next object.
-    for (usize i = 0; i < possibleSelectedObjects.size(); ++ i) {
-      if (possibleSelectedObjects[i].id == currentSelection->front()) {
-        *objectId = possibleSelectedObjects[(i + 1) % possibleSelectedObjects.size()].id;
-        return true;
-      }
+    
+    if (addToList) {
+      possibleSelectedObjects.emplace_back(object.first, computeScore(projectedCoordsRect, projectedCoord));
     }
   }
   
   if (!possibleSelectedObjects.empty()) {
-    // NOTE: In this case, we don't need to have all possibleSelectedObjects sorted.
-    //       We only need to get the one with the best score. However, it is not expected
-    //       to get lots of objects in this list, so it probably does not matter.
+    if (toggleThroughObjects && currentSelection && currentSelection->size() == 1) {
+      // Sort the detected objects by score.
+      std::sort(possibleSelectedObjects.begin(), possibleSelectedObjects.end());
+      
+      // If the current selection is in the list, then return the next object to select.
+      for (usize i = 0; i < possibleSelectedObjects.size(); ++ i) {
+        if (possibleSelectedObjects[i].id == currentSelection->front()) {
+          *objectId = possibleSelectedObjects[(i + 1) % possibleSelectedObjects.size()].id;
+          return true;
+        }
+      }
+    } else {
+      // Move the object with the highest score to the start.
+      std::partial_sort(possibleSelectedObjects.begin(), possibleSelectedObjects.begin() + 1, possibleSelectedObjects.end());
+    }
+    
     *objectId = possibleSelectedObjects.front().id;
     return true;
   }
@@ -2121,26 +2134,18 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
   } else if (event->button() == Qt::RightButton &&
              !isUIClick) {
     bool haveOwnUnitSelected = false;
-    bool haveOwnVillagerSelected = false;
     bool haveBuildingSelected = false;
-    
-    std::vector<bool> selectionIsVillager(selection.size(), false);
+    std::vector<ClientObject*> selectedObject(selection.size());
     
     for (usize i = 0; i < selection.size(); ++ i) {
       u32 id = selection[i];
       auto objectIt = map->GetObjects().find(id);
       if (objectIt == map->GetObjects().end()) {
-        LOG(ERROR) << "Selected object ID not found in map->GetObjects().";
+        selectedObject[i] = nullptr;
       } else {
+        selectedObject[i] = objectIt->second;
         haveBuildingSelected |= objectIt->second->isBuilding();
-        bool isOwnUnit = objectIt->second->isUnit() && objectIt->second->GetPlayerIndex() == match->GetPlayerIndex();
-        haveOwnUnitSelected |= isOwnUnit;
-        if (isOwnUnit) {
-          UnitType type = static_cast<ClientUnit*>(objectIt->second)->GetType();
-          bool isVillager = IsVillager(type);
-          selectionIsVillager[i] = isVillager;
-          haveOwnVillagerSelected |= isOwnUnit && isVillager;
-        }
+        haveOwnUnitSelected |= objectIt->second->isUnit() && objectIt->second->GetPlayerIndex() == match->GetPlayerIndex();
       }
     }
     
@@ -2152,80 +2157,28 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
       // TODO: In the target selection, factor in whether villagers / military units are selected to prefer selecting suitable targets.
       //       Also, exclude own units (except when commanding monks, or targeting transport ships, siege towers, etc.)
       u32 targetObjectId;
-      if (GetObjectToSelectAt(event->x(), event->y(), &targetObjectId, nullptr)) {
-        auto targetIt = map->GetObjects().find(targetObjectId);
-        if (targetIt != map->GetObjects().end()) {
-          ClientObject* targetObject = targetIt->second;
-          if (targetObject->isBuilding()) {
-            ClientBuilding* targetBuilding = static_cast<ClientBuilding*>(targetObject);
-            
-            // Command selected villagers to construct buildings or gather resources
-            if ((targetBuilding->GetPlayerIndex() == match->GetPlayerIndex() && targetBuilding->GetBuildPercentage() < 100) ||
-                IsTree(targetBuilding->GetType()) ||
-                targetBuilding->GetType() == BuildingType::ForageBush ||
-                targetBuilding->GetType() == BuildingType::GoldMine ||
-                targetBuilding->GetType() == BuildingType::StoneMine) {
-              std::vector<u32> suitableUnits;
-              suitableUnits.reserve(selection.size());
-              for (usize i = 0; i < selection.size(); ++ i) {
-                if (!unitsCommanded[i] && selectionIsVillager[i]) {
-                  suitableUnits.push_back(selection[i]);
-                  unitsCommanded[i] = true;
-                }
-              }
-              
-              if (!suitableUnits.empty()) {
-                connection->Write(CreateSetTargetMessage(suitableUnits, targetObjectId));
-                
-                // Make the ground outline of the target flash green three times
-                LetObjectGroundOutlineFlash(targetObjectId);
-              }
-            }
-            
-            // Command each villager carrying resources to the target building if it
-            // acts as a resource drop-off point for the villager's resource type.
-            std::vector<u32> suitableUnits;
-            suitableUnits.reserve(selection.size());
-            for (usize i = 0; i < selection.size(); ++ i) {
-              if (!unitsCommanded[i] && selectionIsVillager[i]) {
-                ClientUnit* villager = static_cast<ClientUnit*>(map->GetObjects().at(selection[i]));
-                if (villager->GetCarriedResourceAmount() > 0 &&
-                    IsDropOffPointForResource(targetBuilding->GetType(), villager->GetCarriedResourceType())) {
-                  suitableUnits.push_back(selection[i]);
-                  unitsCommanded[i] = true;
-                }
-              }
-            }
-            
-            if (!suitableUnits.empty()) {
-              connection->Write(CreateSetTargetMessage(suitableUnits, targetObjectId));
-              
-              // Make the ground outline of the target flash green three times
-              LetObjectGroundOutlineFlash(targetObjectId);
-            }
-          } // end if (targetObject->isBuilding())
-          
-          // If the target is an enemy building or unit, command own units to attack it
-          if (targetObject->GetPlayerIndex() != match->GetPlayerIndex() &&
-              targetObject->GetPlayerIndex() != kGaiaPlayerIndex) {
-            std::vector<u32> suitableUnits;
-            suitableUnits.reserve(selection.size());
-            for (usize i = 0; i < selection.size(); ++ i) {
-              if (!unitsCommanded[i]) {
-                suitableUnits.push_back(selection[i]);
-                unitsCommanded[i] = true;
-              }
-            }
-            
-            if (!suitableUnits.empty()) {
-              connection->Write(CreateSetTargetMessage(suitableUnits, targetObjectId));
-              
-              // Make the ground outline of the target flash green three times
-              LetObjectGroundOutlineFlash(targetObjectId);
-            }
+      if (GetObjectToSelectAt(event->x(), event->y(), &targetObjectId, &selection, false, true)) {
+        // Command all selected units that can interact with the returned target object to it.
+        ClientObject* targetObject = map->GetObjects().at(targetObjectId);
+        
+        std::vector<u32> suitableUnits;
+        suitableUnits.reserve(selection.size());
+        for (usize i = 0; i < selection.size(); ++ i) {
+          if (!unitsCommanded[i] &&
+              selectedObject[i] &&
+              GetInteractionType(selectedObject[i], targetObject) != InteractionType::Invalid) {
+            suitableUnits.push_back(selection[i]);
+            unitsCommanded[i] = true;
           }
-        } // end if (targetIt != map->GetObjects().end())
-      } // end if (GetObjectToSelectAt(event->x(), event->y(), &targetObjectId, nullptr))
+        }
+        
+        if (!suitableUnits.empty()) {
+          connection->Write(CreateSetTargetMessage(suitableUnits, targetObjectId));
+          
+          // Make the ground outline of the target flash green three times
+          LetObjectGroundOutlineFlash(targetObjectId);
+        }
+      }
       
       // Send the remaining selected units to the clicked map coordinate.
       QPointF projectedCoord = ScreenCoordToProjectedCoord(event->x(), event->y());
@@ -2343,7 +2296,7 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
     }
     
     u32 objectId;
-    if (GetObjectToSelectAt(event->x(), event->y(), &objectId, &selection)) {
+    if (GetObjectToSelectAt(event->x(), event->y(), &objectId, &selection, true, false)) {
       // Note: We need to keep the selection during GetObjectToSelectAt() to make the
       // mechanism work which selects the next object on repeated clicks.
       ClearSelection();

@@ -4,6 +4,8 @@
 #include "FreeAge/server/unit.hpp"
 
 InteractionType GetInteractionType(ServerObject* actor, ServerObject* target) {
+  // TODO: There is a copy of this function in the client code. Can we merge these copies?
+  
   if (actor->isUnit()) {
     ServerUnit* actorUnit = static_cast<ServerUnit*>(actor);
     

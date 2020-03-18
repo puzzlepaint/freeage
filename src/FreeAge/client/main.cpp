@@ -254,9 +254,13 @@ int main(int argc, char** argv) {
   }
   
   // Create an OpenGL render window using Qt.
-  std::shared_ptr<RenderWindow> renderWindow(new RenderWindow(match, gameController, connection, georgiaFontID, palettes, graphicsPath, cachePath));
+  std::shared_ptr<RenderWindow> renderWindow(new RenderWindow(match, gameController, connection, settings.uiScale, georgiaFontID, palettes, graphicsPath, cachePath));
   gameController->SetRenderWindow(renderWindow);
-  renderWindow->show();
+  if (settings.fullscreen) {
+    renderWindow->showFullScreen();
+  } else {
+    renderWindow->show();
+  }
   
   // Run the Qt event loop.
   qapp.exec();

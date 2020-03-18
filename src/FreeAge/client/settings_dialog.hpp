@@ -2,6 +2,7 @@
 
 #include <filesystem>
 
+#include <QCheckBox>
 #include <QDialog>
 #include <QLineEdit>
 
@@ -13,6 +14,8 @@ struct Settings {
   std::filesystem::path dataPath;
   std::filesystem::path modsPath;
   QString playerName;
+  float uiScale;
+  bool fullscreen;
   
  private:
   void TryToFindPathsOnWindows();
@@ -42,6 +45,8 @@ class SettingsDialog : public QDialog {
   QLineEdit* dataFolderEdit;
   QLineEdit* modsFolderEdit;
   QLineEdit* playerNameEdit;
+  QCheckBox* fullscreenCheck;
+  QLineEdit* uiScaleEdit;
   bool hostGameChosen;
   QString ipText;
   

@@ -208,9 +208,11 @@ class ServerConnectionThread : public QThread {
     exec();
     
     // Clean up.
-    pingAndConnectionCheckTimer->stop();
-    delete pingAndConnectionCheckTimer;
-    pingAndConnectionCheckTimer = nullptr;
+    if (pingAndConnectionCheckTimer) {
+      pingAndConnectionCheckTimer->stop();
+      delete pingAndConnectionCheckTimer;
+      pingAndConnectionCheckTimer = nullptr;
+    }
     
     delete socket;
     socket = nullptr;

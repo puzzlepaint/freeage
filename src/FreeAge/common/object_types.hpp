@@ -10,3 +10,23 @@ enum class ObjectType {
 };
 
 constexpr u32 kInvalidObjectId = std::numeric_limits<u32>::max();
+
+enum class InteractionType {
+  // A villager constructs a building.
+  Construct = 0,
+  
+  // A villager collects a resource.
+  CollectBerries,
+  CollectWood,
+  CollectGold,
+  CollectStone,
+  
+  // A villager drops off carried resources at a resource drop-off building.
+  DropOffResource,
+  
+  // A unit attacks an enemy unit or building
+  Attack,
+  
+  // No valid interaction.
+  Invalid
+};

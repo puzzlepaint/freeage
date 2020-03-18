@@ -43,3 +43,6 @@ class ClientObject {
   /// Helper variable saying whether this object is currently selected.
   bool isSelected;
 };
+
+/// Returns how the actor can interact with the target.
+InteractionType GetInteractionType(ClientObject* actor, ClientObject* target);

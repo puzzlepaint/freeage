@@ -5,26 +5,6 @@
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/object_types.hpp"
 
-enum class InteractionType {
-  // A villager constructs a building.
-  Construct = 0,
-  
-  // A villager collects a resource.
-  CollectBerries,
-  CollectWood,
-  CollectGold,
-  CollectStone,
-  
-  // A villager drops off carried resources at a resource drop-off building.
-  DropOffResource,
-  
-  // A unit attacks an enemy unit or building
-  Attack,
-  
-  // No valid interaction.
-  Invalid
-};
-
 /// Base class for game objects (buildings and units).
 class ServerObject {
  public:
