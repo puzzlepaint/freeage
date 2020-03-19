@@ -258,6 +258,7 @@ int main(int argc, char** argv) {
   gameController->SetRenderWindow(renderWindow);
   if (settings.fullscreen) {
     renderWindow->showFullScreen();
+    renderWindow->EnableBorderScrolling(true);
   } else {
     renderWindow->show();
   }

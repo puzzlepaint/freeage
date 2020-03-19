@@ -94,6 +94,7 @@ RenderWindow::RenderWindow(
   timer->start(1000.f / framesPerSecondCap + 0.5f);
   
   // Initialize the view settings
+  lastScrollGetTime = Clock::now();
   scroll = QPointF(0, 0);
   zoom = 1;
   
@@ -365,20 +366,37 @@ void RenderWindow::Scroll(float x, float y, QPointF* mapCoord) {
 QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime) {
   QPointF projectedCoord = map->MapCoordToProjectedCoord(scroll);
   if (scrollRightPressed) {
-    double seconds = std::chrono::duration<double>(atTime - scrollRightPressTime).count();
+    double seconds = SecondsDuration(atTime - scrollRightPressTime).count();
     projectedCoord += QPointF(scrollDistancePerSecond / zoom * seconds, 0);
   }
   if (scrollLeftPressed) {
-    double seconds = std::chrono::duration<double>(atTime - scrollLeftPressTime).count();
+    double seconds = SecondsDuration(atTime - scrollLeftPressTime).count();
     projectedCoord += QPointF(-scrollDistancePerSecond / zoom * seconds, 0);
   }
   if (scrollDownPressed) {
-    double seconds = std::chrono::duration<double>(atTime - scrollDownPressTime).count();
+    double seconds = SecondsDuration(atTime - scrollDownPressTime).count();
     projectedCoord += QPointF(0, scrollDistancePerSecond / zoom * seconds);
   }
   if (scrollUpPressed) {
-    double seconds = std::chrono::duration<double>(atTime - scrollUpPressTime).count();
+    double seconds = SecondsDuration(atTime - scrollUpPressTime).count();
     projectedCoord += QPointF(0, -scrollDistancePerSecond / zoom * seconds);
+  }
+  
+  if (borderScrollingEnabled) {
+    double mouseImpactSeconds = SecondsDuration(atTime - lastScrollGetTime).count();
+    
+    if (lastCursorPos.x() == widgetWidth - 1) {
+      projectedCoord += QPointF(scrollDistancePerSecond / zoom * mouseImpactSeconds, 0);
+    }
+    if (lastCursorPos.x() == 0) {
+      projectedCoord += QPointF(-scrollDistancePerSecond / zoom * mouseImpactSeconds, 0);
+    }
+    if (lastCursorPos.y() == widgetHeight - 1) {
+      projectedCoord += QPointF(0, scrollDistancePerSecond / zoom * mouseImpactSeconds);
+    }
+    if (lastCursorPos.y() == 0) {
+      projectedCoord += QPointF(0, -scrollDistancePerSecond / zoom * mouseImpactSeconds);
+    }
   }
   
   QPointF result;
@@ -462,6 +480,7 @@ void RenderWindow::UpdateView(const TimePoint& now) {
   // Update scrolling state
   if (map) {
     scroll = GetCurrentScroll(now);
+    lastScrollGetTime = now;
     if (scrollRightPressed) { scrollRightPressTime = now; }
     if (scrollLeftPressed) { scrollLeftPressTime = now; }
     if (scrollUpPressed) { scrollUpPressTime = now; }
@@ -1908,6 +1927,9 @@ void RenderWindow::paintGL() {
       // Unload loading screen resources
       loadingIcon.reset();
       loadingTextDisplay.reset();
+      
+      // Avoid possible jumps directly after the game start
+      lastScrollGetTime = Clock::now();
     } else {
       Timer renderTimer("paintGL() for loading screen");
       RenderLoadingScreen();

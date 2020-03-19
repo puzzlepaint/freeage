@@ -49,9 +49,12 @@ class RenderWindow : public QOpenGLWidget {
   QPointF GetCurrentScroll(const TimePoint& atTime);
   
   inline void SetScroll(const QPointF& value) { scroll = value; }
+  
   inline void SetMap(const std::shared_ptr<Map>& map) { this->map = map; map->SetNeedsRenderResourcesUpdate(true); }
   
   inline void SetGameController(const std::shared_ptr<GameController>& gameController) { this->gameController = gameController; }
+  
+  inline void EnableBorderScrolling(bool enable) { borderScrollingEnabled = enable; }
   
  signals:
   void LoadingProgressUpdated(int progress);
@@ -143,7 +146,7 @@ class RenderWindow : public QOpenGLWidget {
   QPoint lastMouseMoveEventPos;
   Qt::MouseButtons lastMouseMoveEventButtons;
   
-  QPoint lastCursorPos = QPoint(0, 0);
+  QPoint lastCursorPos = QPoint(-1, -1);
   
   QPoint dragStartPos = QPoint(0, 0);
   bool possibleDragStart = false;
@@ -174,6 +177,9 @@ class RenderWindow : public QOpenGLWidget {
   
   bool scrollDownPressed = false;
   TimePoint scrollDownPressTime;
+  
+  bool borderScrollingEnabled = false;
+  TimePoint lastScrollGetTime;
   
   static constexpr const float scrollDistancePerSecond = 2000;  // TODO: Make configurable
   
