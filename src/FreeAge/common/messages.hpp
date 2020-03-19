@@ -73,6 +73,9 @@ enum class ClientToServerMessage {
   
   /// Sent to place a building foundation.
   PlaceBuildingFoundation,
+  
+  /// Sent to delete an own object.
+  DeleteObject,
 };
 
 QByteArray CreateHostConnectMessage(const QByteArray& hostToken, const QString& playerName);
@@ -109,6 +112,9 @@ QByteArray CreatePlaceBuildingFoundationMessage(
     BuildingType type,
     const QPoint& baseTile,
     const std::vector<u32>& selectedVillagerIds);
+
+QByteArray CreateDeleteObjectMessage(
+    u32 objectId);
 
 
 /// Types of messages sent by the server to clients.

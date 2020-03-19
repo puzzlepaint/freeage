@@ -949,7 +949,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
           QPointF(0, -1 * buildingType.GetHealthBarHeightAboveCenter(building.GetFrameIndex(buildingType, displayedServerTime)));
       
       constexpr float kHealthBarWidth = 60;  // TODO: Smaller bar for trees
-      constexpr float kHealthBarHeight = 3;
+      constexpr float kHealthBarHeight = 4;
       QRectF barRect(
           std::round(healthBarCenter.x() - 0.5f * kHealthBarWidth),
           std::round(healthBarCenter.y() - 0.5f * kHealthBarHeight),
@@ -960,7 +960,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
             barRect,
             centerProjectedCoord.y(),
             building.GetHP() / (1.f * GetBuildingMaxHP(building.GetType())),
-            (building.GetPlayerIndex() < 0) ? gaiaColor : playerColors[building.GetPlayerIndex()],
+            (building.GetPlayerIndex() == kGaiaPlayerIndex) ? gaiaColor : playerColors[building.GetPlayerIndex()],
             healthBarShader.get(),
             pointBuffer,
             viewMatrix,
@@ -978,7 +978,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
           QPointF(0, -1 * unitType.GetHealthBarHeightAboveCenter());
       
       constexpr float kHealthBarWidth = 30;
-      constexpr float kHealthBarHeight = 3;
+      constexpr float kHealthBarHeight = 4;
       QRectF barRect(
           std::round(healthBarCenter.x() - 0.5f * kHealthBarWidth),
           std::round(healthBarCenter.y() - 0.5f * kHealthBarHeight),
@@ -989,7 +989,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
             barRect,
             centerProjectedCoord.y(),
             unit.GetHP() / (1.f * GetUnitMaxHP(unit.GetType())),
-            (unit.GetPlayerIndex() < 0) ? gaiaColor : playerColors[unit.GetPlayerIndex()],
+            (unit.GetPlayerIndex() == kGaiaPlayerIndex) ? gaiaColor : playerColors[unit.GetPlayerIndex()],
             healthBarShader.get(),
             pointBuffer,
             viewMatrix,
@@ -1884,6 +1884,10 @@ void RenderWindow::JumpToNextTownCenter() {
     }
   }
   
+  if (townCenters.empty()) {
+    return;
+  }
+  
   if (selection.size() == 1) {
     for (usize i = 0; i < townCenters.size(); ++ i) {
       if (townCenters[i].first == selection.front()) {
@@ -1910,6 +1914,19 @@ void RenderWindow::JumpToObject(u32 objectId, ClientObject* object) {
     ClientUnit* unit = static_cast<ClientUnit*>(object);
     scroll = unit->GetMapCoord();
   }
+}
+
+void RenderWindow::DeleteSelectedObjects() {
+  if (selection.empty()) {
+    return;
+  }
+  
+  for (u32 id : selection) {
+    connection->Write(CreateDeleteObjectMessage(id));
+  }
+  
+  ClearSelection();
+  SelectionChanged();
 }
 
 void RenderWindow::initializeGL() {
@@ -2456,6 +2473,8 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
   } else if (event->key() == Qt::Key_Down) {
     scrollDownPressed = true;
     scrollDownPressTime = Clock::now();
+  } else if (event->key() == Qt::Key_Delete) {
+    DeleteSelectedObjects();
   } else if (event->key() == Qt::Key_H) {
     JumpToNextTownCenter();
   } else {

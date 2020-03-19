@@ -68,6 +68,7 @@ class Game {
   void HandleSetTargetMessage(const QByteArray& msg, PlayerInGame* player, u32 len);
   void HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player);
   void HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInGame* player);
+  void HandleDeleteObjectMessage(const QByteArray& msg, PlayerInGame* player);
   ParseMessagesResult TryParseClientMessages(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players);
   
   // TODO: Right now, this creates a message containing the whole map content.
@@ -92,6 +93,8 @@ class Game {
   void ProduceUnit(ServerBuilding* building, UnitType unitInProduction);
   
   void SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject);
+  
+  void DeleteObject(u32 objectId);
   
   
   /// Stores the game map and the objects on it.

@@ -136,6 +136,8 @@ class RenderWindow : public QOpenGLWidget {
   /// Selects the object and centers the view on it.
   void JumpToObject(u32 objectId, ClientObject* object);
   
+  void DeleteSelectedObjects();
+  
   virtual void initializeGL() override;
   virtual void paintGL() override;
   virtual void resizeGL(int width, int height) override;

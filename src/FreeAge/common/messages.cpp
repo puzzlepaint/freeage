@@ -241,6 +241,21 @@ QByteArray CreatePlaceBuildingFoundationMessage(BuildingType type, const QPoint&
   return msg;
 }
 
+QByteArray CreateDeleteObjectMessage(u32 objectId) {
+  // Create buffer
+  QByteArray msg(7, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ClientToServerMessage::DeleteObject);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  mango::ustore32(data + 3, objectId);
+  
+  return msg;
+}
+
 
 QByteArray CreateWelcomeMessage() {
   // Create buffer

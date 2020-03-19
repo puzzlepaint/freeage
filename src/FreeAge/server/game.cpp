@@ -367,6 +367,26 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
   SetUnitTargets(villagerIds, player->index, newBuildingId, newBuildingFoundation);
 }
 
+void Game::HandleDeleteObjectMessage(const QByteArray& msg, PlayerInGame* player) {
+  const char* data = msg.data();
+  
+  u32 objectId = mango::uload32(data + 3);
+  
+  // Safely get the object.
+  auto buildingIt = map->GetObjects().find(objectId);
+  if (buildingIt == map->GetObjects().end()) {
+    LOG(WARNING) << "Received a DeleteObject message for an ID that does not exist";
+    return;
+  }
+  ServerObject* object = buildingIt->second;
+  if (object->GetPlayerIndex() != player->index) {
+    LOG(ERROR) << "Received a DeleteObject message for an object that the player does not own";
+    return;
+  }
+  
+  DeleteObject(objectId);
+}
+
 Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players) {
   while (true) {
     if (player->unparsedBuffer.size() < 3) {
@@ -394,6 +414,9 @@ Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, con
       break;
     case ClientToServerMessage::PlaceBuildingFoundation:
       HandlePlaceBuildingFoundationMessage(player->unparsedBuffer, player);
+      break;
+    case ClientToServerMessage::DeleteObject:
+      HandleDeleteObjectMessage(player->unparsedBuffer, player);
       break;
     case ClientToServerMessage::Chat:
       HandleChat(player->unparsedBuffer, player, msgLength, players);
@@ -1060,16 +1083,7 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
       }
     } else {
       // Remove the target.
-      // TODO: Convert the object into some other form to remember
-      //       the potential destroy / death animation and rubble / decay sprite.
-      //       We need to store this so we can tell other clients about its existence
-      //       which currently do not see the object but may explore its location later.
-      QByteArray msg = CreateObjectDeathMessage(targetId);
-      for (auto& player : *playersInGame) {
-        accumulatedMessages[player->index] += msg;
-      }
-      
-      objectDeleteList.push_back(targetId);
+      DeleteObject(targetId);
     }
   }
   
@@ -1194,4 +1208,17 @@ void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 
       }
     }
   }
+}
+
+void Game::DeleteObject(u32 objectId) {
+  // TODO: Convert the object into some other form to remember
+  //       the potential destroy / death animation and rubble / decay sprite.
+  //       We need to store this so we can tell other clients about its existence
+  //       which currently do not see the object but may explore its location later.
+  QByteArray msg = CreateObjectDeathMessage(objectId);
+  for (auto& player : *playersInGame) {
+    accumulatedMessages[player->index] += msg;
+  }
+  
+  objectDeleteList.push_back(objectId);
 }
