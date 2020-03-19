@@ -4,6 +4,62 @@
 
 #include "FreeAge/client/opengl.hpp"
 
+
+Texture* TextureManager::GetOrLoad(const std::filesystem::path& path, Loader loader, int wrapMode, int magFilter, int minFilter) {
+  TextureSettings settings(path, wrapMode, magFilter, minFilter);
+  auto it = loadedTextures.find(settings);
+  if (it != loadedTextures.end()) {
+    it->second->AddReference();
+    return it->second;
+  }
+  
+  // Load the texture.
+  Texture* newTexture = new Texture();
+  if (loader == Loader::QImage) {
+    QImage image(path.c_str());
+    if (image.isNull()) {
+      LOG(ERROR) << "Failed to load as QImage: " << path;
+      return nullptr;
+    }
+    newTexture->Load(image, wrapMode, magFilter, minFilter);
+  } else if (loader == Loader::Mango) {
+    if (!newTexture->Load(path, wrapMode, magFilter, minFilter)) {
+      LOG(ERROR) << "Failed to load with Mango: " << path;
+      return nullptr;
+    }
+  } else {
+    LOG(FATAL) << "Invalid loader specified: " << static_cast<int>(loader);
+  }
+  
+  loadedTextures.insert(std::make_pair(settings, newTexture));
+  newTexture->AddReference();
+  return newTexture;
+}
+
+void TextureManager::Dereference(Texture* texture) {
+  if (!texture->RemoveReference()) {
+    return;
+  }
+  
+  for (auto it = loadedTextures.begin(), end = loadedTextures.end(); it != end; ++ it) {
+    if (it->second == texture) {
+      loadedTextures.erase(it);
+      delete texture;
+      return;
+    }
+  }
+  
+  LOG(ERROR) << "The reference count for a texture reached zero, but it could not be found in loadedTextures to remove it from there.";
+  delete texture;
+}
+
+TextureManager::~TextureManager() {
+  for (const auto& item : loadedTextures) {
+    LOG(ERROR) << "Texture still loaded on TextureManager destruction: " << item.first.path << " (references: " << item.second->GetReferenceCount() << ")";
+  }
+}
+
+
 Texture::~Texture() {
   if (width != -1) {
     QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();

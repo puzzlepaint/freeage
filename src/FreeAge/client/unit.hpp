@@ -36,6 +36,7 @@ struct SpriteAndTextures {
 class ClientUnitType {
  public:
   ClientUnitType() = default;
+  ~ClientUnitType();
   
   bool Load(UnitType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes);
   
@@ -43,7 +44,7 @@ class ClientUnitType {
   
   inline const std::vector<SpriteAndTextures>& GetAnimations(UnitAnimation type) const { return animations[static_cast<int>(type)]; }
   
-  inline const Texture* GetIconTexture() const { return &iconTexture; }
+  inline const Texture* GetIconTexture() const { return iconTexture; }
   
   /// Returns the global instance of the unit types vector.
   inline static std::vector<ClientUnitType>& GetUnitTypes() {
@@ -61,7 +62,7 @@ class ClientUnitType {
   /// This can be used to determine a reasonable height for the unit's health bar.
   int maxCenterY;
   
-  Texture iconTexture;
+  Texture* iconTexture = nullptr;
 };
 
 

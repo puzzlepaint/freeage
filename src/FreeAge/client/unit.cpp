@@ -5,15 +5,22 @@
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/client/map.hpp"
 
+ClientUnitType::~ClientUnitType() {
+  if (iconTexture) {
+    TextureManager::Instance().Dereference(iconTexture);
+  }
+}
+
 bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes) {
   animations.resize(static_cast<int>(UnitAnimation::NumAnimationTypes));
   
   std::filesystem::path ingameUnitsPath =
       graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame" / "units";
   
-  // TODO: Automatically check how many animations (A, B) for each type are available.
-  
-  // Later entries are used as fallbacks if the previous do not contain an animation type
+  // Later entries are used as fallbacks if the previous do not contain an animation type.
+  // For example, for stone-miner-villagers, there is only a single sprite specific to stone mining,
+  // the other mining sprites are (re)used from the gold miner, and for attacking we need the generic villager sprite.
+  // So, these three base names are specified in this order here for this villager type.
   constexpr int kMaxNumBaseNames = 3;
   std::string spriteBaseName[3];
   std::string iconPath;
@@ -27,28 +34,28 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   case UnitType::FemaleVillagerBuilder:
     spriteBaseName[0] = "u_vil_female_builder";
     spriteBaseName[1] = "u_vil_female_villager";
-    iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
+    iconPath = ingameUnitsPath / "016_50730.DDS";
     break;
   case UnitType::FemaleVillagerForager:
     spriteBaseName[0] = "u_vil_female_forager";
     spriteBaseName[1] = "u_vil_female_villager";
-    iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
+    iconPath = ingameUnitsPath / "016_50730.DDS";
     break;
   case UnitType::FemaleVillagerLumberjack:
     spriteBaseName[0] = "u_vil_female_lumberjack";
     spriteBaseName[1] = "u_vil_female_villager";
-    iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
+    iconPath = ingameUnitsPath / "016_50730.DDS";
     break;
   case UnitType::FemaleVillagerGoldMiner:
     spriteBaseName[0] = "u_vil_female_miner_gold";
     spriteBaseName[1] = "u_vil_female_villager";
-    iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
+    iconPath = ingameUnitsPath / "016_50730.DDS";
     break;
   case UnitType::FemaleVillagerStoneMiner:
     spriteBaseName[0] = "u_vil_female_miner_stone";
-    spriteBaseName[1] = "u_vil_female_miner_gold";  // TODO: Use the same animations as for the gold miner without loading them twice!
+    spriteBaseName[1] = "u_vil_female_miner_gold";
     spriteBaseName[2] = "u_vil_female_villager";
-    iconPath = ingameUnitsPath / "016_50730.DDS";  // TODO: Do not load this icon multiple times
+    iconPath = ingameUnitsPath / "016_50730.DDS";
     break;
   case UnitType::MaleVillager:
     spriteBaseName[0] = "u_vil_male_villager";
@@ -57,28 +64,28 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   case UnitType::MaleVillagerBuilder:
     spriteBaseName[0] = "u_vil_male_builder";
     spriteBaseName[1] = "u_vil_male_villager";
-    iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load the icon multiple times
+    iconPath = ingameUnitsPath / "015_50730.DDS";
     break;
   case UnitType::MaleVillagerForager:
     spriteBaseName[0] = "u_vil_male_forager";
     spriteBaseName[1] = "u_vil_male_villager";
-    iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
+    iconPath = ingameUnitsPath / "015_50730.DDS";
     break;
   case UnitType::MaleVillagerLumberjack:
     spriteBaseName[0] = "u_vil_male_lumberjack";
     spriteBaseName[1] = "u_vil_male_villager";
-    iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
+    iconPath = ingameUnitsPath / "015_50730.DDS";
     break;
   case UnitType::MaleVillagerGoldMiner:
     spriteBaseName[0] = "u_vil_male_miner_gold";
     spriteBaseName[1] = "u_vil_male_villager";
-    iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
+    iconPath = ingameUnitsPath / "015_50730.DDS";
     break;
   case UnitType::MaleVillagerStoneMiner:
     spriteBaseName[0] = "u_vil_male_miner_stone";
-    spriteBaseName[1] = "u_vil_male_miner_gold";  // TODO: Use the same animations as for the gold miner without loading them twice!
+    spriteBaseName[1] = "u_vil_male_miner_gold";
     spriteBaseName[2] = "u_vil_male_villager";
-    iconPath = ingameUnitsPath / "015_50730.DDS";  // TODO: Do not load this icon multiple times
+    iconPath = ingameUnitsPath / "015_50730.DDS";
     break;
   case UnitType::Militia:
     spriteBaseName[0] = "u_inf_militia";
@@ -144,7 +151,7 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   }
   
   // Load the icon.
-  iconTexture.Load(iconPath, GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  iconTexture = TextureManager::Instance().GetOrLoad(iconPath, TextureManager::Loader::Mango, GL_CLAMP, GL_LINEAR, GL_LINEAR);
   
   if (!ok) {
     return false;
