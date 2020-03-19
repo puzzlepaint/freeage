@@ -6,6 +6,12 @@
 #include "FreeAge/client/map.hpp"
 
 ClientUnitType::~ClientUnitType() {
+  for (usize i = 0; i < animations.size(); ++ i) {
+    for (usize k = 0; k < animations[i].size(); ++ k) {
+      SpriteManager::Instance().Dereference(animations[i][k]);
+    }
+  }
+  
   if (iconTexture) {
     TextureManager::Instance().Dereference(iconTexture);
   }
@@ -145,7 +151,7 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
       // For extracting attack durations.
       // TODO: Remove this once we get those in a better way.
       if (animationType == UnitAnimation::Attack) {
-        LOG(INFO) << "Attack animation " << animationVariants[variant] << " has " << (animations[static_cast<int>(animationType)][variant].sprite.NumFrames() / kNumFacingDirections) << " frames per facing direction";
+        LOG(INFO) << "Attack animation " << animationVariants[variant] << " has " << (animations[static_cast<int>(animationType)][variant]->sprite.NumFrames() / kNumFacingDirections) << " frames per facing direction";
       }
     }
   }
@@ -161,8 +167,8 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   const auto& animationVariants = animations[static_cast<int>(UnitAnimation::Idle)];
   for (usize variant = 0; variant < animationVariants.size(); ++ variant) {
     const auto& animation = animationVariants[variant];
-    for (int frame = 0; frame < animation.sprite.NumFrames() / kNumFacingDirections; ++ frame) {
-      maxCenterY = std::max(maxCenterY, animation.sprite.frame(frame).graphic.centerY);
+    for (int frame = 0; frame < animation->sprite.NumFrames() / kNumFacingDirections; ++ frame) {
+      maxCenterY = std::max(maxCenterY, animation->sprite.frame(frame).graphic.centerY);
     }
   }
   
@@ -175,19 +181,12 @@ int ClientUnitType::GetHealthBarHeightAboveCenter() const {
 }
 
 bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes, UnitAnimation type) {
-  std::vector<SpriteAndTextures>& animationVector = animations[static_cast<int>(type)];
-  SpriteAndTextures& item = animationVector[index];
-  
-  return LoadSpriteAndTexture(
+  std::vector<SpriteAndTextures*>& animationVector = animations[static_cast<int>(type)];
+  animationVector[index] = SpriteManager::Instance().GetOrLoad(
       (graphicsPath / filename).c_str(),
       (cachePath / filename).c_str(),
-      GL_CLAMP,
-      GL_NEAREST,
-      GL_NEAREST,
-      &item.sprite,
-      &item.graphicTexture,
-      &item.shadowTexture,
       palettes);
+  return animationVector[index] != nullptr;
 }
 
 
@@ -209,7 +208,7 @@ QRectF ClientUnit::GetRectInProjectedCoords(Map* map, double elapsedSeconds, boo
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
-  const SpriteAndTextures& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
+  const SpriteAndTextures& animationSpriteAndTexture = *unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
   const Sprite& sprite = animationSpriteAndTexture.sprite;
   
   QPointF centerProjectedCoord = GetCenterProjectedCoord(map);
@@ -241,7 +240,7 @@ void ClientUnit::Render(
     bool outline) {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
-  const SpriteAndTextures& animationSpriteAndTexture = unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
+  const SpriteAndTextures& animationSpriteAndTexture = *unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
   const Sprite& sprite = animationSpriteAndTexture.sprite;
   const Texture& texture = shadow ? animationSpriteAndTexture.shadowTexture : animationSpriteAndTexture.graphicTexture;
   

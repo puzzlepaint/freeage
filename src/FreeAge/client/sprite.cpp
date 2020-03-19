@@ -975,6 +975,50 @@ bool Sprite::LoadFromPNGFiles(const char* path) {
 }
 
 
+SpriteAndTextures* SpriteManager::GetOrLoad(const char* path, const char* cachePath, const Palettes& palettes) {
+  auto it = loadedSprites.find(path);
+  if (it != loadedSprites.end()) {
+    ++ it->second->referenceCount;
+    return it->second;
+  }
+  
+  // Load the sprite.
+  SpriteAndTextures* newSprite = new SpriteAndTextures();
+  newSprite->referenceCount = 1;
+  if (!LoadSpriteAndTexture(path, cachePath, GL_CLAMP, GL_NEAREST, GL_NEAREST, &newSprite->sprite, &newSprite->graphicTexture, &newSprite->shadowTexture, palettes)) {
+    LOG(ERROR) << "Failed to load sprite: " << path;
+    return nullptr;
+  }
+  
+  loadedSprites.insert(std::make_pair(path, newSprite));
+  return newSprite;
+}
+
+void SpriteManager::Dereference(SpriteAndTextures* sprite) {
+  -- sprite->referenceCount;
+  if (sprite->referenceCount > 0) {
+    return;
+  }
+  
+  for (auto it = loadedSprites.begin(), end = loadedSprites.end(); it != end; ++ it) {
+    if (it->second == sprite) {
+      loadedSprites.erase(it);
+      delete sprite;
+      return;
+    }
+  }
+  
+  LOG(ERROR) << "The reference count for a sprite reached zero, but it could not be found in loadedSprites to remove it from there.";
+  delete sprite;
+}
+
+SpriteManager::~SpriteManager() {
+  for (const auto& item : loadedSprites) {
+    LOG(ERROR) << "Sprite still loaded on SpriteManager destruction: " << item.first << " (references: " << item.second->referenceCount << ")";
+  }
+}
+
+
 bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode, int /*magFilter*/, int /*minFilter*/, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes) {
   // TODO magFilter and minFilter are unused here
   

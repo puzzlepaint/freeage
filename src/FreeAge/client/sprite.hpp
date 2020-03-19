@@ -10,6 +10,7 @@
 
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/logging.hpp"
+#include "FreeAge/client/texture.hpp"
 
 class SpriteShader;
 class Texture;
@@ -79,6 +80,40 @@ class Sprite {
   bool LoadFromPNGFiles(const char* path);
   
   std::vector<Frame> frames;
+};
+
+
+struct SpriteAndTextures {
+  Sprite sprite;
+  Texture graphicTexture;
+  Texture shadowTexture;
+  
+  int referenceCount;
+};
+
+
+/// Singleton class which keeps track of loaded sprites and the textures generated from them (with reference counting)
+/// in order to avoid duplicate loading of sprites and sprite textures.
+class SpriteManager {
+ public:
+  static SpriteManager& Instance() {
+    static SpriteManager instance;
+    return instance;
+  }
+  
+  /// Loads the given sprite with the given settings, or returns an existing instance if available.
+  /// The returned pointer must not be freed, but must be passed to Dereference() once it is not needed anymore.
+  /// The function returns nullptr if it fails to load the given file.
+  SpriteAndTextures* GetOrLoad(const char* path, const char* cachePath, const Palettes& palettes);
+  
+  /// Must be called once the sprite is not needed anymore. Once all references are gone, the sprite is unloaded.
+  void Dereference(SpriteAndTextures* sprite);
+  
+ private:
+  SpriteManager() = default;
+  ~SpriteManager();
+  
+  std::unordered_map<std::string, SpriteAndTextures*> loadedSprites;
 };
 
 

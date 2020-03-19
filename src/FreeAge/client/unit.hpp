@@ -24,13 +24,6 @@ enum class UnitAnimation {
 };
 
 
-struct SpriteAndTextures {
-  Sprite sprite;
-  Texture graphicTexture;
-  Texture shadowTexture;
-};
-
-
 /// Stores client-side data for unit types (i.e., their graphics).
 /// Access the global unit types vector via GetUnitTypes().
 class ClientUnitType {
@@ -42,7 +35,7 @@ class ClientUnitType {
   
   int GetHealthBarHeightAboveCenter() const;
   
-  inline const std::vector<SpriteAndTextures>& GetAnimations(UnitAnimation type) const { return animations[static_cast<int>(type)]; }
+  inline const std::vector<SpriteAndTextures*>& GetAnimations(UnitAnimation type) const { return animations[static_cast<int>(type)]; }
   
   inline const Texture* GetIconTexture() const { return iconTexture; }
   
@@ -56,7 +49,7 @@ class ClientUnitType {
   bool LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes, UnitAnimation type);
   
   /// Indexed by: [static_cast<int>(UnitAnimation animation)][animation_variant]
-  std::vector<std::vector<SpriteAndTextures>> animations;
+  std::vector<std::vector<SpriteAndTextures*>> animations;
   
   /// The maximum centerY value of any graphic frame of this unit type in the idle animation(s) when facing right.
   /// This can be used to determine a reasonable height for the unit's health bar.

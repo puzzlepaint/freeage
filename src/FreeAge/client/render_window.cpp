@@ -615,7 +615,7 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
       }
     } else {  // if (object.second->isUnit()) {
       ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
-      if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front().sprite.HasShadow()) {
+      if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front()->sprite.HasShadow()) {
         continue;
       }
       
@@ -817,7 +817,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime) {
       }
     } else {  // if (object.second->isUnit()) {
       ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
-      if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front().sprite.HasOutline()) {
+      if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front()->sprite.HasOutline()) {
         continue;
       }
       
