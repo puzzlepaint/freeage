@@ -5,6 +5,15 @@
 #include "FreeAge/client/opengl.hpp"
 
 
+// TODO: Implement in a nicer way.
+// TODO: Does not account for mip-maps or possible additional bytes used for alignment by the driver.
+usize debugUsedGPUMemory = 0;
+
+static void PrintGPUMemoryUsage() {
+  LOG(1) << "Approx. GPU memory usage: " << static_cast<int>(debugUsedGPUMemory / (1024.f * 1024.f) + 0.5f) << " MB";
+}
+
+
 Texture* TextureManager::GetOrLoad(const std::filesystem::path& path, Loader loader, int wrapMode, int magFilter, int minFilter) {
   TextureSettings settings(path, wrapMode, magFilter, minFilter);
   auto it = loadedTextures.find(settings);
@@ -91,6 +100,8 @@ void Texture::Load(const QImage& image, int wrapMode, int magFilter, int minFilt
         image.width(), image.height(),
         0, GL_BGRA, GL_UNSIGNED_BYTE,
         image.scanLine(0));
+    
+    debugUsedGPUMemory += image.width() * image.height() * 4;
   } else if (image.format() == QImage::Format_Grayscale8) {
     f->glTexImage2D(
         GL_TEXTURE_2D,
@@ -98,10 +109,13 @@ void Texture::Load(const QImage& image, int wrapMode, int magFilter, int minFilt
         image.width(), image.height(),
         0, GL_RED, GL_UNSIGNED_BYTE,
         image.scanLine(0));
+    
+    debugUsedGPUMemory += image.width() * image.height() * 4;
   } else {
     LOG(FATAL) << "Unsupported QImage format.";
   }
   
+  PrintGPUMemoryUsage();
   CHECK_OPENGL_NO_ERROR();
 }
 
@@ -134,6 +148,9 @@ bool Texture::Load(const std::filesystem::path& path, int wrapMode, int magFilte
       0, GL_BGRA, GL_UNSIGNED_BYTE,
       bitmap.address<u32>(0, 0));
   
+  debugUsedGPUMemory += bitmap.width * bitmap.height * 4;
+  
+  PrintGPUMemoryUsage();
   CHECK_OPENGL_NO_ERROR();
   return true;
 }
