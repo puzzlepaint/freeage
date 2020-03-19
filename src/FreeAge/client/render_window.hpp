@@ -130,6 +130,10 @@ class RenderWindow : public QOpenGLWidget {
   void ShowEconomyBuildingCommandButtons();
   void ShowMilitaryBuildingCommandButtons();
   
+  void JumpToNextTownCenter();
+  /// Selects the object and centers the view on it.
+  void JumpToObject(u32 objectId, ClientObject* object);
+  
   virtual void initializeGL() override;
   virtual void paintGL() override;
   virtual void resizeGL(int width, int height) override;

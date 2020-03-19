@@ -192,14 +192,9 @@ ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX
       baseTileY(baseTileY),
       buildPercentage(buildPercentage) {}
 
-QPointF ClientBuilding::GetCenterProjectedCoord(
-    Map* map) {
-  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
-  const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
-  
-  QSize size = buildingType.GetSize();
-  QPointF centerMapCoord = QPointF(baseTileX + 0.5f * size.width(), baseTileY + 0.5f * size.height());
-  return map->MapCoordToProjectedCoord(centerMapCoord);
+QPointF ClientBuilding::GetCenterMapCoord() {
+  QSize size = GetBuildingSize(type);
+  return QPointF(baseTileX + 0.5f * size.width(), baseTileY + 0.5f * size.height());
 }
 
 QRectF ClientBuilding::GetRectInProjectedCoords(
@@ -212,7 +207,7 @@ QRectF ClientBuilding::GetRectInProjectedCoords(
   
   bool isFoundation = buildPercentage < 100;
   const Sprite& sprite = isFoundation ? buildingType.GetFoundationSprite() : buildingType.GetSprite();
-  QPointF centerProjectedCoord = GetCenterProjectedCoord(map);
+  QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(GetCenterMapCoord());
   int frameIndex = GetFrameIndex(buildingType, elapsedSeconds);
   
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameIndex).shadow : sprite.frame(frameIndex).graphic;
@@ -247,7 +242,7 @@ void ClientBuilding::Render(
       (shadow ? buildingType.GetShadowTexture() : buildingType.GetTexture());
   
   int frameIndex = GetFrameIndex(buildingType, elapsedSeconds);
-  QPointF centerProjectedCoord = GetCenterProjectedCoord(map);
+  QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(GetCenterMapCoord());
   
   if (type == BuildingType::TownCenter && !isFoundation) {
     // Special case for town centers: Render all of their separate parts.

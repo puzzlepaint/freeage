@@ -943,7 +943,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
       ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
       const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
       
-      QPointF centerProjectedCoord = building.GetCenterProjectedCoord(map.get());
+      QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(building.GetCenterMapCoord());
       QPointF healthBarCenter =
           centerProjectedCoord +
           QPointF(0, -1 * buildingType.GetHealthBarHeightAboveCenter(building.GetFrameIndex(buildingType, displayedServerTime)));
@@ -1839,6 +1839,46 @@ void RenderWindow::ShowMilitaryBuildingCommandButtons() {
   commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quitTexture.get());
 }
 
+void RenderWindow::JumpToNextTownCenter() {
+  std::vector<std::pair<u32, ClientBuilding*>> townCenters;
+  
+  for (const auto& item : map->GetObjects()) {
+    if (item.second->isBuilding()) {
+      ClientBuilding* building = static_cast<ClientBuilding*>(item.second);
+      if (building->GetType() == BuildingType::TownCenter) {
+        townCenters.push_back(std::make_pair(item.first, building));
+      }
+    }
+  }
+  
+  if (selection.size() == 1) {
+    for (usize i = 0; i < townCenters.size(); ++ i) {
+      if (townCenters[i].first == selection.front()) {
+        const auto& target = townCenters[(i + 1) % townCenters.size()];
+        JumpToObject(target.first, target.second);
+        return;
+      }
+    }
+  }
+  
+  const auto& target = townCenters.front();
+  JumpToObject(target.first, target.second);
+}
+
+void RenderWindow::JumpToObject(u32 objectId, ClientObject* object) {
+  ClearSelection();
+  AddToSelection(objectId);
+  SelectionChanged();
+  
+  if (object->isBuilding()) {
+    ClientBuilding* building = static_cast<ClientBuilding*>(object);
+    scroll = building->GetCenterMapCoord();
+  } else if (object->isUnit()) {
+    ClientUnit* unit = static_cast<ClientUnit*>(object);
+    scroll = unit->GetMapCoord();
+  }
+}
+
 void RenderWindow::initializeGL() {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   CHECK_OPENGL_NO_ERROR();
@@ -2412,6 +2452,8 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
   } else if (event->key() == Qt::Key_Down) {
     scrollDownPressed = true;
     scrollDownPressTime = Clock::now();
+  } else if (event->key() == Qt::Key_H) {
+    JumpToNextTownCenter();
   }
 }
 
