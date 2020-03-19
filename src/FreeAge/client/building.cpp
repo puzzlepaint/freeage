@@ -174,12 +174,12 @@ void ClientBuildingType::SetCommandButtons(CommandButton commandButtons[3][5]) {
   if (type == BuildingType::TownCenter) {
     // NOTE: Choosing the male villager icon here follows the original game.
     //       Maybe we can increase the diversity :)
-    commandButtons[0][0].SetProduceUnit(UnitType::MaleVillager);
+    commandButtons[0][0].SetProduceUnit(UnitType::MaleVillager, Qt::Key_A);
     
     // TODO: Set loom button
     // TODO: Set age-up button
   } else if (type == BuildingType::Barracks) {
-    commandButtons[0][0].SetProduceUnit(UnitType::Militia);
+    commandButtons[0][0].SetProduceUnit(UnitType::Militia, Qt::Key_A);
   }
 }
 

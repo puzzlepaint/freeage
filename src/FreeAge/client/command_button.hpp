@@ -31,14 +31,14 @@ class CommandButton {
   void SetInvisible();
   
   /// Makes this a button to construct the given building type.
-  void SetBuilding(BuildingType type);
+  void SetBuilding(BuildingType type, Qt::Key hotkey = Qt::Key_unknown);
   
   /// Makes this a button to produce the given unit type.
-  void SetProduceUnit(UnitType type);
+  void SetProduceUnit(UnitType type, Qt::Key hotkey = Qt::Key_unknown);
   
   // TODO: SetResearchTechnology(TechType type);
   
-  void SetAction(ActionType actionType, const Texture* texture);
+  void SetAction(ActionType actionType, const Texture* texture, Qt::Key hotkey = Qt::Key_unknown);
   
   void Render(
       float x, float y, float size, float iconInset,
@@ -52,12 +52,15 @@ class CommandButton {
   bool IsPointInButton(const QPoint& point) { return type != Type::Invisible && buttonRect.contains(point); }
   
   inline Type GetType() const { return type; }
+  inline Qt::Key GetHotkey() const { return hotkey; }
   inline ActionType GetActionType() const { return actionType; }
   inline BuildingType GetBuildingConstructionType() const { return buildingConstructionType; }
   inline UnitType GetUnitProductionType() const { return unitProductionType; }
   
  private:
   Type type = Type::Invisible;
+  Qt::Key hotkey;
+  
   ActionType actionType;
   BuildingType buildingConstructionType;
   UnitType unitProductionType;

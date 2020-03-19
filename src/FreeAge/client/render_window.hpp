@@ -126,6 +126,8 @@ class RenderWindow : public QOpenGLWidget {
   /// coordinates of the building are returned in baseTile.
   bool CanBuildingFoundationBePlacedHere(BuildingType type, const QPointF& cursorPos, QPoint* baseTile);
   
+  void PressCommandButton(CommandButton* button);
+  
   void ShowDefaultCommandButtonsForSelection();
   void ShowEconomyBuildingCommandButtons();
   void ShowMilitaryBuildingCommandButtons();
@@ -199,7 +201,9 @@ class RenderWindow : public QOpenGLWidget {
   /// Game start time.
   TimePoint renderStartTime;
   
-  double lastDisplayedServerTime = -1;
+  /// The server time displayed in the last rendering iteration.
+  /// Do not set this to something negative as this might make the code try to access negative frame numbers of animations.
+  double lastDisplayedServerTime = 0;
   
   /// Cached widget size.
   int widgetWidth;
@@ -273,6 +277,7 @@ class RenderWindow : public QOpenGLWidget {
   CommandButton commandButtons[kCommandButtonRows][kCommandButtonCols];
   int pressedCommandButtonRow = -1;
   int pressedCommandButtonCol = -1;
+  bool commandButtonPressedByHotkey = false;
   
   bool showingEconomyBuildingCommandButtons = false;
   /// The type of building that the user is about to place a foundation for.

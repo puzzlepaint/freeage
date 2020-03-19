@@ -5,20 +5,27 @@
 
 void CommandButton::SetInvisible() {
   type = Type::Invisible;
+  this->hotkey = Qt::Key_unknown;
 }
 
-void CommandButton::SetBuilding(BuildingType type) {
+void CommandButton::SetBuilding(BuildingType type, Qt::Key hotkey) {
   this->type = Type::ConstructBuilding;
+  this->hotkey = hotkey;
+  
   buildingConstructionType = type;
 }
 
-void CommandButton::SetProduceUnit(UnitType type) {
+void CommandButton::SetProduceUnit(UnitType type, Qt::Key hotkey) {
   this->type = Type::ProduceUnit;
+  this->hotkey = hotkey;
+  
   unitProductionType = type;
 }
 
-void CommandButton::SetAction(ActionType actionType, const Texture* texture) {
+void CommandButton::SetAction(ActionType actionType, const Texture* texture, Qt::Key hotkey) {
   this->type = Type::Action;
+  this->hotkey = hotkey;
+  
   this->actionType = actionType;
   this->texture = texture;
 }

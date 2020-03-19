@@ -478,7 +478,7 @@ void RenderWindow::ComputePixelToOpenGLMatrix() {
 
 void RenderWindow::UpdateView(const TimePoint& now) {
   // Update scrolling state
-  if (map) {
+  if (!isLoading) {
     scroll = GetCurrentScroll(now);
     lastScrollGetTime = now;
     if (scrollRightPressed) { scrollRightPressTime = now; }
@@ -491,7 +491,7 @@ void RenderWindow::UpdateView(const TimePoint& now) {
   ComputePixelToOpenGLMatrix();
   
   // Compute the view (projected-to-OpenGL) transformation.
-  if (map) {
+  if (!isLoading) {
     // Projected coordinates: arbitrary origin, +x goes right, +y goes down, scale is the default scale.
     // OpenGL normalized device coordinates: top-left widget corner is (-1, 1), bottom-right widget corner is (1, -1).
     // The transformation is stored as a matrix but applied as follows:
@@ -1742,6 +1742,39 @@ QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y(
   return true;
 }
 
+void RenderWindow::PressCommandButton(CommandButton* button) {
+  button->Pressed(selection, gameController.get());
+  
+  // Handle building construction.
+  if (button->GetType() == CommandButton::Type::ConstructBuilding &&
+      gameController->GetLatestKnownResourceAmount().CanAfford(GetBuildingCost(button->GetBuildingConstructionType()))) {
+    constructBuildingType = button->GetBuildingConstructionType();
+  }
+  
+  // "Action" buttons are handled here.
+  if (button->GetType() == CommandButton::Type::Action) {
+    switch (button->GetActionType()) {
+    case CommandButton::ActionType::BuildEconomyBuilding:
+      ShowEconomyBuildingCommandButtons();
+      break;
+    case CommandButton::ActionType::BuildMilitaryBuilding:
+      ShowMilitaryBuildingCommandButtons();
+      break;
+    case CommandButton::ActionType::ToggleBuildingsCategory:
+      if (showingEconomyBuildingCommandButtons) {
+        ShowMilitaryBuildingCommandButtons();
+      } else {
+        ShowEconomyBuildingCommandButtons();
+      }
+      break;
+    case CommandButton::ActionType::Quit:
+      ShowDefaultCommandButtonsForSelection();
+      constructBuildingType = BuildingType::NumBuildings;
+      break;
+    }
+  }
+}
+
 void RenderWindow::ShowDefaultCommandButtonsForSelection() {
   for (int row = 0; row < kCommandButtonRows; ++ row) {
     for (int col = 0; col < kCommandButtonCols; ++ col) {
@@ -1797,8 +1830,8 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
     }
   }
   if (atLeastOneOwnVillagerSelected) {
-    commandButtons[0][0].SetAction(CommandButton::ActionType::BuildEconomyBuilding, buildEconomyBuildingsTexture.get());
-    commandButtons[0][1].SetAction(CommandButton::ActionType::BuildMilitaryBuilding, buildMilitaryBuildingsTexture.get());
+    commandButtons[0][0].SetAction(CommandButton::ActionType::BuildEconomyBuilding, buildEconomyBuildingsTexture.get(), Qt::Key_A);
+    commandButtons[0][1].SetAction(CommandButton::ActionType::BuildMilitaryBuilding, buildMilitaryBuildingsTexture.get(), Qt::Key_S);
   }
 }
 
@@ -1811,14 +1844,14 @@ void RenderWindow::ShowEconomyBuildingCommandButtons() {
     }
   }
   
-  commandButtons[0][0].SetBuilding(BuildingType::House);
-  commandButtons[0][1].SetBuilding(BuildingType::Mill);
-  commandButtons[0][2].SetBuilding(BuildingType::MiningCamp);
-  commandButtons[0][3].SetBuilding(BuildingType::LumberCamp);
-  commandButtons[0][4].SetBuilding(BuildingType::Dock);
+  commandButtons[0][0].SetBuilding(BuildingType::House, Qt::Key_Q);
+  commandButtons[0][1].SetBuilding(BuildingType::Mill, Qt::Key_W);
+  commandButtons[0][2].SetBuilding(BuildingType::MiningCamp, Qt::Key_E);
+  commandButtons[0][3].SetBuilding(BuildingType::LumberCamp, Qt::Key_R);
+  commandButtons[0][4].SetBuilding(BuildingType::Dock, Qt::Key_T);
   
   commandButtons[2][3].SetAction(CommandButton::ActionType::ToggleBuildingsCategory, toggleBuildingsCategoryTexture.get());
-  commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quitTexture.get());
+  commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quitTexture.get(), Qt::Key_Escape);
 }
 
 void RenderWindow::ShowMilitaryBuildingCommandButtons() {
@@ -1830,13 +1863,13 @@ void RenderWindow::ShowMilitaryBuildingCommandButtons() {
     }
   }
   
-  commandButtons[0][0].SetBuilding(BuildingType::Barracks);
-  commandButtons[1][0].SetBuilding(BuildingType::Outpost);
-  commandButtons[1][1].SetBuilding(BuildingType::PalisadeWall);
-  commandButtons[2][1].SetBuilding(BuildingType::PalisadeGate);
+  commandButtons[0][0].SetBuilding(BuildingType::Barracks, Qt::Key_Q);
+  commandButtons[1][0].SetBuilding(BuildingType::Outpost, Qt::Key_A);
+  commandButtons[1][1].SetBuilding(BuildingType::PalisadeWall, Qt::Key_S);
+  commandButtons[2][1].SetBuilding(BuildingType::PalisadeGate, Qt::Key_X);
   
   commandButtons[2][3].SetAction(CommandButton::ActionType::ToggleBuildingsCategory, toggleBuildingsCategoryTexture.get());
-  commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quitTexture.get());
+  commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quitTexture.get(), Qt::Key_Escape);
 }
 
 void RenderWindow::JumpToNextTownCenter() {
@@ -2149,7 +2182,7 @@ void RenderWindow::resizeGL(int width, int height) {
 }
 
 void RenderWindow::mousePressEvent(QMouseEvent* event) {
-  if (!map) {
+  if (isLoading) {
     return;
   }
   
@@ -2297,7 +2330,7 @@ void RenderWindow::mouseMoveEvent(QMouseEvent* event) {
 void RenderWindow::HandleMouseMoveEvent() {
   haveMouseMoveEvent = false;
   
-  if (!map) {
+  if (isLoading) {
     return;
   }
   
@@ -2312,6 +2345,7 @@ void RenderWindow::HandleMouseMoveEvent() {
   // If a command button has been pressed but the cursor moves away from it, abort the button press.
   if (pressedCommandButtonRow >= 0 &&
       pressedCommandButtonCol >= 0 &&
+      !commandButtonPressedByHotkey &&
       !commandButtons[pressedCommandButtonRow][pressedCommandButtonCol].IsPointInButton(lastMouseMoveEventPos)) {
     pressedCommandButtonRow = -1;
     pressedCommandButtonCol = -1;
@@ -2345,7 +2379,7 @@ void RenderWindow::HandleMouseMoveEvent() {
 }
 
 void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
-  if (!map) {
+  if (isLoading) {
     return;
   }
   
@@ -2369,40 +2403,10 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
     
     if (pressedCommandButtonRow >= 0 &&
         pressedCommandButtonCol >= 0) {
-      CommandButton& button = commandButtons[pressedCommandButtonRow][pressedCommandButtonCol];
-      button.Pressed(selection, gameController.get());
+      PressCommandButton(&commandButtons[pressedCommandButtonRow][pressedCommandButtonCol]);
+      
       pressedCommandButtonRow = -1;
       pressedCommandButtonCol = -1;
-      
-      // Handle building construction.
-      if (button.GetType() == CommandButton::Type::ConstructBuilding &&
-          gameController->GetLatestKnownResourceAmount().CanAfford(GetBuildingCost(button.GetBuildingConstructionType()))) {
-        constructBuildingType = button.GetBuildingConstructionType();
-      }
-      
-      // "Action" buttons are handled here.
-      if (button.GetType() == CommandButton::Type::Action) {
-        switch (button.GetActionType()) {
-        case CommandButton::ActionType::BuildEconomyBuilding:
-          ShowEconomyBuildingCommandButtons();
-          break;
-        case CommandButton::ActionType::BuildMilitaryBuilding:
-          ShowMilitaryBuildingCommandButtons();
-          break;
-        case CommandButton::ActionType::ToggleBuildingsCategory:
-          if (showingEconomyBuildingCommandButtons) {
-            ShowMilitaryBuildingCommandButtons();
-          } else {
-            ShowEconomyBuildingCommandButtons();
-          }
-          break;
-        case CommandButton::ActionType::Quit:
-          ShowDefaultCommandButtonsForSelection();
-          constructBuildingType = BuildingType::NumBuildings;
-          break;
-        }
-      }
-      
       return;
     }
     
@@ -2424,7 +2428,7 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
 }
 
 void RenderWindow::wheelEvent(QWheelEvent* event) {
-  if (!map) {
+  if (isLoading) {
     return;
   }
   
@@ -2436,7 +2440,7 @@ void RenderWindow::wheelEvent(QWheelEvent* event) {
 }
 
 void RenderWindow::keyPressEvent(QKeyEvent* event) {
-  if (!map) {
+  if (isLoading) {
     return;
   }
   
@@ -2454,11 +2458,24 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
     scrollDownPressTime = Clock::now();
   } else if (event->key() == Qt::Key_H) {
     JumpToNextTownCenter();
+  } else {
+    // Check whether a hotkey for a command button was pressed.
+    for (int row = 0; row < kCommandButtonRows; ++ row) {
+      for (int col = 0; col < kCommandButtonCols; ++ col) {
+        if (commandButtons[row][col].GetHotkey() != Qt::Key_unknown &&
+            commandButtons[row][col].GetHotkey() == event->key()) {
+          pressedCommandButtonRow = row;
+          pressedCommandButtonCol = col;
+          commandButtonPressedByHotkey = true;
+          break;
+        }
+      }
+    }
   }
 }
 
 void RenderWindow::keyReleaseEvent(QKeyEvent* event) {
-  if (!map) {
+  if (isLoading) {
     return;
   }
   
@@ -2482,6 +2499,21 @@ void RenderWindow::keyReleaseEvent(QKeyEvent* event) {
     TimePoint now = Clock::now();
     double seconds = std::chrono::duration<double>(now - scrollDownPressTime).count();
     Scroll(0, scrollDistancePerSecond / zoom * seconds, &scroll);
+  } else {
+    // Check whether a hotkey for a command button was released.
+    for (int row = 0; row < kCommandButtonRows; ++ row) {
+      for (int col = 0; col < kCommandButtonCols; ++ col) {
+        if (commandButtons[row][col].GetHotkey() != Qt::Key_unknown &&
+            commandButtons[row][col].GetHotkey() == event->key()) {
+          PressCommandButton(&commandButtons[row][col]);
+          
+          pressedCommandButtonRow = -1;
+          pressedCommandButtonCol = -1;
+          commandButtonPressedByHotkey = false;
+          return;
+        }
+      }
+    }
   }
 }
 
