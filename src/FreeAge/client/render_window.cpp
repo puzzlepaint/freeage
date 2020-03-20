@@ -2078,11 +2078,21 @@ void RenderWindow::DeleteSelectedObjects() {
     return;
   }
   
+  std::vector<u32> remainingObjects;
   for (u32 id : selection) {
-    connection->Write(CreateDeleteObjectMessage(id));
+    auto it = map->GetObjects().find(id);
+    if (it != map->GetObjects().end() &&
+        it->second->GetPlayerIndex() == match->GetPlayerIndex()) {
+      connection->Write(CreateDeleteObjectMessage(id));
+    } else {
+      remainingObjects.push_back(id);
+    }
   }
   
   ClearSelection();
+  for (u32 id : remainingObjects) {
+    AddToSelection(id);
+  }
   SelectionChanged();
 }
 
