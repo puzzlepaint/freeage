@@ -35,6 +35,7 @@ class ServerMap {
   u32 AddBuilding(ServerBuilding* newBuilding, bool addOccupancy = true);
   
   void AddBuildingOccupancy(ServerBuilding* building);
+  void RemoveBuildingOccupancy(ServerBuilding* building);
   
   /// Adds a new unit to the map and returns it. Optionally returns the new unit's ID in id.
   ServerUnit* AddUnit(int player, UnitType type, const QPointF& position, u32* id = nullptr);

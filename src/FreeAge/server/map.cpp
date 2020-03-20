@@ -415,6 +415,16 @@ void ServerMap::AddBuildingOccupancy(ServerBuilding* building) {
   }
 }
 
+void ServerMap::RemoveBuildingOccupancy(ServerBuilding* building) {
+  const QPoint& baseTile = building->GetBaseTile();
+  QRect occupancyRect = GetBuildingOccupancy(building->GetBuildingType());
+  for (int y = baseTile.y() + occupancyRect.y(), endY = baseTile.y() + occupancyRect.y() + occupancyRect.height(); y < endY; ++ y) {
+    for (int x = baseTile.x() + occupancyRect.x(), endX = baseTile.x() + occupancyRect.x() + occupancyRect.width(); x < endX; ++ x) {
+      occupiedAt(x, y) = false;
+    }
+  }
+}
+
 ServerUnit* ServerMap::AddUnit(int player, UnitType type, const QPointF& position, u32* id) {
   ServerUnit* newUnit = new ServerUnit(player, type, position);
   u32 newId = AddUnit(newUnit);

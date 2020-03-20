@@ -590,7 +590,11 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
   
   // Handle delayed object deletion.
   for (u32 id : objectDeleteList) {
-    map->GetObjects().erase(id);
+    auto it = map->GetObjects().find(id);
+    if (it != map->GetObjects().end()) {
+      delete it->second;
+      map->GetObjects().erase(it);
+    }
   }
   objectDeleteList.clear();
   
@@ -1221,4 +1225,12 @@ void Game::DeleteObject(u32 objectId) {
   }
   
   objectDeleteList.push_back(objectId);
+  
+  // For buildings, remove their map occupancy
+  auto it = map->GetObjects().find(objectId);
+  if (it != map->GetObjects().end() &&
+      it->second->isBuilding()) {
+    ServerBuilding* building = static_cast<ServerBuilding*>(it->second);
+    map->RemoveBuildingOccupancy(building);
+  }
 }
