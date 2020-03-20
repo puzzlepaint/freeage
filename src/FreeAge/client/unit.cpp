@@ -122,6 +122,10 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     case UnitAnimation::CarryWalk: animationFilenameComponent = "carrywalk"; break;
     case UnitAnimation::Task: animationFilenameComponent = "task"; break;
     case UnitAnimation::Attack: animationFilenameComponent = "attack"; break;
+    case UnitAnimation::Death: animationFilenameComponent = "death"; break;
+    case UnitAnimation::CarryDeath: animationFilenameComponent = "carrydeath"; break;
+    case UnitAnimation::Decay: animationFilenameComponent = "decay"; break;
+    case UnitAnimation::CarryDecay: animationFilenameComponent = "carrydecay"; break;
     case UnitAnimation::NumAnimationTypes: LOG(ERROR) << "Invalid animation type.";
     }
     

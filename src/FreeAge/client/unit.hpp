@@ -20,6 +20,10 @@ enum class UnitAnimation {
   CarryWalk,
   Task,
   Attack,
+  Death,
+  CarryDeath,
+  Decay,
+  CarryDecay,
   NumAnimationTypes
 };
 
@@ -58,6 +62,11 @@ class ClientUnitType {
   Texture* iconTexture = nullptr;
 };
 
+/// Convenience function that returns the ClientUnitType for a given unit type.
+inline ClientUnitType& GetClientUnitType(UnitType type) {
+  return ClientUnitType::GetUnitTypes()[static_cast<int>(type)];
+}
+
 
 /// Represents a unit on the client side.
 class ClientUnit : public ClientObject {
@@ -90,6 +99,11 @@ class ClientUnit : public ClientObject {
   inline UnitType GetType() const { return type; }
   inline void SetType(UnitType newType) { type = newType; }
   
+  /// Convenience function that returns the ClientUnitType for this unit.
+  inline ClientUnitType& GetClientUnitType() const {
+    return ClientUnitType::GetUnitTypes()[static_cast<int>(type)];
+  }
+  
   inline QString GetUnitName() const { return ::GetUnitName(type); }
   inline const Texture* GetIconTexture() const { return ClientUnitType::GetUnitTypes()[static_cast<int>(type)].GetIconTexture(); };
   
@@ -97,6 +111,7 @@ class ClientUnit : public ClientObject {
   void SetCurrentAnimation(UnitAnimation animation, double serverTime);
   
   inline const QPointF& GetMapCoord() const { return mapCoord; }
+  inline int GetDirection() const { return direction; }
   
   void SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action) {
     movementSegment = MovementSegment(serverTime, startPoint, speed, action);

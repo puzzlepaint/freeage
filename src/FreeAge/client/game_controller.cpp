@@ -4,6 +4,7 @@
 
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/client/building.hpp"
+#include "FreeAge/client/decal.hpp"
 #include "FreeAge/client/unit.hpp"
 
 GameController::GameController(const std::shared_ptr<Match>& match, const std::shared_ptr<ServerConnection>& connection)
@@ -203,12 +204,19 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
     LOG(ERROR) << "Received an ObjectDeath message for an object ID that is not in the map.";
     return;
   }
-  // ClientObject* object = it->second;
+  ClientObject* object = it->second;
   
-  // TODO: Convert the object into a decal that:
+  // Convert the object into a decal that:
   // - First plays the destruction / death animation (if any)
   // - Then displays a rubble pile / decay sprite (if any)
+  if (object->isBuilding()) {
+    // TODO
+  } else if (object->isUnit()) {
+    Decal* newDecal = new Decal(static_cast<ClientUnit*>(object), map.get(), currentGameStepServerTime);
+    renderWindow->AddDecal(newDecal);
+  }
   
+  delete object;
   map->GetObjects().erase(it);
 }
 

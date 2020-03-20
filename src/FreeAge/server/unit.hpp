@@ -50,7 +50,7 @@ class ServerUnit : public ServerObject {
   inline void SetCarriedResourceAmount(float amount) { carriedResourceAmount = amount; }
   
   // TODO: Load this from some database for each unit type
-  inline float GetMoveSpeed() const { return (type == UnitType::Scout) ? 2.f : 1.f; }
+  inline float GetMoveSpeed() const { return 3 * ((type == UnitType::Scout) ? 2.f : 1.f); }
   
  private:
   void SetTargetInternal(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting);

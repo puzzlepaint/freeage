@@ -156,6 +156,13 @@ RenderWindow::~RenderWindow() {
     map.reset();
   }
   
+  for (Decal* decal : groundDecals) {
+    delete decal;
+  }
+  for (Decal* decal : occludingDecals) {
+    delete decal;
+  }
+  
   ClientUnitType::GetUnitTypes().clear();
   ClientBuildingType::GetBuildingTypes().clear();
   
@@ -402,6 +409,14 @@ QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime) {
   QPointF result;
   map->ProjectedCoordToMapCoord(projectedCoord, &result);
   return result;
+}
+
+void RenderWindow::AddDecal(Decal* decal) {
+  if (decal->MayOccludeSprites()) {
+    occludingDecals.push_back(decal);
+  } else {
+    groundDecals.push_back(decal);
+  }
 }
 
 void RenderWindow::SendLoadingProgress(int progress) {
@@ -1005,6 +1020,82 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
             widgetWidth,
             widgetHeight);
       }
+    }
+  }
+}
+
+void RenderWindow::RenderGroundDecals() {
+  RenderDecals(groundDecals);
+}
+
+void RenderWindow::RenderOccludingDecals() {
+  RenderDecals(occludingDecals);
+}
+
+void RenderWindow::RenderDecals(std::vector<Decal*>& decals) {
+  // TODO: Sort to minmize texture switches.
+  for (auto& decal : decals) {
+    QRectF projectedCoordsRect = decal->GetRectInProjectedCoords(
+        false,
+        false);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      decal->Render(
+          qRgb(0, 0, 0),
+          spriteShader.get(),
+          pointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          false,
+          false);
+    }
+  }
+}
+
+void RenderWindow::RenderOccludingDecalShadows() {
+  // TODO: Sort to minmize texture switches.
+  for (auto& decal : occludingDecals) {
+    QRectF projectedCoordsRect = decal->GetRectInProjectedCoords(
+        true,
+        false);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      decal->Render(
+          qRgb(0, 0, 0),
+          shadowShader.get(),
+          pointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          true,
+          false);
+    }
+  }
+}
+
+void RenderWindow::RenderOccludingDecalOutlines() {
+  // TODO: Sort to minmize texture switches.
+  for (auto& decal : occludingDecals) {
+    QRgb outlineColor = qRgb(255, 255, 255);
+    if (decal->GetPlayerIndex() < playerColors.size()) {
+      outlineColor = playerColors[decal->GetPlayerIndex()];
+    }
+    
+    QRectF projectedCoordsRect = decal->GetRectInProjectedCoords(
+        false,
+        true);
+    if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      decal->Render(
+          outlineColor,
+          outlineShader.get(),
+          pointBuffer,
+          viewMatrix,
+          zoom,
+          widgetWidth,
+          widgetHeight,
+          false,
+          true);
     }
   }
 }
@@ -1690,6 +1781,49 @@ void RenderWindow::UpdateGameState(double displayedServerTime) {
       // TODO: Anything to do here?
     }
   }
+  
+  // Update ground decals.
+  usize outputIndex = 0;
+  for (usize i = 0; i < groundDecals.size(); ++ i) {
+    Decal* decal = groundDecals[i];
+    
+    if (decal->Update(displayedServerTime)) {
+      // Keep the decal.
+      if (outputIndex != i) {
+        groundDecals[outputIndex] = decal;
+      }
+      
+      ++ outputIndex;
+    } else {
+      // The decal has expired.
+      delete decal;
+    }
+  }
+  groundDecals.resize(outputIndex);
+  
+  // Update occluding decals.
+  outputIndex = 0;
+  for (usize i = 0; i < occludingDecals.size(); ++ i) {
+    Decal* decal = occludingDecals[i];
+    
+    if (decal->Update(displayedServerTime)) {
+      if (!decal->MayOccludeSprites()) {
+        // Move the decal to the groundDecals list.
+        groundDecals.push_back(decal);
+      } else {
+        // Keep the decal.
+        if (outputIndex != i) {
+          occludingDecals[outputIndex] = decal;
+        }
+        
+        ++ outputIndex;
+      }
+    } else {
+      // The decal has expired.
+      delete decal;
+    }
+  }
+  occludingDecals.resize(outputIndex);
 }
 
 bool RenderWindow::CanBuildingFoundationBePlacedHere(BuildingType type, const QPointF& cursorPos, QPoint* baseTile) {
@@ -2129,6 +2263,7 @@ void RenderWindow::paintGL() {
   
   CHECK_OPENGL_NO_ERROR();
   RenderShadows(displayedServerTime);
+  RenderOccludingDecalShadows();
   CHECK_OPENGL_NO_ERROR();
   
   // Render the map terrain.
@@ -2136,6 +2271,7 @@ void RenderWindow::paintGL() {
   
   CHECK_OPENGL_NO_ERROR();
   map->Render(viewMatrix, graphicsPath);
+  RenderGroundDecals();
   CHECK_OPENGL_NO_ERROR();
   
   f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // reset the blend func to standard
@@ -2170,6 +2306,7 @@ void RenderWindow::paintGL() {
   
   CHECK_OPENGL_NO_ERROR();
   RenderOutlines(displayedServerTime);
+  RenderOccludingDecalOutlines();
   CHECK_OPENGL_NO_ERROR();
   
   // Render units and buildings that do not cause outlines.
@@ -2179,6 +2316,7 @@ void RenderWindow::paintGL() {
   CHECK_OPENGL_NO_ERROR();
   RenderBuildings(displayedServerTime, false);
   RenderUnits(displayedServerTime);
+  RenderOccludingDecals();
   CHECK_OPENGL_NO_ERROR();
   
   // Render move-to marker.

@@ -205,8 +205,8 @@ struct SMXFrameHeader {
 struct SMXLayerHeader {
   u16 width;
   u16 height;
-  u16 hotspotX;
-  u16 hotspotY;
+  i16 hotspotX;
+  i16 hotspotY;
   u32 layerLen;
   u32 unknown;
 };

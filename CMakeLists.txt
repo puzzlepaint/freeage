@@ -106,6 +106,7 @@ set(FREEAGE_SRCS
   resources/resources.qrc
   src/FreeAge/client/building.cpp
   src/FreeAge/client/command_button.cpp
+  src/FreeAge/client/decal.cpp
   src/FreeAge/client/game_controller.cpp
   src/FreeAge/client/game_dialog.cpp
   src/FreeAge/client/health_bar.cpp

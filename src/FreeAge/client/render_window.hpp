@@ -6,9 +6,9 @@
 #include <QOffscreenSurface>
 #include <QOpenGLWidget>
 
-#include "FreeAge/client/unit.hpp"
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/client/command_button.hpp"
+#include "FreeAge/client/decal.hpp"
 #include "FreeAge/client/map.hpp"
 #include "FreeAge/client/match.hpp"
 #include "FreeAge/client/opaqueness_map.hpp"
@@ -20,6 +20,7 @@
 #include "FreeAge/client/sprite.hpp"
 #include "FreeAge/client/text_display.hpp"
 #include "FreeAge/client/texture.hpp"
+#include "FreeAge/client/unit.hpp"
 
 class GameController;
 class LoadingThread;
@@ -56,6 +57,8 @@ class RenderWindow : public QOpenGLWidget {
   
   inline void EnableBorderScrolling(bool enable) { borderScrollingEnabled = enable; }
   
+  void AddDecal(Decal* decal);
+  
  signals:
   void LoadingProgressUpdated(int progress);
   
@@ -83,6 +86,12 @@ class RenderWindow : public QOpenGLWidget {
   void RenderUnits(double displayedServerTime);
   void RenderMoveToMarker(const TimePoint& now);
   void RenderHealthBars(double displayedServerTime);
+  void RenderGroundDecals();
+  void RenderOccludingDecals();
+  void RenderDecals(std::vector<Decal*>& decals);
+  void RenderOccludingDecalShadows();
+  void RenderOccludingDecalOutlines();
+  
   
   void RenderGameUI(double displayedServerTime);
   QPointF GetResourcePanelTopLeft();
@@ -197,6 +206,12 @@ class RenderWindow : public QOpenGLWidget {
   
   /// IDs of selected objects (units or buildings).
   std::vector<u32> selection;
+  
+  /// Decals on the ground.
+  std::vector<Decal*> groundDecals;
+  
+  /// Decals that may occlude other sprites.
+  std::vector<Decal*> occludingDecals;
   
   /// Current zoom factor. The default zoom is one, two would make everything twice as big, etc.
   float zoom;
