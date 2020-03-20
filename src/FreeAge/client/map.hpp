@@ -72,10 +72,10 @@ class Map {
   void UnloadRenderResources();
   
   
-  inline std::unordered_map<int, ClientObject*>& GetObjects() { return objects; }
-  inline const std::unordered_map<int, ClientObject*>& GetObjects() const { return objects; }
+  inline std::unordered_map<u32, ClientObject*>& GetObjects() { return objects; }
+  inline const std::unordered_map<u32, ClientObject*>& GetObjects() const { return objects; }
   
-  inline void AddObject(int objectId, ClientObject* object) { objects.insert(std::make_pair(objectId, object)); }
+  inline void AddObject(u32 objectId, ClientObject* object) { objects.insert(std::make_pair(objectId, object)); }
   
   inline int GetWidth() const { return width; }
   inline int GetHeight() const { return height; }
@@ -101,8 +101,8 @@ class Map {
   /// Height of the map in tiles.
   int height;
   
-  /// Map of building ID -> ClientObject.
-  std::unordered_map<int, ClientObject*> objects;
+  /// Map of object ID -> ClientObject.
+  std::unordered_map<u32, ClientObject*> objects;
   
   // TODO: Should this functionality be moved into its own class?
   // --- Rendering attributes ---

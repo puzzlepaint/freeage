@@ -221,7 +221,7 @@ QRectF ClientBuilding::GetRectInProjectedCoords(
 
 void ClientBuilding::Render(
     Map* map,
-    const std::vector<QRgb>& playerColors,
+    QRgb outlineColor,
     SpriteShader* spriteShader,
     GLuint pointBuffer,
     float* viewMatrix,
@@ -253,7 +253,7 @@ void ClientBuilding::Render(
         shadow ? helperType1.GetShadowTexture() : helperType1.GetTexture(),
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        playerColors, playerIndex);
+        outlineColor, playerIndex);
     
     // Back
     const ClientBuildingType& helperType2 = buildingTypes[static_cast<int>(BuildingType::TownCenterBack)];
@@ -262,7 +262,7 @@ void ClientBuilding::Render(
         shadow ? helperType2.GetShadowTexture() : helperType2.GetTexture(),
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        playerColors, playerIndex);
+        outlineColor, playerIndex);
     
     // Center
     const ClientBuildingType& helperType3 = buildingTypes[static_cast<int>(BuildingType::TownCenterCenter)];
@@ -271,7 +271,7 @@ void ClientBuilding::Render(
         shadow ? helperType3.GetShadowTexture() : helperType3.GetTexture(),
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        playerColors, playerIndex);
+        outlineColor, playerIndex);
   }
   
   bool useDarkModulation = isFoundation && buildPercentage == 0 && !shadow && !outline;
@@ -292,7 +292,7 @@ void ClientBuilding::Render(
       frameIndex,
       shadow,
       outline,
-      playerColors,
+      outlineColor,
       playerIndex);
   if (useDarkModulation) {
     spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
@@ -306,7 +306,7 @@ void ClientBuilding::Render(
         shadow ? helperType4.GetShadowTexture() : helperType4.GetTexture(),
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        playerColors, playerIndex);
+        outlineColor, playerIndex);
   }
 }
 

@@ -621,7 +621,7 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
         building.Render(
             map.get(),
-            playerColors,
+            qRgb(0, 0, 0),
             shadowShader.get(),
             pointBuffer,
             viewMatrix,
@@ -646,7 +646,7 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
         unit.Render(
             map.get(),
-            playerColors,
+            qRgb(0, 0, 0),
             shadowShader.get(),
             pointBuffer,
             viewMatrix,
@@ -678,7 +678,7 @@ void RenderWindow::RenderBuildings(double displayedServerTime) {
       // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
       building.Render(
           map.get(),
-          playerColors,
+          qRgb(0, 0, 0),
           spriteShader.get(),
           pointBuffer,
           viewMatrix,
@@ -709,7 +709,7 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime) {
     }
     tempBuilding->Render(
         map.get(),
-        playerColors,
+        qRgb(0, 0, 0),
         spriteShader.get(),
         pointBuffer,
         viewMatrix,
@@ -725,7 +725,7 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime) {
   }
 }
 
-void RenderWindow::RenderSelectionGroundOutlines(double displayedServerTime) {
+void RenderWindow::RenderSelectionGroundOutlines() {
   for (u32 objectId : selection) {
     auto it = map->GetObjects().find(objectId);
     if (it != map->GetObjects().end()) {
@@ -733,21 +733,11 @@ void RenderWindow::RenderSelectionGroundOutlines(double displayedServerTime) {
     }
   }
   
-  if (flashingObjectId != kInvalidObjectId) {
+  if (flashingObjectId != kInvalidObjectId &&
+      IsObjectFlashActive()) {
     auto flashingObjectIt = map->GetObjects().find(flashingObjectId);
     if (flashingObjectIt != map->GetObjects().end()) {
-      constexpr int kFlashCount = 3;
-      constexpr double kFlashShowDuration = 0.2;
-      constexpr double kFlashHideDuration = 0.1;
-      
-      double timeSinceFlashStart = displayedServerTime - flashingObjectStartTime;
-      if (timeSinceFlashStart > 0 &&
-          timeSinceFlashStart < kFlashCount * (kFlashShowDuration + kFlashHideDuration)) {
-        double phase = fmod(timeSinceFlashStart, kFlashShowDuration + kFlashHideDuration);
-        if (phase <= kFlashShowDuration) {
-          RenderSelectionGroundOutline(qRgba(80, 255, 80, 255), flashingObjectIt->second);
-        }
-      }
+      RenderSelectionGroundOutline(qRgba(80, 255, 80, 255), flashingObjectIt->second);
     }
   }
 }
@@ -809,6 +799,21 @@ void RenderWindow::RenderOutlines(double displayedServerTime) {
   for (auto& object : map->GetObjects()) {
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
+    QRgb outlineColor;
+    if (object.second->GetPlayerIndex() == kGaiaPlayerIndex) {
+      // Hard-code white as the outline color for "Gaia" objects
+      outlineColor = qRgb(255, 255, 255);
+    } else {
+      outlineColor = playerColors[object.second->GetPlayerIndex()];
+    }
+    
+    if (object.first == flashingObjectId &&
+        IsObjectFlashActive()) {
+      outlineColor = qRgb(255 - qRed(outlineColor),
+                          255 - qGreen(outlineColor),
+                          255 - qBlue(outlineColor));
+    }
+    
     if (object.second->isBuilding()) {
       ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
       if (!building.GetSprite().HasOutline()) {
@@ -823,7 +828,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime) {
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
         building.Render(
             map.get(),
-            playerColors,
+            outlineColor,
             outlineShader.get(),
             pointBuffer,
             viewMatrix,
@@ -848,7 +853,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime) {
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
         unit.Render(
             map.get(),
-            playerColors,
+            outlineColor,
             outlineShader.get(),
             pointBuffer,
             viewMatrix,
@@ -879,7 +884,7 @@ void RenderWindow::RenderUnits(double displayedServerTime) {
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
       unit.Render(
           map.get(),
-          playerColors,
+          qRgb(0, 0, 0),
           spriteShader.get(),
           pointBuffer,
           viewMatrix,
@@ -921,7 +926,7 @@ void RenderWindow::RenderMoveToMarker(const TimePoint& now) {
         moveToFrameIndex,
         /*shadow*/ false,
         /*outline*/ false,
-        playerColors,
+        qRgb(0, 0, 0),
         /*playerIndex*/ 0,
         /*scaling*/ 0.5f);
   }
@@ -1600,11 +1605,26 @@ void RenderWindow::SelectionChanged() {
   ShowDefaultCommandButtonsForSelection();
 }
 
-void RenderWindow::LetObjectGroundOutlineFlash(u32 objectId) {
+void RenderWindow::LetObjectFlash(u32 objectId) {
   flashingObjectId = objectId;
   // NOTE: We could use a local time here to make it a bit more smooth than with the server time.
   //       It will not matter in practice though.
   flashingObjectStartTime = lastDisplayedServerTime;
+}
+
+bool RenderWindow::IsObjectFlashActive() {
+  constexpr int kFlashCount = 3;
+  constexpr double kFlashShowDuration = 0.2;
+  constexpr double kFlashHideDuration = 0.2;
+  
+  double timeSinceFlashStart = lastDisplayedServerTime - flashingObjectStartTime;
+  if (timeSinceFlashStart > 0 &&
+      timeSinceFlashStart < kFlashCount * (kFlashShowDuration + kFlashHideDuration)) {
+    double phase = fmod(timeSinceFlashStart, kFlashShowDuration + kFlashHideDuration);
+    return (phase <= kFlashShowDuration);
+  }
+  
+  return false;
 }
 
 void RenderWindow::RenderLoadingScreen() {
@@ -2119,7 +2139,7 @@ void RenderWindow::paintGL() {
   
   // Render selection outlines below buildings.
   CHECK_OPENGL_NO_ERROR();
-  RenderSelectionGroundOutlines(displayedServerTime);
+  RenderSelectionGroundOutlines();
   CHECK_OPENGL_NO_ERROR();
   
   // Enable the depth buffer for sprite rendering.
@@ -2300,7 +2320,7 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
           connection->Write(CreateSetTargetMessage(suitableUnits, targetObjectId));
           
           // Make the ground outline of the target flash green three times
-          LetObjectGroundOutlineFlash(targetObjectId);
+          LetObjectFlash(targetObjectId);
         }
       }
       

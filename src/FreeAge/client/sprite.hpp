@@ -134,7 +134,7 @@ void DrawSprite(
     int frameNumber,
     bool shadow,
     bool outline,
-    const std::vector<QRgb>& playerColors,
+    QRgb outlineColor,
     int playerIndex,
     float scaling = 1);
 

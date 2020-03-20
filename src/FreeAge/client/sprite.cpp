@@ -1129,7 +1129,7 @@ void DrawSprite(
     int frameNumber,
     bool shadow,
     bool outline,
-    const std::vector<QRgb>& playerColors,
+    QRgb outlineColor,
     int playerIndex,
     float scaling) {
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameNumber).shadow : sprite.frame(frameNumber).graphic;
@@ -1153,12 +1153,7 @@ void DrawSprite(
     program->SetUniform2f(spriteShader->GetTextureSizeLocation(), texture.GetWidth(), texture.GetHeight());
   }
   if (outline) {
-    // TODO: Handle this special case in a more suitable location, not in this generic sprite drawing function
-    if (playerIndex == -1) {
-      program->SetUniform3f(spriteShader->GetPlayerColorLocation(), 1, 1, 1);
-    } else {
-      program->SetUniform3f(spriteShader->GetPlayerColorLocation(), qRed(playerColors[playerIndex]), qGreen(playerColors[playerIndex]), qBlue(playerColors[playerIndex]));
-    }
+    program->SetUniform3f(spriteShader->GetPlayerColorLocation(), qRed(outlineColor) / 255.f, qGreen(outlineColor) / 255.f, qBlue(outlineColor) / 255.f);
   }
   
   program->SetUniform2f(

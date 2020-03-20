@@ -77,7 +77,7 @@ class RenderWindow : public QOpenGLWidget {
   void RenderShadows(double displayedServerTime);
   void RenderBuildings(double displayedServerTime);
   void RenderBuildingFoundation(double displayedServerTime);
-  void RenderSelectionGroundOutlines(double displayedServerTime);
+  void RenderSelectionGroundOutlines();
   void RenderSelectionGroundOutline(QRgb color, ClientObject* object);
   void RenderOutlines(double displayedServerTime);
   void RenderUnits(double displayedServerTime);
@@ -114,7 +114,8 @@ class RenderWindow : public QOpenGLWidget {
   /// Performs box selection. This already calls SelectionChanged() internally.
   void BoxSelection(const QPoint& p0, const QPoint& p1);
   
-  void LetObjectGroundOutlineFlash(u32 objectId);
+  void LetObjectFlash(u32 objectId);
+  bool IsObjectFlashActive();
   
   void RenderLoadingScreen();
   

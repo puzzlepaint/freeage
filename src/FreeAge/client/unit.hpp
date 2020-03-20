@@ -76,7 +76,7 @@ class ClientUnit : public ClientObject {
   
   void Render(
       Map* map,
-      const std::vector<QRgb>& playerColors,
+      QRgb outlineColor,
       SpriteShader* spriteShader,
       GLuint pointBuffer,
       float* viewMatrix,
