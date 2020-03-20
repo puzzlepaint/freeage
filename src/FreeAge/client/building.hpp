@@ -39,6 +39,8 @@ class ClientBuildingType {
   
   inline const Texture* GetIconTexture() const { return &iconTexture; }
   
+  inline bool DoesCauseOutlines() const { return doesCauseOutlines; }
+  
   /// Returns the global instance of the building types vector.
   inline static std::vector<ClientBuildingType>& GetBuildingTypes() {
     static std::vector<ClientBuildingType> buildingTypesSingleton;
@@ -49,6 +51,7 @@ class ClientBuildingType {
   QString GetFilename() const;
   QString GetFoundationFilename() const;
   std::filesystem::path GetIconFilename() const;
+  bool DoesCauseOutlinesInternal() const;
   
   BuildingType type;
   
@@ -66,6 +69,8 @@ class ClientBuildingType {
   int maxCenterY;
   
   Texture iconTexture;
+  
+  bool doesCauseOutlines;
 };
 
 

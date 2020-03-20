@@ -661,13 +661,16 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
   }
 }
 
-void RenderWindow::RenderBuildings(double displayedServerTime) {
+void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsThatCauseOutlines) {
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
     if (!object.second->isBuilding()) {
       continue;
     }
     ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
+    if (buildingsThatCauseOutlines != ClientBuildingType::GetBuildingTypes()[static_cast<int>(building.GetType())].DoesCauseOutlines()) {
+      continue;
+    }
     
     QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
         map.get(),
@@ -2146,9 +2149,9 @@ void RenderWindow::paintGL() {
   f->glEnable(GL_DEPTH_TEST);
   f->glDepthFunc(GL_LEQUAL);
   
-  // Render buildings.
+  // Render buildings that cause outlines.
   CHECK_OPENGL_NO_ERROR();
-  RenderBuildings(displayedServerTime);
+  RenderBuildings(displayedServerTime, true);
   CHECK_OPENGL_NO_ERROR();
   
   // Render the building foundation under the cursor.
@@ -2169,11 +2172,12 @@ void RenderWindow::paintGL() {
   RenderOutlines(displayedServerTime);
   CHECK_OPENGL_NO_ERROR();
   
-  // Render units.
+  // Render units and buildings that do not cause outlines.
   f->glDepthMask(GL_TRUE);
   f->glDepthFunc(GL_LEQUAL);
   
   CHECK_OPENGL_NO_ERROR();
+  RenderBuildings(displayedServerTime, false);
   RenderUnits(displayedServerTime);
   CHECK_OPENGL_NO_ERROR();
   

@@ -75,7 +75,7 @@ class RenderWindow : public QOpenGLWidget {
   /// The given offset is applied to each vertex.
   void RenderClosedPath(float halfLineWidth, const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset);
   void RenderShadows(double displayedServerTime);
-  void RenderBuildings(double displayedServerTime);
+  void RenderBuildings(double displayedServerTime, bool buildingsThatCauseOutlines);
   void RenderBuildingFoundation(double displayedServerTime);
   void RenderSelectionGroundOutlines();
   void RenderSelectionGroundOutline(QRgb color, ClientObject* object);

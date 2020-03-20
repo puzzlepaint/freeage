@@ -51,6 +51,8 @@ bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& gr
     iconTexture.Load(ingameTexturesPath / iconFilename, GL_CLAMP, GL_LINEAR, GL_LINEAR);
   }
   
+  doesCauseOutlines = DoesCauseOutlinesInternal();
+  
   return true;
 }
 
@@ -146,6 +148,36 @@ std::filesystem::path ClientBuildingType::GetIconFilename() const {
   }
   
   return std::filesystem::path();
+}
+
+bool ClientBuildingType::DoesCauseOutlinesInternal() const {
+  // TODO: Load this from some data file
+  
+  switch (type) {
+  case BuildingType::TownCenter:       return true;
+  case BuildingType::TownCenterBack:   return true;
+  case BuildingType::TownCenterCenter: return true;
+  case BuildingType::TownCenterFront:  return true;
+  case BuildingType::TownCenterMain:   return true;
+  case BuildingType::House:            return true;
+  case BuildingType::Mill:             return true;
+  case BuildingType::MiningCamp:       return true;
+  case BuildingType::LumberCamp:       return true;
+  case BuildingType::Dock:             return true;
+  case BuildingType::Barracks:         return true;
+  case BuildingType::Outpost:          return true;
+  case BuildingType::PalisadeWall:     return true;
+  case BuildingType::PalisadeGate:     return true;
+  case BuildingType::TreeOak:          return true;
+  case BuildingType::ForageBush:       return false;
+  case BuildingType::GoldMine:         return false;
+  case BuildingType::StoneMine:        return false;
+  case BuildingType::NumBuildings:
+    LOG(ERROR) << "Invalid type given: BuildingType::NumBuildings";
+    break;
+  }
+  
+  return false;
 }
 
 bool ClientBuildingType::UsesRandomSpriteFrame() const {
