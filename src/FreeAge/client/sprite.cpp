@@ -361,7 +361,7 @@ Palette LoadPalette(const std::filesystem::path& path) {
   
   bool hasAlpha = path.extension().string() == ".palx";
   
-  FILE* file = fopen(path.c_str(), "rb");
+  FILE* file = fopen(path.string().c_str(), "rb");
   if (!file) {
     LOG(ERROR) << "Cannot open file: " << path;
     return result;

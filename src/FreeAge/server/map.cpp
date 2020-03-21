@@ -88,7 +88,7 @@ void ServerMap::GenerateRandomMap(int playerCount, int seed) {
       *tileX = rand() % width;
       *tileY = rand() % height;
       ok = true;
-      for (int i = 0; i < 2; ++ i) {
+      for (int i = 0; i < playerCount; ++ i) {
         float distanceX = townCenterCenters[i].x() - *tileX;
         float distanceY = townCenterCenters[i].y() - *tileY;
         float distance = sqrtf(distanceX * distanceX + distanceY * distanceY);

@@ -33,71 +33,71 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   switch (type) {
   case UnitType::FemaleVillager:
     spriteBaseName[0] = "u_vil_female_villager";
-    iconPath = ingameUnitsPath / "016_50730.DDS";
+    iconPath = (ingameUnitsPath / "016_50730.DDS").string();
     break;
   case UnitType::FemaleVillagerBuilder:
     spriteBaseName[0] = "u_vil_female_builder";
     spriteBaseName[1] = "u_vil_female_villager";
-    iconPath = ingameUnitsPath / "016_50730.DDS";
+    iconPath = (ingameUnitsPath / "016_50730.DDS").string();
     break;
   case UnitType::FemaleVillagerForager:
     spriteBaseName[0] = "u_vil_female_forager";
     spriteBaseName[1] = "u_vil_female_villager";
-    iconPath = ingameUnitsPath / "016_50730.DDS";
+    iconPath = (ingameUnitsPath / "016_50730.DDS").string();
     break;
   case UnitType::FemaleVillagerLumberjack:
     spriteBaseName[0] = "u_vil_female_lumberjack";
     spriteBaseName[1] = "u_vil_female_villager";
-    iconPath = ingameUnitsPath / "016_50730.DDS";
+    iconPath = (ingameUnitsPath / "016_50730.DDS").string();
     break;
   case UnitType::FemaleVillagerGoldMiner:
     spriteBaseName[0] = "u_vil_female_miner_gold";
     spriteBaseName[1] = "u_vil_female_villager";
-    iconPath = ingameUnitsPath / "016_50730.DDS";
+    iconPath = (ingameUnitsPath / "016_50730.DDS").string();
     break;
   case UnitType::FemaleVillagerStoneMiner:
     spriteBaseName[0] = "u_vil_female_miner_stone";
     spriteBaseName[1] = "u_vil_female_miner_gold";
     spriteBaseName[2] = "u_vil_female_villager";
-    iconPath = ingameUnitsPath / "016_50730.DDS";
+    iconPath = (ingameUnitsPath / "016_50730.DDS").string();
     break;
   case UnitType::MaleVillager:
     spriteBaseName[0] = "u_vil_male_villager";
-    iconPath = ingameUnitsPath / "015_50730.DDS";
+    iconPath = (ingameUnitsPath / "015_50730.DDS").string();
     break;
   case UnitType::MaleVillagerBuilder:
     spriteBaseName[0] = "u_vil_male_builder";
     spriteBaseName[1] = "u_vil_male_villager";
-    iconPath = ingameUnitsPath / "015_50730.DDS";
+    iconPath = (ingameUnitsPath / "015_50730.DDS").string();
     break;
   case UnitType::MaleVillagerForager:
     spriteBaseName[0] = "u_vil_male_forager";
     spriteBaseName[1] = "u_vil_male_villager";
-    iconPath = ingameUnitsPath / "015_50730.DDS";
+    iconPath = (ingameUnitsPath / "015_50730.DDS").string();
     break;
   case UnitType::MaleVillagerLumberjack:
     spriteBaseName[0] = "u_vil_male_lumberjack";
     spriteBaseName[1] = "u_vil_male_villager";
-    iconPath = ingameUnitsPath / "015_50730.DDS";
+    iconPath = (ingameUnitsPath / "015_50730.DDS").string();
     break;
   case UnitType::MaleVillagerGoldMiner:
     spriteBaseName[0] = "u_vil_male_miner_gold";
     spriteBaseName[1] = "u_vil_male_villager";
-    iconPath = ingameUnitsPath / "015_50730.DDS";
+    iconPath = (ingameUnitsPath / "015_50730.DDS").string();
     break;
   case UnitType::MaleVillagerStoneMiner:
     spriteBaseName[0] = "u_vil_male_miner_stone";
     spriteBaseName[1] = "u_vil_male_miner_gold";
     spriteBaseName[2] = "u_vil_male_villager";
-    iconPath = ingameUnitsPath / "015_50730.DDS";
+    iconPath = (ingameUnitsPath / "015_50730.DDS").string();
     break;
   case UnitType::Militia:
     spriteBaseName[0] = "u_inf_militia";
-    iconPath = ingameUnitsPath / "008_50730.DDS";
+    iconPath = (ingameUnitsPath / "008_50730.DDS").string();
     break;
   case UnitType::Scout:
     spriteBaseName[0] = "u_cav_scout";
-    iconPath = ingameUnitsPath / "064_50730.DDS";
+    iconPath = (ingameUnitsPath / "064_50730.DDS").string();
     break;
   case UnitType::NumUnits:
     LOG(ERROR) << "Invalid unit type in ClientUnitType constructor: " << static_cast<int>(type);
@@ -186,8 +186,8 @@ int ClientUnitType::GetHealthBarHeightAboveCenter() const {
 bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes, UnitAnimation type) {
   std::vector<SpriteAndTextures*>& animationVector = animations[static_cast<int>(type)];
   animationVector[index] = SpriteManager::Instance().GetOrLoad(
-      (graphicsPath / filename).c_str(),
-      (cachePath / filename).c_str(),
+      (graphicsPath / filename).string().c_str(),
+      (cachePath / filename).string().c_str(),
       palettes);
   return animationVector[index] != nullptr;
 }

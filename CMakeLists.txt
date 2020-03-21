@@ -1,9 +1,13 @@
 cmake_minimum_required(VERSION 3.0)
 
+cmake_policy(SET CMP0054 NEW)
+
 project(FreeAge)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 
 # Cross-platform threading.
@@ -38,11 +42,8 @@ set_target_properties(loguru PROPERTIES
 target_compile_definitions(loguru PRIVATE
   LOGURU_WITH_STREAMS
 )
-if(MSVC)
-  set(LOGURU_DLL_EXPORT "__declspec(dllexport)")
-endif()
 target_compile_definitions(loguru PRIVATE
-  LOGURU_EXPORT=${LOGURU_DLL_EXPORT}
+  LOGURU_EXPORTS
 )
 target_link_libraries(loguru
   Threads::Threads
@@ -63,14 +64,20 @@ add_library(FreeAgeLib
   src/FreeAge/common/timing.cpp
   src/FreeAge/common/unit_types.cpp
 )
-target_compile_options(FreeAgeLib PUBLIC
-  "$<$<COMPILE_LANGUAGE:CXX>:-Wall>"
-  ";$<$<COMPILE_LANGUAGE:CXX>:-Wextra>"
-  ";$<$<COMPILE_LANGUAGE:CXX>:-O2>"
-  ";$<$<COMPILE_LANGUAGE:CXX>:-msse2>"
-  ";$<$<COMPILE_LANGUAGE:CXX>:-msse3>"
-  ";$<$<COMPILE_LANGUAGE:CXX>:-Wno-comment>"
-)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(FreeAgeLib PUBLIC
+    "$<$<COMPILE_LANGUAGE:CXX>:-Wall>"
+    ";$<$<COMPILE_LANGUAGE:CXX>:-Wextra>"
+  )
+endif()
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  target_compile_options(FreeAgeLib PUBLIC
+    ";$<$<COMPILE_LANGUAGE:CXX>:-O2>"
+    ";$<$<COMPILE_LANGUAGE:CXX>:-msse2>"
+    ";$<$<COMPILE_LANGUAGE:CXX>:-msse3>"
+    ";$<$<COMPILE_LANGUAGE:CXX>:-Wno-comment>"
+  )
+endif()
 target_include_directories(FreeAgeLib PUBLIC
   src
   third_party
@@ -82,8 +89,12 @@ target_link_libraries(FreeAgeLib PUBLIC
   mango
   loguru
   Threads::Threads
+)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+target_link_libraries(FreeAgeLib PUBLIC
   stdc++fs  # TODO: I think this is specific to gcc version 8
 )
+endif()
 
 
 # FreeAge server application

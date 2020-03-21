@@ -314,7 +314,7 @@ endif ()
 # ------------------------------------------------------------------------------
 
 if (COMPILER_MSVC)
-    target_compile_options(mango PUBLIC "/Gm")
+#     target_compile_options(mango PUBLIC "/Gm")
     target_compile_options(mango PUBLIC "/DUNICODE")
 
     if (ENABLE_FAST_MATH)
@@ -332,8 +332,8 @@ if (COMPILER_MSVC)
         target_compile_options(mango PUBLIC "/arch:AVX")
     endif ()
 else ()
-    set(CMAKE_CXX_FLAGS "-Wall")
-    set(CMAKE_CXX_FLAGS_DEBUG "-g")
+#     set(CMAKE_CXX_FLAGS "-Wall")
+#     set(CMAKE_CXX_FLAGS_DEBUG "-g")
     set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
     target_compile_definitions(mango PUBLIC $<$<PLATFORM_ID:Windows>:UNICODE>)

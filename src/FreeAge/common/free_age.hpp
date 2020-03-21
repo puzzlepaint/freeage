@@ -29,3 +29,8 @@ static constexpr u16 serverPort = 49100;  // TODO: Make configurable
 
 /// Player index for "gaia" objects (resources, animals, etc.)
 static constexpr int kGaiaPlayerIndex = -1;
+
+// The M_PI definition might be missing sometimes, so ensure that it is present.
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif

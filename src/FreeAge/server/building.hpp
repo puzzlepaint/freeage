@@ -8,7 +8,7 @@
 #include "FreeAge/server/object.hpp"
 #include "FreeAge/common/unit_types.hpp"
 
-class PlayerInGame;
+struct PlayerInGame;
 
 /// Represents a building on the server.
 class ServerBuilding : public ServerObject {

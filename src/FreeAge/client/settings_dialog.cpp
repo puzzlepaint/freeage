@@ -40,8 +40,8 @@ void Settings::InitializeWithDefaults() {
 
 void Settings::Save() {
   QSettings settings;
-  settings.setValue("dataPath", QString::fromStdString(dataPath));
-  settings.setValue("modsPath", QString::fromStdString(modsPath));
+  settings.setValue("dataPath", QString::fromStdString(dataPath.string()));
+  settings.setValue("modsPath", QString::fromStdString(modsPath.string()));
   settings.setValue("playerName", playerName);
   settings.setValue("fullscreen", fullscreen);
   settings.setValue("uiScale", uiScale);
@@ -62,43 +62,52 @@ bool Settings::TryLoad() {
 void Settings::TryToFindPathsOnWindows() {
   // Try to find the data folder on Windows.
   QSettings registryKey("HKEY_LOCAL_MACHINE\\SOFTWARE\\Valve", QSettings::NativeFormat);
-  QString steamPath = registryKey.value("Steam").toString();
+  QString steamPath = registryKey.value("Steam/InstallPath").toString();
   if (steamPath.isEmpty()) {
     QSettings registryKey = QSettings("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Valve", QSettings::NativeFormat);
-    steamPath = registryKey.value("Steam").toString();
+    steamPath = registryKey.value("Steam/InstallPath").toString();
   }
   if (!steamPath.isEmpty()) {
     QDir steamDir(steamPath);
     if (steamDir.exists() && steamDir.cd("steamapps")) {
       QString libraryFoldersFilePath = steamDir.filePath("libraryfolders.vdf");
-      if (steamDir.cd("common") && steamDir.cd("AoE2DE")) {
-        if (steamDir.exists() && !steamDir.isEmpty()) {
-          dataPath = steamDir.path().toStdString();
-        } else {
-          // Read information about other library directories from libraryfolders.vdf and search in those too
-          QStringList libraryDirectories;
-          
-          QFile vdfFile(libraryFoldersFilePath);
-          if (vdfFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            while (vdfFile.canReadLine()) {
-              QString lineText = vdfFile.readLine();
-              QStringList words = lineText.split('\t', QString::SkipEmptyParts);
-              if (words.size() == 2 &&
-                  words[0] == "\"1\"") {
-                libraryDirectories.push_back(words[1]);
-              }
-            }
-          }
-          
-          for (QString& libraryDirectory : libraryDirectories) {
-            QDir testDir(libraryDirectory);
-            if (!testDir.cd("steamapps")) { continue; }
-            if (!testDir.cd("common")) { continue; }
-            if (!testDir.cd("AoE2DE")) { continue; }
-            if (testDir.exists() && !testDir.isEmpty()) {
-              dataPath = testDir.path().toStdString();
+      if (steamDir.cd("common") && steamDir.cd("AoE2DE") && steamDir.exists() && !steamDir.isEmpty()) {
+        dataPath = steamDir.path().toStdString();
+      } else {
+        LOG(INFO) << "TryToFindPathsOnWindows(): Checking additional Steam libraries ...";
+        
+        // Read information about other library directories from libraryfolders.vdf and search in those too
+        QStringList libraryDirectories;
+        
+        QFile vdfFile(libraryFoldersFilePath);
+        if (vdfFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+          while (true) {
+            QString lineText = vdfFile.readLine();
+            // Note: canReadLine() did not appear to work on Windows, so instead of checking this beforehand,
+            // we break if the returned line is empty (i.e., we do not even get the line termination character(s)).
+            if (lineText.isEmpty()) {
               break;
             }
+            
+            QStringList words = lineText.trimmed().split('\t', QString::SkipEmptyParts);
+            if (words.size() == 2 &&
+                words[0] == "\"1\"" &&
+                words[1].size() > 2) {
+              libraryDirectories.push_back(words[1].mid(1, words[1].size() - 2).replace("\\\\", "\\"));
+            }
+          }
+        }
+        
+        for (QString& libraryDirectory : libraryDirectories) {
+          LOG(INFO) << "TryToFindPathsOnWindows(): Checking Steam library: " << libraryDirectory.toStdString();
+          
+          QDir testDir(libraryDirectory);
+          if (!testDir.cd("steamapps")) { continue; }
+          if (!testDir.cd("common")) { continue; }
+          if (!testDir.cd("AoE2DE")) { continue; }
+          if (testDir.exists() && !testDir.isEmpty()) {
+            dataPath = testDir.path().toStdString();
+            break;
           }
         }
       }
@@ -198,7 +207,7 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   setWindowTitle(tr("FreeAge - Setup"));
   
   QLabel* dataFolderLabel = new QLabel(tr("AoE2DE folder path: "));
-  dataFolderEdit = new QLineEdit(QString::fromStdString(settings->dataPath));
+  dataFolderEdit = new QLineEdit(QString::fromStdString(settings->dataPath.string()));
   QPushButton* dataFolderButton = new QPushButton(tr("Select"));
   
   QHBoxLayout* dataFolderEditLayout = new QHBoxLayout();
@@ -208,7 +217,7 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   dataFolderEditLayout->addWidget(dataFolderButton);
   
   QLabel* modsFolderLabel = new QLabel(tr("Mods folder path: "));
-  modsFolderEdit = new QLineEdit(QString::fromStdString(settings->modsPath));
+  modsFolderEdit = new QLineEdit(QString::fromStdString(settings->modsPath.string()));
   QPushButton* modsFolderButton = new QPushButton(tr("Select"));
   
   QHBoxLayout* modsFolderEditLayout = new QHBoxLayout();

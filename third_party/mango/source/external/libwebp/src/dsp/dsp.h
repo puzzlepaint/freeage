@@ -72,9 +72,10 @@ extern "C" {
 #define WEBP_USE_SSE2
 #endif
 
-#if defined(__SSE4_1__) || defined(WEBP_MSC_SSE41) || defined(WEBP_HAVE_SSE41)
-#define WEBP_USE_SSE41
-#endif
+// TODO: Disabled since it did not compile on Windows, and I don't use it
+// #if defined(__SSE4_1__) || defined(WEBP_MSC_SSE41) || defined(WEBP_HAVE_SSE41)
+// #define WEBP_USE_SSE41
+// #endif
 
 // The intrinsics currently cause compiler errors with arm-nacl-gcc and the
 // inline assembly would need to be modified for use with Native Client.

@@ -113,12 +113,12 @@ int main(int argc, char** argv) {
     // Load some initial basic game resources that are required for the game dialog.
     commonResourcesPath = std::filesystem::path(settingsDialog.GetDataPath().toStdString()) / "resources" / "_common";
     if (!std::filesystem::exists(commonResourcesPath)) {
-      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("The common resources path (%1) does not exist.").arg(QString::fromStdString(commonResourcesPath)));
+      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("The common resources path (%1) does not exist.").arg(QString::fromStdString(commonResourcesPath.string())));
       continue;
     }
     
     // Load palettes (to get the player colors).
-    if (!ReadPalettesConf((commonResourcesPath / "palettes" / "palettes.conf").c_str(), &palettes)) {
+    if (!ReadPalettesConf((commonResourcesPath / "palettes" / "palettes.conf").string().c_str(), &palettes)) {
       QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to load palettes."));
       continue;
     }

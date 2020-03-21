@@ -24,8 +24,8 @@ bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& gr
       sprites[spriteInt] = nullptr;
     } else {
       sprites[spriteInt] = SpriteManager::Instance().GetOrLoad(
-          (graphicsPath / filename.toStdString()).c_str(),
-          (cachePath / filename.toStdString()).c_str(),
+          (graphicsPath / filename.toStdString()).string().c_str(),
+          (cachePath / filename.toStdString()).string().c_str(),
           palettes);
       if (!sprites[spriteInt] ) {
         return false;

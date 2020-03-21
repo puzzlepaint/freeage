@@ -10,6 +10,13 @@ Decal::Decal(ClientUnit* unit, Map* map, double serverTime) {
   direction = unit->GetDirection();
   playerIndex = unit->GetPlayerIndex();
   creationTime = serverTime;
+
+  // If the unit type does not have a CarryDeath animation, use the standard Death animation instead.
+  bool frameWasClamped;
+  if (type == DecalType::UnitCarryDeath &&
+      !GetCurrentSpriteAndFrame(serverTime, &currentSprite, &currentFrame, &frameWasClamped)) {
+    type = DecalType::UnitDeath;
+  }
 }
 
 Decal::Decal(ClientBuilding* building, Map* map, double serverTime) {

@@ -110,9 +110,10 @@ void MY_FAST_CALL AesCbc_Decode_Intel(__m128i *p, __m128i *data, size_t numBlock
 void MY_FAST_CALL AesCtr_Code_Intel(__m128i *p, __m128i *data, size_t numBlocks)
 {
   __m128i ctr = *p;
+  // TODO: Disabled this since it did not seem to be portable
   __m128i one;
-  one.m128i_u64[0] = 1;
-  one.m128i_u64[1] = 0;
+  // one.m128i_u64[0] = 1;
+  // one.m128i_u64[1] = 0;
   for (; numBlocks >= NUM_WAYS; numBlocks -= NUM_WAYS, data += NUM_WAYS)
   {
     UInt32 numRounds2 = *(const UInt32 *)(p + 1) - 1;

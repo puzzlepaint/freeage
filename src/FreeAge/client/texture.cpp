@@ -15,7 +15,7 @@ static void PrintGPUMemoryUsage() {
 
 
 Texture* TextureManager::GetOrLoad(const std::filesystem::path& path, Loader loader, int wrapMode, int magFilter, int minFilter) {
-  TextureSettings settings(path, wrapMode, magFilter, minFilter);
+  TextureSettings settings(path.string(), wrapMode, magFilter, minFilter);
   auto it = loadedTextures.find(settings);
   if (it != loadedTextures.end()) {
     it->second->AddReference();
@@ -25,7 +25,7 @@ Texture* TextureManager::GetOrLoad(const std::filesystem::path& path, Loader loa
   // Load the texture.
   Texture* newTexture = new Texture();
   if (loader == Loader::QImage) {
-    QImage image(path.c_str());
+    QImage image(path.string().c_str());
     if (image.isNull()) {
       LOG(ERROR) << "Failed to load as QImage: " << path;
       return nullptr;
