@@ -95,6 +95,12 @@ class ServerConnectionThread : public QThread {
       // Define the client time.
       connectionStartTime = Clock::now();
       
+      // Clear ping / offset filter state.
+      lastSmoothedTimeOffset = -1;
+      lastSmoothedPing = -1;
+      robustOffsetAverage = -1;
+      robustPingAverage = -1;
+      
       // Set up connection monitoring.
       // NOTE: In Qt, a QThread object belongs to the thread >> that created this QThread <<, not to the thread that this QThread is running!
       //       As a consequence, if we connect e.g., QTimer signals to a member slot of ServerConnectionThread here,

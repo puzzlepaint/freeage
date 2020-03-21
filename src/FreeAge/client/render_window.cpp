@@ -4,6 +4,7 @@
 
 #include <QApplication>
 #include <QFontDatabase>
+#include <QIcon>
 #include <QKeyEvent>
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
@@ -62,6 +63,9 @@ RenderWindow::RenderWindow(
       palettes(palettes),
       graphicsPath(graphicsPath),
       cachePath(cachePath) {
+  setWindowIcon(QIcon(":/free_age/free_age.png"));
+  setWindowTitle(tr("FreeAge"));
+  
   georgiaFontLarger = georgiaFont;
   georgiaFontLarger.setPixelSize(uiScale * 2*17);
   georgiaFontLarger.setBold(true);
