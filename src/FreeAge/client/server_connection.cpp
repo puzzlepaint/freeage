@@ -1,5 +1,8 @@
 #include "FreeAge/client/server_connection.hpp"
 
+#include <iomanip>
+#include <fstream>
+
 #include <QApplication>
 #include <QThread>
 
@@ -29,6 +32,16 @@ class ServerConnectionThread : public QThread {
   inline std::vector<double>& GetLastPings() { return lastPings; }
   
   inline const TimePoint& GetConnectionStartTime() const { return connectionStartTime; }
+  
+  void SetDebugNetworking(bool enable) {
+    debugNetworking = enable;
+    if (debugNetworking) {
+      networkingDebugFile.open("network_debug_log_offsets.txt", std::ios::out);
+      networkingDebugFile << std::setprecision(14);
+    } else {
+      networkingDebugFile.close();
+    }
+  }
   
  signals:
   void NewMessage();
@@ -189,6 +202,12 @@ class ServerConnectionThread : public QThread {
         
         pingAndOffsetsMutex.unlock();
         
+        if (debugNetworking) {
+          networkingDebugFile << "offset " << timeOffset << std::endl;
+          networkingDebugFile << "ping " << (0.001 * pingInMilliseconds) << std::endl;
+          networkingDebugFile.flush();
+        }
+        
         return;
       }
     }
@@ -270,6 +289,11 @@ class ServerConnectionThread : public QThread {
   /// Timer which repeatedly calls PingAndCheckConnection().
   /// Note: This must be a pointer, otherwise it is wrongly created on the main thread.
   QTimer* pingAndConnectionCheckTimer = nullptr;
+  
+  
+  // -- Debug --
+  bool debugNetworking = false;
+  std::ofstream networkingDebugFile;
 };
 
 
@@ -298,6 +322,14 @@ ServerConnection::~ServerConnection() {
   thread->wait();
   
   delete dummyWorker;
+}
+
+void ServerConnection::SetDebugNetworking(bool enable) {
+  // Issue thread exit and wait for it to happen
+  QMetaObject::invokeMethod(dummyWorker, [=]() {
+    // This runs in the ServerConnectionThread.
+    thread->SetDebugNetworking(enable);
+  }, Qt::BlockingQueuedConnection);
 }
 
 bool ServerConnection::ConnectToServer(const QString& serverAddress, int timeout, bool retryUntilTimeout) {
@@ -389,12 +421,16 @@ double ServerConnection::GetServerTimeToDisplayNow() {
   EstimateCurrentPingAndOffset(&filteredPing, &filteredOffset);
   
   // First, estimate the server time up to which we expect to have received messages.
-  double clientTimeSeconds = SecondsDuration(Clock::now() - thread->GetConnectionStartTime()).count();
+  double clientTimeSeconds = GetClientTimeNow();
   double estimatedLastReceiveServerTime = clientTimeSeconds + filteredOffset;
   
   // Second, subtract some safety margin (to account for jitter).
   constexpr double kSafetyMargin = 0.015;  // 15 milliseconds
   return estimatedLastReceiveServerTime - kSafetyMargin;
+}
+
+double ServerConnection::GetClientTimeNow() {
+  return SecondsDuration(Clock::now() - thread->GetConnectionStartTime()).count();
 }
 
 void ServerConnection::NewMessageInternal() {

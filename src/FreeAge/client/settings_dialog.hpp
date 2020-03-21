@@ -16,6 +16,7 @@ struct Settings {
   QString playerName;
   float uiScale;
   bool fullscreen;
+  bool debugNetworking;
   
  private:
   void TryToFindPathsOnWindows();
@@ -47,6 +48,7 @@ class SettingsDialog : public QDialog {
   QLineEdit* playerNameEdit;
   QCheckBox* fullscreenCheck;
   QLineEdit* uiScaleEdit;
+  QCheckBox* debugNetworkingCheck;
   bool hostGameChosen;
   QString ipText;
   

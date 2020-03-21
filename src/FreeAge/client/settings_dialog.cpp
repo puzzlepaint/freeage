@@ -35,6 +35,7 @@ void Settings::InitializeWithDefaults() {
   
   fullscreen = true;
   uiScale = 0.5f;
+  debugNetworking = false;
 }
 
 void Settings::Save() {
@@ -44,6 +45,7 @@ void Settings::Save() {
   settings.setValue("playerName", playerName);
   settings.setValue("fullscreen", fullscreen);
   settings.setValue("uiScale", uiScale);
+  settings.setValue("debugNetworking", debugNetworking);
 }
 
 bool Settings::TryLoad() {
@@ -53,6 +55,7 @@ bool Settings::TryLoad() {
   playerName = settings.value("playerName").toString();
   fullscreen = settings.value("fullscreen").toBool();
   uiScale = settings.value("uiScale").toFloat();
+  debugNetworking = settings.value("debugNetworking").toBool();
   return !dataPath.empty() || !modsPath.empty() || !playerName.isEmpty();
 }
 
@@ -218,10 +221,14 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   playerNameEdit = new QLineEdit(settings->playerName);
   
   fullscreenCheck = new QCheckBox(tr("Fullscreen"));
+  fullscreenCheck->setChecked(settings->fullscreen);
   
   QLabel* uiScaleLabel = new QLabel(tr("UI Scale: "));
   uiScaleEdit = new QLineEdit(QString::number(settings->uiScale));
   uiScaleEdit->setValidator(new QDoubleValidator(0.01, 100, 2, uiScaleEdit));
+  
+  debugNetworkingCheck = new QCheckBox(tr("Enable debug logging for networking"));
+  debugNetworkingCheck->setChecked(settings->debugNetworking);
   
   QPushButton* exitButton = new QPushButton(tr("Exit"));
   QPushButton* hostButton = new QPushButton(tr("Host a game"));
@@ -248,6 +255,8 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   ++ row;
   layout->addWidget(uiScaleLabel, row, 0);
   layout->addWidget(uiScaleEdit, row, 1);
+  ++ row;
+  layout->addWidget(debugNetworkingCheck, row, 0, 1, 2);
   ++ row;
   layout->addLayout(buttonsLayout, row, 0, 1, 2);
   setLayout(layout);
@@ -329,4 +338,5 @@ void SettingsDialog::SaveSettings() {
   settings->playerName = playerNameEdit->text();
   settings->fullscreen = fullscreenCheck->isChecked();
   settings->uiScale = uiScaleEdit->text().toDouble();
+  settings->debugNetworking = debugNetworkingCheck->isChecked();
 }

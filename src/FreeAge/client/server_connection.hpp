@@ -38,6 +38,8 @@ class ServerConnection : public QObject {
   
   ~ServerConnection();
   
+  void SetDebugNetworking(bool enable);
+  
   bool ConnectToServer(const QString& serverAddress, int timeout, bool retryUntilTimeout);
   
   void Shutdown();
@@ -63,6 +65,9 @@ class ServerConnection : public QObject {
   
   /// Returns the server time at which the game state should be displayed by the client right now.
   double GetServerTimeToDisplayNow();
+  
+  /// Returns the client time now. This should only be needed for debugging. Normally, only the server time is relevant.
+  double GetClientTimeNow();
   
   inline bool ConnectionToServerLost() const { return connectionToServerLost; }
   

@@ -1,5 +1,7 @@
 #include "FreeAge/client/game_controller.hpp"
 
+#include <iomanip>
+
 #include <mango/core/endian.hpp>
 
 #include "FreeAge/common/logging.hpp"
@@ -7,9 +9,15 @@
 #include "FreeAge/client/decal.hpp"
 #include "FreeAge/client/unit.hpp"
 
-GameController::GameController(const std::shared_ptr<Match>& match, const std::shared_ptr<ServerConnection>& connection)
+GameController::GameController(const std::shared_ptr<Match>& match, const std::shared_ptr<ServerConnection>& connection, bool debugNetworking)
     : connection(connection),
-      match(match) {}
+      match(match),
+      debugNetworking(debugNetworking) {
+  if (debugNetworking) {
+    networkingDebugFile.open("network_debug_log_messages.txt", std::ios::out);
+    networkingDebugFile << std::setprecision(14);
+  }
+}
 
 void GameController::ParseMessagesUntil(double displayedServerTime) {
   // - Messages that relate to a time before lastDisplayedServerTime are received late.
@@ -26,6 +34,22 @@ void GameController::ParseMessagesUntil(double displayedServerTime) {
         currentGameStepServerTime <= displayedServerTime) {
       ParseMessage(msg.data, msg.type);
       ++ numParsedMessages;
+      
+      if (debugNetworking) {
+        // For every 10 time that we receive a new game step time,
+        // save the game step (server) time and the client time at message receival of the last message before.
+        // I.e., save some of the last received messages for some server times. This later enables
+        // to test for different server time offset schemes whether we could process these messages in time (before
+        // the displayed server time reaches their server time) or not.
+        if (currentGameStepServerTime > lastMessageServerTime && lastMessageServerTime > 0) {
+          ++ networkLogCounter;
+          if (networkLogCounter % 10 == 0) {
+            networkingDebugFile << "messageServerTime " << lastMessageServerTime << " clientTime " << lastMessageClientTime << std::endl;
+          }
+        }
+        lastMessageServerTime = currentGameStepServerTime;
+        lastMessageClientTime = connection->GetClientTimeNow();
+      }
       
       // Keep statistics about whether messages arrive in time or late to help debug the server time handling.
       if (currentGameStepServerTime >= 0) {  // if the game has started

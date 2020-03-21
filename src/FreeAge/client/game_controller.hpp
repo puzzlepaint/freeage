@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fstream>
 #include <memory>
 
 #include <QObject>
@@ -16,7 +17,7 @@
 class GameController : public QObject {
  Q_OBJECT
  public:
-  GameController(const std::shared_ptr<Match>& match, const std::shared_ptr<ServerConnection>& connection);
+  GameController(const std::shared_ptr<Match>& match, const std::shared_ptr<ServerConnection>& connection, bool debugNetworking);
   
   inline void SetRenderWindow(const std::shared_ptr<RenderWindow> renderWindow) { this->renderWindow = renderWindow; }
   
@@ -104,4 +105,11 @@ class GameController : public QObject {
   u32 numMsgsArrivedForFuture = 0;
   
   u32 statisticsDebugOutputCounter = 0;
+  
+  // For network debugging.
+  double lastMessageServerTime = -1;
+  double lastMessageClientTime = -1;
+  bool debugNetworking = false;
+  int networkLogCounter = 0;
+  std::ofstream networkingDebugFile;
 };

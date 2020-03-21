@@ -108,6 +108,8 @@ int main(int argc, char** argv) {
     settings.Save();
     bool isHost = settingsDialog.HostGameChosen();
     
+    connection->SetDebugNetworking(settings.debugNetworking);
+    
     // Load some initial basic game resources that are required for the game dialog.
     commonResourcesPath = std::filesystem::path(settingsDialog.GetDataPath().toStdString()) / "resources" / "_common";
     if (!std::filesystem::exists(commonResourcesPath)) {
@@ -244,7 +246,7 @@ int main(int argc, char** argv) {
   }
   
   // Create the game controller. It will start listening for network messages.
-  std::shared_ptr<GameController> gameController(new GameController(match, connection));
+  std::shared_ptr<GameController> gameController(new GameController(match, connection, settings.debugNetworking));
   
   // Get the graphics path.
   std::filesystem::path graphicsPath = commonResourcesPath / "drs" / "graphics";
