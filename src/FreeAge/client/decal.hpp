@@ -51,7 +51,7 @@ class Decal {
   
  private:
   int GetFPS();
-  bool GetCurrentSpriteAndFrame(double serverTime, SpriteAndTextures** sprite, int* frame);
+  bool GetCurrentSpriteAndFrame(double serverTime, SpriteAndTextures** sprite, int* frame, bool* frameWasClamped);
   
   
   /// Projected coordinate of the sprite center.
@@ -64,11 +64,20 @@ class Decal {
   /// For UnitDeath / UnitDecay decals: type of the unit.
   UnitType unitType;
   
+  /// For building-created decals: type of the building.
+  BuildingType buildingType;
+  
   /// For UnitDeath / UnitDecay? (TODO?) decals: facing direction of the unit.
   u8 direction;
   
   /// Index of the player which this decal belonged to when it was still an object
   u8 playerIndex;
+  
+  /// For buildings that use a fixed frame index, this stores the frame index that the
+  /// building that this decal was created from used. This is necessary to know the
+  /// correct one of the destruction animations (in case there is a separate one for each
+  /// frame of the building sprite).
+  u16 buildingOriginalFrameIndex;
   
   /// Creation time of the decal (with its current type).
   /// Decals may decay after some time (rubble / decay),

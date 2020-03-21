@@ -18,8 +18,6 @@ ClientUnitType::~ClientUnitType() {
 }
 
 bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes) {
-  animations.resize(static_cast<int>(UnitAnimation::NumAnimationTypes));
-  
   std::filesystem::path ingameUnitsPath =
       graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame" / "units";
   
@@ -111,6 +109,7 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     return baseName + "_" + animationFilename + static_cast<char>('A' + variant) + "_x1.smx";
   };
   
+  animations.resize(static_cast<int>(UnitAnimation::NumAnimationTypes));
   for (int animationTypeInt = 0; animationTypeInt < static_cast<int>(UnitAnimation::NumAnimationTypes); ++ animationTypeInt) {
     UnitAnimation animationType = static_cast<UnitAnimation>(animationTypeInt);
     

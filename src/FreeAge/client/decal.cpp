@@ -15,33 +15,32 @@ Decal::Decal(ClientUnit* unit, Map* map, double serverTime) {
 Decal::Decal(ClientBuilding* building, Map* map, double serverTime) {
   projectedCoord = map->MapCoordToProjectedCoord(building->GetCenterMapCoord());
   type = DecalType::BuildingDestruction;
+  buildingType = building->GetType();
+  buildingOriginalFrameIndex = building->GetFrameIndex(serverTime);
   playerIndex = building->GetPlayerIndex();
   creationTime = serverTime;
 }
 
 bool Decal::Update(double serverTime) {
-  if (!GetCurrentSpriteAndFrame(serverTime, &currentSprite, &currentFrame)) {
+  bool frameWasClamped;
+  if (!GetCurrentSpriteAndFrame(serverTime, &currentSprite, &currentFrame, &frameWasClamped)) {
     return false;
   }
   
   // For UnitDeath, UnitCarryDeath, and BuildingDestruction decals, check whether we need to switch
   // to the type that follows them (UnitDecay, UnitCarryDecay, and BuildingRubble).
-  if (type == DecalType::UnitDeath || type == DecalType::UnitCarryDeath || type == DecalType::BuildingDestruction) {
-    int framesPerDirection = currentSprite->sprite.NumFrames() / kNumFacingDirections;
-    int unclampedFrame = direction * framesPerDirection + static_cast<int>((serverTime - creationTime) * GetFPS());
-    if (unclampedFrame > currentFrame) {
-      if (type == DecalType::UnitDeath) {
-        type = DecalType::UnitDecay;
-      } else if (type == DecalType::UnitCarryDeath) {
-        type = DecalType::UnitCarryDecay;
-      } else if (type == DecalType::BuildingDestruction) {
-        type = DecalType::BuildingRubble;
-      }
-      creationTime = serverTime;
+  if (frameWasClamped && (type == DecalType::UnitDeath || type == DecalType::UnitCarryDeath || type == DecalType::BuildingDestruction)) {
+    if (type == DecalType::UnitDeath) {
+      type = DecalType::UnitDecay;
+    } else if (type == DecalType::UnitCarryDeath) {
+      type = DecalType::UnitCarryDecay;
+    } else if (type == DecalType::BuildingDestruction) {
+      type = DecalType::BuildingRubble;
     }
+    creationTime = serverTime;
   }
   
-  // TODO: We currently never expire decals. Consider doing that.
+  // TODO: We currently never expire decals. Consider doing that, potentially after a long time.
   return true;
 }
 
@@ -88,7 +87,7 @@ int Decal::GetFPS() {
   return 1;
 }
 
-bool Decal::GetCurrentSpriteAndFrame(double serverTime, SpriteAndTextures** sprite, int* frame) {
+bool Decal::GetCurrentSpriteAndFrame(double serverTime, SpriteAndTextures** sprite, int* frame, bool* frameWasClamped) {
   if (type == DecalType::UnitDeath ||
       type == DecalType::UnitDecay ||
       type == DecalType::UnitCarryDeath ||
@@ -104,11 +103,35 @@ bool Decal::GetCurrentSpriteAndFrame(double serverTime, SpriteAndTextures** spri
     // TODO: We only use the first animation variant here. There probably do not exist multiple animation variants for this though, do they?
     *sprite = animationVariants[0];
     int framesPerDirection = (*sprite)->sprite.NumFrames() / kNumFacingDirections;
-    *frame = direction * framesPerDirection + std::max<int>(0, std::min<int>(framesPerDirection - 1, static_cast<int>((serverTime - creationTime) * GetFPS())));
+    int frameWithinDirection = static_cast<int>((serverTime - creationTime) * GetFPS());
+    *frameWasClamped = frameWithinDirection > framesPerDirection - 1;
+    *frame = direction * framesPerDirection +
+             std::max<int>(0, std::min<int>(framesPerDirection - 1, frameWithinDirection));
     
     return true;
   } else {
-    LOG(ERROR) << "Not implemented yet";  // TODO
-    return false;
+    auto& clientBuildingType = GetClientBuildingType(buildingType);
+    *sprite = clientBuildingType.GetSprites()[
+        static_cast<int>((type == DecalType::BuildingDestruction) ? BuildingSprite::Destruction : BuildingSprite::Rubble)];
+    if (!*sprite) {
+      return false;
+    }
+    
+    int numDecalSpriteFrames = (*sprite)->sprite.NumFrames();
+    if (clientBuildingType.UsesRandomSpriteFrame()) {
+      int numMainSpriteFrames = clientBuildingType.GetSprites()[static_cast<int>(BuildingSprite::Building)]->sprite.NumFrames();
+      CHECK(numDecalSpriteFrames % numMainSpriteFrames == 0) << "numDecalSpriteFrames: " << numDecalSpriteFrames << ", numMainSpriteFrames: " << numMainSpriteFrames;
+      int framesPerVariant = numDecalSpriteFrames / numMainSpriteFrames;
+      int frameWithinVariant = static_cast<int>((serverTime - creationTime) * GetFPS());
+      *frameWasClamped = frameWithinVariant > framesPerVariant - 1;
+      *frame = buildingOriginalFrameIndex * framesPerVariant +
+               std::max<int>(0, std::min<int>(framesPerVariant - 1, frameWithinVariant));
+    } else {
+      *frame = static_cast<int>((serverTime - creationTime) * GetFPS());
+      *frameWasClamped = *frame > numDecalSpriteFrames - 1;
+      *frame = std::max<int>(0, std::min<int>(numDecalSpriteFrames - 1, *frame));
+    }
+    
+    return true;
   }
 }

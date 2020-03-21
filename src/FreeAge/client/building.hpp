@@ -13,11 +13,20 @@
 class Map;
 
 
+enum class BuildingSprite {
+  Foundation = 0,
+  Building,
+  Destruction,
+  Rubble,
+  NumSprites
+};
+
 /// Stores client-side data for building types (i.e., their graphics).
 /// Access the global unit types vector via GetBuildingTypes().
 class ClientBuildingType {
  public:
   ClientBuildingType() = default;
+  ~ClientBuildingType();
   
   bool Load(BuildingType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes);
   
@@ -29,13 +38,7 @@ class ClientBuildingType {
   /// Sets up the command buttons for the actions that can be performed when this building type (only) is selected.
   void SetCommandButtons(CommandButton commandButtons[3][5]);
   
-  inline const Sprite& GetSprite() const { return sprite; }
-  inline const Texture& GetTexture() const { return texture; }
-  inline const Texture& GetShadowTexture() const { return shadowTexture; }
-  
-  inline const Sprite& GetFoundationSprite() const { return foundationSprite; }
-  inline const Texture& GetFoundationTexture() const { return foundationTexture; }
-  inline const Texture& GetFoundationShadowTexture() const { return foundationShadowTexture; }
+  const std::vector<SpriteAndTextures*>& GetSprites() const { return sprites; }
   
   inline const Texture* GetIconTexture() const { return &iconTexture; }
   
@@ -50,18 +53,15 @@ class ClientBuildingType {
  private:
   QString GetFilename() const;
   QString GetFoundationFilename() const;
+  QString GetDestructionFilename() const;
+  QString GetRubbleFilename() const;
   std::filesystem::path GetIconFilename() const;
   bool DoesCauseOutlinesInternal() const;
   
   BuildingType type;
   
-  Sprite sprite;
-  Texture texture;
-  Texture shadowTexture;
-  
-  Sprite foundationSprite;
-  Texture foundationTexture;
-  Texture foundationShadowTexture;
+  /// Indexed by: [static_cast<int>(BuildingSprite sprite)]
+  std::vector<SpriteAndTextures*> sprites;
   
   /// The maximum centerY value of any graphic frame of this building type.
   /// For animated buildings such as mills, this can be used to determine a reasonable
@@ -72,6 +72,11 @@ class ClientBuildingType {
   
   bool doesCauseOutlines;
 };
+
+/// Convenience function that returns the ClientBuildingType for a given building type.
+inline ClientBuildingType& GetClientBuildingType(BuildingType type) {
+  return ClientBuildingType::GetBuildingTypes()[static_cast<int>(type)];
+}
 
 
 /// Represents a building on the client side.
@@ -93,9 +98,7 @@ class ClientBuilding : public ClientObject {
   /// Returns the current sprite for this building. This can differ (e.g., it could be the foundation or main sprite).
   const Sprite& GetSprite();
   
-  int GetFrameIndex(
-      const ClientBuildingType& buildingType,
-      double elapsedSeconds);
+  int GetFrameIndex(double elapsedSeconds);
   
   void Render(
       Map* map,

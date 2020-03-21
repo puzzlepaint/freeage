@@ -969,7 +969,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
       QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(building.GetCenterMapCoord());
       QPointF healthBarCenter =
           centerProjectedCoord +
-          QPointF(0, -1 * buildingType.GetHealthBarHeightAboveCenter(building.GetFrameIndex(buildingType, displayedServerTime)));
+          QPointF(0, -1 * buildingType.GetHealthBarHeightAboveCenter(building.GetFrameIndex(displayedServerTime)));
       
       constexpr float kHealthBarWidth = 60;  // TODO: Smaller bar for trees
       constexpr float kHealthBarHeight = 4;
@@ -1567,7 +1567,7 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
           false,
           false);
       if (!addToList && projectedCoordsRect.contains(projectedCoord)) {
-        const Sprite::Frame& frame = building.GetSprite().frame(building.GetFrameIndex(buildingType, lastDisplayedServerTime));
+        const Sprite::Frame& frame = building.GetSprite().frame(building.GetFrameIndex(lastDisplayedServerTime));
         // We add 1 here to account for the sprite border which is not included in projectedCoordsRect.
         // We further add 0.5f for rounding during the cast to integer.
         QPoint point(projectedCoord.x() - projectedCoordsRect.x() + 1 + 0.5f, projectedCoord.y() - projectedCoordsRect.y() + 1 + 0.5f);

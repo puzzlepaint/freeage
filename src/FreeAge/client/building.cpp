@@ -7,41 +7,36 @@
 bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes) {
   this->type = type;
   
-  // Load main sprite
-  QString filename = GetFilename();
-  if (!LoadSpriteAndTexture(
-      (graphicsPath / filename.toStdString()).c_str(),
-      (cachePath / filename.toStdString()).c_str(),
-      GL_CLAMP,
-      GL_NEAREST,
-      GL_NEAREST,
-      &sprite,
-      &texture,
-      &shadowTexture,
-      palettes)) {
-    return false;
-  }
-  
-  // Load foundation sprite
-  QString foundationFilename = GetFoundationFilename();
-  if (!foundationFilename.isEmpty()) {
-    if (!LoadSpriteAndTexture(
-        (graphicsPath / foundationFilename.toStdString()).c_str(),
-        (cachePath / foundationFilename.toStdString()).c_str(),
-        GL_CLAMP,
-        GL_NEAREST,
-        GL_NEAREST,
-        &foundationSprite,
-        &foundationTexture,
-        &foundationShadowTexture,
-        palettes)) {
-      return false;
+  sprites.resize(static_cast<int>(BuildingSprite::NumSprites));
+  for (int spriteInt = 0; spriteInt < static_cast<int>(BuildingSprite::NumSprites); ++ spriteInt) {
+    BuildingSprite spriteType = static_cast<BuildingSprite>(spriteInt);
+    
+    QString filename;
+    switch (spriteType) {
+    case BuildingSprite::Foundation: filename = GetFoundationFilename(); break;
+    case BuildingSprite::Building: filename = GetFilename(); break;
+    case BuildingSprite::Destruction: filename = GetDestructionFilename(); break;
+    case BuildingSprite::Rubble: filename = GetRubbleFilename(); break;
+    case BuildingSprite::NumSprites: LOG(ERROR) << "Invalid building sprite type";
+    }
+    
+    if (filename.isEmpty()) {
+      sprites[spriteInt] = nullptr;
+    } else {
+      sprites[spriteInt] = SpriteManager::Instance().GetOrLoad(
+          (graphicsPath / filename.toStdString()).c_str(),
+          (cachePath / filename.toStdString()).c_str(),
+          palettes);
+      if (!sprites[spriteInt] ) {
+        return false;
+      }
     }
   }
   
+  const auto& buildingSprite = sprites[static_cast<int>(BuildingSprite::Building)]->sprite;
   maxCenterY = 0;
-  for (int frame = 0; frame < sprite.NumFrames(); ++ frame) {
-    maxCenterY = std::max(maxCenterY, sprite.frame(frame).graphic.centerY);
+  for (int frame = 0; frame < buildingSprite.NumFrames(); ++ frame) {
+    maxCenterY = std::max(maxCenterY, buildingSprite.frame(frame).graphic.centerY);
   }
   
   std::filesystem::path ingameTexturesPath =
@@ -54,6 +49,14 @@ bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& gr
   doesCauseOutlines = DoesCauseOutlinesInternal();
   
   return true;
+}
+
+ClientBuildingType::~ClientBuildingType() {
+  for (SpriteAndTextures* sprite : sprites) {
+    if (sprite) {
+      SpriteManager::Instance().Dereference(sprite);
+    }
+  }
 }
 
 QSize ClientBuildingType::GetSize() const {
@@ -108,6 +111,66 @@ QString ClientBuildingType::GetFoundationFilename() const {
   case BuildingType::Outpost:          return QStringLiteral("b_misc_foundation_outpost_x1.smx");
   case BuildingType::PalisadeWall:     return QStringLiteral("b_misc_foundation_1x1_x1.smx");  // TODO: Is this correct?
   case BuildingType::PalisadeGate:     return QStringLiteral("b_dark_gate_palisade_e_constr_x1.smx");  // TODO: This has multiple orientations
+  case BuildingType::TreeOak:          return QStringLiteral("");
+  case BuildingType::ForageBush:       return QStringLiteral("");
+  case BuildingType::GoldMine:         return QStringLiteral("");
+  case BuildingType::StoneMine:        return QStringLiteral("");
+  case BuildingType::NumBuildings:
+    LOG(ERROR) << "Invalid type given: BuildingType::NumBuildings";
+    break;
+  }
+  
+  return QString();
+}
+
+QString ClientBuildingType::GetDestructionFilename() const {
+  // TODO: Load this from some data file
+  
+  switch (type) {
+  case BuildingType::TownCenter:       return QStringLiteral("b_dark_town_center_age1_destruction_x1.smx");
+  case BuildingType::TownCenterBack:   return QStringLiteral("");
+  case BuildingType::TownCenterCenter: return QStringLiteral("");
+  case BuildingType::TownCenterFront:  return QStringLiteral("");
+  case BuildingType::TownCenterMain:   return QStringLiteral("");
+  case BuildingType::House:            return QStringLiteral("b_dark_house_age1_destruction_x1.smx");
+  case BuildingType::Mill:             return QStringLiteral("b_dark_mill_age1_destruction_x1.smx");
+  case BuildingType::MiningCamp:       return QStringLiteral("b_asia_mining_camp_age2_destruction_x1.smx");  // TODO: Could not find an "age1" variant of this
+  case BuildingType::LumberCamp:       return QStringLiteral("b_asia_lumber_camp_age2_destruction_x1.smx");  // TODO: Could not find an "age1" variant of this
+  case BuildingType::Dock:             return QStringLiteral("");  // TODO
+  case BuildingType::Barracks:         return QStringLiteral("b_dark_barracks_age1_destruction_x1.smx");
+  case BuildingType::Outpost:          return QStringLiteral("b_dark_outpost_age1_destruction_x1.smx");
+  case BuildingType::PalisadeWall:     return QStringLiteral("");  // TODO
+  case BuildingType::PalisadeGate:     return QStringLiteral("");  // TODO
+  case BuildingType::TreeOak:          return QStringLiteral("");
+  case BuildingType::ForageBush:       return QStringLiteral("");
+  case BuildingType::GoldMine:         return QStringLiteral("");
+  case BuildingType::StoneMine:        return QStringLiteral("");
+  case BuildingType::NumBuildings:
+    LOG(ERROR) << "Invalid type given: BuildingType::NumBuildings";
+    break;
+  }
+  
+  return QString();
+}
+
+QString ClientBuildingType::GetRubbleFilename() const {
+  // TODO: Load this from some data file
+  
+  switch (type) {
+  case BuildingType::TownCenter:       return QStringLiteral("b_dark_town_center_age1_rubble_x1.smx");
+  case BuildingType::TownCenterBack:   return QStringLiteral("");
+  case BuildingType::TownCenterCenter: return QStringLiteral("");
+  case BuildingType::TownCenterFront:  return QStringLiteral("");
+  case BuildingType::TownCenterMain:   return QStringLiteral("");
+  case BuildingType::House:            return QStringLiteral("b_dark_house_age1_rubble_x1.smx");
+  case BuildingType::Mill:             return QStringLiteral("b_dark_mill_age1_rubble_x1.smx");
+  case BuildingType::MiningCamp:       return QStringLiteral("b_asia_mining_camp_age2_rubble_x1.smx");  // TODO: Could not find an "age1" variant of this
+  case BuildingType::LumberCamp:       return QStringLiteral("b_asia_lumber_camp_age2_rubble_x1.smx");  // TODO: Could not find an "age1" variant of this
+  case BuildingType::Dock:             return QStringLiteral("");  // TODO
+  case BuildingType::Barracks:         return QStringLiteral("b_dark_barracks_age1_rubble_x1.smx");
+  case BuildingType::Outpost:          return QStringLiteral("b_dark_outpost_age1_rubble_x1.smx");
+  case BuildingType::PalisadeWall:     return QStringLiteral("");  // TODO
+  case BuildingType::PalisadeGate:     return QStringLiteral("");  // TODO
   case BuildingType::TreeOak:          return QStringLiteral("");
   case BuildingType::ForageBush:       return QStringLiteral("");
   case BuildingType::GoldMine:         return QStringLiteral("");
@@ -194,7 +257,7 @@ float ClientBuildingType::GetHealthBarHeightAboveCenter(int frameIndex) const {
   constexpr float kHealthBarOffset = 25;
   
   if (UsesRandomSpriteFrame()) {
-    return sprite.frame(frameIndex).graphic.centerY + kHealthBarOffset;
+    return sprites[static_cast<int>(BuildingSprite::Building)]->sprite.frame(frameIndex).graphic.centerY + kHealthBarOffset;
   } else {
     return maxCenterY + kHealthBarOffset;
   }
@@ -237,10 +300,10 @@ QRectF ClientBuilding::GetRectInProjectedCoords(
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
-  bool isFoundation = buildPercentage < 100;
-  const Sprite& sprite = isFoundation ? buildingType.GetFoundationSprite() : buildingType.GetSprite();
+  BuildingSprite spriteType = (buildPercentage < 100) ? BuildingSprite::Foundation : BuildingSprite::Building;
+  const Sprite& sprite = buildingType.GetSprites()[static_cast<int>(spriteType)]->sprite;
   QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(GetCenterMapCoord());
-  int frameIndex = GetFrameIndex(buildingType, elapsedSeconds);
+  int frameIndex = GetFrameIndex(elapsedSeconds);
   
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameIndex).shadow : sprite.frame(frameIndex).graphic;
   bool isGraphic = !shadow && !outline;
@@ -266,53 +329,53 @@ void ClientBuilding::Render(
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
-  bool isFoundation = buildPercentage < 100;
+  BuildingSprite spriteType = (buildPercentage < 100) ? BuildingSprite::Foundation : BuildingSprite::Building;
+  const auto& sprite = buildingType.GetSprites()[static_cast<int>(spriteType)];
+  const Texture& texture = (shadow ? sprite->shadowTexture : sprite->graphicTexture);
   
-  const Texture& texture =
-      isFoundation ?
-      (shadow ? buildingType.GetFoundationShadowTexture() : buildingType.GetFoundationTexture()) :
-      (shadow ? buildingType.GetShadowTexture() : buildingType.GetTexture());
-  
-  int frameIndex = GetFrameIndex(buildingType, elapsedSeconds);
+  int frameIndex = GetFrameIndex(elapsedSeconds);
   QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(GetCenterMapCoord());
   
-  if (type == BuildingType::TownCenter && !isFoundation) {
+  if (type == BuildingType::TownCenter && spriteType == BuildingSprite::Building) {
     // Special case for town centers: Render all of their separate parts.
     // Main
     const ClientBuildingType& helperType1 = buildingTypes[static_cast<int>(BuildingType::TownCenterMain)];
+    const auto& helperSprite1 = helperType1.GetSprites()[static_cast<int>(BuildingSprite::Building)];
     DrawSprite(
-        helperType1.GetSprite(),
-        shadow ? helperType1.GetShadowTexture() : helperType1.GetTexture(),
+        helperSprite1->sprite,
+        shadow ? helperSprite1->shadowTexture : helperSprite1->graphicTexture,
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
         outlineColor, playerIndex);
     
     // Back
     const ClientBuildingType& helperType2 = buildingTypes[static_cast<int>(BuildingType::TownCenterBack)];
+    const auto& helperSprite2 = helperType2.GetSprites()[static_cast<int>(BuildingSprite::Building)];
     DrawSprite(
-        helperType2.GetSprite(),
-        shadow ? helperType2.GetShadowTexture() : helperType2.GetTexture(),
+        helperSprite2->sprite,
+        shadow ? helperSprite2->shadowTexture : helperSprite2->graphicTexture,
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
         outlineColor, playerIndex);
     
     // Center
     const ClientBuildingType& helperType3 = buildingTypes[static_cast<int>(BuildingType::TownCenterCenter)];
+    const auto& helperSprite3 = helperType3.GetSprites()[static_cast<int>(BuildingSprite::Building)];
     DrawSprite(
-        helperType3.GetSprite(),
-        shadow ? helperType3.GetShadowTexture() : helperType3.GetTexture(),
+        helperSprite3->sprite,
+        shadow ? helperSprite3->shadowTexture : helperSprite3->graphicTexture,
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
         outlineColor, playerIndex);
   }
   
-  bool useDarkModulation = isFoundation && buildPercentage == 0 && !shadow && !outline;
+  bool useDarkModulation = spriteType == BuildingSprite::Foundation && buildPercentage == 0 && !shadow && !outline;
   if (useDarkModulation) {
     spriteShader->GetProgram()->UseProgram();
     spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 0.5, 0.5, 0.5, 1);
   }
   DrawSprite(
-      isFoundation ? buildingType.GetFoundationSprite() : buildingType.GetSprite(),
+      sprite->sprite,
       texture,
       spriteShader,
       centerProjectedCoord,
@@ -330,12 +393,13 @@ void ClientBuilding::Render(
     spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
   }
   
-  if (type == BuildingType::TownCenter && !isFoundation) {
+  if (type == BuildingType::TownCenter && spriteType == BuildingSprite::Building) {
     // Front
     const ClientBuildingType& helperType4 = buildingTypes[static_cast<int>(BuildingType::TownCenterFront)];
+    const auto& helperSprite4 = helperType4.GetSprites()[static_cast<int>(BuildingSprite::Building)];
     DrawSprite(
-        helperType4.GetSprite(),
-        shadow ? helperType4.GetShadowTexture() : helperType4.GetTexture(),
+        helperSprite4->sprite,
+        shadow ? helperSprite4->shadowTexture : helperSprite4->graphicTexture,
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
         outlineColor, playerIndex);
@@ -346,27 +410,31 @@ const Sprite& ClientBuilding::GetSprite() {
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
-  bool isFoundation = buildPercentage < 100;
+  BuildingSprite spriteType = (buildPercentage < 100) ? BuildingSprite::Foundation : BuildingSprite::Building;
+  const auto& sprite = buildingType.GetSprites()[static_cast<int>(spriteType)];
   
-  return isFoundation ? buildingType.GetFoundationSprite() : buildingType.GetSprite();
+  return sprite->sprite;
 }
 
-int ClientBuilding::GetFrameIndex(
-    const ClientBuildingType& buildingType,
-    double elapsedSeconds) {
+int ClientBuilding::GetFrameIndex(double elapsedSeconds) {
+  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
+  const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
+  
   bool isFoundation = buildPercentage < 100;
   if (isFoundation) {
-    return std::max<int>(0, std::min<int>(buildingType.GetFoundationSprite().NumFrames() - 1,
-                                          (buildPercentage / 100.f) * buildingType.GetFoundationSprite().NumFrames()));
+    const auto& foundationSprite = buildingType.GetSprites()[static_cast<int>(BuildingSprite::Foundation)]->sprite;
+    return std::max<int>(0, std::min<int>(foundationSprite.NumFrames() - 1,
+                                          (buildPercentage / 100.f) * foundationSprite.NumFrames()));
   }
   
+  const auto& buildingSprite = buildingType.GetSprites()[static_cast<int>(BuildingSprite::Building)]->sprite;
   if (buildingType.UsesRandomSpriteFrame()) {
     if (fixedFrameIndex < 0) {
-      fixedFrameIndex = rand() % buildingType.GetSprite().NumFrames();
+      fixedFrameIndex = rand() % buildingSprite.NumFrames();
     }
     return fixedFrameIndex;
   } else {
     float framesPerSecond = 30.f;
-    return static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % buildingType.GetSprite().NumFrames();
+    return static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % buildingSprite.NumFrames();
   }
 }

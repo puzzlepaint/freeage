@@ -210,7 +210,13 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
   // - First plays the destruction / death animation (if any)
   // - Then displays a rubble pile / decay sprite (if any)
   if (object->isBuilding()) {
-    // TODO
+    ClientBuilding* building = static_cast<ClientBuilding*>(object);
+    if (building->GetBuildPercentage() == 100) {
+      Decal* newDecal = new Decal(building, map.get(), currentGameStepServerTime);
+      renderWindow->AddDecal(newDecal);
+    } else {
+      // TODO: Destruction animations for foundations
+    }
   } else if (object->isUnit()) {
     Decal* newDecal = new Decal(static_cast<ClientUnit*>(object), map.get(), currentGameStepServerTime);
     renderWindow->AddDecal(newDecal);
