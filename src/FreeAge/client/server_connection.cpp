@@ -43,6 +43,26 @@ class ServerConnectionThread : public QThread {
     }
   }
   
+  void GetCurrentSmoothedPingAndOffset(const TimePoint& timePoint, double* offset, double* ping) {
+    double elapsedSeconds = SecondsDuration(timePoint - lastPingResponseTime).count();
+    
+    int timeOffsetChangeSign = (robustOffsetAverage > lastSmoothedTimeOffset) ? 1 : -1;
+    *offset = lastSmoothedTimeOffset + timeOffsetChangeSign * elapsedSeconds * smoothedValueChangeSpeed;
+    if (timeOffsetChangeSign == 1) {
+      *offset = std::min(robustOffsetAverage, *offset);
+    } else {
+      *offset = std::max(robustOffsetAverage, *offset);
+    }
+    
+    int pingChangeSign = (robustPingAverage > lastSmoothedPing) ? 1 : -1;
+    *ping = lastSmoothedPing + pingChangeSign * elapsedSeconds * smoothedValueChangeSpeed;
+    if (pingChangeSign == 1) {
+      *ping = std::min(robustPingAverage, *ping);
+    } else {
+      *ping = std::max(robustPingAverage, *ping);
+    }
+  }
+  
  signals:
   void NewMessage();
   void ConnectionLost();
@@ -170,8 +190,6 @@ class ServerConnectionThread : public QThread {
   }
   
   void HandlePingResponseMessage(const QByteArray& msg, const TimePoint& receiveTime) {
-    lastPingResponseTime = receiveTime;
-    
     u64 number = mango::uload64(msg.data() + 3);
     double serverTimeSeconds;
     memcpy(&serverTimeSeconds, msg.data() + 3 + 8, 8);
@@ -200,6 +218,22 @@ class ServerConnectionThread : public QThread {
           lastPings.erase(lastPings.begin());
         }
         
+        // Initialize or update the last smoothed values.
+        if (lastSmoothedPing < 0) {
+          // Initialize.
+          lastSmoothedTimeOffset = lastTimeOffsets.back();
+          lastSmoothedPing = lastPings.back();
+        } else {
+          // Update.
+          if (robustPingAverage > 0) {
+            // Perform the update for the last measurement interval.
+            GetCurrentSmoothedPingAndOffset(receiveTime, &lastSmoothedTimeOffset, &lastSmoothedPing);
+          }
+          
+          // Obtain new target values for the smoothing.
+          EstimateRobustPingAndOffsetAverages(&robustPingAverage, &robustOffsetAverage);
+        }
+        
         pingAndOffsetsMutex.unlock();
         
         if (debugNetworking) {
@@ -208,6 +242,7 @@ class ServerConnectionThread : public QThread {
           networkingDebugFile.flush();
         }
         
+        lastPingResponseTime = receiveTime;
         return;
       }
     }
@@ -235,6 +270,60 @@ class ServerConnectionThread : public QThread {
     
     delete socket;
     socket = nullptr;
+  }
+  
+  void EstimateRobustPingAndOffsetAverages(double* filteredPing, double* filteredOffset) {
+    // If there are not enough measurements yet, simply take the average of all measurements.
+    if (lastTimeOffsets.size() < 3) {
+      double pingSum = 0;
+      double offsetSum = 0;
+      
+      for (usize i = 0; i < lastTimeOffsets.size(); ++ i) {
+        pingSum += lastPings[i];
+        offsetSum += lastTimeOffsets[i];
+      }
+      *filteredOffset = offsetSum / lastTimeOffsets.size();
+      *filteredPing = pingSum / lastPings.size();
+    } else {
+      // Drop outliers: find the smallest and the largest value and discard them.
+      usize minPingIndex = 0;
+      usize maxPingIndex = 0;
+      
+      usize minOffsetIndex = 0;
+      usize maxOffsetIndex = 0;
+      
+      for (usize i = 1; i < lastTimeOffsets.size(); ++ i) {
+        if (lastPings[i] < lastPings[minPingIndex]) {
+          minPingIndex = i;
+        }
+        if (lastPings[i] > lastPings[maxPingIndex]) {
+          maxPingIndex = i;
+        }
+        
+        if (lastTimeOffsets[i] < lastTimeOffsets[minOffsetIndex]) {
+          minOffsetIndex = i;
+        }
+        if (lastTimeOffsets[i] > lastTimeOffsets[maxOffsetIndex]) {
+          maxOffsetIndex = i;
+        }
+      }
+      
+      // Obtain the average of the remaining measurements.
+      double pingSum = 0;
+      double offsetSum = 0;
+      
+      for (usize i = 0; i < lastTimeOffsets.size(); ++ i) {
+        if (i != minPingIndex && i != maxPingIndex) {
+          pingSum += lastPings[i];
+        }
+        
+        if (i != minOffsetIndex && i != maxOffsetIndex) {
+          offsetSum += lastTimeOffsets[i];
+        }
+      }
+      *filteredOffset = offsetSum / (lastTimeOffsets.size() - 2);
+      *filteredPing = pingSum / (lastPings.size() - 2);
+    }
   }
   
   // -- Connection --
@@ -270,6 +359,24 @@ class ServerConnectionThread : public QThread {
   /// somehow, e.g., by dropping outliers and averaging the rest.
   std::vector<double> lastTimeOffsets;
   std::vector<double> lastPings;
+  
+  /// Last smoothed time offset and ping values.
+  /// To prevent visual jumps, the raw measurements in lastTimeOffsets and lastPings are
+  /// smoothly filtered over time, always moving towards an outlier-robust average of
+  /// the raw measurements. The values stored here represent the smoothed values
+  /// at the time at which the last new measurements were added (stored in lastPingResponseTime).
+  /// They can be used to compute the current smoothed values.
+  double lastSmoothedTimeOffset = -1;
+  double lastSmoothedPing = -1;
+  
+  /// The smoothed values change with 2 millisecond per second, a 0.2% deviation from the desired speed.
+  const double smoothedValueChangeSpeed = 0.001;
+  
+  /// The current robust averages of the values in lastTimeOffsets and lastPings.
+  /// These are the "target" values that the smoothed values, lastSmoothedTimeOffset and
+  /// lastSmoothedPing, smoothly move towards.
+  double robustOffsetAverage = -1;
+  double robustPingAverage = -1;
   
   /// Guards access to the lastTimeOffsets and lastPings vectors.
   std::mutex pingAndOffsetsMutex;
@@ -396,22 +503,7 @@ std::vector<ReceivedMessage>* ServerConnection::GetReceivedMessages() {
 
 void ServerConnection::EstimateCurrentPingAndOffset(double* filteredPing, double* filteredOffset) {
   thread->GetPingAndOffsetsMutex().lock();
-  
-  auto& lastTimeOffsets = thread->GetLastTimeOffsets();
-  auto& lastPings = thread->GetLastPings();
-  
-  // TODO: Drop ping outliers
-  // TODO: Change the offset on the client time *smoothly* once new measurements come in and
-  //       old ones are dropped to prevent visual jumps.
-  double offsetSum = 0;
-  double pingSum = 0;
-  for (usize i = 0; i < lastTimeOffsets.size(); ++ i) {
-    offsetSum += lastTimeOffsets[i];
-    pingSum += lastPings[i];
-  }
-  *filteredOffset = offsetSum / lastTimeOffsets.size();
-  *filteredPing = pingSum / lastPings.size();
-  
+  thread->GetCurrentSmoothedPingAndOffset(Clock::now(), filteredOffset, filteredPing);
   thread->GetPingAndOffsetsMutex().unlock();
 }
 
