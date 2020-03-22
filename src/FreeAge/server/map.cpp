@@ -107,7 +107,7 @@ void ServerMap::GenerateRandomMap(int playerCount, int seed) {
   // Generate forests
   constexpr int kForestMinDistanceFromTCs = 10;  // TODO: Make configurable
   constexpr float kForestMinDistanceFromOtherForests = 10;
-  constexpr int kNumForests = 11;  // TODO: Make configurable
+  const int kNumForests = 11 * (width * height) / (50.f * 50.f) + 0.5f;  // TODO: Make configurable
   QPointF forestCenters[kNumForests];
   for (int forest = 0; forest < kNumForests; ++ forest) {
     int tileX;
@@ -216,7 +216,7 @@ retryForest:  // TODO: Ugly implementation, improve this
   
   // Generate hills
   const int kHillMinDistanceFromTCs = maxElevation + 2 + 8;  // TODO: Make configurable
-  constexpr int numHills = 40;  // TODO: Make configurable
+  const int numHills = 40 * (width * height) / (50.f * 50.f) + 0.5f;  // TODO: Make configurable
   for (int hill = 0; hill < numHills; ++ hill) {
     int tileX;
     int tileY;
