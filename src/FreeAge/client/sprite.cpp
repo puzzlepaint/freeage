@@ -985,7 +985,7 @@ SpriteAndTextures* SpriteManager::GetOrLoad(const char* path, const char* cacheP
   // Load the sprite.
   SpriteAndTextures* newSprite = new SpriteAndTextures();
   newSprite->referenceCount = 1;
-  if (!LoadSpriteAndTexture(path, cachePath, GL_CLAMP, GL_NEAREST, GL_NEAREST, &newSprite->sprite, &newSprite->graphicTexture, &newSprite->shadowTexture, palettes)) {
+  if (!LoadSpriteAndTexture(path, cachePath, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST, &newSprite->sprite, &newSprite->graphicTexture, &newSprite->shadowTexture, palettes)) {
     LOG(ERROR) << "Failed to load sprite: " << path;
     return nullptr;
   }

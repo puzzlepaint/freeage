@@ -185,6 +185,8 @@ void RenderWindow::LoadResources() {
     // one thread. So, we notify the main thread via a queued signal/slot connection.
     emit LoadingProgressUpdated(static_cast<int>(100 * loadingStep / static_cast<float>(maxLoadingStep) + 0.5f));
   };
+
+  LOG(1) << "LoadResource() start";
   
   // Load cursors.
   std::filesystem::path cursorsPath =
@@ -196,19 +198,25 @@ void RenderWindow::LoadResources() {
   mineGoldCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "mine_gold32x32.cur").string().c_str())), 0, 0);
   mineStoneCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "mine_stone32x32.cur").string().c_str())), 0, 0);
   didLoadingStep();
+
+  LOG(1) << "LoadResource(): Cursors loaded";
   
   // Create shaders.
   spriteShader.reset(new SpriteShader(false, false));
   didLoadingStep();
+  LOG(1) << "LoadResource(): SpriteShader(false, false) loaded";
   
   shadowShader.reset(new SpriteShader(true, false));
   didLoadingStep();
+  LOG(1) << "LoadResource(): SpriteShader(true, false) loaded";
   
   outlineShader.reset(new SpriteShader(false, true));
   didLoadingStep();
+  LOG(1) << "LoadResource(): SpriteShader(false, true) loaded";
   
   healthBarShader.reset(new HealthBarShader());
   didLoadingStep();
+  LOG(1) << "LoadResource(): Shaders loaded";
   
   // Create player color palette texture.
   CreatePlayerColorPaletteTexture();
@@ -252,7 +260,7 @@ void RenderWindow::LoadResources() {
   LoadSpriteAndTexture(
       (graphicsPath.parent_path().parent_path() / "particles" / "textures" / "test_move" / "p_all_move_%04i.png").string().c_str(),
       (cachePath / "p_all_move_0000.png").string().c_str(),
-      GL_CLAMP,
+      GL_CLAMP_TO_EDGE,
       GL_NEAREST,
       GL_NEAREST,
       &moveToSprite->sprite,
@@ -283,80 +291,80 @@ void RenderWindow::LoadResources() {
   
   resourcePanelTexture.reset(new Texture());
   QImage resourcePanelImage((architecturePanelsPath / "resource-panel.png").string().c_str());
-  resourcePanelTexture->Load(resourcePanelImage, GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  resourcePanelTexture->Load(resourcePanelImage, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   resourcePanelOpaquenessMap.Create(resourcePanelImage);
   didLoadingStep();
   
   resourceWoodTexture.reset(new Texture());
-  resourceWoodTexture->Load(QImage((ingameIconsPath / "resource_wood.png").string().c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  resourceWoodTexture->Load(QImage((ingameIconsPath / "resource_wood.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   resourceFoodTexture.reset(new Texture());
-  resourceFoodTexture->Load(QImage((ingameIconsPath / "resource_food.png").string().c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  resourceFoodTexture->Load(QImage((ingameIconsPath / "resource_food.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   resourceGoldTexture.reset(new Texture());
-  resourceGoldTexture->Load(QImage((ingameIconsPath / "resource_gold.png").string().c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  resourceGoldTexture->Load(QImage((ingameIconsPath / "resource_gold.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   resourceStoneTexture.reset(new Texture());
-  resourceStoneTexture->Load(QImage((ingameIconsPath / "resource_stone.png").string().c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  resourceStoneTexture->Load(QImage((ingameIconsPath / "resource_stone.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   popTexture.reset(new Texture());
-  popTexture->Load(QImage((ingameIconsPath / "pop.png").string().c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  popTexture->Load(QImage((ingameIconsPath / "pop.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   idleVillagerDisabledTexture.reset(new Texture());
-  idleVillagerDisabledTexture->Load(QImage((ingameIconsPath / "idle-villager_disabled.png").string().c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  idleVillagerDisabledTexture->Load(QImage((ingameIconsPath / "idle-villager_disabled.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   currentAgeShieldTexture.reset(new Texture());
-  currentAgeShieldTexture->Load(QImage((architecturePanelsPath / ("shield_dark_age_" + architectureNameLower + "_normal.png")).string().c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  currentAgeShieldTexture->Load(QImage((architecturePanelsPath / ("shield_dark_age_" + architectureNameLower + "_normal.png")).string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   commandPanelTexture.reset(new Texture());
   QImage commandPanelImage((architecturePanelsPath / "command-panel_extended.png").string().c_str());
-  commandPanelTexture->Load(commandPanelImage, GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  commandPanelTexture->Load(commandPanelImage, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   commandPanelOpaquenessMap.Create(commandPanelImage);
   didLoadingStep();
   
   buildEconomyBuildingsTexture.reset(new Texture());
-  buildEconomyBuildingsTexture->Load(ingameActionsPath / "030_.png", GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  buildEconomyBuildingsTexture->Load(ingameActionsPath / "030_.png", GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   buildMilitaryBuildingsTexture.reset(new Texture());
-  buildMilitaryBuildingsTexture->Load(ingameActionsPath / "031_.png", GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  buildMilitaryBuildingsTexture->Load(ingameActionsPath / "031_.png", GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   toggleBuildingsCategoryTexture.reset(new Texture());
-  toggleBuildingsCategoryTexture->Load(ingameActionsPath / "032_.png", GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  toggleBuildingsCategoryTexture->Load(ingameActionsPath / "032_.png", GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   quitTexture.reset(new Texture());
-  quitTexture->Load(ingameActionsPath / "000_.png", GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  quitTexture->Load(ingameActionsPath / "000_.png", GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   selectionPanelTexture.reset(new Texture());
   QImage selectionPanelImage((architecturePanelsPath / "single-selection-panel.png").string().c_str());
-  selectionPanelTexture->Load(selectionPanelImage, GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  selectionPanelTexture->Load(selectionPanelImage, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   selectionPanelOpaquenessMap.Create(selectionPanelImage);
   didLoadingStep();
   
   iconOverlayNormalTexture.reset(new Texture());
-  iconOverlayNormalTexture->Load(QImage((ingameIconsPath / "icon_overlay_normal.png").string().c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  iconOverlayNormalTexture->Load(QImage((ingameIconsPath / "icon_overlay_normal.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   iconOverlayNormalExpensiveTexture.reset(new Texture());
-  iconOverlayNormalExpensiveTexture->Load(QImage((ingameIconsPath / "icon_overlay_normal_expensive.png").string().c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  iconOverlayNormalExpensiveTexture->Load(QImage((ingameIconsPath / "icon_overlay_normal_expensive.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   iconOverlayHoverTexture.reset(new Texture());
-  iconOverlayHoverTexture->Load(QImage((ingameIconsPath / "icon_overlay_hover.png").string().c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  iconOverlayHoverTexture->Load(QImage((ingameIconsPath / "icon_overlay_hover.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   iconOverlayActiveTexture.reset(new Texture());
-  iconOverlayActiveTexture->Load(QImage((ingameIconsPath / "icon_overlay_active.png").string().c_str()), GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  iconOverlayActiveTexture->Load(QImage((ingameIconsPath / "icon_overlay_active.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   // Output timings of the resource loading processes.
@@ -471,7 +479,7 @@ void RenderWindow::CreatePlayerColorPaletteTexture() {
   }
   
   playerColorsTexture.reset(new Texture());
-  playerColorsTexture->Load(image, GL_CLAMP, GL_NEAREST, GL_NEAREST);
+  playerColorsTexture->Load(image, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
   
   playerColors.resize(maxNumPlayers);
   for (int i = 0; i < maxNumPlayers; ++ i) {
@@ -2162,7 +2170,7 @@ void RenderWindow::initializeGL() {
   
   loadingIcon->Load(
       QImage(QString::fromStdString((graphicsPath.parent_path().parent_path() / "wpfg" / "resources" / "campaign" / "campaign_icon_2swords.png").string())),
-      GL_CLAMP, GL_NEAREST, GL_NEAREST);
+      GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
   
   // Remember the render start time.
   renderStartTime = Clock::now();

@@ -160,7 +160,7 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   }
   
   // Load the icon.
-  iconTexture = TextureManager::Instance().GetOrLoad(iconPath, TextureManager::Loader::Mango, GL_CLAMP, GL_LINEAR, GL_LINEAR);
+  iconTexture = TextureManager::Instance().GetOrLoad(iconPath, TextureManager::Loader::Mango, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   
   if (!ok) {
     return false;

@@ -43,7 +43,7 @@ bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& gr
       graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame";
   std::filesystem::path iconFilename = GetIconFilename();
   if (!iconFilename.empty()) {
-    iconTexture.Load(ingameTexturesPath / iconFilename, GL_CLAMP, GL_LINEAR, GL_LINEAR);
+    iconTexture.Load(ingameTexturesPath / iconFilename, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   }
   
   doesCauseOutlines = DoesCauseOutlinesInternal();
