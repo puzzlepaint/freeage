@@ -42,9 +42,11 @@ set_target_properties(loguru PROPERTIES
 target_compile_definitions(loguru PRIVATE
   LOGURU_WITH_STREAMS
 )
-target_compile_definitions(loguru PRIVATE
-  LOGURU_EXPORTS
-)
+if (WIN32)
+  target_compile_definitions(loguru PRIVATE
+    LOGURU_EXPORTS
+  )
+endif()
 target_link_libraries(loguru
   Threads::Threads
   ${CMAKE_DL_LIBS}

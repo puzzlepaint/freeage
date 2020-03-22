@@ -105,6 +105,8 @@ Website: www.ilikebigbits.com
 #ifdef LOGURU_EXPORTS
 	// Define to your project's export declaration if needed for use in a shared library.
 	#define LOGURU_EXPORT __declspec(dllexport)
+#else
+  #define LOGURU_EXPORT
 #endif
 
 #ifndef LOGURU_SCOPE_TEXT_SIZE

@@ -12,6 +12,12 @@
 // in order for CIDE not to show some errors. Compiling always worked. Check the reason for the errors.
 #include <mango/core/endian.hpp>
 
+void PlayerInGame::RemoveFromGame() {
+  unparsedBuffer.clear();
+  isConnected = false;
+}
+
+
 Game::Game(ServerSettings* settings)
     : settings(settings) {}
 
@@ -29,8 +35,12 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
   
   while (true) {
     // Read data from player connections and handle broken connections.
-    for (auto it = playersInGame->begin(); it != playersInGame->end(); ) {
+    for (auto it = playersInGame->begin(); it != playersInGame->end(); ++ it) {
       PlayerInGame& player = **it;
+      if (!player.isConnected) {
+        // TODO: Allow players to reconnect to the game
+        continue;
+      }
       
       // Read new data from the connection.
       int prevSize = player.unparsedBuffer.size();
@@ -52,18 +62,13 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
         LOG(WARNING) << "Removing player: " << player.name.toStdString() << " (index " << player.index << "). Reason: "
                      << (removePlayer ? "handled message" : (socketDisconnected ? "socket disconnected" : "ping timeout"));
         
-        delete player.socket;
-        it = playersInGame->erase(it);
-        if (playersInGame->empty()) {
-          // All players left the game.
-          return;
-        }
+        player.RemoveFromGame();
         
         // TODO: Notify the remaining players about the player drop / leave
+        // TODO: If all other players finished loading and the last player who did not drops,
+        //       then start the game for the remaining players (or cancel it altogether)
         continue;
       }
-      
-      ++ it;
     }
     
     // Process Qt events.
@@ -605,6 +610,10 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
   // which avoids sending it with each single message.
   for (usize playerIndex = 0; playerIndex < playersInGame->size(); ++ playerIndex) {
     auto& player = (*playersInGame)[playerIndex];
+    if (!player->isConnected) {
+      accumulatedMessages[playerIndex].clear();
+      continue;
+    }
     
     // Does the player need to be notified about a changed amount of resources?
     if (player->resources != player->lastResources) {

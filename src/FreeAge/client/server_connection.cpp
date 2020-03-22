@@ -183,7 +183,7 @@ class ServerConnectionThread : public QThread {
     constexpr int kNoPingTimeout = 5000;
     if (socket->state() != QTcpSocket::ConnectedState ||
         std::chrono::duration<double, std::milli>(Clock::now() - lastPingResponseTime).count() > kNoPingTimeout) {
-      LOG(INFO) << "Server connection lost.";
+      LOG(INFO) << "Connection to server lost.";
       emit ConnectionLost();
       pingAndConnectionCheckTimer->stop();
       return;

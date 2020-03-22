@@ -17,6 +17,9 @@ class ServerUnit;
 
 /// Represents a player in a game.
 struct PlayerInGame {
+  void RemoveFromGame();
+  
+  
   /// The player's index in the playersInGame vector.
   int index;
   
@@ -35,6 +38,9 @@ struct PlayerInGame {
   
   /// The last point in time at which a ping was received from this player.
   TimePoint lastPingTime;
+  
+  /// Whether there (still) is an active connection to this player.
+  bool isConnected = true;
   
   /// Whether the player finished loading the game resources.
   bool finishedLoading = false;
