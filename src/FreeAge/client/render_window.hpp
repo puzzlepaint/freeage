@@ -76,30 +76,30 @@ class RenderWindow : public QOpenGLWidget {
   /// Renders a closed path consisting of line segments between the given vertices.
   /// The last vertex will be connected to the first. The vertex coordinates are in screen (pixel) coordinates.
   /// The given offset is applied to each vertex.
-  void RenderClosedPath(float halfLineWidth, const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset);
-  void RenderShadows(double displayedServerTime);
-  void RenderBuildings(double displayedServerTime, bool buildingsThatCauseOutlines);
-  void RenderBuildingFoundation(double displayedServerTime);
-  void RenderSelectionGroundOutlines();
-  void RenderSelectionGroundOutline(QRgb color, ClientObject* object);
-  void RenderOutlines(double displayedServerTime);
-  void RenderUnits(double displayedServerTime);
-  void RenderMoveToMarker(const TimePoint& now);
-  void RenderHealthBars(double displayedServerTime);
-  void RenderGroundDecals();
-  void RenderOccludingDecals();
-  void RenderDecals(std::vector<Decal*>& decals);
-  void RenderOccludingDecalShadows();
-  void RenderOccludingDecalOutlines();
+  void RenderClosedPath(float halfLineWidth, const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset, QOpenGLFunctions_3_2_Core* f);
+  void RenderShadows(double displayedServerTime, QOpenGLFunctions_3_2_Core* f);
+  void RenderBuildings(double displayedServerTime, bool buildingsThatCauseOutlines, QOpenGLFunctions_3_2_Core* f);
+  void RenderBuildingFoundation(double displayedServerTime, QOpenGLFunctions_3_2_Core* f);
+  void RenderSelectionGroundOutlines(QOpenGLFunctions_3_2_Core* f);
+  void RenderSelectionGroundOutline(QRgb color, ClientObject* object, QOpenGLFunctions_3_2_Core* f);
+  void RenderOutlines(double displayedServerTime, QOpenGLFunctions_3_2_Core* f);
+  void RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_Core* f);
+  void RenderMoveToMarker(const TimePoint& now, QOpenGLFunctions_3_2_Core* f);
+  void RenderHealthBars(double displayedServerTime, QOpenGLFunctions_3_2_Core* f);
+  void RenderGroundDecals(QOpenGLFunctions_3_2_Core* f);
+  void RenderOccludingDecals(QOpenGLFunctions_3_2_Core* f);
+  void RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_2_Core* f);
+  void RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f);
+  void RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f);
   
   
-  void RenderGameUI(double displayedServerTime);
+  void RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2_Core* f);
   QPointF GetResourcePanelTopLeft();
-  void RenderResourcePanel();
+  void RenderResourcePanel(QOpenGLFunctions_3_2_Core* f);
   QPointF GetSelectionPanelTopLeft();
-  void RenderSelectionPanel();
+  void RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f);
   QPointF GetCommandPanelTopLeft();
-  void RenderCommandPanel();
+  void RenderCommandPanel(QOpenGLFunctions_3_2_Core* f);
   bool IsUIAt(int x, int y);
   
   /// Given screen-space coordinates (x, y), finds the (next) object to select at
@@ -126,7 +126,7 @@ class RenderWindow : public QOpenGLWidget {
   void LetObjectFlash(u32 objectId);
   bool IsObjectFlashActive();
   
-  void RenderLoadingScreen();
+  void RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f);
   
   /// Updates the game state to the given server time for which the state should be rendered.
   void UpdateGameState(double displayedServerTime);

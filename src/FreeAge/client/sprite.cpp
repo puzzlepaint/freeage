@@ -5,6 +5,7 @@
 #include <mango/image/image.hpp>
 
 #include "FreeAge/common/logging.hpp"
+#include "FreeAge/common/timing.hpp"
 #include "FreeAge/client/opengl.hpp"
 #include "FreeAge/client/shader_program.hpp"
 #include "FreeAge/client/shader_sprite.hpp"
@@ -1131,9 +1132,9 @@ void DrawSprite(
     bool outline,
     QRgb outlineColor,
     int playerIndex,
-    float scaling) {
+    float scaling,
+    QOpenGLFunctions_3_2_Core* f) {
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameNumber).shadow : sprite.frame(frameNumber).graphic;
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   CHECK_OPENGL_NO_ERROR();
   
   bool isGraphic = !shadow && !outline;
@@ -1144,6 +1145,7 @@ void DrawSprite(
   ShaderProgram* program = spriteShader->GetProgram();
   program->UseProgram();
   program->SetUniform1i(spriteShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
+  
   f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
   
   if (!shadow && !outline) {

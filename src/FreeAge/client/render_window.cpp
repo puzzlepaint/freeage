@@ -368,7 +368,7 @@ void RenderWindow::LoadResources() {
   didLoadingStep();
   
   // Output timings of the resource loading processes.
-  Timing::print(std::cout);
+  Timing::print(std::cout, kSortByTotal);
   
   // Check that the value of maxLoadingStep is correct.
   if (loadingStep != maxLoadingStep) {
@@ -564,8 +564,7 @@ void RenderWindow::UpdateView(const TimePoint& now) {
   }
 }
 
-void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset) {
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset, QOpenGLFunctions_3_2_Core* f) {
   CHECK_OPENGL_NO_ERROR();
   
   // Set shader.
@@ -627,7 +626,7 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
   CHECK_OPENGL_NO_ERROR();
 }
 
-void RenderWindow::RenderShadows(double displayedServerTime) {
+void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
   for (auto& object : map->GetObjects()) {
@@ -656,7 +655,8 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
             widgetHeight,
             displayedServerTime,
             true,
-            false);
+            false,
+            f);
       }
     } else {  // if (object.second->isUnit()) {
       ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
@@ -681,13 +681,14 @@ void RenderWindow::RenderShadows(double displayedServerTime) {
             widgetHeight,
             displayedServerTime,
             true,
-            false);
+            false,
+            f);
       }
     }
   }
 }
 
-void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsThatCauseOutlines) {
+void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsThatCauseOutlines, QOpenGLFunctions_3_2_Core* f) {
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
     if (!object.second->isBuilding()) {
@@ -716,12 +717,13 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
           widgetHeight,
           displayedServerTime,
           false,
-          false);
+          false,
+          f);
     }
   }
 }
 
-void RenderWindow::RenderBuildingFoundation(double displayedServerTime) {
+void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
   QPoint foundationBaseTile(-1, -1);
   bool canBePlacedHere = CanBuildingFoundationBePlacedHere(constructBuildingType, lastCursorPos, &foundationBaseTile);
   
@@ -747,18 +749,19 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime) {
         widgetHeight,
         displayedServerTime,
         false,
-        false);
+        false,
+        f);
     spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
     
     delete tempBuilding;
   }
 }
 
-void RenderWindow::RenderSelectionGroundOutlines() {
+void RenderWindow::RenderSelectionGroundOutlines(QOpenGLFunctions_3_2_Core* f) {
   for (u32 objectId : selection) {
     auto it = map->GetObjects().find(objectId);
     if (it != map->GetObjects().end()) {
-      RenderSelectionGroundOutline(qRgba(255, 255, 255, 255), it->second);
+      RenderSelectionGroundOutline(qRgba(255, 255, 255, 255), it->second, f);
     }
   }
   
@@ -766,12 +769,12 @@ void RenderWindow::RenderSelectionGroundOutlines() {
       IsObjectFlashActive()) {
     auto flashingObjectIt = map->GetObjects().find(flashingObjectId);
     if (flashingObjectIt != map->GetObjects().end()) {
-      RenderSelectionGroundOutline(qRgba(80, 255, 80, 255), flashingObjectIt->second);
+      RenderSelectionGroundOutline(qRgba(80, 255, 80, 255), flashingObjectIt->second, f);
     }
   }
 }
 
-void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object) {
+void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object, QOpenGLFunctions_3_2_Core* f) {
   if (object->isBuilding()) {
     ClientBuilding& building = *static_cast<ClientBuilding*>(object);
     
@@ -799,8 +802,8 @@ void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object
                   ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
     }
     
-    RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2));
-    RenderClosedPath(zoom * 1.1f, color, outlineVertices, QPointF(0, 0));
+    RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2), f);
+    RenderClosedPath(zoom * 1.1f, color, outlineVertices, QPointF(0, 0), f);
   } else if (object->isUnit()) {
     ClientUnit& unit = *static_cast<ClientUnit*>(object);
     
@@ -816,12 +819,12 @@ void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object
                   ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
     }
     
-    RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2));
-    RenderClosedPath(zoom * 1.1f, color, outlineVertices, QPointF(0, 0));
+    RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2), f);
+    RenderClosedPath(zoom * 1.1f, color, outlineVertices, QPointF(0, 0), f);
   }
 }
 
-void RenderWindow::RenderOutlines(double displayedServerTime) {
+void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
   // TODO: Sort to minmize texture switches.
@@ -866,7 +869,8 @@ void RenderWindow::RenderOutlines(double displayedServerTime) {
             widgetHeight,
             displayedServerTime,
             false,
-            true);
+            true,
+            f);
       }
     } else {  // if (object.second->isUnit()) {
       ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
@@ -891,13 +895,14 @@ void RenderWindow::RenderOutlines(double displayedServerTime) {
             widgetHeight,
             displayedServerTime,
             false,
-            true);
+            true,
+            f);
       }
     }
   }
 }
 
-void RenderWindow::RenderUnits(double displayedServerTime) {
+void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
     if (!object.second->isUnit()) {
@@ -922,12 +927,13 @@ void RenderWindow::RenderUnits(double displayedServerTime) {
           widgetHeight,
           displayedServerTime,
           false,
-          false);
+          false,
+          f);
     }
   }
 }
 
-void RenderWindow::RenderMoveToMarker(const TimePoint& now) {
+void RenderWindow::RenderMoveToMarker(const TimePoint& now, QOpenGLFunctions_3_2_Core* f) {
   // Update move-to sprite.
   int moveToFrameIndex = -1;
   if (haveMoveTo) {
@@ -957,11 +963,12 @@ void RenderWindow::RenderMoveToMarker(const TimePoint& now) {
         /*outline*/ false,
         qRgb(0, 0, 0),
         /*playerIndex*/ 0,
-        /*scaling*/ 0.5f);
+        /*scaling*/ 0.5f,
+        f);
   }
 }
 
-void RenderWindow::RenderHealthBars(double displayedServerTime) {
+void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   QRgb gaiaColor = qRgb(255, 255, 255);
@@ -1000,7 +1007,8 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
             viewMatrix,
             zoom,
             widgetWidth,
-            widgetHeight);
+            widgetHeight,
+            f);
       }
     } else {  // if (object.second->isUnit()) {
       ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
@@ -1029,21 +1037,22 @@ void RenderWindow::RenderHealthBars(double displayedServerTime) {
             viewMatrix,
             zoom,
             widgetWidth,
-            widgetHeight);
+            widgetHeight,
+            f);
       }
     }
   }
 }
 
-void RenderWindow::RenderGroundDecals() {
-  RenderDecals(groundDecals);
+void RenderWindow::RenderGroundDecals(QOpenGLFunctions_3_2_Core* f) {
+  RenderDecals(groundDecals, f);
 }
 
-void RenderWindow::RenderOccludingDecals() {
-  RenderDecals(occludingDecals);
+void RenderWindow::RenderOccludingDecals(QOpenGLFunctions_3_2_Core* f) {
+  RenderDecals(occludingDecals, f);
 }
 
-void RenderWindow::RenderDecals(std::vector<Decal*>& decals) {
+void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_2_Core* f) {
   // TODO: Sort to minmize texture switches.
   for (auto& decal : decals) {
     QRectF projectedCoordsRect = decal->GetRectInProjectedCoords(
@@ -1059,12 +1068,13 @@ void RenderWindow::RenderDecals(std::vector<Decal*>& decals) {
           widgetWidth,
           widgetHeight,
           false,
-          false);
+          false,
+          f);
     }
   }
 }
 
-void RenderWindow::RenderOccludingDecalShadows() {
+void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
   // TODO: Sort to minmize texture switches.
   for (auto& decal : occludingDecals) {
     QRectF projectedCoordsRect = decal->GetRectInProjectedCoords(
@@ -1080,12 +1090,13 @@ void RenderWindow::RenderOccludingDecalShadows() {
           widgetWidth,
           widgetHeight,
           true,
-          false);
+          false,
+          f);
     }
   }
 }
 
-void RenderWindow::RenderOccludingDecalOutlines() {
+void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
   // TODO: Sort to minmize texture switches.
   for (auto& decal : occludingDecals) {
     QRgb outlineColor = qRgb(255, 255, 255);
@@ -1106,17 +1117,18 @@ void RenderWindow::RenderOccludingDecalOutlines() {
           widgetWidth,
           widgetHeight,
           false,
-          true);
+          true,
+          f);
     }
   }
 }
 
-void RenderWindow::RenderGameUI(double displayedServerTime) {
-  RenderResourcePanel();
+void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
+  RenderResourcePanel(f);
   
-  RenderSelectionPanel();
+  RenderSelectionPanel(f);
   
-  RenderCommandPanel();
+  RenderCommandPanel(f);
   
   // Render the current game time
   double timeSinceGameStart = displayedServerTime - gameController->GetGameStartServerTimeSeconds();
@@ -1138,7 +1150,7 @@ void RenderWindow::RenderGameUI(double displayedServerTime) {
             0,
             0),
       Qt::AlignTop | Qt::AlignLeft,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   }
   
   // Render the current FPS and ping
@@ -1164,7 +1176,7 @@ void RenderWindow::RenderGameUI(double displayedServerTime) {
             0,
             0),
       Qt::AlignTop | Qt::AlignLeft,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   }
 }
 
@@ -1172,7 +1184,7 @@ QPointF RenderWindow::GetResourcePanelTopLeft() {
   return QPointF(0, 0);
 }
 
-void RenderWindow::RenderResourcePanel() {
+void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
   const ResourceAmount& resources = gameController->GetCurrentResourceAmount();
   
   QPointF topLeft = GetResourcePanelTopLeft();
@@ -1183,7 +1195,7 @@ void RenderWindow::RenderResourcePanel() {
       uiScale * resourcePanelTexture->GetWidth(),
       uiScale * resourcePanelTexture->GetHeight(),
       *resourcePanelTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 0 * 200),
@@ -1191,7 +1203,7 @@ void RenderWindow::RenderResourcePanel() {
       uiScale * 83,
       uiScale * 83,
       *resourceWoodTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   if (!woodTextDisplay) {
     woodTextDisplay.reset(new TextDisplay());
   }
@@ -1204,7 +1216,7 @@ void RenderWindow::RenderResourcePanel() {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 1 * 200),
@@ -1212,7 +1224,7 @@ void RenderWindow::RenderResourcePanel() {
       uiScale * 83,
       uiScale * 83,
       *resourceFoodTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   if (!foodTextDisplay) {
     foodTextDisplay.reset(new TextDisplay());
   }
@@ -1225,7 +1237,7 @@ void RenderWindow::RenderResourcePanel() {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 2 * 200),
@@ -1233,7 +1245,7 @@ void RenderWindow::RenderResourcePanel() {
       uiScale * 83,
       uiScale * 83,
       *resourceGoldTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   if (!goldTextDisplay) {
     goldTextDisplay.reset(new TextDisplay());
   }
@@ -1246,7 +1258,7 @@ void RenderWindow::RenderResourcePanel() {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 3 * 200),
@@ -1254,7 +1266,7 @@ void RenderWindow::RenderResourcePanel() {
       uiScale * 83,
       uiScale * 83,
       *resourceStoneTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   if (!stoneTextDisplay) {
     stoneTextDisplay.reset(new TextDisplay());
   }
@@ -1267,7 +1279,7 @@ void RenderWindow::RenderResourcePanel() {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 4 * 200),
@@ -1275,7 +1287,7 @@ void RenderWindow::RenderResourcePanel() {
       uiScale * 83,
       uiScale * 83,
       *popTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   if (!popTextDisplay) {
     popTextDisplay.reset(new TextDisplay());
   }
@@ -1288,7 +1300,7 @@ void RenderWindow::RenderResourcePanel() {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 4 * 200 + 234),
@@ -1296,14 +1308,14 @@ void RenderWindow::RenderResourcePanel() {
       uiScale * 2 * 34,
       uiScale * 2 * 34,
       *idleVillagerDisabledTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 4 * 200 + 234 + 154 - currentAgeShieldTexture->GetWidth() / 2),
       topLeft.y() + uiScale * 0,
       uiScale * currentAgeShieldTexture->GetWidth(),
       uiScale * currentAgeShieldTexture->GetHeight(),
       *currentAgeShieldTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   if (!currentAgeTextDisplay) {
     currentAgeTextDisplay.reset(new TextDisplay());
   }
@@ -1317,7 +1329,7 @@ void RenderWindow::RenderResourcePanel() {
             uiScale * (1623 - 8) - currentAgeTextLeft,
             uiScale * 83),
       Qt::AlignHCenter | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
 }
 
 QPointF RenderWindow::GetSelectionPanelTopLeft() {
@@ -1326,7 +1338,7 @@ QPointF RenderWindow::GetSelectionPanelTopLeft() {
       widgetHeight - uiScale * selectionPanelTexture->GetHeight());
 }
 
-void RenderWindow::RenderSelectionPanel() {
+void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
   QPointF topLeft = GetSelectionPanelTopLeft();
   
   RenderUIGraphic(
@@ -1335,7 +1347,7 @@ void RenderWindow::RenderSelectionPanel() {
       uiScale * selectionPanelTexture->GetWidth(),
       uiScale * selectionPanelTexture->GetHeight(),
       *selectionPanelTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   
   // Is only a single object selected?
   if (selection.size() == 1) {
@@ -1354,7 +1366,7 @@ void RenderWindow::RenderSelectionPanel() {
               uiScale * 2*172,
               uiScale * 2*16),
         Qt::AlignLeft | Qt::AlignTop,
-        uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+        uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
     
     // Display the object's HP
     if (singleSelectedObject->GetHP() > 0) {
@@ -1378,7 +1390,7 @@ void RenderWindow::RenderSelectionPanel() {
                 uiScale * 2*172,
                 uiScale * 2*16),
           Qt::AlignLeft | Qt::AlignTop,
-          uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+          uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
     }
     
     // Display unit details?
@@ -1401,7 +1413,7 @@ void RenderWindow::RenderSelectionPanel() {
                     uiScale * 2*172,
                     uiScale * 2*16),
               Qt::AlignLeft | Qt::AlignTop,
-              uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+              uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
         }
       }
     }
@@ -1416,14 +1428,14 @@ void RenderWindow::RenderSelectionPanel() {
           uiScale * 2*60 - 2 * iconInset,
           uiScale * 2*60 - 2 * iconInset,
           *iconTexture,
-          uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+          uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
       RenderUIGraphic(
           topLeft.x() + uiScale * 2*32,
           topLeft.y() + uiScale * 50 + uiScale * 2*46,
           uiScale * 2*60,
           uiScale * 2*60,
           *iconOverlayNormalTexture,
-          uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+          uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
     }
   }
 }
@@ -1434,7 +1446,7 @@ QPointF RenderWindow::GetCommandPanelTopLeft() {
       widgetHeight - uiScale * commandPanelTexture->GetHeight());
 }
 
-void RenderWindow::RenderCommandPanel() {
+void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
   QPointF topLeft = GetCommandPanelTopLeft();
   
   RenderUIGraphic(
@@ -1443,7 +1455,7 @@ void RenderWindow::RenderCommandPanel() {
       uiScale * commandPanelTexture->GetWidth(),
       uiScale * commandPanelTexture->GetHeight(),
       *commandPanelTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   
   float commandButtonsLeft = topLeft.x() + uiScale * 49;
   float commandButtonsTop = topLeft.y() + uiScale * 93;
@@ -1485,7 +1497,7 @@ void RenderWindow::RenderCommandPanel() {
           disabled ? *iconOverlayNormalExpensiveTexture :
               (pressed ? *iconOverlayActiveTexture :
                   (mouseOver ? *iconOverlayHoverTexture : *iconOverlayNormalTexture)),
-          uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+          uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
     }
   }
 }
@@ -1737,8 +1749,7 @@ bool RenderWindow::IsObjectFlashActive() {
   return false;
 }
 
-void RenderWindow::RenderLoadingScreen() {
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
   CHECK_OPENGL_NO_ERROR();
   
   ComputePixelToOpenGLMatrix();
@@ -1775,7 +1786,7 @@ void RenderWindow::RenderLoadingScreen() {
       text,
       QRect(0, 0, widgetWidth, widgetHeight),
       Qt::AlignHCenter | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
   
   // Render the loading icon.
   RenderUIGraphic(
@@ -1784,7 +1795,7 @@ void RenderWindow::RenderLoadingScreen() {
       loadingIcon->GetWidth(),
       loadingIcon->GetHeight(),
       *loadingIcon,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
+      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
 }
 
 void RenderWindow::UpdateGameState(double displayedServerTime) {
@@ -2181,11 +2192,14 @@ void RenderWindow::initializeGL() {
 }
 
 void RenderWindow::paintGL() {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  CHECK_OPENGL_NO_ERROR();
+  
   // Regularly print timing info
   static int renderStatisticsCounter = 0;
   ++ renderStatisticsCounter;
   if (renderStatisticsCounter % (3 * 120) == 0) {
-    Timing::print(std::cout);
+    Timing::print(std::cout, kSortByTotal);
   }
   
   // Render loading screen?
@@ -2205,7 +2219,7 @@ void RenderWindow::paintGL() {
       lastScrollGetTime = Clock::now();
     } else {
       Timer renderTimer("paintGL() for loading screen");
-      RenderLoadingScreen();
+      RenderLoadingScreen(f);
       return;
     }
   }
@@ -2229,9 +2243,6 @@ void RenderWindow::paintGL() {
   
   // Render game.
   Timer renderTimer("paintGL() for game");
-  
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
-  CHECK_OPENGL_NO_ERROR();
   
   // Get the time for which to render the game state.
   // TODO: Predict the time at which the rendered frame will be displayed rather than taking the current time.
@@ -2305,23 +2316,23 @@ void RenderWindow::paintGL() {
   f->glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
   
   CHECK_OPENGL_NO_ERROR();
-  RenderShadows(displayedServerTime);
-  RenderOccludingDecalShadows();
+  RenderShadows(displayedServerTime, f);
+  RenderOccludingDecalShadows(f);
   CHECK_OPENGL_NO_ERROR();
   
   // Render the map terrain.
   f->glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);  // blend with the shadows
   
   CHECK_OPENGL_NO_ERROR();
-  map->Render(viewMatrix, graphicsPath);
-  RenderGroundDecals();
+  map->Render(viewMatrix, graphicsPath, f);
+  RenderGroundDecals(f);
   CHECK_OPENGL_NO_ERROR();
   
   f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // reset the blend func to standard
   
   // Render selection outlines below buildings.
   CHECK_OPENGL_NO_ERROR();
-  RenderSelectionGroundOutlines();
+  RenderSelectionGroundOutlines(f);
   CHECK_OPENGL_NO_ERROR();
   
   // Enable the depth buffer for sprite rendering.
@@ -2330,13 +2341,13 @@ void RenderWindow::paintGL() {
   
   // Render buildings that cause outlines.
   CHECK_OPENGL_NO_ERROR();
-  RenderBuildings(displayedServerTime, true);
+  RenderBuildings(displayedServerTime, true, f);
   CHECK_OPENGL_NO_ERROR();
   
   // Render the building foundation under the cursor.
   if (constructBuildingType != BuildingType::NumBuildings) {
     CHECK_OPENGL_NO_ERROR();
-    RenderBuildingFoundation(displayedServerTime);
+    RenderBuildingFoundation(displayedServerTime, f);
     CHECK_OPENGL_NO_ERROR();
   }
   
@@ -2348,8 +2359,8 @@ void RenderWindow::paintGL() {
   f->glDepthFunc(GL_GREATER);
   
   CHECK_OPENGL_NO_ERROR();
-  RenderOutlines(displayedServerTime);
-  RenderOccludingDecalOutlines();
+  RenderOutlines(displayedServerTime, f);
+  RenderOccludingDecalOutlines(f);
   CHECK_OPENGL_NO_ERROR();
   
   // Render units and buildings that do not cause outlines.
@@ -2357,16 +2368,16 @@ void RenderWindow::paintGL() {
   f->glDepthFunc(GL_LEQUAL);
   
   CHECK_OPENGL_NO_ERROR();
-  RenderBuildings(displayedServerTime, false);
-  RenderUnits(displayedServerTime);
-  RenderOccludingDecals();
+  RenderBuildings(displayedServerTime, false, f);
+  RenderUnits(displayedServerTime, f);
+  RenderOccludingDecals(f);
   CHECK_OPENGL_NO_ERROR();
   
   // Render move-to marker.
   // This should be rendered after the last unit at the moment, since it contains semi-transparent
   // pixels which do currenly write to the z-buffer.
   CHECK_OPENGL_NO_ERROR();
-  RenderMoveToMarker(now);
+  RenderMoveToMarker(now, f);
   CHECK_OPENGL_NO_ERROR();
   
   // Render health bars.
@@ -2374,7 +2385,7 @@ void RenderWindow::paintGL() {
   f->glDisable(GL_BLEND);
   
   CHECK_OPENGL_NO_ERROR();
-  RenderHealthBars(displayedServerTime);
+  RenderHealthBars(displayedServerTime, f);
   CHECK_OPENGL_NO_ERROR();
   
   // Render selection box.
@@ -2386,15 +2397,15 @@ void RenderWindow::paintGL() {
     vertices[2] = lastCursorPos;
     vertices[3] = QPointF(lastCursorPos.x(), dragStartPos.y());
     
-    RenderClosedPath(1.1f, qRgba(0, 0, 0, 255), vertices, QPointF(2, 2));
-    RenderClosedPath(1.1f, qRgba(255, 255, 255, 255), vertices, QPointF(0, 0));
+    RenderClosedPath(1.1f, qRgba(0, 0, 0, 255), vertices, QPointF(2, 2), f);
+    RenderClosedPath(1.1f, qRgba(255, 255, 255, 255), vertices, QPointF(0, 0), f);
   }
   
   // Render game UI.
   // TODO: Would it be faster to render this at the start and then prevent rendering over the UI pixels,
   //       for example by setting the z-buffer such that no further pixel will be rendered there?
   CHECK_OPENGL_NO_ERROR();
-  RenderGameUI(displayedServerTime);
+  RenderGameUI(displayedServerTime, f);
   CHECK_OPENGL_NO_ERROR();
 }
 

@@ -68,7 +68,7 @@ class Map {
   
   // TODO: Should this functionality be moved into its own class?
   inline void SetNeedsRenderResourcesUpdate(bool needsUpdate) { needsRenderResourcesUpdate = needsUpdate; }
-  void Render(float* viewMatrix, const std::filesystem::path& graphicsPath);
+  void Render(float* viewMatrix, const std::filesystem::path& graphicsPath, QOpenGLFunctions_3_2_Core* f);
   void UnloadRenderResources();
   
   
@@ -81,7 +81,7 @@ class Map {
   inline int GetHeight() const { return height; }
   
  private:
-  void UpdateRenderResources(const std::filesystem::path& graphicsPath);
+  void UpdateRenderResources(const std::filesystem::path& graphicsPath, QOpenGLFunctions_3_2_Core* f);
   
   /// The maximum possible elevation level (the lowest is zero).
   /// This may be higher than the maximum actually existing

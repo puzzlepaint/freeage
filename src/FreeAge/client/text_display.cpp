@@ -14,9 +14,7 @@ TextDisplay::~TextDisplay() {
   }
 }
 
-void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& text, const QRect& rect, int alignmentFlags, UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer) {
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
-  
+void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& text, const QRect& rect, int alignmentFlags, UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer, QOpenGLFunctions_3_2_Core* f) {
   if (font != this->font ||
       color != this->color ||
       text != this->text ||
@@ -26,7 +24,7 @@ void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& te
     this->text = text;
     this->alignmentFlags = alignmentFlags;
     
-    UpdateTexture();
+    UpdateTexture(f);
   }
   
   // Render the texture.
@@ -88,9 +86,7 @@ void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& te
   CHECK_OPENGL_NO_ERROR();
 }
 
-void TextDisplay::UpdateTexture() {
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
-  
+void TextDisplay::UpdateTexture(QOpenGLFunctions_3_2_Core* f) {
   // Compute the text size.
   // Note that we currently allocate a dummy image in order to get the correct font
   // metrics for drawing to QImages via a QPainter on that image. Is there a more efficient way to

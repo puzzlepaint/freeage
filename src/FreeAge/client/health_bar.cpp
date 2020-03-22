@@ -1,7 +1,5 @@
 #include "FreeAge/client/health_bar.hpp"
 
-#include <QOpenGLFunctions_3_2_Core>
-
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/client/shader_health_bar.hpp"
 
@@ -15,9 +13,8 @@ void RenderHealthBar(
     float* viewMatrix,
     float zoom,
     int widgetWidth,
-    int widgetHeight) {
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
-  
+    int widgetHeight,
+    QOpenGLFunctions_3_2_Core* f) {
   ShaderProgram* program = healthBarShader->GetProgram();
   program->UseProgram();
   

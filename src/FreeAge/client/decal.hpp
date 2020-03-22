@@ -41,7 +41,8 @@ class Decal {
       int widgetWidth,
       int widgetHeight,
       bool shadow,
-      bool outline);
+      bool outline,
+      QOpenGLFunctions_3_2_Core* f);
   
   inline bool MayOccludeSprites() const {
     return type == DecalType::UnitDeath || type == DecalType::BuildingDestruction;

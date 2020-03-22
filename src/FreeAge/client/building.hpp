@@ -111,7 +111,8 @@ class ClientBuilding : public ClientObject {
       int widgetHeight,
       double elapsedSeconds,
       bool shadow,
-      bool outline);
+      bool outline,
+      QOpenGLFunctions_3_2_Core* f);
   
   inline void SetFixedFrameIndex(int index) { fixedFrameIndex = index; }
   

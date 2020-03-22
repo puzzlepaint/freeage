@@ -224,13 +224,11 @@ bool Map::ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCo
   return converged;
 }
 
-void Map::Render(float* viewMatrix, const std::filesystem::path& graphicsPath) {
+void Map::Render(float* viewMatrix, const std::filesystem::path& graphicsPath, QOpenGLFunctions_3_2_Core* f) {
   if (needsRenderResourcesUpdate) {
-    UpdateRenderResources(graphicsPath);
+    UpdateRenderResources(graphicsPath, f);
     needsRenderResourcesUpdate = false;
   }
-  
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   ShaderProgram* terrainProgram = terrainShader->GetProgram();
   terrainProgram->UseProgram();
@@ -272,9 +270,7 @@ void Map::UnloadRenderResources() {
   }
 }
 
-void Map::UpdateRenderResources(const std::filesystem::path& graphicsPath) {
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
-  
+void Map::UpdateRenderResources(const std::filesystem::path& graphicsPath, QOpenGLFunctions_3_2_Core* f) {
   // Load texture
   if (!hasTextureBeenLoaded) {
     mango::Bitmap textureBitmap(

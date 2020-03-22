@@ -17,13 +17,13 @@ class TextDisplay {
   /// Deallocates OpenGL resources, thus needs an active OpenGL context.
   ~TextDisplay();
   
-  void Render(const QFont& font, const QRgb& color, const QString& text, const QRect& rect, int alignmentFlags, UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer);
+  void Render(const QFont& font, const QRgb& color, const QString& text, const QRect& rect, int alignmentFlags, UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer, QOpenGLFunctions_3_2_Core* f);
   
   /// Returns the bounds of the last rendered text.
   inline const QRect& GetBounds() const { return bounds; }
   
  private:
-  void UpdateTexture();
+  void UpdateTexture(QOpenGLFunctions_3_2_Core* f);
   
   
   QString text;

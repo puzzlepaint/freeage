@@ -136,7 +136,8 @@ void DrawSprite(
     bool outline,
     QRgb outlineColor,
     int playerIndex,
-    float scaling = 1);
+    float scaling,
+    QOpenGLFunctions_3_2_Core* f);
 
 
 // Note: SMX / SMP parsing implemented according to:

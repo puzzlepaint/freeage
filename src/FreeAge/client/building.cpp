@@ -325,7 +325,8 @@ void ClientBuilding::Render(
     int widgetHeight,
     double elapsedSeconds,
     bool shadow,
-    bool outline) {
+    bool outline,
+    QOpenGLFunctions_3_2_Core* f) {
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
@@ -346,7 +347,7 @@ void ClientBuilding::Render(
         shadow ? helperSprite1->shadowTexture : helperSprite1->graphicTexture,
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        outlineColor, playerIndex);
+        outlineColor, playerIndex, 1.f, f);
     
     // Back
     const ClientBuildingType& helperType2 = buildingTypes[static_cast<int>(BuildingType::TownCenterBack)];
@@ -356,7 +357,7 @@ void ClientBuilding::Render(
         shadow ? helperSprite2->shadowTexture : helperSprite2->graphicTexture,
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        outlineColor, playerIndex);
+        outlineColor, playerIndex, 1.f, f);
     
     // Center
     const ClientBuildingType& helperType3 = buildingTypes[static_cast<int>(BuildingType::TownCenterCenter)];
@@ -366,7 +367,7 @@ void ClientBuilding::Render(
         shadow ? helperSprite3->shadowTexture : helperSprite3->graphicTexture,
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        outlineColor, playerIndex);
+        outlineColor, playerIndex, 1.f, f);
   }
   
   bool useDarkModulation = spriteType == BuildingSprite::Foundation && buildPercentage == 0 && !shadow && !outline;
@@ -388,7 +389,9 @@ void ClientBuilding::Render(
       shadow,
       outline,
       outlineColor,
-      playerIndex);
+      playerIndex,
+      1.f,
+      f);
   if (useDarkModulation) {
     spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
   }
@@ -402,7 +405,7 @@ void ClientBuilding::Render(
         shadow ? helperSprite4->shadowTexture : helperSprite4->graphicTexture,
         spriteShader, centerProjectedCoord, pointBuffer,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        outlineColor, playerIndex);
+        outlineColor, playerIndex, 1.f, f);
   }
 }
 

@@ -94,7 +94,8 @@ class ClientUnit : public ClientObject {
       int widgetHeight,
       double serverTime,
       bool shadow,
-      bool outline);
+      bool outline,
+      QOpenGLFunctions_3_2_Core* f);
   
   inline UnitType GetType() const { return type; }
   inline void SetType(UnitType newType) { type = newType; }

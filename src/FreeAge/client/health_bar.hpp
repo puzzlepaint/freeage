@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QOpenGLFunctions_3_2_Core>
 #include <QRectF>
 #include <QRgb>
 
@@ -17,4 +18,5 @@ void RenderHealthBar(
     float* viewMatrix,
     float zoom,
     int widgetWidth,
-    int widgetHeight);
+    int widgetHeight,
+    QOpenGLFunctions_3_2_Core* f);
