@@ -130,7 +130,7 @@ RenderWindow::~RenderWindow() {
   currentAgeTextDisplay.reset();
   
   gameTimeDisplay.reset();
-  pingDisplay.reset();
+  fpsAndPingDisplay.reset();
   
   commandPanelTexture.reset();
   buildEconomyBuildingsTexture.reset();
@@ -1141,19 +1141,24 @@ void RenderWindow::RenderGameUI(double displayedServerTime) {
       uiShader.get(), widgetWidth, widgetHeight, pointBuffer);
   }
   
-  // Render the current ping
+  // Render the current FPS and ping
   double filteredPing, filteredOffset;
   connection->EstimateCurrentPingAndOffset(&filteredPing, &filteredOffset);
-  QString pingString = QObject::tr("%1 ms").arg(static_cast<int>(1000 * filteredPing + 0.5f));
+  QString fpsAndPingString;
+  if (roundedFPS >= 0) {
+    fpsAndPingString = QObject::tr("%1 FPS | %2 ms").arg(roundedFPS).arg(static_cast<int>(1000 * filteredPing + 0.5f));
+  } else {
+    fpsAndPingString = QObject::tr("%1 ms").arg(static_cast<int>(1000 * filteredPing + 0.5f));
+  }
   
-  if (!pingDisplay) {
-    pingDisplay.reset(new TextDisplay());
+  if (!fpsAndPingDisplay) {
+    fpsAndPingDisplay.reset(new TextDisplay());
   }
   for (int i = 0; i < 2; ++ i) {
-    pingDisplay->Render(
+    fpsAndPingDisplay->Render(
       georgiaFontSmaller,
       (i == 0) ? qRgba(0, 0, 0, 255) : qRgba(255, 255, 255, 255),
-      pingString,
+      fpsAndPingString,
       QRect(uiScale * (2*851 + ((i == 0) ? 2 : 0)),
             uiScale * (40 + 8 + ((i == 0) ? 2 : 0)),
             0,
@@ -2202,6 +2207,23 @@ void RenderWindow::paintGL() {
       Timer renderTimer("paintGL() for loading screen");
       RenderLoadingScreen();
       return;
+    }
+  }
+  
+  // FPS computation
+  constexpr int kUpdateFPSEveryXthFrame = 30;  // update FPS every 30 frames
+  
+  if (framesAfterFPSMeasuringStartTime < 0) {
+    fpsMeasuringFrameStartTime = Clock::now();
+    framesAfterFPSMeasuringStartTime = 0;
+  } else {
+    ++ framesAfterFPSMeasuringStartTime;
+    if (framesAfterFPSMeasuringStartTime == kUpdateFPSEveryXthFrame) {
+      double elapsedSeconds = SecondsDuration(Clock::now() - fpsMeasuringFrameStartTime).count();
+      roundedFPS = static_cast<int>(kUpdateFPSEveryXthFrame / elapsedSeconds + 0.5f);
+      
+      fpsMeasuringFrameStartTime = Clock::now();
+      framesAfterFPSMeasuringStartTime = 0;
     }
   }
   

@@ -238,6 +238,11 @@ class RenderWindow : public QOpenGLWidget {
   std::shared_ptr<SpriteShader> outlineShader;
   std::shared_ptr<HealthBarShader> healthBarShader;
   
+  // FPS computation.
+  TimePoint fpsMeasuringFrameStartTime;
+  int framesAfterFPSMeasuringStartTime = -1;
+  int roundedFPS = -1;
+  
   // Loading thread.
   QOffscreenSurface* loadingSurface;
   LoadingThread* loadingThread;
@@ -271,7 +276,7 @@ class RenderWindow : public QOpenGLWidget {
   std::shared_ptr<TextDisplay> currentAgeTextDisplay;
   
   std::shared_ptr<TextDisplay> gameTimeDisplay;
-  std::shared_ptr<TextDisplay> pingDisplay;
+  std::shared_ptr<TextDisplay> fpsAndPingDisplay;
   
   std::shared_ptr<Texture> commandPanelTexture;
   OpaquenessMap commandPanelOpaquenessMap;
