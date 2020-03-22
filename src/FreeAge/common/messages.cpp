@@ -148,6 +148,18 @@ QByteArray CreateLoadingProgressMessage(u8 percentage) {
   return msg;
 }
 
+QByteArray CreateLoadingFinishedMessage() {
+  // Create buffer
+  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ClientToServerMessage::LoadingFinished);
+  mango::ustore16(data + 1, msg.size());
+  
+  return msg;
+}
+
 QByteArray CreateMoveToMapCoordMessage(const std::vector<u32>& selectedUnitIds, const QPointF& targetMapCoord) {
   if (selectedUnitIds.empty()) {
     return QByteArray();

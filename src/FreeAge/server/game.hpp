@@ -67,6 +67,7 @@ class Game {
   };
   
   void HandleLoadingProgress(const QByteArray& msg, PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players);
+  void HandleLoadingFinished(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players);
   void SendChatBroadcast(u16 sendingPlayerIndex, const QString& text, const std::vector<std::shared_ptr<PlayerInGame>>& players);
   void HandleChat(const QByteArray& msg, PlayerInGame* player, u32 len, const std::vector<std::shared_ptr<PlayerInGame>>& players);
   void HandlePing(const QByteArray& msg, PlayerInGame* player);

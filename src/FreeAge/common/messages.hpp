@@ -43,12 +43,10 @@ enum class ClientToServerMessage {
   StartGame,
   
   /// Sent by a client to update its game loading progress.
-  /// As a special case, loading progress messages with a progress state
-  /// starting from 101% are interpreted by the server as the loading
-  /// process being finished. (100% is *not* counted as finished to
-  /// prevent this from happening early when the number is rounded up
-  /// from 99.5% on).
   LoadingProgress,
+  
+  /// Sent by the client to indicate that it finished loading the game.
+  LoadingFinished,
   
   // --- In-game messages ---
   
@@ -95,6 +93,8 @@ QByteArray CreateLeaveMessage();
 QByteArray CreateStartGameMessage();
 
 QByteArray CreateLoadingProgressMessage(u8 percentage);
+
+QByteArray CreateLoadingFinishedMessage();
 
 QByteArray CreateMoveToMapCoordMessage(
     const std::vector<u32>& selectedUnitIds,

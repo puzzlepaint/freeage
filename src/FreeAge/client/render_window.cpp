@@ -439,9 +439,8 @@ void RenderWindow::LoadingFinished() {
   delete loadingSurface;
   delete loadingThread;
   
-  // Notify the server about the loading being finished by sending a
-  // loading progress message with the progress above 100%.
-  SendLoadingProgress(101);
+  // Notify the server about the loading being finished
+  connection->Write(CreateLoadingFinishedMessage());
   
   LOG(INFO) << "DEBUG: Loading finished.";
 }

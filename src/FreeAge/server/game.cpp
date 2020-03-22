@@ -111,36 +111,34 @@ void Game::HandleLoadingProgress(const QByteArray& msg, PlayerInGame* player, co
     return;
   }
   
-  // Broadcast the player's loading progress to all other players.
   u8 percentage = msg.data()[3];
   
-  if (percentage > 100) {
-    // The client finished loading.
-    if (player->finishedLoading) {
-      return;
+  // Broadcast the loading progress to all other clients.
+  QByteArray broadcastMsg = CreateLoadingProgressBroadcastMessage(player->index, percentage);
+  for (const auto& otherPlayer : players) {
+    if (otherPlayer.get() != player) {
+      otherPlayer->socket->write(broadcastMsg);
     }
-    player->finishedLoading = true;
-    
-    bool allPlayersFinishedLoading = true;
-    for (const auto& otherPlayer : players) {
-      if (!otherPlayer->finishedLoading) {
-        allPlayersFinishedLoading = false;
-        break;
-      }
+  }
+}
+
+void Game::HandleLoadingFinished(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame> >& players) {
+  if (player->finishedLoading) {
+    return;
+  }
+  player->finishedLoading = true;
+  
+  bool allPlayersFinishedLoading = true;
+  for (const auto& otherPlayer : players) {
+    if (!otherPlayer->finishedLoading) {
+      allPlayersFinishedLoading = false;
+      break;
     }
-    
-    if (allPlayersFinishedLoading) {
-      // Start the game.
-      StartGame();
-    }
-  } else {
-    // Broadcast the loading progress to all other clients.
-    QByteArray broadcastMsg = CreateLoadingProgressBroadcastMessage(player->index, percentage);
-    for (const auto& otherPlayer : players) {
-      if (otherPlayer.get() != player) {
-        otherPlayer->socket->write(broadcastMsg);
-      }
-    }
+  }
+  
+  if (allPlayersFinishedLoading) {
+    // Start the game.
+    StartGame();
   }
 }
 
@@ -434,6 +432,9 @@ Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, con
       return ParseMessagesResult::PlayerLeftOrShouldBeDisconnected;
     case ClientToServerMessage::LoadingProgress:
       HandleLoadingProgress(player->unparsedBuffer, player, players);
+      break;
+    case ClientToServerMessage::LoadingFinished:
+      HandleLoadingFinished(player, players);
       break;
     default:
       LOG(ERROR) << "Server: Received a message in the game phase that cannot be parsed in this phase: " << static_cast<int>(msgType);
