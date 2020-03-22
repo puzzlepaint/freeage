@@ -323,7 +323,7 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
   // TODO: We should also check against foundations set by the same player.
   for (int y = baseTile.y(); y < baseTile.y() + foundationSize.height(); ++ y) {
     for (int x = baseTile.x(); x < baseTile.x() + foundationSize.width(); ++ x) {
-      if (map->occupiedAt(x, y)) {
+      if (map->occupiedForBuildingsAt(x, y)) {
         // TODO: Once map visibility is implemented, players must be allowed to place foundations over other players'
         //       buildings that they don't see. Otherwise, "foundation scanning" will be possible (as in the original game).
         LOG(WARNING) << "Received a PlaceBuildingFoundation message for an occupied space";
@@ -664,7 +664,7 @@ static bool IsFoundationFree(ServerBuilding* foundation, ServerMap* map) {
   QSize foundationSize = GetBuildingSize(foundation->GetBuildingType());
   for (int y = baseTile.y(); y < baseTile.y() + foundationSize.height(); ++ y) {
     for (int x = baseTile.x(); x < baseTile.x() + foundationSize.width(); ++ x) {
-      if (map->occupiedAt(x, y)) {
+      if (map->occupiedForBuildingsAt(x, y)) {
         return false;
       }
     }

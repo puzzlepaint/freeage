@@ -17,14 +17,16 @@ ServerMap::ServerMap(int width, int height)
   maxElevation = 7;  // TODO: Make configurable
   elevation = new int[(width + 1) * (height + 1)];
   
-  occupied = new bool[width * height];
+  occupiedForUnits = new bool[width * height];
+  occupiedForBuildings = new bool[width * height];
   
   // Initialize the elevation to zero everywhere, and the occupancy to free.
   for (int y = 0; y <= height; ++ y) {
     for (int x = 0; x <= width; ++ x) {
       elevationAt(x, y) = 0;
       if (x < width && y < height) {
-        occupiedAt(x, y) = false;
+        occupiedForUnitsAt(x, y) = false;
+        occupiedForBuildingsAt(x, y) = false;
       }
     }
   }
@@ -35,7 +37,8 @@ ServerMap::~ServerMap() {
     delete item.second;
   }
   delete[] elevation;
-  delete[] occupied;
+  delete[] occupiedForUnits;
+  delete[] occupiedForBuildings;
 }
 
 void ServerMap::GenerateRandomMap(int playerCount, int seed) {
@@ -139,7 +142,7 @@ retryForest:  // TODO: Ugly implementation, improve this
           int diffX = x - tileX;
           int diffY = y - tileY;
           float radius = sqrtf(diffX * diffX + diffY * diffY);
-          if (radius <= forestRadius && !occupiedAt(x, y)) {
+          if (radius <= forestRadius && !occupiedForBuildingsAt(x, y)) {
             AddBuilding(-1, BuildingType::TreeOak, QPoint(x, y), /*buildPercentage*/ 100);
           }
         }
@@ -177,7 +180,7 @@ retryForest:  // TODO: Ugly implementation, improve this
             townCenterCenters[player].y() + radius * cos(angle));
         if (spawnLoc.x() < 0 || spawnLoc.y() < 0 ||
             spawnLoc.x() >= width || spawnLoc.y() >= height ||
-            occupiedAt(spawnLoc.x(), spawnLoc.y())) {
+            occupiedForBuildingsAt(spawnLoc.x(), spawnLoc.y())) {
           continue;
         }
         
@@ -197,7 +200,7 @@ retryForest:  // TODO: Ugly implementation, improve this
                 spawnLoc.y() + ((testDirection == 2) ? 1 : ((testDirection == 3) ? -1 : 0)));
             if (!(testLoc.x() < 0 || testLoc.y() < 0 ||
                   testLoc.x() >= width || testLoc.y() >= height) &&
-                !occupiedAt(testLoc.x(), testLoc.y())) {
+                !occupiedForBuildingsAt(testLoc.x(), testLoc.y())) {
               spawnLoc = testLoc;
               foundFreeSpace = true;
               break;
@@ -346,7 +349,7 @@ bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord) {
   int maxTileY = std::min<int>(height - 1, mapCoord.y() + radius);
   for (int tileY = minTileY; tileY <= maxTileY; ++ tileY) {
     for (int tileX = minTileX; tileX <= maxTileX; ++ tileX) {
-      if (!occupiedAt(tileX, tileY)) {
+      if (!occupiedForUnitsAt(tileX, tileY)) {
         continue;
       }
       
@@ -406,23 +409,11 @@ u32 ServerMap::AddBuilding(ServerBuilding* newBuilding, bool addOccupancy) {
 }
 
 void ServerMap::AddBuildingOccupancy(ServerBuilding* building) {
-  const QPoint& baseTile = building->GetBaseTile();
-  QRect occupancyRect = GetBuildingOccupancy(building->GetBuildingType());
-  for (int y = baseTile.y() + occupancyRect.y(), endY = baseTile.y() + occupancyRect.y() + occupancyRect.height(); y < endY; ++ y) {
-    for (int x = baseTile.x() + occupancyRect.x(), endX = baseTile.x() + occupancyRect.x() + occupancyRect.width(); x < endX; ++ x) {
-      occupiedAt(x, y) = true;
-    }
-  }
+  SetBuildingOccupancy(building, true);
 }
 
 void ServerMap::RemoveBuildingOccupancy(ServerBuilding* building) {
-  const QPoint& baseTile = building->GetBaseTile();
-  QRect occupancyRect = GetBuildingOccupancy(building->GetBuildingType());
-  for (int y = baseTile.y() + occupancyRect.y(), endY = baseTile.y() + occupancyRect.y() + occupancyRect.height(); y < endY; ++ y) {
-    for (int x = baseTile.x() + occupancyRect.x(), endX = baseTile.x() + occupancyRect.x() + occupancyRect.width(); x < endX; ++ x) {
-      occupiedAt(x, y) = false;
-    }
-  }
+  SetBuildingOccupancy(building, false);
 }
 
 ServerUnit* ServerMap::AddUnit(int player, UnitType type, const QPointF& position, u32* id) {
@@ -438,4 +429,21 @@ u32 ServerMap::AddUnit(ServerUnit* newUnit) {
   objects.insert(std::make_pair(nextObjectID, newUnit));
   ++ nextObjectID;
   return nextObjectID - 1;
+}
+
+void ServerMap::SetBuildingOccupancy(ServerBuilding* building, bool occupied) {
+  const QPoint& baseTile = building->GetBaseTile();
+  QRect occupancyRect = GetBuildingOccupancy(building->GetBuildingType());
+  for (int y = baseTile.y() + occupancyRect.y(), endY = baseTile.y() + occupancyRect.y() + occupancyRect.height(); y < endY; ++ y) {
+    for (int x = baseTile.x() + occupancyRect.x(), endX = baseTile.x() + occupancyRect.x() + occupancyRect.width(); x < endX; ++ x) {
+      occupiedForUnitsAt(x, y) = occupied;
+    }
+  }
+  
+  QSize buildingSize = GetBuildingSize(building->GetBuildingType());
+  for (int y = baseTile.y(), endY = baseTile.y() + buildingSize.height(); y < endY; ++ y) {
+    for (int x = baseTile.x(), endX = baseTile.x() + buildingSize.width(); x < endX; ++ x) {
+      occupiedForBuildingsAt(x, y) = occupied;
+    }
+  }
 }

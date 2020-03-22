@@ -51,8 +51,11 @@ class ServerMap {
   inline const int& elevationAt(int cornerX, int cornerY) const { return elevation[cornerY * (width + 1) + cornerX]; }
   
   /// Returns the occupancy state at the given tile.
-  inline bool& occupiedAt(int tileX, int tileY) { return occupied[tileY * width + tileX]; }
-  inline const bool& occupiedAt(int tileX, int tileY) const { return occupied[tileY * width + tileX]; }
+  inline bool& occupiedForUnitsAt(int tileX, int tileY) { return occupiedForUnits[tileY * width + tileX]; }
+  inline const bool& occupiedForUnitsAt(int tileX, int tileY) const { return occupiedForUnits[tileY * width + tileX]; }
+  
+  inline bool& occupiedForBuildingsAt(int tileX, int tileY) { return occupiedForBuildings[tileY * width + tileX]; }
+  inline const bool& occupiedForBuildingsAt(int tileX, int tileY) const { return occupiedForBuildings[tileY * width + tileX]; }
   
   inline std::unordered_map<u32, ServerObject*>& GetObjects() { return objects; }
   inline const std::unordered_map<u32, ServerObject*>& GetObjects() const { return objects; }
@@ -61,6 +64,9 @@ class ServerMap {
   inline int GetHeight() const { return height; }
   
  private:
+  void SetBuildingOccupancy(ServerBuilding* building, bool occupied);
+  
+  
   /// The maximum possible elevation level (the lowest is zero).
   /// This may be higher than the maximum actually existing
   /// elevation level (but never lower).
@@ -71,10 +77,19 @@ class ServerMap {
   /// An element (x, y) has index: [y * (width + 1) + x].
   int* elevation;
   
-  /// 2D array storing whether each tile is occupied (for example,
+  /// 2D array storing whether each tile is occupied for units (for example,
   /// by a building). The array size is width * height.
   /// An element (x, y) has index: [y * width + x].
-  bool* occupied;
+  /// The difference to occupiedForBuildings is the town center: All of its space
+  /// is occupied for buildings, but only the top quarter is occupied for units.
+  bool* occupiedForUnits;
+  
+  /// 2D array storing whether each tile is occupied for buildings (for example,
+  /// by a building). The array size is width * height.
+  /// An element (x, y) has index: [y * width + x].
+  /// The difference to occupiedForUnits is the town center: All of its space
+  /// is occupied for buildings, but only the top quarter is occupied for units.
+  bool* occupiedForBuildings;
   
   /// Width of the map in tiles.
   int width;
