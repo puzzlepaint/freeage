@@ -4,6 +4,8 @@
 #include "FreeAge/client/opengl.hpp"
 
 UIShader::UIShader() {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
   program.reset(new ShaderProgram());
   
   CHECK(program->AttachShader(
@@ -13,7 +15,7 @@ UIShader::UIShader() {
       "void main() {\n"
       "  gl_Position = vec4(u_viewMatrix[0][0] * in_position.x + u_viewMatrix[1][0], u_viewMatrix[0][1] * in_position.y + u_viewMatrix[1][1], in_position.z, 1);\n"
       "}\n",
-      ShaderProgram::ShaderType::kVertexShader));
+      ShaderProgram::ShaderType::kVertexShader, f));
   
   CHECK(program->AttachShader(
       "#version 330 core\n"
@@ -43,7 +45,7 @@ UIShader::UIShader() {
       "  \n"
       "  EndPrimitive();\n"
       "}\n",
-      ShaderProgram::ShaderType::kGeometryShader));
+      ShaderProgram::ShaderType::kGeometryShader, f));
   
   CHECK(program->AttachShader(
       "#version 330 core\n"
@@ -56,17 +58,17 @@ UIShader::UIShader() {
       "void main() {\n"
       "  out_color = texture(u_texture, texcoord.xy);\n"
       "}\n",
-      ShaderProgram::ShaderType::kFragmentShader));
+      ShaderProgram::ShaderType::kFragmentShader, f));
   
-  CHECK(program->LinkProgram());
+  CHECK(program->LinkProgram(f));
   
-  program->UseProgram();
+  program->UseProgram(f);
   
-  texture_location = program->GetUniformLocationOrAbort("u_texture");
-  viewMatrix_location = program->GetUniformLocationOrAbort("u_viewMatrix");
-  size_location = program->GetUniformLocationOrAbort("u_size");
-  tex_topleft_location = program->GetUniformLocationOrAbort("u_tex_topleft");
-  tex_bottomright_location = program->GetUniformLocationOrAbort("u_tex_bottomright");
+  texture_location = program->GetUniformLocationOrAbort("u_texture", f);
+  viewMatrix_location = program->GetUniformLocationOrAbort("u_viewMatrix", f);
+  size_location = program->GetUniformLocationOrAbort("u_size", f);
+  tex_topleft_location = program->GetUniformLocationOrAbort("u_tex_topleft", f);
+  tex_bottomright_location = program->GetUniformLocationOrAbort("u_tex_bottomright", f);
 }
 
 UIShader::~UIShader() {
@@ -74,16 +76,16 @@ UIShader::~UIShader() {
 }
 
 
-void RenderUIGraphic(float x, float y, float width, float height, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer, QOpenGLFunctions_3_2_Core* f) {
+void RenderUIGraphic(float x, float y, float width, float height, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f) {
   ShaderProgram* program = uiShader->GetProgram();
-  program->UseProgram();
-  program->SetUniform1i(uiShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
+  program->UseProgram(f);
+  f->glUniform1i(uiShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
   
-  program->SetUniform2f(uiShader->GetTexTopLeftLocation(), 0, 0);
-  program->SetUniform2f(uiShader->GetTexBottomRightLocation(), 1, 1);
+  f->glUniform2f(uiShader->GetTexTopLeftLocation(), 0, 0);
+  f->glUniform2f(uiShader->GetTexBottomRightLocation(), 1, 1);
   
-  program->SetUniform2f(
+  f->glUniform2f(
       uiShader->GetSizeLocation(),
       2.f * width / static_cast<float>(widgetWidth),
       2.f * height / static_cast<float>(widgetHeight));
@@ -95,7 +97,8 @@ void RenderUIGraphic(float x, float y, float width, float height, const Texture&
       3,
       GetGLType<float>::value,
       3 * sizeof(float),
-      0);
+      0,
+      f);
   
   f->glDrawArrays(GL_POINTS, 0, 1);
   

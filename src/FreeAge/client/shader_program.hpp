@@ -29,7 +29,7 @@
 
 #pragma once
 
-#include <QOpenGLFunctions>
+#include <QOpenGLFunctions_3_2_Core>
 
 // Represents a shader program. At least a fragment and a vertex shader must be
 // attached to a program to be complete. This class assumes some common
@@ -59,38 +59,32 @@ class ShaderProgram {
   
   // Attaches a shader to the program. Returns false if the shader does not
   // compile.
-  bool AttachShader(const char* source_code, ShaderType type);
+  bool AttachShader(const char* source_code, ShaderType type, QOpenGLFunctions_3_2_Core* f);
   
   // Links the program. Must be called after all shaders have been attached.
   // Returns true if successful.
-  bool LinkProgram();
+  bool LinkProgram(QOpenGLFunctions_3_2_Core* f);
   
   // Makes this program the active program (calls glUseProgram()).
-  void UseProgram() const;
+  void UseProgram(QOpenGLFunctions_3_2_Core* f) const;
   
   // Returns the location of the given uniform. If the uniform name does not
   // exist, returns -1.
-  GLint GetUniformLocation(const char* name) const;
+  GLint GetUniformLocation(const char* name, QOpenGLFunctions_3_2_Core* f) const;
   
   // Same as GetUniformLocation(), but aborts the program if the uniform does
   // not exist.
-  GLint GetUniformLocationOrAbort(const char* name) const;
+  GLint GetUniformLocationOrAbort(const char* name, QOpenGLFunctions_3_2_Core* f) const;
   
   
   // Uniform setters.
-  void SetUniform1f(GLint location, float x);
-  void SetUniform1i(GLint location, int x);
-  void SetUniform2f(GLint location, float x, float y);
-  void SetUniform3f(GLint location, float x, float y, float z);
-  void SetUniform4f(GLint location, float x, float y, float z, float w);
-  
-  void setUniformMatrix2fv(GLint location, float* values, bool valuesAreColumnMajor = true);
+  void SetUniformMatrix2fv(GLint location, float* values, bool valuesAreColumnMajor, QOpenGLFunctions_3_2_Core* f);
   
   
   // Attribute setters.
-  void SetPositionAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset);
-  void SetColorAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset);
-  void SetTexCoordAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset);
+  void SetPositionAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset, QOpenGLFunctions_3_2_Core* f);
+  void SetColorAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset, QOpenGLFunctions_3_2_Core* f);
+  void SetTexCoordAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset, QOpenGLFunctions_3_2_Core* f);
   
   
   inline GLuint program_name() const { return program_; }

@@ -1122,7 +1122,6 @@ void DrawSprite(
     const Texture& texture,
     SpriteShader* spriteShader,
     const QPointF& centerProjectedCoord,
-    GLuint pointBuffer,
     float* viewMatrix,
     float zoom,
     int widgetWidth,
@@ -1139,21 +1138,19 @@ void DrawSprite(
   
   bool isGraphic = !shadow && !outline;
   
-  ShaderProgram* program = spriteShader->GetProgram();
-  
   f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
   
   if (!shadow && !outline) {
-    program->SetUniform1i(spriteShader->GetPlayerIndexLocation(), playerIndex);
+    f->glUniform1i(spriteShader->GetPlayerIndexLocation(), playerIndex);
   }
   if (!shadow) {
-    program->SetUniform2f(spriteShader->GetTextureSizeLocation(), texture.GetWidth(), texture.GetHeight());
+    f->glUniform2f(spriteShader->GetTextureSizeLocation(), texture.GetWidth(), texture.GetHeight());
   }
   if (outline) {
-    program->SetUniform3f(spriteShader->GetPlayerColorLocation(), qRed(outlineColor) / 255.f, qGreen(outlineColor) / 255.f, qBlue(outlineColor) / 255.f);
+    f->glUniform3f(spriteShader->GetPlayerColorLocation(), qRed(outlineColor) / 255.f, qGreen(outlineColor) / 255.f, qBlue(outlineColor) / 255.f);
   }
   
-  program->SetUniform2f(
+  f->glUniform2f(
       spriteShader->GetSizeLocation(),
       scaling * zoom * 2.f * (layer.imageWidth + (isGraphic ? -2: 0)) / static_cast<float>(widgetWidth),
       scaling * zoom * 2.f * (layer.imageHeight + (isGraphic ? -2: 0)) / static_cast<float>(widgetHeight));
@@ -1164,8 +1161,8 @@ void DrawSprite(
   if (layer.rotated) {
     // TODO: Is this worth implementing? It will complicate the shader a little.
   }
-  program->SetUniform2f(spriteShader->GetTexTopLeftLocation(), texLeftX, texTopY);
-  program->SetUniform2f(spriteShader->GetTexBottomRightLocation(), texRightX, texBottomY);
+  f->glUniform2f(spriteShader->GetTexTopLeftLocation(), texLeftX, texTopY);
+  f->glUniform2f(spriteShader->GetTexBottomRightLocation(), texRightX, texBottomY);
   
   constexpr float kOffScreenDepthBufferExtent = 1000;
   float data[] = {

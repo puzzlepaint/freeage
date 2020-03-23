@@ -33,7 +33,7 @@ void CommandButton::SetAction(ActionType actionType, const Texture* texture, Qt:
 void CommandButton::Render(
     float x, float y, float size, float iconInset,
     const Texture& iconOverlayNormalTexture,
-    UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer, QOpenGLFunctions_3_2_Core* f) {
+    UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f) {
   if (type == Type::Invisible) {
     return;
   } else if (type == Type::ConstructBuilding ||
@@ -54,14 +54,14 @@ void CommandButton::Render(
         size - 2 * iconInset,
         size - 2 * iconInset,
         *texture,
-        uiShader, widgetWidth, widgetHeight, pointBuffer, f);
+        uiShader, widgetWidth, widgetHeight, f);
     RenderUIGraphic(
         x,
         y,
         size,
         size,
         iconOverlayNormalTexture,
-        uiShader, widgetWidth, widgetHeight, pointBuffer, f);
+        uiShader, widgetWidth, widgetHeight, f);
   }
   
   buttonRect = QRectF(x, y, size, size);

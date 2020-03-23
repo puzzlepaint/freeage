@@ -14,7 +14,7 @@ TextDisplay::~TextDisplay() {
   }
 }
 
-void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& text, const QRect& rect, int alignmentFlags, UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer, QOpenGLFunctions_3_2_Core* f) {
+void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& text, const QRect& rect, int alignmentFlags, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f) {
   if (font != this->font ||
       color != this->color ||
       text != this->text ||
@@ -29,14 +29,14 @@ void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& te
   
   // Render the texture.
   ShaderProgram* program = uiShader->GetProgram();
-  program->UseProgram();
-  program->SetUniform1i(uiShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
+  program->UseProgram(f);
+  f->glUniform1i(uiShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   f->glBindTexture(GL_TEXTURE_2D, textureId);
   
-  program->SetUniform2f(uiShader->GetTexTopLeftLocation(), 0, 0);
-  program->SetUniform2f(uiShader->GetTexBottomRightLocation(), 1, 1);
+  f->glUniform2f(uiShader->GetTexTopLeftLocation(), 0, 0);
+  f->glUniform2f(uiShader->GetTexBottomRightLocation(), 1, 1);
   
-  program->SetUniform2f(
+  f->glUniform2f(
       uiShader->GetSizeLocation(),
       2.f * textureWidth / static_cast<float>(widgetWidth),
       2.f * textureHeight / static_cast<float>(widgetHeight));
@@ -74,7 +74,8 @@ void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& te
       3,
       GetGLType<float>::value,
       3 * sizeof(float),
-      0);
+      0,
+      f);
   
   f->glDrawArrays(GL_POINTS, 0, 1);
   

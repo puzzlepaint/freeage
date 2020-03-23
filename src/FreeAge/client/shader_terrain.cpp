@@ -3,6 +3,8 @@
 #include "FreeAge/common/logging.hpp"
 
 TerrainShader::TerrainShader() {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
   program.reset(new ShaderProgram());
   
   CHECK(program->AttachShader(
@@ -16,7 +18,7 @@ TerrainShader::TerrainShader() {
       "  gl_Position = vec4(u_viewMatrix[0][0] * in_position.x + u_viewMatrix[1][0], u_viewMatrix[0][1] * in_position.y + u_viewMatrix[1][1], 0.999, 1);\n"
       "  var_texcoord = in_texcoord;\n"
       "}\n",
-      ShaderProgram::ShaderType::kVertexShader));
+      ShaderProgram::ShaderType::kVertexShader, f));
   
   CHECK(program->AttachShader(
       "#version 330 core\n"
@@ -29,14 +31,14 @@ TerrainShader::TerrainShader() {
       "void main() {\n"
       "  out_color = vec4(var_texcoord.z * texture(u_texture, var_texcoord.xy).rgb, 0);\n"
       "}\n",
-      ShaderProgram::ShaderType::kFragmentShader));
+      ShaderProgram::ShaderType::kFragmentShader, f));
   
-  CHECK(program->LinkProgram());
+  CHECK(program->LinkProgram(f));
   
-  program->UseProgram();
+  program->UseProgram(f);
   
-  texture_location = program->GetUniformLocationOrAbort("u_texture");
-  viewMatrix_location = program->GetUniformLocationOrAbort("u_viewMatrix");
+  texture_location = program->GetUniformLocationOrAbort("u_texture", f);
+  viewMatrix_location = program->GetUniformLocationOrAbort("u_viewMatrix", f);
 }
 
 TerrainShader::~TerrainShader() {

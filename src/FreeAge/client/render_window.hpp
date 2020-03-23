@@ -71,8 +71,8 @@ class RenderWindow : public QOpenGLWidget {
  protected:
   void CreatePlayerColorPaletteTexture();
   
-  void ComputePixelToOpenGLMatrix();
-  void UpdateView(const TimePoint& now);
+  void ComputePixelToOpenGLMatrix(QOpenGLFunctions_3_2_Core* f);
+  void UpdateView(const TimePoint& now, QOpenGLFunctions_3_2_Core* f);
   /// Renders a closed path consisting of line segments between the given vertices.
   /// The last vertex will be connected to the first. The vertex coordinates are in screen (pixel) coordinates.
   /// The given offset is applied to each vertex.

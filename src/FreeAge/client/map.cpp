@@ -231,26 +231,28 @@ void Map::Render(float* viewMatrix, const std::filesystem::path& graphicsPath, Q
   }
   
   ShaderProgram* terrainProgram = terrainShader->GetProgram();
-  terrainProgram->UseProgram();
+  terrainProgram->UseProgram(f);
   
-  terrainProgram->SetUniform1i(terrainShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
+  f->glUniform1i(terrainShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   f->glBindTexture(GL_TEXTURE_2D, textureId);
   
-  terrainProgram->setUniformMatrix2fv(terrainShader->GetViewMatrixLocation(), viewMatrix);
+  terrainProgram->SetUniformMatrix2fv(terrainShader->GetViewMatrixLocation(), viewMatrix, true, f);
   
   f->glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
   terrainProgram->SetPositionAttribute(
       2,
       GetGLType<float>::value,
       5 * sizeof(float),
-      0);
+      0,
+      f);
   
   f->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
   terrainProgram->SetTexCoordAttribute(
       3,
       GetGLType<float>::value,
       5 * sizeof(float),
-      2 * sizeof(float));
+      2 * sizeof(float),
+      f);
   
   f->glDrawElements(GL_TRIANGLES, width * height * 6, GL_UNSIGNED_INT, 0);
   CHECK_OPENGL_NO_ERROR();

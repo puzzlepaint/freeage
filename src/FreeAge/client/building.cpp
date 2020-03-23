@@ -318,7 +318,6 @@ void ClientBuilding::Render(
     Map* map,
     QRgb outlineColor,
     SpriteShader* spriteShader,
-    GLuint pointBuffer,
     float* viewMatrix,
     float zoom,
     int widgetWidth,
@@ -345,7 +344,7 @@ void ClientBuilding::Render(
     DrawSprite(
         helperSprite1->sprite,
         shadow ? helperSprite1->shadowTexture : helperSprite1->graphicTexture,
-        spriteShader, centerProjectedCoord, pointBuffer,
+        spriteShader, centerProjectedCoord,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
         outlineColor, playerIndex, 1.f, f);
     
@@ -355,7 +354,7 @@ void ClientBuilding::Render(
     DrawSprite(
         helperSprite2->sprite,
         shadow ? helperSprite2->shadowTexture : helperSprite2->graphicTexture,
-        spriteShader, centerProjectedCoord, pointBuffer,
+        spriteShader, centerProjectedCoord,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
         outlineColor, playerIndex, 1.f, f);
     
@@ -365,22 +364,21 @@ void ClientBuilding::Render(
     DrawSprite(
         helperSprite3->sprite,
         shadow ? helperSprite3->shadowTexture : helperSprite3->graphicTexture,
-        spriteShader, centerProjectedCoord, pointBuffer,
+        spriteShader, centerProjectedCoord,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
         outlineColor, playerIndex, 1.f, f);
   }
   
   bool useDarkModulation = spriteType == BuildingSprite::Foundation && buildPercentage == 0 && !shadow && !outline;
   if (useDarkModulation) {
-    spriteShader->GetProgram()->UseProgram();
-    spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 0.5, 0.5, 0.5, 1);
+    spriteShader->GetProgram()->UseProgram(f);
+    f->glUniform4f(spriteShader->GetModulationColorLocation(), 0.5, 0.5, 0.5, 1);
   }
   DrawSprite(
       sprite->sprite,
       texture,
       spriteShader,
       centerProjectedCoord,
-      pointBuffer,
       viewMatrix,
       zoom,
       widgetWidth,
@@ -393,7 +391,7 @@ void ClientBuilding::Render(
       1.f,
       f);
   if (useDarkModulation) {
-    spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
+    f->glUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
   }
   
   if (type == BuildingType::TownCenter && spriteType == BuildingSprite::Building) {
@@ -403,7 +401,7 @@ void ClientBuilding::Render(
     DrawSprite(
         helperSprite4->sprite,
         shadow ? helperSprite4->shadowTexture : helperSprite4->graphicTexture,
-        spriteShader, centerProjectedCoord, pointBuffer,
+        spriteShader, centerProjectedCoord,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
         outlineColor, playerIndex, 1.f, f);
   }

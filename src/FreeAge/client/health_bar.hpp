@@ -14,7 +14,6 @@ void RenderHealthBar(
     float fillAmount,
     const QRgb& color,
     HealthBarShader* healthBarShader,
-    GLuint pointBuffer,
     float* viewMatrix,
     float zoom,
     int widgetWidth,

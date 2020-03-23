@@ -203,20 +203,20 @@ void RenderWindow::LoadResources() {
   
   // Create shaders.
   spriteShader.reset(new SpriteShader(false, false));
-  spriteShader->GetProgram()->UseProgram();
-  spriteShader->GetProgram()->SetUniform1i(spriteShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
+  spriteShader->GetProgram()->UseProgram(f);
+  f->glUniform1i(spriteShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   didLoadingStep();
   LOG(1) << "LoadResource(): SpriteShader(false, false) loaded";
   
   shadowShader.reset(new SpriteShader(true, false));
-  shadowShader->GetProgram()->UseProgram();
-  shadowShader->GetProgram()->SetUniform1i(shadowShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
+  shadowShader->GetProgram()->UseProgram(f);
+  f->glUniform1i(shadowShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   didLoadingStep();
   LOG(1) << "LoadResource(): SpriteShader(true, false) loaded";
   
   outlineShader.reset(new SpriteShader(false, true));
-  outlineShader->GetProgram()->UseProgram();
-  outlineShader->GetProgram()->SetUniform1i(outlineShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
+  outlineShader->GetProgram()->UseProgram(f);
+  f->glUniform1i(outlineShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   didLoadingStep();
   LOG(1) << "LoadResource(): SpriteShader(false, true) loaded";
   
@@ -226,15 +226,15 @@ void RenderWindow::LoadResources() {
   
   // Create player color palette texture.
   CreatePlayerColorPaletteTexture();
-  spriteShader->GetProgram()->UseProgram();
-  spriteShader->GetProgram()->SetUniform2f(spriteShader->GetPlayerColorsTextureSizeLocation(), playerColorsTextureWidth, playerColorsTextureHeight);
-  spriteShader->GetProgram()->SetUniform1i(spriteShader->GetPlayerColorsTextureLocation(), 1);  // use GL_TEXTURE1
+  spriteShader->GetProgram()->UseProgram(f);
+  f->glUniform2f(spriteShader->GetPlayerColorsTextureSizeLocation(), playerColorsTextureWidth, playerColorsTextureHeight);
+  f->glUniform1i(spriteShader->GetPlayerColorsTextureLocation(), 1);  // use GL_TEXTURE1
   f->glActiveTexture(GL_TEXTURE0 + 1);
   f->glBindTexture(GL_TEXTURE_2D, playerColorsTexture->GetId());
   f->glActiveTexture(GL_TEXTURE0);
   
   // Set the sprite modulation color to the default.
-  spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
+  f->glUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
   didLoadingStep();
   
   // Load unit resources.
@@ -494,21 +494,21 @@ void RenderWindow::CreatePlayerColorPaletteTexture() {
   }
 }
 
-void RenderWindow::ComputePixelToOpenGLMatrix() {
+void RenderWindow::ComputePixelToOpenGLMatrix(QOpenGLFunctions_3_2_Core* f) {
   float pixelToOpenGLMatrix[4];
   pixelToOpenGLMatrix[0] = 2.f / widgetWidth;
   pixelToOpenGLMatrix[1] = -2.f / widgetHeight;
   pixelToOpenGLMatrix[2] = -pixelToOpenGLMatrix[0] * 0.5f * widgetWidth;
   pixelToOpenGLMatrix[3] = -pixelToOpenGLMatrix[1] * 0.5f * widgetHeight;
   
-  uiShader->GetProgram()->UseProgram();
-  uiShader->GetProgram()->setUniformMatrix2fv(uiShader->GetViewMatrixLocation(), pixelToOpenGLMatrix);
+  uiShader->GetProgram()->UseProgram(f);
+  uiShader->GetProgram()->SetUniformMatrix2fv(uiShader->GetViewMatrixLocation(), pixelToOpenGLMatrix, true, f);
   
-  uiSingleColorShader->GetProgram()->UseProgram();
-  uiSingleColorShader->GetProgram()->setUniformMatrix2fv(uiSingleColorShader->GetViewMatrixLocation(), pixelToOpenGLMatrix);
+  uiSingleColorShader->GetProgram()->UseProgram(f);
+  uiSingleColorShader->GetProgram()->SetUniformMatrix2fv(uiSingleColorShader->GetViewMatrixLocation(), pixelToOpenGLMatrix, true, f);
 }
 
-void RenderWindow::UpdateView(const TimePoint& now) {
+void RenderWindow::UpdateView(const TimePoint& now, QOpenGLFunctions_3_2_Core* f) {
   // Update scrolling state
   if (!isLoading) {
     scroll = GetCurrentScroll(now);
@@ -520,7 +520,7 @@ void RenderWindow::UpdateView(const TimePoint& now) {
   }
   
   // Compute the pixel-to-OpenGL transformation for the UI shader.
-  ComputePixelToOpenGLMatrix();
+  ComputePixelToOpenGLMatrix(f);
   
   // Compute the view (projected-to-OpenGL) transformation.
   if (!isLoading) {
@@ -540,17 +540,17 @@ void RenderWindow::UpdateView(const TimePoint& now) {
     
     // Apply the view transformation to all shaders.
     // TODO: Use a uniform buffer object for that.
-    spriteShader->UseProgram();
-    spriteShader->GetProgram()->setUniformMatrix2fv(spriteShader->GetViewMatrixLocation(), viewMatrix);
+    spriteShader->UseProgram(f);
+    spriteShader->GetProgram()->SetUniformMatrix2fv(spriteShader->GetViewMatrixLocation(), viewMatrix, true, f);
     
-    shadowShader->UseProgram();
-    shadowShader->GetProgram()->setUniformMatrix2fv(shadowShader->GetViewMatrixLocation(), viewMatrix);
+    shadowShader->UseProgram(f);
+    shadowShader->GetProgram()->SetUniformMatrix2fv(shadowShader->GetViewMatrixLocation(), viewMatrix, true, f);
     
-    outlineShader->UseProgram();
-    outlineShader->GetProgram()->setUniformMatrix2fv(outlineShader->GetViewMatrixLocation(), viewMatrix);
+    outlineShader->UseProgram(f);
+    outlineShader->GetProgram()->SetUniformMatrix2fv(outlineShader->GetViewMatrixLocation(), viewMatrix, true, f);
     
-    healthBarShader->GetProgram()->UseProgram();
-    healthBarShader->GetProgram()->setUniformMatrix2fv(healthBarShader->GetViewMatrixLocation(), viewMatrix);
+    healthBarShader->GetProgram()->UseProgram(f);
+    healthBarShader->GetProgram()->SetUniformMatrix2fv(healthBarShader->GetViewMatrixLocation(), viewMatrix, true, f);
     
     // Determine the view rect in projected coordinates.
     // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
@@ -574,8 +574,8 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
   CHECK_OPENGL_NO_ERROR();
   
   // Set shader.
-  uiSingleColorShader->GetProgram()->UseProgram();
-  uiSingleColorShader->GetProgram()->SetUniform4f(uiSingleColorShader->GetColorLocation(), qRed(color) / 255.f, qGreen(color) / 255.f, qBlue(color) / 255.f, qAlpha(color) / 255.f);
+  uiSingleColorShader->GetProgram()->UseProgram(f);
+  f->glUniform4f(uiSingleColorShader->GetColorLocation(), qRed(color) / 255.f, qGreen(color) / 255.f, qBlue(color) / 255.f, qAlpha(color) / 255.f);
   
   // Repeat the first 2 vertices to close the path and get information
   // on the bend direction at the end.
@@ -624,7 +624,8 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
       3,
       GetGLType<float>::value,
       3 * sizeof(float),
-      0);
+      0,
+      f);
   
   // Draw lines.
   f->glDrawArrays(GL_TRIANGLE_STRIP, 0, numVertices);
@@ -634,7 +635,7 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
 void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
-  shadowShader->UseProgram();
+  shadowShader->UseProgram(f);
   
   for (auto& object : map->GetObjects()) {
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
@@ -655,7 +656,6 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
             map.get(),
             qRgb(0, 0, 0),
             shadowShader.get(),
-            pointBuffer,
             viewMatrix,
             zoom,
             widgetWidth,
@@ -681,7 +681,6 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
             map.get(),
             qRgb(0, 0, 0),
             shadowShader.get(),
-            pointBuffer,
             viewMatrix,
             zoom,
             widgetWidth,
@@ -696,7 +695,7 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
 }
 
 void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsThatCauseOutlines, QOpenGLFunctions_3_2_Core* f) {
-  spriteShader->UseProgram();
+  spriteShader->UseProgram(f);
   
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
@@ -719,7 +718,6 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
           map.get(),
           qRgb(0, 0, 0),
           spriteShader.get(),
-          pointBuffer,
           viewMatrix,
           zoom,
           widgetWidth,
@@ -733,7 +731,7 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
 }
 
 void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
-  spriteShader->UseProgram();
+  spriteShader->UseProgram(f);
   
   QPoint foundationBaseTile(-1, -1);
   bool canBePlacedHere = CanBuildingFoundationBePlacedHere(constructBuildingType, lastCursorPos, &foundationBaseTile);
@@ -745,15 +743,14 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLF
     tempBuilding->SetFixedFrameIndex(0);
     
     if (canBePlacedHere) {
-      spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 0.8, 0.8, 0.8, 1);
+      f->glUniform4f(spriteShader->GetModulationColorLocation(), 0.8, 0.8, 0.8, 1);
     } else {
-      spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 0.4, 0.4, 1);
+      f->glUniform4f(spriteShader->GetModulationColorLocation(), 1, 0.4, 0.4, 1);
     }
     tempBuilding->Render(
         map.get(),
         qRgb(0, 0, 0),
         spriteShader.get(),
-        pointBuffer,
         viewMatrix,
         zoom,
         widgetWidth,
@@ -762,7 +759,7 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLF
         false,
         false,
         f);
-    spriteShader->GetProgram()->SetUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
+    f->glUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
     
     delete tempBuilding;
   }
@@ -838,7 +835,7 @@ void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object
 void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
-  outlineShader->UseProgram();
+  outlineShader->UseProgram(f);
   
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
@@ -875,7 +872,6 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
             map.get(),
             outlineColor,
             outlineShader.get(),
-            pointBuffer,
             viewMatrix,
             zoom,
             widgetWidth,
@@ -901,7 +897,6 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
             map.get(),
             outlineColor,
             outlineShader.get(),
-            pointBuffer,
             viewMatrix,
             zoom,
             widgetWidth,
@@ -916,7 +911,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
 }
 
 void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
-  spriteShader->UseProgram();
+  spriteShader->UseProgram(f);
   
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
@@ -935,7 +930,6 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
           map.get(),
           qRgb(0, 0, 0),
           spriteShader.get(),
-          pointBuffer,
           viewMatrix,
           zoom,
           widgetWidth,
@@ -949,7 +943,7 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
 }
 
 void RenderWindow::RenderMoveToMarker(const TimePoint& now, QOpenGLFunctions_3_2_Core* f) {
-  spriteShader->UseProgram();
+  spriteShader->UseProgram(f);
   
   // Update move-to sprite.
   int moveToFrameIndex = -1;
@@ -970,7 +964,6 @@ void RenderWindow::RenderMoveToMarker(const TimePoint& now, QOpenGLFunctions_3_2
         moveToSprite->graphicTexture,
         spriteShader.get(),
         projectedCoord,
-        pointBuffer,
         viewMatrix,
         zoom,
         widgetWidth,
@@ -1020,7 +1013,6 @@ void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions
             building.GetHP() / (1.f * GetBuildingMaxHP(building.GetType())),
             (building.GetPlayerIndex() == kGaiaPlayerIndex) ? gaiaColor : playerColors[building.GetPlayerIndex()],
             healthBarShader.get(),
-            pointBuffer,
             viewMatrix,
             zoom,
             widgetWidth,
@@ -1050,7 +1042,6 @@ void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions
             unit.GetHP() / (1.f * GetUnitMaxHP(unit.GetType())),
             (unit.GetPlayerIndex() == kGaiaPlayerIndex) ? gaiaColor : playerColors[unit.GetPlayerIndex()],
             healthBarShader.get(),
-            pointBuffer,
             viewMatrix,
             zoom,
             widgetWidth,
@@ -1070,7 +1061,7 @@ void RenderWindow::RenderOccludingDecals(QOpenGLFunctions_3_2_Core* f) {
 }
 
 void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_2_Core* f) {
-  spriteShader->UseProgram();
+  spriteShader->UseProgram(f);
   
   // TODO: Sort to minmize texture switches.
   for (auto& decal : decals) {
@@ -1081,7 +1072,6 @@ void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_
       decal->Render(
           qRgb(0, 0, 0),
           spriteShader.get(),
-          pointBuffer,
           viewMatrix,
           zoom,
           widgetWidth,
@@ -1094,7 +1084,7 @@ void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_
 }
 
 void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
-  shadowShader->UseProgram();
+  shadowShader->UseProgram(f);
   
   // TODO: Sort to minmize texture switches.
   for (auto& decal : occludingDecals) {
@@ -1105,7 +1095,6 @@ void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
       decal->Render(
           qRgb(0, 0, 0),
           shadowShader.get(),
-          pointBuffer,
           viewMatrix,
           zoom,
           widgetWidth,
@@ -1118,7 +1107,7 @@ void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
 }
 
 void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
-  outlineShader->UseProgram();
+  outlineShader->UseProgram(f);
   
   // TODO: Sort to minmize texture switches.
   for (auto& decal : occludingDecals) {
@@ -1134,7 +1123,6 @@ void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
       decal->Render(
           outlineColor,
           outlineShader.get(),
-          pointBuffer,
           viewMatrix,
           zoom,
           widgetWidth,
@@ -1173,7 +1161,7 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
             0,
             0),
       Qt::AlignTop | Qt::AlignLeft,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   }
   
   // Render the current FPS and ping
@@ -1199,7 +1187,7 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
             0,
             0),
       Qt::AlignTop | Qt::AlignLeft,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   }
 }
 
@@ -1218,7 +1206,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       uiScale * resourcePanelTexture->GetWidth(),
       uiScale * resourcePanelTexture->GetHeight(),
       *resourcePanelTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 0 * 200),
@@ -1226,7 +1214,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       uiScale * 83,
       uiScale * 83,
       *resourceWoodTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   if (!woodTextDisplay) {
     woodTextDisplay.reset(new TextDisplay());
   }
@@ -1239,7 +1227,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 1 * 200),
@@ -1247,7 +1235,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       uiScale * 83,
       uiScale * 83,
       *resourceFoodTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   if (!foodTextDisplay) {
     foodTextDisplay.reset(new TextDisplay());
   }
@@ -1260,7 +1248,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 2 * 200),
@@ -1268,7 +1256,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       uiScale * 83,
       uiScale * 83,
       *resourceGoldTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   if (!goldTextDisplay) {
     goldTextDisplay.reset(new TextDisplay());
   }
@@ -1281,7 +1269,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 3 * 200),
@@ -1289,7 +1277,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       uiScale * 83,
       uiScale * 83,
       *resourceStoneTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   if (!stoneTextDisplay) {
     stoneTextDisplay.reset(new TextDisplay());
   }
@@ -1302,7 +1290,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 4 * 200),
@@ -1310,7 +1298,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       uiScale * 83,
       uiScale * 83,
       *popTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   if (!popTextDisplay) {
     popTextDisplay.reset(new TextDisplay());
   }
@@ -1323,7 +1311,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 4 * 200 + 234),
@@ -1331,14 +1319,14 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       uiScale * 2 * 34,
       uiScale * 2 * 34,
       *idleVillagerDisabledTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 4 * 200 + 234 + 154 - currentAgeShieldTexture->GetWidth() / 2),
       topLeft.y() + uiScale * 0,
       uiScale * currentAgeShieldTexture->GetWidth(),
       uiScale * currentAgeShieldTexture->GetHeight(),
       *currentAgeShieldTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   if (!currentAgeTextDisplay) {
     currentAgeTextDisplay.reset(new TextDisplay());
   }
@@ -1352,7 +1340,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * (1623 - 8) - currentAgeTextLeft,
             uiScale * 83),
       Qt::AlignHCenter | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
 }
 
 QPointF RenderWindow::GetSelectionPanelTopLeft() {
@@ -1370,7 +1358,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
       uiScale * selectionPanelTexture->GetWidth(),
       uiScale * selectionPanelTexture->GetHeight(),
       *selectionPanelTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   
   // Is only a single object selected?
   if (selection.size() == 1) {
@@ -1389,7 +1377,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
               uiScale * 2*172,
               uiScale * 2*16),
         Qt::AlignLeft | Qt::AlignTop,
-        uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+        uiShader.get(), widgetWidth, widgetHeight, f);
     
     // Display the object's HP
     if (singleSelectedObject->GetHP() > 0) {
@@ -1413,7 +1401,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
                 uiScale * 2*172,
                 uiScale * 2*16),
           Qt::AlignLeft | Qt::AlignTop,
-          uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+          uiShader.get(), widgetWidth, widgetHeight, f);
     }
     
     // Display unit details?
@@ -1436,7 +1424,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
                     uiScale * 2*172,
                     uiScale * 2*16),
               Qt::AlignLeft | Qt::AlignTop,
-              uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+              uiShader.get(), widgetWidth, widgetHeight, f);
         }
       }
     }
@@ -1451,14 +1439,14 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
           uiScale * 2*60 - 2 * iconInset,
           uiScale * 2*60 - 2 * iconInset,
           *iconTexture,
-          uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+          uiShader.get(), widgetWidth, widgetHeight, f);
       RenderUIGraphic(
           topLeft.x() + uiScale * 2*32,
           topLeft.y() + uiScale * 50 + uiScale * 2*46,
           uiScale * 2*60,
           uiScale * 2*60,
           *iconOverlayNormalTexture,
-          uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+          uiShader.get(), widgetWidth, widgetHeight, f);
     }
   }
 }
@@ -1478,7 +1466,7 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
       uiScale * commandPanelTexture->GetWidth(),
       uiScale * commandPanelTexture->GetHeight(),
       *commandPanelTexture,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   
   float commandButtonsLeft = topLeft.x() + uiScale * 49;
   float commandButtonsTop = topLeft.y() + uiScale * 93;
@@ -1520,7 +1508,7 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
           disabled ? *iconOverlayNormalExpensiveTexture :
               (pressed ? *iconOverlayActiveTexture :
                   (mouseOver ? *iconOverlayHoverTexture : *iconOverlayNormalTexture)),
-          uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+          uiShader.get(), widgetWidth, widgetHeight, f);
     }
   }
 }
@@ -1775,7 +1763,7 @@ bool RenderWindow::IsObjectFlashActive() {
 void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
   CHECK_OPENGL_NO_ERROR();
   
-  ComputePixelToOpenGLMatrix();
+  ComputePixelToOpenGLMatrix(f);
   
   f->glEnable(GL_BLEND);
   f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1812,7 +1800,7 @@ void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
       text,
       QRect(0, 0, widgetWidth, widgetHeight),
       Qt::AlignHCenter | Qt::AlignVCenter,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
   
   // Render the loading icon.
   RenderUIGraphic(
@@ -1821,7 +1809,7 @@ void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
       loadingIcon->GetWidth(),
       loadingIcon->GetHeight(),
       *loadingIcon,
-      uiShader.get(), widgetWidth, widgetHeight, pointBuffer, f);
+      uiShader.get(), widgetWidth, widgetHeight, f);
 }
 
 void RenderWindow::UpdateGameState(double displayedServerTime) {
@@ -2322,7 +2310,7 @@ void RenderWindow::paintGL() {
   }
   
   // Update scrolling and compute the view transformation.
-  UpdateView(now);
+  UpdateView(now, f);
   CHECK_OPENGL_NO_ERROR();
   
   // Set states for rendering.

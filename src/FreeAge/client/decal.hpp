@@ -35,7 +35,6 @@ class Decal {
   void Render(
       QRgb outlineColor,
       SpriteShader* spriteShader,
-      GLuint pointBuffer,
       float* viewMatrix,
       float zoom,
       int widgetWidth,

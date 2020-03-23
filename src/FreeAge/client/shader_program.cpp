@@ -14,7 +14,7 @@ ShaderProgram::ShaderProgram()
       color_attribute_location_(-1) {}
 
 ShaderProgram::~ShaderProgram() {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   if (vertex_shader_ != 0) {
     f->glDetachShader(program_, vertex_shader_);
@@ -36,8 +36,7 @@ ShaderProgram::~ShaderProgram() {
   }
 }
 
-bool ShaderProgram::AttachShader(const char* source_code, ShaderType type) {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+bool ShaderProgram::AttachShader(const char* source_code, ShaderType type, QOpenGLFunctions_3_2_Core* f) {
   CHECK(program_ == 0) << "Cannot attach a shader after linking the program.";
   
   GLenum shader_enum;
@@ -74,8 +73,7 @@ bool ShaderProgram::AttachShader(const char* source_code, ShaderType type) {
   return true;
 }
 
-bool ShaderProgram::LinkProgram() {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+bool ShaderProgram::LinkProgram(QOpenGLFunctions_3_2_Core* f) {
   CHECK(program_ == 0) << "Program already linked.";
   
   program_ = f->glCreateProgram();
@@ -109,18 +107,15 @@ bool ShaderProgram::LinkProgram() {
   return true;
 }
 
-void ShaderProgram::UseProgram() const {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+void ShaderProgram::UseProgram(QOpenGLFunctions_3_2_Core* f) const {
   f->glUseProgram(program_);
 }
 
-GLint ShaderProgram::GetUniformLocation(const char* name) const {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+GLint ShaderProgram::GetUniformLocation(const char* name, QOpenGLFunctions_3_2_Core* f) const {
   return f->glGetUniformLocation(program_, name);
 }
 
-GLint ShaderProgram::GetUniformLocationOrAbort(const char* name) const {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+GLint ShaderProgram::GetUniformLocationOrAbort(const char* name, QOpenGLFunctions_3_2_Core* f) const {
   GLint result = f->glGetUniformLocation(program_, name);
   if (result == -1) {
     LOG(WARNING) << "Uniform does not exist (might have been optimized out by the compiler): " << name;
@@ -128,39 +123,11 @@ GLint ShaderProgram::GetUniformLocationOrAbort(const char* name) const {
   return result;
 }
 
-void ShaderProgram::SetUniform1f(GLint location, float x) {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
-  f->glUniform1f(location, x);
-}
-
-void ShaderProgram::SetUniform1i(GLint location, int x) {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
-  f->glUniform1i(location, x);
-}
-
-void ShaderProgram::SetUniform2f(GLint location, float x, float y) {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
-  f->glUniform2f(location, x, y);
-}
-
-void ShaderProgram::SetUniform3f(GLint location, float x, float y, float z) {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
-  f->glUniform3f(location, x, y, z);
-}
-
-void ShaderProgram::SetUniform4f(GLint location, float x, float y, float z, float w) {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
-  f->glUniform4f(location, x, y, z, w);
-}
-
-void ShaderProgram::setUniformMatrix2fv(GLint location, float* values, bool valuesAreColumnMajor) {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+void ShaderProgram::SetUniformMatrix2fv(GLint location, float* values, bool valuesAreColumnMajor, QOpenGLFunctions_3_2_Core* f) {
   f->glUniformMatrix2fv(location, 1, valuesAreColumnMajor ? GL_FALSE : GL_TRUE, values);
 }
 
-void ShaderProgram::SetPositionAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset) {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
-  
+void ShaderProgram::SetPositionAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset, QOpenGLFunctions_3_2_Core* f) {
   // CHECK(position_attribute_location_ != -1) << "SetPositionAttribute() called, but no attribute \"in_position\" found.";
   if (position_attribute_location_ == -1) {
     // Allow using an object with positions with a material that ignores the positions.
@@ -178,8 +145,7 @@ void ShaderProgram::SetPositionAttribute(int component_count, GLenum component_t
   CHECK_OPENGL_NO_ERROR();
 }
 
-void ShaderProgram::SetColorAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset) {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+void ShaderProgram::SetColorAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset, QOpenGLFunctions_3_2_Core* f) {
   // CHECK(color_attribute_location_ != -1) << "SetColorAttribute() called, but no attribute \"in_color\" found.";
   if (color_attribute_location_ == -1) {
     // Allow using an object with colors with a material that ignores the colors.
@@ -197,9 +163,7 @@ void ShaderProgram::SetColorAttribute(int component_count, GLenum component_type
   CHECK_OPENGL_NO_ERROR();
 }
 
-void ShaderProgram::SetTexCoordAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset) {
-  QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
-  
+void ShaderProgram::SetTexCoordAttribute(int component_count, GLenum component_type, GLsizei stride, std::size_t offset, QOpenGLFunctions_3_2_Core* f) {
   // CHECK(position_attribute_location_ != -1) << "SetTexCoordAttribute() called, but no attribute \"in_position\" found.";
   if (texcoord_attribute_location_ == -1) {
     // Allow using an object with positions with a material that ignores the positions.

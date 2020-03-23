@@ -14,7 +14,7 @@ class SpriteShader {
   
   inline ShaderProgram* GetProgram() { return program.get(); }
   
-  void UseProgram();
+  void UseProgram(QOpenGLFunctions_3_2_Core* f);
   
   inline GLint GetTextureLocation() const { return texture_location; }
   inline GLint GetPlayerColorsTextureLocation() const { return playerColorsTexture_location; }

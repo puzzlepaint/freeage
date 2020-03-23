@@ -104,7 +104,6 @@ class ClientBuilding : public ClientObject {
       Map* map,
       QRgb outlineColor,
       SpriteShader* spriteShader,
-      GLuint pointBuffer,
       float* viewMatrix,
       float zoom,
       int widgetWidth,

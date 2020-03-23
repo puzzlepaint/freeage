@@ -4,6 +4,8 @@
 #include "FreeAge/client/opengl.hpp"
 
 SpriteShader::SpriteShader(bool shadow, bool outline) {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
   program.reset(new ShaderProgram());
   
   CHECK(program->AttachShader(
@@ -13,7 +15,7 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
       "void main() {\n"
       "  gl_Position = vec4(u_viewMatrix[0][0] * in_position.x + u_viewMatrix[1][0], u_viewMatrix[0][1] * in_position.y + u_viewMatrix[1][1], in_position.z, 1);\n"
       "}\n",
-      ShaderProgram::ShaderType::kVertexShader));
+      ShaderProgram::ShaderType::kVertexShader, f));
   
   CHECK(program->AttachShader(
       "#version 330 core\n"
@@ -43,7 +45,7 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
       "  \n"
       "  EndPrimitive();\n"
       "}\n",
-      ShaderProgram::ShaderType::kGeometryShader));
+      ShaderProgram::ShaderType::kGeometryShader, f));
   
   if (shadow) {
     CHECK(program->AttachShader(
@@ -57,7 +59,7 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
         "void main() {\n"
         "  out_color = vec4(0, 0, 0, 1.5 * texture(u_texture, texcoord.xy).r);\n"  // TODO: Magic factor 1.5 makes it look nicer (darker shadows)
         "}\n",
-        ShaderProgram::ShaderType::kFragmentShader));
+        ShaderProgram::ShaderType::kFragmentShader, f));
   } else if (outline) {
     CHECK(program->AttachShader(
         "#version 330 core\n"
@@ -107,7 +109,7 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
         "  }\n"
         "  out_color = vec4(u_playerColor.rgb, 1);\n"
         "}\n",
-        ShaderProgram::ShaderType::kFragmentShader));
+        ShaderProgram::ShaderType::kFragmentShader, f));
   } else {
     CHECK(program->AttachShader(
         "#version 330 core\n"
@@ -160,41 +162,42 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
         "  }\n"
         "  out_color.a = 1;\n"  // TODO: Instead of setting a to 1 here, disable blending?
         "}\n",
-        ShaderProgram::ShaderType::kFragmentShader));
+        ShaderProgram::ShaderType::kFragmentShader, f));
   }
   
-  CHECK(program->LinkProgram());
+  CHECK(program->LinkProgram(f));
   
-  program->UseProgram();
+  program->UseProgram(f);
   
-  texture_location = program->GetUniformLocationOrAbort("u_texture");
-  viewMatrix_location = program->GetUniformLocationOrAbort("u_viewMatrix");
-  size_location = program->GetUniformLocationOrAbort("u_size");
+  texture_location = program->GetUniformLocationOrAbort("u_texture", f);
+  viewMatrix_location = program->GetUniformLocationOrAbort("u_viewMatrix", f);
+  size_location = program->GetUniformLocationOrAbort("u_size", f);
   if (!shadow) {
-    textureSize_location = program->GetUniformLocationOrAbort("u_textureSize");
+    textureSize_location = program->GetUniformLocationOrAbort("u_textureSize", f);
     if (!outline) {
-      playerColorsTextureSize_location = program->GetUniformLocationOrAbort("u_playerColorsTextureSize");
-      playerIndex_location = program->GetUniformLocationOrAbort("u_playerIndex");
-      playerColorsTexture_location = program->GetUniformLocationOrAbort("u_playerColorsTexture");
-      modulationColor_location = program->GetUniformLocationOrAbort("u_modulationColor");
+      playerColorsTextureSize_location = program->GetUniformLocationOrAbort("u_playerColorsTextureSize", f);
+      playerIndex_location = program->GetUniformLocationOrAbort("u_playerIndex", f);
+      playerColorsTexture_location = program->GetUniformLocationOrAbort("u_playerColorsTexture", f);
+      modulationColor_location = program->GetUniformLocationOrAbort("u_modulationColor", f);
     }
   }
   if (outline) {
-    playerColor_location = program->GetUniformLocationOrAbort("u_playerColor");
+    playerColor_location = program->GetUniformLocationOrAbort("u_playerColor", f);
   }
-  tex_topleft_location = program->GetUniformLocationOrAbort("u_tex_topleft");
-  tex_bottomright_location = program->GetUniformLocationOrAbort("u_tex_bottomright");
+  tex_topleft_location = program->GetUniformLocationOrAbort("u_tex_topleft", f);
+  tex_bottomright_location = program->GetUniformLocationOrAbort("u_tex_bottomright", f);
 }
 
 SpriteShader::~SpriteShader() {
   program.reset();
 }
 
-void SpriteShader::UseProgram() {
-  program->UseProgram();
+void SpriteShader::UseProgram(QOpenGLFunctions_3_2_Core* f) {
+  program->UseProgram(f);
   program->SetPositionAttribute(
       3,
       GetGLType<float>::value,
       3 * sizeof(float),
-      0);
+      0,
+      f);
 }

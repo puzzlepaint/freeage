@@ -9,18 +9,17 @@ void RenderHealthBar(
     float fillAmount,
     const QRgb& color,
     HealthBarShader* healthBarShader,
-    GLuint pointBuffer,
     float* viewMatrix,
     float zoom,
     int widgetWidth,
     int widgetHeight,
     QOpenGLFunctions_3_2_Core* f) {
   ShaderProgram* program = healthBarShader->GetProgram();
-  program->UseProgram();
+  program->UseProgram(f);
   
-  program->SetUniform3f(healthBarShader->GetPlayerColorLocation(), qRed(color), qGreen(color), qBlue(color));
-  program->SetUniform1f(healthBarShader->GetFillAmountLocation(), fillAmount);
-  program->SetUniform2f(
+  f->glUniform3f(healthBarShader->GetPlayerColorLocation(), qRed(color), qGreen(color), qBlue(color));
+  f->glUniform1f(healthBarShader->GetFillAmountLocation(), fillAmount);
+  f->glUniform2f(
       healthBarShader->GetSizeLocation(),
       zoom * 2.f * projectedCoordsRect.width() / static_cast<float>(widgetWidth),
       zoom * 2.f * projectedCoordsRect.height() / static_cast<float>(widgetHeight));
@@ -30,7 +29,8 @@ void RenderHealthBar(
       3,
       GetGLType<float>::value,
       3 * sizeof(float),
-      0);
+      0,
+      f);
   
   float data[] = {
       static_cast<float>(projectedCoordsRect.x()),

@@ -43,7 +43,7 @@ class CommandButton {
   void Render(
       float x, float y, float size, float iconInset,
       const Texture& iconOverlayNormalTexture,
-      UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer, QOpenGLFunctions_3_2_Core* f);
+      UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f);
   
   void Pressed(const std::vector<u32>& selection, GameController* gameController);
   

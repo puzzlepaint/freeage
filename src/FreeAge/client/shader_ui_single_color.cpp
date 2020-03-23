@@ -4,6 +4,8 @@
 #include "FreeAge/client/opengl.hpp"
 
 UISingleColorShader::UISingleColorShader() {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
   program.reset(new ShaderProgram());
   
   CHECK(program->AttachShader(
@@ -13,7 +15,7 @@ UISingleColorShader::UISingleColorShader() {
       "void main() {\n"
       "  gl_Position = vec4(u_viewMatrix[0][0] * in_position.x + u_viewMatrix[1][0], u_viewMatrix[0][1] * in_position.y + u_viewMatrix[1][1], in_position.z, 1);\n"
       "}\n",
-      ShaderProgram::ShaderType::kVertexShader));
+      ShaderProgram::ShaderType::kVertexShader, f));
   
   CHECK(program->AttachShader(
       "#version 330 core\n"
@@ -24,14 +26,14 @@ UISingleColorShader::UISingleColorShader() {
       "void main() {\n"
       "  out_color = u_color;\n"
       "}\n",
-      ShaderProgram::ShaderType::kFragmentShader));
+      ShaderProgram::ShaderType::kFragmentShader, f));
   
-  CHECK(program->LinkProgram());
+  CHECK(program->LinkProgram(f));
   
-  program->UseProgram();
+  program->UseProgram(f);
   
-  viewMatrix_location = program->GetUniformLocationOrAbort("u_viewMatrix");
-  color_location = program->GetUniformLocationOrAbort("u_color");
+  viewMatrix_location = program->GetUniformLocationOrAbort("u_viewMatrix", f);
+  color_location = program->GetUniformLocationOrAbort("u_color", f);
 }
 
 UISingleColorShader::~UISingleColorShader() {
