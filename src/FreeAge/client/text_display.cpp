@@ -28,10 +28,6 @@ void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& te
   }
   
   // Render the texture.
-  f->glEnable(GL_BLEND);
-  f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  f->glDisable(GL_DEPTH_TEST);
-  
   ShaderProgram* program = uiShader->GetProgram();
   program->UseProgram();
   program->SetUniform1i(uiShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
@@ -71,7 +67,6 @@ void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& te
   
   bounds = QRect(leftX, topY, textureWidth, textureHeight);
   
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   float data[] = {leftX, topY, 0.f};
   int elementSizeInBytes = 3 * sizeof(float);
   f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);

@@ -75,10 +75,6 @@ UIShader::~UIShader() {
 
 
 void RenderUIGraphic(float x, float y, float width, float height, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, GLuint pointBuffer, QOpenGLFunctions_3_2_Core* f) {
-  f->glEnable(GL_BLEND);
-  f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  f->glDisable(GL_DEPTH_TEST);
-  
   ShaderProgram* program = uiShader->GetProgram();
   program->UseProgram();
   program->SetUniform1i(uiShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
@@ -92,7 +88,6 @@ void RenderUIGraphic(float x, float y, float width, float height, const Texture&
       2.f * width / static_cast<float>(widgetWidth),
       2.f * height / static_cast<float>(widgetHeight));
   
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   float data[] = {1.f * x, 1.f * y, 0.f};
   int elementSizeInBytes = 3 * sizeof(float);
   f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);

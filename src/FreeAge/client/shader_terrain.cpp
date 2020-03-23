@@ -27,7 +27,7 @@ TerrainShader::TerrainShader() {
       "uniform sampler2D u_texture;\n"
       "\n"
       "void main() {\n"
-      "  out_color = vec4(var_texcoord.z * texture(u_texture, var_texcoord.xy).rgb, 1);\n"
+      "  out_color = vec4(var_texcoord.z * texture(u_texture, var_texcoord.xy).rgb, 0);\n"
       "}\n",
       ShaderProgram::ShaderType::kFragmentShader));
   

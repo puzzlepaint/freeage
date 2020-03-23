@@ -1139,12 +1139,7 @@ void DrawSprite(
   
   bool isGraphic = !shadow && !outline;
   
-  f->glEnable(GL_BLEND);
-  f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  
   ShaderProgram* program = spriteShader->GetProgram();
-  program->UseProgram();
-  program->SetUniform1i(spriteShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   
   f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
   
@@ -1172,7 +1167,6 @@ void DrawSprite(
   program->SetUniform2f(spriteShader->GetTexTopLeftLocation(), texLeftX, texTopY);
   program->SetUniform2f(spriteShader->GetTexBottomRightLocation(), texRightX, texBottomY);
   
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   constexpr float kOffScreenDepthBufferExtent = 1000;
   float data[] = {
       static_cast<float>(centerProjectedCoord.x() + scaling * (-layer.centerX + (isGraphic ? 1 : 0))),
@@ -1180,11 +1174,6 @@ void DrawSprite(
       static_cast<float>(1.f - 2.f * (kOffScreenDepthBufferExtent + viewMatrix[0] * centerProjectedCoord.y() + viewMatrix[2]) / (2.f * kOffScreenDepthBufferExtent + widgetHeight))};
   int elementSizeInBytes = 3 * sizeof(float);
   f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
-  program->SetPositionAttribute(
-      3,
-      GetGLType<float>::value,
-      3 * sizeof(float),
-      0);
   
   f->glDrawArrays(GL_POINTS, 0, 1);
   

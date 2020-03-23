@@ -203,14 +203,20 @@ void RenderWindow::LoadResources() {
   
   // Create shaders.
   spriteShader.reset(new SpriteShader(false, false));
+  spriteShader->GetProgram()->UseProgram();
+  spriteShader->GetProgram()->SetUniform1i(spriteShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   didLoadingStep();
   LOG(1) << "LoadResource(): SpriteShader(false, false) loaded";
   
   shadowShader.reset(new SpriteShader(true, false));
+  shadowShader->GetProgram()->UseProgram();
+  shadowShader->GetProgram()->SetUniform1i(shadowShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   didLoadingStep();
   LOG(1) << "LoadResource(): SpriteShader(true, false) loaded";
   
   outlineShader.reset(new SpriteShader(false, true));
+  outlineShader->GetProgram()->UseProgram();
+  outlineShader->GetProgram()->SetUniform1i(outlineShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   didLoadingStep();
   LOG(1) << "LoadResource(): SpriteShader(false, true) loaded";
   
@@ -534,13 +540,13 @@ void RenderWindow::UpdateView(const TimePoint& now) {
     
     // Apply the view transformation to all shaders.
     // TODO: Use a uniform buffer object for that.
-    spriteShader->GetProgram()->UseProgram();
+    spriteShader->UseProgram();
     spriteShader->GetProgram()->setUniformMatrix2fv(spriteShader->GetViewMatrixLocation(), viewMatrix);
     
-    shadowShader->GetProgram()->UseProgram();
+    shadowShader->UseProgram();
     shadowShader->GetProgram()->setUniformMatrix2fv(shadowShader->GetViewMatrixLocation(), viewMatrix);
     
-    outlineShader->GetProgram()->UseProgram();
+    outlineShader->UseProgram();
     outlineShader->GetProgram()->setUniformMatrix2fv(outlineShader->GetViewMatrixLocation(), viewMatrix);
     
     healthBarShader->GetProgram()->UseProgram();
@@ -576,7 +582,6 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
   int numVertices = 2 * (vertices.size() + 1);
   
   // Buffer geometry data.
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   int elementSizeInBytes = 3 * sizeof(float);
   std::vector<float> vertexData(3 * numVertices);  // TODO: Could skip the 3rd dimension
   int lastVertex = vertices.size() - 1;
@@ -628,6 +633,8 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
 
 void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
+  
+  shadowShader->UseProgram();
   
   for (auto& object : map->GetObjects()) {
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
@@ -689,6 +696,8 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
 }
 
 void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsThatCauseOutlines, QOpenGLFunctions_3_2_Core* f) {
+  spriteShader->UseProgram();
+  
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
     if (!object.second->isBuilding()) {
@@ -724,6 +733,8 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
 }
 
 void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
+  spriteShader->UseProgram();
+  
   QPoint foundationBaseTile(-1, -1);
   bool canBePlacedHere = CanBuildingFoundationBePlacedHere(constructBuildingType, lastCursorPos, &foundationBaseTile);
   
@@ -827,6 +838,8 @@ void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object
 void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
+  outlineShader->UseProgram();
+  
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
@@ -903,6 +916,8 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
 }
 
 void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
+  spriteShader->UseProgram();
+  
   // TODO: Sort to minmize texture switches.
   for (auto& object : map->GetObjects()) {
     if (!object.second->isUnit()) {
@@ -934,6 +949,8 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
 }
 
 void RenderWindow::RenderMoveToMarker(const TimePoint& now, QOpenGLFunctions_3_2_Core* f) {
+  spriteShader->UseProgram();
+  
   // Update move-to sprite.
   int moveToFrameIndex = -1;
   if (haveMoveTo) {
@@ -1053,6 +1070,8 @@ void RenderWindow::RenderOccludingDecals(QOpenGLFunctions_3_2_Core* f) {
 }
 
 void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_2_Core* f) {
+  spriteShader->UseProgram();
+  
   // TODO: Sort to minmize texture switches.
   for (auto& decal : decals) {
     QRectF projectedCoordsRect = decal->GetRectInProjectedCoords(
@@ -1075,6 +1094,8 @@ void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_
 }
 
 void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
+  shadowShader->UseProgram();
+  
   // TODO: Sort to minmize texture switches.
   for (auto& decal : occludingDecals) {
     QRectF projectedCoordsRect = decal->GetRectInProjectedCoords(
@@ -1097,6 +1118,8 @@ void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
 }
 
 void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
+  outlineShader->UseProgram();
+  
   // TODO: Sort to minmize texture switches.
   for (auto& decal : occludingDecals) {
     QRgb outlineColor = qRgb(255, 255, 255);
@@ -1754,6 +1777,9 @@ void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
   
   ComputePixelToOpenGLMatrix();
   
+  f->glEnable(GL_BLEND);
+  f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  
   // Clear background.
   f->glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
   f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -2202,6 +2228,9 @@ void RenderWindow::paintGL() {
     Timing::print(std::cout, kSortByTotal);
   }
   
+  // By default, use pointBuffer as the array buffer
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+  
   // Render loading screen?
   if (isLoading) {
     // Parse server messages.
@@ -2325,6 +2354,8 @@ void RenderWindow::paintGL() {
   
   CHECK_OPENGL_NO_ERROR();
   map->Render(viewMatrix, graphicsPath, f);
+  // Reset pointBuffer as the default array buffer after rendering the map
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   RenderGroundDecals(f);
   CHECK_OPENGL_NO_ERROR();
   
@@ -2402,6 +2433,8 @@ void RenderWindow::paintGL() {
   }
   
   // Render game UI.
+  f->glEnable(GL_BLEND);
+  
   // TODO: Would it be faster to render this at the start and then prevent rendering over the UI pixels,
   //       for example by setting the z-buffer such that no further pixel will be rendered there?
   CHECK_OPENGL_NO_ERROR();

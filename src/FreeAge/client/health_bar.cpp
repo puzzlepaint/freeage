@@ -25,7 +25,6 @@ void RenderHealthBar(
       zoom * 2.f * projectedCoordsRect.width() / static_cast<float>(widgetWidth),
       zoom * 2.f * projectedCoordsRect.height() / static_cast<float>(widgetHeight));
   
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   constexpr float kOffScreenDepthBufferExtent = 1000;
   program->SetPositionAttribute(
       3,

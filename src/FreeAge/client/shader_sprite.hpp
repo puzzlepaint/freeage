@@ -14,6 +14,8 @@ class SpriteShader {
   
   inline ShaderProgram* GetProgram() { return program.get(); }
   
+  void UseProgram();
+  
   inline GLint GetTextureLocation() const { return texture_location; }
   inline GLint GetPlayerColorsTextureLocation() const { return playerColorsTexture_location; }
   inline GLint GetViewMatrixLocation() const { return viewMatrix_location; }

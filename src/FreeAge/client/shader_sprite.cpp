@@ -1,6 +1,7 @@
 #include "FreeAge/client/shader_sprite.hpp"
 
 #include "FreeAge/common/logging.hpp"
+#include "FreeAge/client/opengl.hpp"
 
 SpriteShader::SpriteShader(bool shadow, bool outline) {
   program.reset(new ShaderProgram());
@@ -187,4 +188,13 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
 
 SpriteShader::~SpriteShader() {
   program.reset();
+}
+
+void SpriteShader::UseProgram() {
+  program->UseProgram();
+  program->SetPositionAttribute(
+      3,
+      GetGLType<float>::value,
+      3 * sizeof(float),
+      0);
 }
