@@ -69,7 +69,7 @@ void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& te
   
   float data[] = {leftX, topY, 0.f};
   int elementSizeInBytes = 3 * sizeof(float);
-  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_STREAM_DRAW);
   program->SetPositionAttribute(
       3,
       GetGLType<float>::value,

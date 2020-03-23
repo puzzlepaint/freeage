@@ -232,9 +232,6 @@ void RenderWindow::LoadResources() {
   f->glActiveTexture(GL_TEXTURE0 + 1);
   f->glBindTexture(GL_TEXTURE_2D, playerColorsTexture->GetId());
   f->glActiveTexture(GL_TEXTURE0);
-  
-  // Set the sprite modulation color to the default.
-  f->glUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
   didLoadingStep();
   
   // Load unit resources.
@@ -618,7 +615,7 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
     vertexData[6 * i + 4] = vertices[thisVertex].y() + prevToCurRight.y() - bendDirection * length * prevToCur.y() + offset.y();
     vertexData[6 * i + 5] = 0;
   }
-  f->glBufferData(GL_ARRAY_BUFFER, numVertices * elementSizeInBytes, vertexData.data(), GL_DYNAMIC_DRAW);
+  f->glBufferData(GL_ARRAY_BUFFER, numVertices * elementSizeInBytes, vertexData.data(), GL_STREAM_DRAW);
   CHECK_OPENGL_NO_ERROR();
   uiSingleColorShader->GetProgram()->SetPositionAttribute(
       3,
@@ -654,7 +651,7 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
         building.Render(
             map.get(),
-            qRgb(0, 0, 0),
+            qRgb(255, 255, 255),
             shadowShader.get(),
             viewMatrix,
             zoom,
@@ -679,7 +676,7 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
         unit.Render(
             map.get(),
-            qRgb(0, 0, 0),
+            qRgb(255, 255, 255),
             shadowShader.get(),
             viewMatrix,
             zoom,
@@ -716,7 +713,7 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
       // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
       building.Render(
           map.get(),
-          qRgb(0, 0, 0),
+          qRgb(255, 255, 255),
           spriteShader.get(),
           viewMatrix,
           zoom,
@@ -742,14 +739,13 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLF
     ClientBuilding* tempBuilding = new ClientBuilding(match->GetPlayerIndex(), constructBuildingType, foundationBaseTile.x(), foundationBaseTile.y(), 100, /*hp*/ 0);
     tempBuilding->SetFixedFrameIndex(0);
     
-    if (canBePlacedHere) {
-      f->glUniform4f(spriteShader->GetModulationColorLocation(), 0.8, 0.8, 0.8, 1);
-    } else {
-      f->glUniform4f(spriteShader->GetModulationColorLocation(), 1, 0.4, 0.4, 1);
-    }
+    QRgb modulationColor =
+        canBePlacedHere ?
+        qRgb(0.8 * 255, 0.8 * 255, 0.8 * 255) :
+        qRgb(255, 0.4 * 255, 0.4 * 255);
     tempBuilding->Render(
         map.get(),
-        qRgb(0, 0, 0),
+        modulationColor,
         spriteShader.get(),
         viewMatrix,
         zoom,
@@ -759,7 +755,6 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLF
         false,
         false,
         f);
-    f->glUniform4f(spriteShader->GetModulationColorLocation(), 1, 1, 1, 1);
     
     delete tempBuilding;
   }
@@ -928,7 +923,7 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
       unit.Render(
           map.get(),
-          qRgb(0, 0, 0),
+          qRgb(255, 255, 255),
           spriteShader.get(),
           viewMatrix,
           zoom,
@@ -971,7 +966,7 @@ void RenderWindow::RenderMoveToMarker(const TimePoint& now, QOpenGLFunctions_3_2
         moveToFrameIndex,
         /*shadow*/ false,
         /*outline*/ false,
-        qRgb(0, 0, 0),
+        qRgb(255, 255, 255),
         /*playerIndex*/ 0,
         /*scaling*/ 0.5f,
         f);
@@ -1070,7 +1065,7 @@ void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
       decal->Render(
-          qRgb(0, 0, 0),
+          qRgb(255, 255, 255),
           spriteShader.get(),
           viewMatrix,
           zoom,
@@ -1093,7 +1088,7 @@ void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
       decal->Render(
-          qRgb(0, 0, 0),
+          qRgb(255, 255, 255),
           shadowShader.get(),
           viewMatrix,
           zoom,
@@ -2191,7 +2186,7 @@ void RenderWindow::initializeGL() {
   int elementSizeInBytes = 3 * sizeof(float);
   float data[] = {
       0.f, 0.f, 0};
-  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_STREAM_DRAW);
   CHECK_OPENGL_NO_ERROR();
   
   // Load the loading icon.

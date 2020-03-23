@@ -133,7 +133,7 @@ void DrawSprite(
     int frameNumber,
     bool shadow,
     bool outline,
-    QRgb outlineColor,
+    QRgb outlineOrModulationColor,
     int playerIndex,
     float scaling,
     QOpenGLFunctions_3_2_Core* f);

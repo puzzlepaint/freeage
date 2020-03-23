@@ -1129,7 +1129,7 @@ void DrawSprite(
     int frameNumber,
     bool shadow,
     bool outline,
-    QRgb outlineColor,
+    QRgb outlineOrModulationColor,
     int playerIndex,
     float scaling,
     QOpenGLFunctions_3_2_Core* f) {
@@ -1139,40 +1139,42 @@ void DrawSprite(
   bool isGraphic = !shadow && !outline;
   
   f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
-  
-  if (!shadow && !outline) {
-    f->glUniform1i(spriteShader->GetPlayerIndexLocation(), playerIndex);
-  }
   if (!shadow) {
     f->glUniform2f(spriteShader->GetTextureSizeLocation(), texture.GetWidth(), texture.GetHeight());
   }
-  if (outline) {
-    f->glUniform3f(spriteShader->GetPlayerColorLocation(), qRed(outlineColor) / 255.f, qGreen(outlineColor) / 255.f, qBlue(outlineColor) / 255.f);
-  }
-  
-  f->glUniform2f(
-      spriteShader->GetSizeLocation(),
-      scaling * zoom * 2.f * (layer.imageWidth + (isGraphic ? -2: 0)) / static_cast<float>(widgetWidth),
-      scaling * zoom * 2.f * (layer.imageHeight + (isGraphic ? -2: 0)) / static_cast<float>(widgetHeight));
-  float texLeftX = (layer.atlasX + (isGraphic ? 1 : 0)) / (1.f * texture.GetWidth());
-  float texTopY = (layer.atlasY + (isGraphic ? 1 : 0)) / (1.f * texture.GetHeight());
-  float texRightX = (layer.atlasX + layer.imageWidth + (isGraphic ? -1 : 0)) / (1.f * texture.GetWidth());
-  float texBottomY = (layer.atlasY + layer.imageHeight + (isGraphic ? -1 : 0)) / (1.f * texture.GetHeight());
-  if (layer.rotated) {
-    // TODO: Is this worth implementing? It will complicate the shader a little.
-  }
-  f->glUniform2f(spriteShader->GetTexTopLeftLocation(), texLeftX, texTopY);
-  f->glUniform2f(spriteShader->GetTexBottomRightLocation(), texRightX, texBottomY);
   
   constexpr float kOffScreenDepthBufferExtent = 1000;
-  float data[] = {
+  // if (layer.rotated) {
+  //   // TODO: Is this worth implementing? It will complicate the shader a little.
+  // }
+  float data[13] = {
+      // in_position
       static_cast<float>(centerProjectedCoord.x() + scaling * (-layer.centerX + (isGraphic ? 1 : 0))),
       static_cast<float>(centerProjectedCoord.y() + scaling * (-layer.centerY + (isGraphic ? 1 : 0))),
-      static_cast<float>(1.f - 2.f * (kOffScreenDepthBufferExtent + viewMatrix[0] * centerProjectedCoord.y() + viewMatrix[2]) / (2.f * kOffScreenDepthBufferExtent + widgetHeight))};
-  int elementSizeInBytes = 3 * sizeof(float);
-  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
+      static_cast<float>(1.f - 2.f * (kOffScreenDepthBufferExtent + viewMatrix[0] * centerProjectedCoord.y() + viewMatrix[2]) / (2.f * kOffScreenDepthBufferExtent + widgetHeight)),
+      // in_size
+      scaling * zoom * 2.f * (layer.imageWidth + (isGraphic ? -2: 0)) / static_cast<float>(widgetWidth),
+      scaling * zoom * 2.f * (layer.imageHeight + (isGraphic ? -2: 0)) / static_cast<float>(widgetHeight),
+      // in_tex_topleft
+      (layer.atlasX + (isGraphic ? 1 : 0)) / (1.f * texture.GetWidth()),
+      (layer.atlasY + (isGraphic ? 1 : 0)) / (1.f * texture.GetHeight()),
+      // in_tex_bottomright
+      (layer.atlasX + layer.imageWidth + (isGraphic ? -1 : 0)) / (1.f * texture.GetWidth()),
+      (layer.atlasY + layer.imageHeight + (isGraphic ? -1 : 0)) / (1.f * texture.GetHeight()),
+      // outline: in_playerColor; !outline && !shadow: in_modulationColor; shadow: unused
+      qRed(outlineOrModulationColor) / 255.f,
+      qGreen(outlineOrModulationColor) / 255.f,
+      qBlue(outlineOrModulationColor) / 255.f,
+      0  // !outline && !shadow: i32 playerIndex, set below since it is an integer
+      };
+  if (!shadow && !outline) {
+    *reinterpret_cast<i32*>(data + 12) = playerIndex;
+  }
   
-  f->glDrawArrays(GL_POINTS, 0, 1);
+  int count = 1;
+  f->glBufferData(GL_ARRAY_BUFFER, count * spriteShader->GetVertexSize(), data, GL_STREAM_DRAW);
+  
+  f->glDrawArrays(GL_POINTS, 0, count);
   
   CHECK_OPENGL_NO_ERROR();
 }

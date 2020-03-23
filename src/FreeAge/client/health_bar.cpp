@@ -37,7 +37,7 @@ void RenderHealthBar(
       static_cast<float>(projectedCoordsRect.y()),
       static_cast<float>(1.f - 2.f * (kOffScreenDepthBufferExtent + viewMatrix[0] * objectCenterProjectedCoordY + viewMatrix[2]) / (2.f * kOffScreenDepthBufferExtent + widgetHeight))};
   int elementSizeInBytes = 3 * sizeof(float);
-  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_STREAM_DRAW);
   f->glDrawArrays(GL_POINTS, 0, 1);
   
   CHECK_OPENGL_NO_ERROR();

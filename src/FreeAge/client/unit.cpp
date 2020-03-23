@@ -231,7 +231,7 @@ QRectF ClientUnit::GetRectInProjectedCoords(Map* map, double elapsedSeconds, boo
 
 void ClientUnit::Render(
     Map* map,
-    QRgb outlineColor,
+    QRgb outlineOrModulationColor,
     SpriteShader* spriteShader,
     float* viewMatrix,
     float zoom,
@@ -287,7 +287,7 @@ void ClientUnit::Render(
       frameIndex,
       shadow,
       outline,
-      outlineColor,
+      outlineOrModulationColor,
       playerIndex,
       1.f,
       f);

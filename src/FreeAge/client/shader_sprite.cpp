@@ -3,49 +3,107 @@
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/client/opengl.hpp"
 
-SpriteShader::SpriteShader(bool shadow, bool outline) {
+SpriteShader::SpriteShader(bool shadow, bool outline)
+    : shadow(shadow),
+      outline(outline) {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   program.reset(new ShaderProgram());
   
-  CHECK(program->AttachShader(
+  std::string vertexShaderSrc =
       "#version 330 core\n"
+      "\n"
       "in vec3 in_position;\n"
+      "in vec2 in_size;\n"
+      "in vec2 in_tex_topleft;\n"
+      "in vec2 in_tex_bottomright;\n";
+  if (outline) {
+    vertexShaderSrc +=
+        "in vec3 in_playerColor;\n"
+        "\n"
+        "out vec3 var_playerColor;\n";
+  } else if (!shadow && !outline) {
+    vertexShaderSrc +=
+        "in int in_playerIndex;\n"
+        "in vec3 in_modulationColor;\n"
+        "\n"
+        "flat out int var_playerIndex;\n"
+        "out vec3 var_modulationColor;\n";
+  }
+  vertexShaderSrc +=
+      "out vec2 var_size;\n"
+      "out vec2 var_tex_topleft;\n"
+      "out vec2 var_tex_bottomright;\n"
+      "\n"
       "uniform mat2 u_viewMatrix;\n"
       "void main() {\n"
+      "  var_size = in_size;\n"
+      "  var_tex_topleft = in_tex_topleft;\n"
+      "  var_tex_bottomright = in_tex_bottomright;\n";
+  if (outline) {
+    vertexShaderSrc +=
+        "var_playerColor = in_playerColor;\n";
+  } else if (!shadow && !outline) {
+    vertexShaderSrc +=
+        "var_playerIndex = in_playerIndex;\n"
+        "var_modulationColor = in_modulationColor;\n";
+  }
+  vertexShaderSrc +=
       "  gl_Position = vec4(u_viewMatrix[0][0] * in_position.x + u_viewMatrix[1][0], u_viewMatrix[0][1] * in_position.y + u_viewMatrix[1][1], in_position.z, 1);\n"
-      "}\n",
-      ShaderProgram::ShaderType::kVertexShader, f));
+      "}\n";
+  CHECK(program->AttachShader(vertexShaderSrc.c_str(), ShaderProgram::ShaderType::kVertexShader, f));
   
-  CHECK(program->AttachShader(
+  std::string geometryShaderSrc =
       "#version 330 core\n"
       "#extension GL_EXT_geometry_shader : enable\n"
       "layout(points) in;\n"
       "layout(triangle_strip, max_vertices = 4) out;\n"
       "\n"
-      "uniform vec2 u_size;\n"
-      "uniform vec2 u_tex_topleft;\n"
-      "uniform vec2 u_tex_bottomright;\n"
-      "\n"
+      "in vec2 var_size[];\n"
+      "in vec2 var_tex_topleft[];\n"
+      "in vec2 var_tex_bottomright[];\n";
+  if (outline) {
+    geometryShaderSrc +=
+        "in vec3 var_playerColor[];\n"
+        "\n"
+        "out vec3 playerColor;\n";
+  } else if (!shadow && !outline) {
+    geometryShaderSrc +=
+        "flat in int var_playerIndex[];\n"
+        "in vec3 var_modulationColor[];\n"
+        "\n"
+        "flat out int playerIndex;\n"
+        "out vec3 modulationColor;\n";
+  }
+  geometryShaderSrc +=
       "out vec2 texcoord;\n"
       "\n"
       "void main() {\n"
       "  gl_Position = vec4(gl_in[0].gl_Position.x, gl_in[0].gl_Position.y, gl_in[0].gl_Position.z, 1.0);\n"
-      "  texcoord = vec2(u_tex_topleft.x, u_tex_topleft.y);\n"
+      "  texcoord = vec2(var_tex_topleft[0].x, var_tex_topleft[0].y);\n";
+  if (outline) {
+    geometryShaderSrc +=
+        "playerColor = var_playerColor[0];\n";
+  } else if (!shadow && !outline) {
+    geometryShaderSrc +=
+        "playerIndex = var_playerIndex[0];\n"
+        "modulationColor = var_modulationColor[0];\n";
+  }
+  geometryShaderSrc +=
       "  EmitVertex();\n"
-      "  gl_Position = vec4(gl_in[0].gl_Position.x + u_size.x, gl_in[0].gl_Position.y, gl_in[0].gl_Position.z, 1.0);\n"
-      "  texcoord = vec2(u_tex_bottomright.x, u_tex_topleft.y);\n"
+      "  gl_Position = vec4(gl_in[0].gl_Position.x + var_size[0].x, gl_in[0].gl_Position.y, gl_in[0].gl_Position.z, 1.0);\n"
+      "  texcoord = vec2(var_tex_bottomright[0].x, var_tex_topleft[0].y);\n"
       "  EmitVertex();\n"
-      "  gl_Position = vec4(gl_in[0].gl_Position.x, gl_in[0].gl_Position.y - u_size.y, gl_in[0].gl_Position.z, 1.0);\n"
-      "  texcoord = vec2(u_tex_topleft.x, u_tex_bottomright.y);\n"
+      "  gl_Position = vec4(gl_in[0].gl_Position.x, gl_in[0].gl_Position.y - var_size[0].y, gl_in[0].gl_Position.z, 1.0);\n"
+      "  texcoord = vec2(var_tex_topleft[0].x, var_tex_bottomright[0].y);\n"
       "  EmitVertex();\n"
-      "  gl_Position = vec4(gl_in[0].gl_Position.x + u_size.x, gl_in[0].gl_Position.y - u_size.y, gl_in[0].gl_Position.z, 1.0);\n"
-      "  texcoord = vec2(u_tex_bottomright.x, u_tex_bottomright.y);\n"
+      "  gl_Position = vec4(gl_in[0].gl_Position.x + var_size[0].x, gl_in[0].gl_Position.y - var_size[0].y, gl_in[0].gl_Position.z, 1.0);\n"
+      "  texcoord = vec2(var_tex_bottomright[0].x, var_tex_bottomright[0].y);\n"
       "  EmitVertex();\n"
       "  \n"
       "  EndPrimitive();\n"
-      "}\n",
-      ShaderProgram::ShaderType::kGeometryShader, f));
+      "}\n";
+  CHECK(program->AttachShader(geometryShaderSrc.c_str(), ShaderProgram::ShaderType::kGeometryShader, f));
   
   if (shadow) {
     CHECK(program->AttachShader(
@@ -66,10 +124,10 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
         "layout(location = 0) out vec4 out_color;\n"
         "\n"
         "in vec2 texcoord;\n"
+        "in vec3 playerColor;\n"
         "\n"
         "uniform sampler2D u_texture;\n"
         "uniform vec2 u_textureSize;\n"
-        "uniform vec3 u_playerColor;\n"
         "\n"
         "float GetOutlineAlpha(vec4 value) {\n"
         "  int alpha = int(round(255 * value.a));"
@@ -107,7 +165,7 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
         "  if (outAlpha < 0.5) {\n"
         "    discard;\n"
         "  }\n"
-        "  out_color = vec4(u_playerColor.rgb, 1);\n"
+        "  out_color = vec4(playerColor.rgb, 1);\n"
         "}\n",
         ShaderProgram::ShaderType::kFragmentShader, f));
   } else {
@@ -116,20 +174,20 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
         "layout(location = 0) out vec4 out_color;\n"
         "\n"
         "in vec2 texcoord;\n"
+        "flat in int playerIndex;\n"
+        "in vec3 modulationColor;\n"
         "\n"
         "uniform sampler2D u_texture;\n"
-        "uniform sampler2D u_playerColorsTexture;\n"
         "uniform vec2 u_textureSize;\n"
+        "uniform sampler2D u_playerColorsTexture;\n"
         "uniform vec2 u_playerColorsTextureSize;\n"
-        "uniform int u_playerIndex;\n"
-        "uniform vec4 u_modulationColor;\n"
         "\n"
         "vec4 AdjustPlayerColor(vec4 value) {\n"
         "  int alpha = int(round(255 * value.a));"
         "  if (alpha == 254 || alpha == 252) {\n"
         "    // This is a player color pixel that is encoded as a palette index in the texture.\n"
         "    int palIndex = int(round(256 * value.r)) + 256 * int(round(256 * value.g));\n"
-        "    return texture(u_playerColorsTexture, vec2((palIndex + 0.5) / u_playerColorsTextureSize.x, (u_playerIndex + 0.5) / u_playerColorsTextureSize.y));\n"
+        "    return texture(u_playerColorsTexture, vec2((palIndex + 0.5) / u_playerColorsTextureSize.x, (playerIndex + 0.5) / u_playerColorsTextureSize.y));\n"
         "  } else {\n"
         "    return value;\n"
         "  }\n"
@@ -152,7 +210,7 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
         "  bottomRight = AdjustPlayerColor(bottomRight);\n"
         "  \n"
         "  out_color =\n"
-        "      u_modulationColor *\n"  // this is a component-wise multiplication
+        "      vec4(modulationColor.rgb, 1) *\n"  // this is a component-wise multiplication
         "      mix(mix(topLeft, topRight, fx),\n"
         "          mix(bottomLeft, bottomRight, fx),\n"
         "          fy);\n"
@@ -171,21 +229,35 @@ SpriteShader::SpriteShader(bool shadow, bool outline) {
   
   texture_location = program->GetUniformLocationOrAbort("u_texture", f);
   viewMatrix_location = program->GetUniformLocationOrAbort("u_viewMatrix", f);
-  size_location = program->GetUniformLocationOrAbort("u_size", f);
+  size_location = f->glGetAttribLocation(program->program_name(), "in_size");
+  CHECK_GE(size_location, 0);
   if (!shadow) {
     textureSize_location = program->GetUniformLocationOrAbort("u_textureSize", f);
     if (!outline) {
-      playerColorsTextureSize_location = program->GetUniformLocationOrAbort("u_playerColorsTextureSize", f);
-      playerIndex_location = program->GetUniformLocationOrAbort("u_playerIndex", f);
       playerColorsTexture_location = program->GetUniformLocationOrAbort("u_playerColorsTexture", f);
-      modulationColor_location = program->GetUniformLocationOrAbort("u_modulationColor", f);
+      playerColorsTextureSize_location = program->GetUniformLocationOrAbort("u_playerColorsTextureSize", f);
+      playerIndex_location = f->glGetAttribLocation(program->program_name(), "in_playerIndex");
+      CHECK_GE(playerIndex_location, 0);
+      modulationColor_location = f->glGetAttribLocation(program->program_name(), "in_modulationColor");
+      CHECK_GE(modulationColor_location, 0);
     }
   }
   if (outline) {
-    playerColor_location = program->GetUniformLocationOrAbort("u_playerColor", f);
+    playerColor_location = f->glGetAttribLocation(program->program_name(), "in_playerColor");
+    CHECK_GE(playerColor_location, 0);
   }
-  tex_topleft_location = program->GetUniformLocationOrAbort("u_tex_topleft", f);
-  tex_bottomright_location = program->GetUniformLocationOrAbort("u_tex_bottomright", f);
+  tex_topleft_location = f->glGetAttribLocation(program->program_name(), "in_tex_topleft");
+  CHECK_GE(tex_topleft_location, 0);
+  tex_bottomright_location = f->glGetAttribLocation(program->program_name(), "in_tex_bottomright");
+  CHECK_GE(tex_bottomright_location, 0);
+  
+  if (outline) {
+    vertexSize = (3 + 2 + 2 + 2 + 3) * sizeof(float);
+  } else if (shadow) {
+    vertexSize = (3 + 2 + 2 + 2) * sizeof(float);
+  } else {
+    vertexSize = (3 + 2 + 2 + 2 + 3 + 1) * sizeof(float);
+  }
 }
 
 SpriteShader::~SpriteShader() {
@@ -194,10 +266,37 @@ SpriteShader::~SpriteShader() {
 
 void SpriteShader::UseProgram(QOpenGLFunctions_3_2_Core* f) {
   program->UseProgram(f);
-  program->SetPositionAttribute(
-      3,
-      GetGLType<float>::value,
-      3 * sizeof(float),
-      0,
-      f);
+  
+  usize offset = 0;
+  
+  program->SetPositionAttribute(3, GetGLType<float>::value, vertexSize, offset, f);
+  offset += 3 * sizeof(float);
+  
+  f->glEnableVertexAttribArray(size_location);
+  f->glVertexAttribPointer(size_location, 2, GetGLType<float>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
+  offset += 2 * sizeof(float);
+  
+  f->glEnableVertexAttribArray(tex_topleft_location);
+  f->glVertexAttribPointer(tex_topleft_location, 2, GetGLType<float>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
+  offset += 2 * sizeof(float);
+  
+  f->glEnableVertexAttribArray(tex_bottomright_location);
+  f->glVertexAttribPointer(tex_bottomright_location, 2, GetGLType<float>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
+  offset += 2 * sizeof(float);
+  
+  if (outline) {
+    f->glEnableVertexAttribArray(playerColor_location);
+    f->glVertexAttribPointer(playerColor_location, 3, GetGLType<float>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
+    offset += 3 * sizeof(float);
+  } else if (!outline && !shadow) {
+    f->glEnableVertexAttribArray(modulationColor_location);
+    f->glVertexAttribPointer(modulationColor_location, 3, GetGLType<float>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
+    offset += 3 * sizeof(float);
+    
+    f->glEnableVertexAttribArray(playerIndex_location);
+    f->glVertexAttribPointer(playerIndex_location, 1, GetGLType<int>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
+    offset += 1 * sizeof(float);  // same as GL_INT size
+  }
+  
+  CHECK_OPENGL_NO_ERROR();
 }

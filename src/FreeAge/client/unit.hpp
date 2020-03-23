@@ -85,7 +85,7 @@ class ClientUnit : public ClientObject {
   
   void Render(
       Map* map,
-      QRgb outlineColor,
+      QRgb outlineOrModulationColor,
       SpriteShader* spriteShader,
       float* viewMatrix,
       float zoom,

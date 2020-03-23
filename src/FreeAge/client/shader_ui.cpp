@@ -92,7 +92,7 @@ void RenderUIGraphic(float x, float y, float width, float height, const Texture&
   
   float data[] = {1.f * x, 1.f * y, 0.f};
   int elementSizeInBytes = 3 * sizeof(float);
-  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_DYNAMIC_DRAW);
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_STREAM_DRAW);
   program->SetPositionAttribute(
       3,
       GetGLType<float>::value,
