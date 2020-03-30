@@ -1119,7 +1119,7 @@ bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode,
 
 void DrawSprite(
     const Sprite& sprite,
-    const Texture& texture,
+    Texture& texture,
     SpriteShader* spriteShader,
     const QPointF& centerProjectedCoord,
     float* viewMatrix,
@@ -1131,18 +1131,10 @@ void DrawSprite(
     bool outline,
     QRgb outlineOrModulationColor,
     int playerIndex,
-    float scaling,
-    QOpenGLFunctions_3_2_Core* f) {
+    float scaling) {
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameNumber).shadow : sprite.frame(frameNumber).graphic;
-  CHECK_OPENGL_NO_ERROR();
   
   bool isGraphic = !shadow && !outline;
-  
-  f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
-  if (!shadow) {
-    f->glUniform2f(spriteShader->GetTextureSizeLocation(), texture.GetWidth(), texture.GetHeight());
-  }
-  
   constexpr float kOffScreenDepthBufferExtent = 1000;
   // if (layer.rotated) {
   //   // TODO: Is this worth implementing? It will complicate the shader a little.
@@ -1171,10 +1163,6 @@ void DrawSprite(
     *reinterpret_cast<i32*>(data + 12) = playerIndex;
   }
   
-  int count = 1;
-  f->glBufferData(GL_ARRAY_BUFFER, count * spriteShader->GetVertexSize(), data, GL_STREAM_DRAW);
-  
-  f->glDrawArrays(GL_POINTS, 0, count);
-  
-  CHECK_OPENGL_NO_ERROR();
+  texture.DrawCallBuffer().resize(texture.DrawCallBuffer().size() + spriteShader->GetVertexSize());
+  memcpy(texture.DrawCallBuffer().data() + texture.DrawCallBuffer().size() - spriteShader->GetVertexSize(), data, spriteShader->GetVertexSize());
 }

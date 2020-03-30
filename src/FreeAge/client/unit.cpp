@@ -239,13 +239,11 @@ void ClientUnit::Render(
     int widgetHeight,
     double serverTime,
     bool shadow,
-    bool outline,
-    QOpenGLFunctions_3_2_Core* f) {
-  auto& unitTypes = ClientUnitType::GetUnitTypes();
-  const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
-  const SpriteAndTextures& animationSpriteAndTexture = *unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
+    bool outline) {
+  const ClientUnitType& unitType = GetClientUnitType();
+  SpriteAndTextures& animationSpriteAndTexture = *unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
+  Texture& texture = shadow ? animationSpriteAndTexture.shadowTexture : animationSpriteAndTexture.graphicTexture;
   const Sprite& sprite = animationSpriteAndTexture.sprite;
-  const Texture& texture = shadow ? animationSpriteAndTexture.shadowTexture : animationSpriteAndTexture.graphicTexture;
   
   QPointF centerProjectedCoord = GetCenterProjectedCoord(map);
   
@@ -289,8 +287,7 @@ void ClientUnit::Render(
       outline,
       outlineOrModulationColor,
       playerIndex,
-      1.f,
-      f);
+      1.f);
 }
 
 void ClientUnit::SetCurrentAnimation(UnitAnimation animation, double serverTime) {
@@ -315,6 +312,12 @@ void ClientUnit::SetCurrentAnimation(UnitAnimation animation, double serverTime)
   currentAnimation = animation;
   lastAnimationStartTime = serverTime;
   currentAnimationVariant = rand() % unitType.GetAnimations(currentAnimation).size();
+}
+
+Texture& ClientUnit::GetTexture(bool shadow) {
+  const ClientUnitType& unitType = GetClientUnitType();
+  SpriteAndTextures& animationSpriteAndTexture = *unitType.GetAnimations(currentAnimation)[currentAnimationVariant];
+  return shadow ? animationSpriteAndTexture.shadowTexture : animationSpriteAndTexture.graphicTexture;
 }
 
 void ClientUnit::UpdateGameState(double serverTime) {

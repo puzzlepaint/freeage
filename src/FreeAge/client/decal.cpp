@@ -62,10 +62,11 @@ QRectF Decal::GetRectInProjectedCoords(bool shadow, bool outline) {
       layer.imageHeight + (isGraphic ? -2 : 0));
 }
 
-void Decal::Render(QRgb outlineColor, SpriteShader* spriteShader, float* viewMatrix, float zoom, int widgetWidth, int widgetHeight, bool shadow, bool outline, QOpenGLFunctions_3_2_Core* f) {
+void Decal::Render(QRgb outlineColor, SpriteShader* spriteShader, float* viewMatrix, float zoom, int widgetWidth, int widgetHeight, bool shadow, bool outline, Texture** texture) {
+  *texture = shadow ? &currentSprite->shadowTexture : &currentSprite->graphicTexture;
   DrawSprite(
       currentSprite->sprite,
-      shadow ? currentSprite->shadowTexture : currentSprite->graphicTexture,
+      **texture,
       spriteShader,
       projectedCoord,
       viewMatrix,
@@ -77,8 +78,7 @@ void Decal::Render(QRgb outlineColor, SpriteShader* spriteShader, float* viewMat
       outline,
       outlineColor,
       playerIndex,
-      1.f,
-      f);
+      1.f);
 }
 
 int Decal::GetFPS() {

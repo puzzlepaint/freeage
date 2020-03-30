@@ -324,14 +324,13 @@ void ClientBuilding::Render(
     int widgetHeight,
     double elapsedSeconds,
     bool shadow,
-    bool outline,
-    QOpenGLFunctions_3_2_Core* f) {
+    bool outline) {
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
   
   BuildingSprite spriteType = (buildPercentage < 100) ? BuildingSprite::Foundation : BuildingSprite::Building;
   const auto& sprite = buildingType.GetSprites()[static_cast<int>(spriteType)];
-  const Texture& texture = (shadow ? sprite->shadowTexture : sprite->graphicTexture);
+  Texture& texture = (shadow ? sprite->shadowTexture : sprite->graphicTexture);
   
   int frameIndex = GetFrameIndex(elapsedSeconds);
   QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(GetCenterMapCoord());
@@ -346,7 +345,7 @@ void ClientBuilding::Render(
         shadow ? helperSprite1->shadowTexture : helperSprite1->graphicTexture,
         spriteShader, centerProjectedCoord,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        outlineOrModulationColor, playerIndex, 1.f, f);
+        outlineOrModulationColor, playerIndex, 1.f);
     
     // Back
     const ClientBuildingType& helperType2 = buildingTypes[static_cast<int>(BuildingType::TownCenterBack)];
@@ -356,7 +355,7 @@ void ClientBuilding::Render(
         shadow ? helperSprite2->shadowTexture : helperSprite2->graphicTexture,
         spriteShader, centerProjectedCoord,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        outlineOrModulationColor, playerIndex, 1.f, f);
+        outlineOrModulationColor, playerIndex, 1.f);
     
     // Center
     const ClientBuildingType& helperType3 = buildingTypes[static_cast<int>(BuildingType::TownCenterCenter)];
@@ -366,7 +365,7 @@ void ClientBuilding::Render(
         shadow ? helperSprite3->shadowTexture : helperSprite3->graphicTexture,
         spriteShader, centerProjectedCoord,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        outlineOrModulationColor, playerIndex, 1.f, f);
+        outlineOrModulationColor, playerIndex, 1.f);
   }
   
   bool useDarkModulation = spriteType == BuildingSprite::Foundation && buildPercentage == 0 && !shadow && !outline;
@@ -387,8 +386,7 @@ void ClientBuilding::Render(
       outline,
       outlineOrModulationColor,
       playerIndex,
-      1.f,
-      f);
+      1.f);
   
   if (type == BuildingType::TownCenter && spriteType == BuildingSprite::Building) {
     // Front
@@ -399,18 +397,21 @@ void ClientBuilding::Render(
         shadow ? helperSprite4->shadowTexture : helperSprite4->graphicTexture,
         spriteShader, centerProjectedCoord,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        outlineOrModulationColor, playerIndex, 1.f, f);
+        outlineOrModulationColor, playerIndex, 1.f);
   }
 }
 
 const Sprite& ClientBuilding::GetSprite() {
-  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
-  const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
-  
   BuildingSprite spriteType = (buildPercentage < 100) ? BuildingSprite::Foundation : BuildingSprite::Building;
-  const auto& sprite = buildingType.GetSprites()[static_cast<int>(spriteType)];
+  const auto& sprite = GetClientBuildingType(type).GetSprites()[static_cast<int>(spriteType)];
   
   return sprite->sprite;
+}
+
+Texture& ClientBuilding::GetTexture(bool shadow) {
+  BuildingSprite spriteType = (buildPercentage < 100) ? BuildingSprite::Foundation : BuildingSprite::Building;
+  const auto& sprite = GetClientBuildingType(type).GetSprites()[static_cast<int>(spriteType)];
+  return (shadow ? sprite->shadowTexture : sprite->graphicTexture);
 }
 
 int ClientBuilding::GetFrameIndex(double elapsedSeconds) {

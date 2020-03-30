@@ -629,10 +629,35 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
   CHECK_OPENGL_NO_ERROR();
 }
 
+void RenderWindow::RenderSprites(std::vector<Texture*>* textures, bool shadow, const std::shared_ptr<SpriteShader>& shader, QOpenGLFunctions_3_2_Core* f) {
+  for (Texture* texture : *textures) {
+    // Bind the texture
+    f->glBindTexture(GL_TEXTURE_2D, texture->GetId());
+    if (!shadow) {
+      f->glUniform2f(shader->GetTextureSizeLocation(), texture->GetWidth(), texture->GetHeight());
+    }
+    
+    // Issue the render call
+    int vertexSize = shader->GetVertexSize();
+    if (texture->DrawCallBuffer().size() % vertexSize != 0) {
+      LOG(ERROR) << "Unexpected vertex data size in draw call buffer: " << texture->DrawCallBuffer().size() << " % " << vertexSize << " = " << (texture->DrawCallBuffer().size() % vertexSize) << " != 0";
+    } else {
+      int count = texture->DrawCallBuffer().size() / vertexSize;
+      f->glBufferData(GL_ARRAY_BUFFER, count * shader->GetVertexSize(), texture->DrawCallBuffer().data(), GL_STREAM_DRAW);
+      f->glDrawArrays(GL_POINTS, 0, count);
+    }
+    
+    texture->DrawCallBuffer().clear();
+  }
+}
+
 void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
   shadowShader->UseProgram(f);
+  
+  std::vector<Texture*> textures;
+  textures.reserve(64);
   
   for (auto& object : map->GetObjects()) {
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
@@ -649,6 +674,11 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
           true,
           false);
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+        Texture* texture = &building.GetTexture(/*shadow*/ true);
+        if (texture->DrawCallBuffer().isEmpty()) {
+          textures.push_back(texture);
+        }
+        
         building.Render(
             map.get(),
             qRgb(255, 255, 255),
@@ -659,8 +689,7 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
             widgetHeight,
             displayedServerTime,
             true,
-            false,
-            f);
+            false);
       }
     } else {  // if (object.second->isUnit()) {
       ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
@@ -674,6 +703,11 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
           true,
           false);
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+        Texture* texture = &unit.GetTexture(/*shadow*/ true);
+        if (texture->DrawCallBuffer().isEmpty()) {
+          textures.push_back(texture);
+        }
+        
         unit.Render(
             map.get(),
             qRgb(255, 255, 255),
@@ -684,17 +718,20 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
             widgetHeight,
             displayedServerTime,
             true,
-            false,
-            f);
+            false);
       }
     }
   }
+  
+  RenderSprites(&textures, /*shadow*/ true, shadowShader, f);
 }
 
 void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsThatCauseOutlines, QOpenGLFunctions_3_2_Core* f) {
   spriteShader->UseProgram(f);
   
-  // TODO: Sort to minmize texture switches.
+  std::vector<Texture*> textures;
+  textures.reserve(64);
+  
   for (auto& object : map->GetObjects()) {
     if (!object.second->isBuilding()) {
       continue;
@@ -710,6 +747,11 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
         false,
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      Texture* texture = &building.GetTexture(/*shadow*/ false);
+      if (texture->DrawCallBuffer().isEmpty()) {
+        textures.push_back(texture);
+      }
+      
       // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
       building.Render(
           map.get(),
@@ -721,10 +763,11 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
           widgetHeight,
           displayedServerTime,
           false,
-          false,
-          f);
+          false);
     }
   }
+  
+  RenderSprites(&textures, /*shadow*/ false, spriteShader, f);
 }
 
 void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
@@ -753,8 +796,11 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLF
         widgetHeight,
         displayedServerTime,
         false,
-        false,
-        f);
+        false);
+    
+    std::vector<Texture*> textures(1);
+    textures[0] = &tempBuilding->GetTexture(/*shadow*/ false);
+    RenderSprites(&textures, /*shadow*/ false, spriteShader, f);
     
     delete tempBuilding;
   }
@@ -832,7 +878,9 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
   
   outlineShader->UseProgram(f);
   
-  // TODO: Sort to minmize texture switches.
+  std::vector<Texture*> textures;
+  textures.reserve(64);
+  
   for (auto& object : map->GetObjects()) {
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
@@ -863,6 +911,11 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
           false,
           true);
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+        Texture* texture = &building.GetTexture(/*shadow*/ false);
+        if (texture->DrawCallBuffer().isEmpty()) {
+          textures.push_back(texture);
+        }
+        
         building.Render(
             map.get(),
             outlineColor,
@@ -873,8 +926,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
             widgetHeight,
             displayedServerTime,
             false,
-            true,
-            f);
+            true);
       }
     } else {  // if (object.second->isUnit()) {
       ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
@@ -888,6 +940,11 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
           false,
           true);
       if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+        Texture* texture = &unit.GetTexture(/*shadow*/ false);
+        if (texture->DrawCallBuffer().isEmpty()) {
+          textures.push_back(texture);
+        }
+        
         unit.Render(
             map.get(),
             outlineColor,
@@ -898,17 +955,20 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
             widgetHeight,
             displayedServerTime,
             false,
-            true,
-            f);
+            true);
       }
     }
   }
+  
+  RenderSprites(&textures, /*shadow*/ false, outlineShader, f);
 }
 
 void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
   spriteShader->UseProgram(f);
   
-  // TODO: Sort to minmize texture switches.
+  std::vector<Texture*> textures;
+  textures.reserve(64);
+  
   for (auto& object : map->GetObjects()) {
     if (!object.second->isUnit()) {
       continue;
@@ -921,6 +981,11 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
         false,
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      Texture* texture = &unit.GetTexture(/*shadow*/ false);
+      if (texture->DrawCallBuffer().isEmpty()) {
+        textures.push_back(texture);
+      }
+      
       unit.Render(
           map.get(),
           qRgb(255, 255, 255),
@@ -931,10 +996,11 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
           widgetHeight,
           displayedServerTime,
           false,
-          false,
-          f);
+          false);
     }
   }
+  
+  RenderSprites(&textures, /*shadow*/ false, spriteShader, f);
 }
 
 void RenderWindow::RenderMoveToMarker(const TimePoint& now, QOpenGLFunctions_3_2_Core* f) {
@@ -968,8 +1034,11 @@ void RenderWindow::RenderMoveToMarker(const TimePoint& now, QOpenGLFunctions_3_2
         /*outline*/ false,
         qRgb(255, 255, 255),
         /*playerIndex*/ 0,
-        /*scaling*/ 0.5f,
-        f);
+        /*scaling*/ 0.5f);
+    
+    std::vector<Texture*> textures(1);
+    textures[0] = &moveToSprite->graphicTexture;
+    RenderSprites(&textures, /*shadow*/ false, spriteShader, f);
   }
 }
 
@@ -1058,12 +1127,15 @@ void RenderWindow::RenderOccludingDecals(QOpenGLFunctions_3_2_Core* f) {
 void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_2_Core* f) {
   spriteShader->UseProgram(f);
   
-  // TODO: Sort to minmize texture switches.
+  std::vector<Texture*> textures;
+  textures.reserve(64);
+  
   for (auto& decal : decals) {
     QRectF projectedCoordsRect = decal->GetRectInProjectedCoords(
         false,
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      Texture* texture;
       decal->Render(
           qRgb(255, 255, 255),
           spriteShader.get(),
@@ -1073,20 +1145,28 @@ void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_
           widgetHeight,
           false,
           false,
-          f);
+          &texture);
+      if (texture->DrawCallBuffer().size() == spriteShader->GetVertexSize()) {
+        textures.push_back(texture);
+      }
     }
   }
+  
+  RenderSprites(&textures, /*shadow*/ false, spriteShader, f);
 }
 
 void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
   shadowShader->UseProgram(f);
   
-  // TODO: Sort to minmize texture switches.
+  std::vector<Texture*> textures;
+  textures.reserve(64);
+  
   for (auto& decal : occludingDecals) {
     QRectF projectedCoordsRect = decal->GetRectInProjectedCoords(
         true,
         false);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      Texture* texture;
       decal->Render(
           qRgb(255, 255, 255),
           shadowShader.get(),
@@ -1096,15 +1176,22 @@ void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
           widgetHeight,
           true,
           false,
-          f);
+          &texture);
+      if (texture->DrawCallBuffer().size() == shadowShader->GetVertexSize()) {
+        textures.push_back(texture);
+      }
     }
   }
+  
+  RenderSprites(&textures, /*shadow*/ true, shadowShader, f);
 }
 
 void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
   outlineShader->UseProgram(f);
   
-  // TODO: Sort to minmize texture switches.
+  std::vector<Texture*> textures;
+  textures.reserve(64);
+  
   for (auto& decal : occludingDecals) {
     QRgb outlineColor = qRgb(255, 255, 255);
     if (decal->GetPlayerIndex() < playerColors.size()) {
@@ -1115,6 +1202,7 @@ void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
         false,
         true);
     if (projectedCoordsRect.intersects(projectedCoordsViewRect)) {
+      Texture* texture;
       decal->Render(
           outlineColor,
           outlineShader.get(),
@@ -1124,9 +1212,14 @@ void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
           widgetHeight,
           false,
           true,
-          f);
+          &texture);
+      if (texture->DrawCallBuffer().size() == spriteShader->GetVertexSize()) {
+        textures.push_back(texture);
+      }
     }
   }
+  
+  RenderSprites(&textures, /*shadow*/ false, spriteShader, f);
 }
 
 void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {

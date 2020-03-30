@@ -93,8 +93,7 @@ class ClientUnit : public ClientObject {
       int widgetHeight,
       double serverTime,
       bool shadow,
-      bool outline,
-      QOpenGLFunctions_3_2_Core* f);
+      bool outline);
   
   inline UnitType GetType() const { return type; }
   inline void SetType(UnitType newType) { type = newType; }
@@ -109,6 +108,8 @@ class ClientUnit : public ClientObject {
   
   inline UnitAnimation GetCurrentAnimation() const { return currentAnimation; }
   void SetCurrentAnimation(UnitAnimation animation, double serverTime);
+  
+  Texture& GetTexture(bool shadow);
   
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   inline int GetDirection() const { return direction; }

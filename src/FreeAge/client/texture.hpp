@@ -102,6 +102,8 @@ class Texture {
   inline bool RemoveReference() { -- referenceCount; return referenceCount == 0; }
   inline int GetReferenceCount() const { return referenceCount; }
   
+  inline QByteArray& DrawCallBuffer() { return drawCallBuffer; }
+  
  private:
   /// OpenGL texture Id.
   GLuint textureId = -1;
@@ -114,4 +116,7 @@ class Texture {
   
   /// Reference count (only to be used if the Texture is loaded via the TextureManager).
   int referenceCount = 0;
+  
+  /// Temporary helper buffer for accumulating vertex data to draw with this texture being active.
+  QByteArray drawCallBuffer;
 };

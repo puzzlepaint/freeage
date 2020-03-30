@@ -77,6 +77,7 @@ class RenderWindow : public QOpenGLWidget {
   /// The last vertex will be connected to the first. The vertex coordinates are in screen (pixel) coordinates.
   /// The given offset is applied to each vertex.
   void RenderClosedPath(float halfLineWidth, const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset, QOpenGLFunctions_3_2_Core* f);
+  void RenderSprites(std::vector<Texture*>* textures, bool shadow, const std::shared_ptr<SpriteShader>& shader, QOpenGLFunctions_3_2_Core* f);
   void RenderShadows(double displayedServerTime, QOpenGLFunctions_3_2_Core* f);
   void RenderBuildings(double displayedServerTime, bool buildingsThatCauseOutlines, QOpenGLFunctions_3_2_Core* f);
   void RenderBuildingFoundation(double displayedServerTime, QOpenGLFunctions_3_2_Core* f);

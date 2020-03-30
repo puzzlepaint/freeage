@@ -98,6 +98,7 @@ class ClientBuilding : public ClientObject {
   /// Returns the current sprite for this building. This can differ (e.g., it could be the foundation or main sprite).
   const Sprite& GetSprite();
   
+  Texture& GetTexture(bool shadow);
   int GetFrameIndex(double elapsedSeconds);
   
   void Render(
@@ -110,8 +111,7 @@ class ClientBuilding : public ClientObject {
       int widgetHeight,
       double elapsedSeconds,
       bool shadow,
-      bool outline,
-      QOpenGLFunctions_3_2_Core* f);
+      bool outline);
   
   inline void SetFixedFrameIndex(int index) { fixedFrameIndex = index; }
   

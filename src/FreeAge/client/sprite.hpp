@@ -123,7 +123,7 @@ bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode,
 
 void DrawSprite(
     const Sprite& sprite,
-    const Texture& texture,
+    Texture& texture,
     SpriteShader* spriteShader,
     const QPointF& centerProjectedCoord,
     float* viewMatrix,
@@ -135,8 +135,7 @@ void DrawSprite(
     bool outline,
     QRgb outlineOrModulationColor,
     int playerIndex,
-    float scaling,
-    QOpenGLFunctions_3_2_Core* f);
+    float scaling);
 
 
 // Note: SMX / SMP parsing implemented according to:
