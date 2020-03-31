@@ -2059,6 +2059,13 @@ void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
       qRgba(255, 255, 255, 255), loadingIcon.pointBuffer,
       *loadingIcon.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
+
+  // Set the alpha to 255 everywhere to prevent parts of the window from being
+  // transparent on window managers which use that in their compositing (e.g., on Windows).
+  f->glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
+  f->glClearColor(0, 0, 0, 1.f);
+  f->glClear(GL_COLOR_BUFFER_BIT);
+  f->glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 }
 
 void RenderWindow::UpdateGameState(double displayedServerTime) {
@@ -2731,6 +2738,13 @@ void RenderWindow::paintGL() {
   CHECK_OPENGL_NO_ERROR();
   
   uiTimer.Stop();
+
+  // Set the alpha to 255 everywhere to prevent parts of the window from being
+  // transparent on window managers which use that in their compositing (e.g., on Windows).
+  f->glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
+  f->glClearColor(0, 0, 0, 1.f);
+  f->glClear(GL_COLOR_BUFFER_BIT);
+  f->glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
   
   syncObject = f->glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
   haveSyncObject = true;
