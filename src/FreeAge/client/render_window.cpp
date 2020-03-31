@@ -2467,6 +2467,7 @@ void RenderWindow::paintGL() {
   ++ renderStatisticsCounter;
   if (renderStatisticsCounter % (3 * 120) == 0) {
     Timing::print(std::cout, kSortByTotal);
+    // Timing::reset();
   }
   
   // Wait for the previous frame to finish rendering.

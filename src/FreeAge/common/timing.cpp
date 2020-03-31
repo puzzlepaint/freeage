@@ -257,6 +257,13 @@ double Timing::getHz(std::string const& tag) {
   return getHz(getHandle(tag));
 }
 
+void Timing::reset() {
+  std::unique_lock<std::mutex> lock(m_mutex);
+  instance().m_timers.clear();
+  instance().m_tagMap.clear();
+  instance().m_maxTagLength = 0;
+}
+
 void Timing::reset(usize handle) {
   std::unique_lock<std::mutex> lock(m_mutex);
   CHECK_LT(handle, instance().m_timers.size()) << "Handle is out of range: " << handle << ", number of timers: " << instance().m_timers.size();

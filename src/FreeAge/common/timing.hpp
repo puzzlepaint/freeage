@@ -132,6 +132,7 @@ class Timing {
   static double getHz(const std::string& tag);
   static void print(std::ostream& out);
   static void print(std::ostream& out, const SortType sort);
+  static void reset();
   static void reset(usize handle);
   static void reset(const std::string& tag);
   static std::string print();
@@ -154,9 +155,6 @@ class Timing {
   // Static members
   list_t m_timers;
   map_t m_tagMap;
-#ifdef SM_USE_HIGH_PERF_TIMER
-  double m_clockPeriod;
-#endif
   usize m_maxTagLength;
     
   static std::mutex m_mutex;
