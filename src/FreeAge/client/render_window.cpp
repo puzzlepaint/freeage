@@ -110,12 +110,17 @@ RenderWindow::RenderWindow(
 RenderWindow::~RenderWindow() {
   // Destroy OpenGL resources here, after makeCurrent() and before doneCurrent().
   makeCurrent();
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   // Initialize command buttons.
   for (int row = 0; row < kCommandButtonRows; ++ row) {
     for (int col = 0; col < kCommandButtonCols; ++ col) {
       commandButtons[row][col].UnloadPointBuffers();
     }
+  }
+  
+  for (auto& item : bufferObjects) {
+    f->glDeleteBuffers(1, &item.name);
   }
   
   loadingIcon.Unload();
@@ -621,6 +626,26 @@ void RenderWindow::CreatePlayerColorPaletteTexture() {
   }
 }
 
+usize RenderWindow::PrepareBufferObject(usize size, QOpenGLFunctions_3_2_Core* f) {
+  CHECK_LE(nextBufferObject, bufferObjects.size());
+  if (nextBufferObject == bufferObjects.size()) {
+    bufferObjects.emplace_back();
+    
+    bufferObjects[nextBufferObject].size = 0;
+    f->glGenBuffers(1, &bufferObjects[nextBufferObject].name);
+  }
+  
+  f->glBindBuffer(GL_ARRAY_BUFFER, bufferObjects[nextBufferObject].name);
+  
+  if (bufferObjects[nextBufferObject].size < size) {
+    f->glBufferData(GL_ARRAY_BUFFER, size, nullptr, GL_STREAM_DRAW);
+    bufferObjects[nextBufferObject].size = size;
+  }
+  
+  ++ nextBufferObject;
+  return nextBufferObject - 1;
+}
+
 void RenderWindow::ComputePixelToOpenGLMatrix(QOpenGLFunctions_3_2_Core* f) {
   float pixelToOpenGLMatrix[4];
   pixelToOpenGLMatrix[0] = 2.f / widgetWidth;
@@ -700,10 +725,6 @@ void RenderWindow::UpdateView(const TimePoint& now, QOpenGLFunctions_3_2_Core* f
 void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset, QOpenGLFunctions_3_2_Core* f) {
   CHECK_OPENGL_NO_ERROR();
   
-  // Set shader.
-  uiSingleColorShader->GetProgram()->UseProgram(f);
-  f->glUniform4f(uiSingleColorShader->GetColorLocation(), qRed(color) / 255.f, qGreen(color) / 255.f, qBlue(color) / 255.f, qAlpha(color) / 255.f);
-  
   // Repeat the first 2 vertices to close the path and get information
   // on the bend direction at the end.
   int numVertices = 2 * (vertices.size() + 1);
@@ -745,7 +766,16 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
     vertexData[6 * i + 4] = vertices[thisVertex].y() + prevToCurRight.y() - bendDirection * length * prevToCur.y() + offset.y();
     vertexData[6 * i + 5] = 0;
   }
-  f->glBufferData(GL_ARRAY_BUFFER, numVertices * elementSizeInBytes, vertexData.data(), GL_STREAM_DRAW);
+  usize bufferSize = numVertices * elementSizeInBytes;
+  PrepareBufferObject(bufferSize, f);
+  
+  // Set shader (must be done after PrepareBufferObject() to set up the vertex attributes for the correct buffer).
+  uiSingleColorShader->GetProgram()->UseProgram(f);
+  f->glUniform4f(uiSingleColorShader->GetColorLocation(), qRed(color) / 255.f, qGreen(color) / 255.f, qBlue(color) / 255.f, qAlpha(color) / 255.f);
+  
+  void* data = f->glMapBufferRange(GL_ARRAY_BUFFER, 0, bufferSize, GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+  memcpy(data, vertexData.data(), bufferSize);
+  f->glUnmapBuffer(GL_ARRAY_BUFFER);
   CHECK_OPENGL_NO_ERROR();
   uiSingleColorShader->GetProgram()->SetPositionAttribute(
       3,
@@ -757,6 +787,8 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
   // Draw lines.
   f->glDrawArrays(GL_TRIANGLE_STRIP, 0, numVertices);
   CHECK_OPENGL_NO_ERROR();
+  
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);  // TODO: remove this
 }
 
 void RenderWindow::RenderSprites(std::vector<Texture*>* textures, bool shadow, const std::shared_ptr<SpriteShader>& shader, QOpenGLFunctions_3_2_Core* f) {
@@ -772,13 +804,21 @@ void RenderWindow::RenderSprites(std::vector<Texture*>* textures, bool shadow, c
     if (texture->DrawCallBuffer().size() % vertexSize != 0) {
       LOG(ERROR) << "Unexpected vertex data size in draw call buffer: " << texture->DrawCallBuffer().size() << " % " << vertexSize << " = " << (texture->DrawCallBuffer().size() % vertexSize) << " != 0";
     } else {
-      int count = texture->DrawCallBuffer().size() / vertexSize;
-      f->glBufferData(GL_ARRAY_BUFFER, count * shader->GetVertexSize(), texture->DrawCallBuffer().data(), GL_STREAM_DRAW);
-      f->glDrawArrays(GL_POINTS, 0, count);
+      usize bufferSize = texture->DrawCallBuffer().size();
+      PrepareBufferObject(bufferSize, f);
+      shader->UseProgram(f);  // TODO: We only need to set up the vertex attributes again after changing the GL_ARRAY_BUFFER buffer; we would not need to "use" the program again
+      
+      void* data = f->glMapBufferRange(GL_ARRAY_BUFFER, 0, bufferSize, GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+      memcpy(data, texture->DrawCallBuffer().data(), bufferSize);
+      f->glUnmapBuffer(GL_ARRAY_BUFFER);
+      
+      f->glDrawArrays(GL_POINTS, 0, bufferSize / vertexSize);
     }
     
     texture->DrawCallBuffer().clear();
   }
+  
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);  // TODO: remove this
 }
 
 void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
@@ -2651,6 +2691,8 @@ void RenderWindow::paintGL() {
   
   syncObject = f->glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
   haveSyncObject = true;
+  
+  nextBufferObject = 0;
 }
 
 void RenderWindow::resizeGL(int width, int height) {

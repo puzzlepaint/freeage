@@ -100,6 +100,7 @@ class RenderWindow : public QOpenGLWidget {
   };
   
   void CreatePlayerColorPaletteTexture();
+  usize PrepareBufferObject(usize size, QOpenGLFunctions_3_2_Core* f);
   
   void ComputePixelToOpenGLMatrix(QOpenGLFunctions_3_2_Core* f);
   void UpdateView(const TimePoint& now, QOpenGLFunctions_3_2_Core* f);
@@ -345,6 +346,14 @@ class RenderWindow : public QOpenGLWidget {
   GLsync syncObject;
   
   GLuint pointBuffer;
+  
+  // Generic list of vertex buffer objects
+  struct BufferObject {
+    usize size;
+    GLuint name;
+  };
+  std::vector<BufferObject> bufferObjects;
+  usize nextBufferObject = 0;
   
   std::shared_ptr<Texture> playerColorsTexture;
   int playerColorsTextureWidth;
