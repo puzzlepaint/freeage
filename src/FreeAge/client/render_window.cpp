@@ -2323,7 +2323,8 @@ void RenderWindow::JumpToNextTownCenter() {
   std::vector<std::pair<u32, ClientBuilding*>> townCenters;
   
   for (const auto& item : map->GetObjects()) {
-    if (item.second->isBuilding()) {
+    if (item.second->GetPlayerIndex() == match->GetPlayerIndex() &&
+        item.second->isBuilding()) {
       ClientBuilding* building = static_cast<ClientBuilding*>(item.second);
       if (building->GetType() == BuildingType::TownCenter) {
         townCenters.push_back(std::make_pair(item.first, building));
