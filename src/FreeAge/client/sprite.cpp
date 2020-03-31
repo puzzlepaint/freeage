@@ -1135,34 +1135,38 @@ void DrawSprite(
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameNumber).shadow : sprite.frame(frameNumber).graphic;
   
   bool isGraphic = !shadow && !outline;
-  constexpr float kOffScreenDepthBufferExtent = 1000;
+  int positiveOffset = isGraphic ? 1 : 0;
+  int negativeOffset = isGraphic ? -1 : 0;
+  
   // if (layer.rotated) {
   //   // TODO: Is this worth implementing? It will complicate the shader a little.
   // }
-  float data[13] = {
-      // in_position
-      static_cast<float>(centerProjectedCoord.x() + scaling * (-layer.centerX + (isGraphic ? 1 : 0))),
-      static_cast<float>(centerProjectedCoord.y() + scaling * (-layer.centerY + (isGraphic ? 1 : 0))),
-      static_cast<float>(1.f - 2.f * (kOffScreenDepthBufferExtent + viewMatrix[0] * centerProjectedCoord.y() + viewMatrix[2]) / (2.f * kOffScreenDepthBufferExtent + widgetHeight)),
-      // in_size
-      scaling * zoom * 2.f * (layer.imageWidth + (isGraphic ? -2: 0)) / static_cast<float>(widgetWidth),
-      scaling * zoom * 2.f * (layer.imageHeight + (isGraphic ? -2: 0)) / static_cast<float>(widgetHeight),
-      // in_tex_topleft
-      (layer.atlasX + (isGraphic ? 1 : 0)) / (1.f * texture.GetWidth()),
-      (layer.atlasY + (isGraphic ? 1 : 0)) / (1.f * texture.GetHeight()),
-      // in_tex_bottomright
-      (layer.atlasX + layer.imageWidth + (isGraphic ? -1 : 0)) / (1.f * texture.GetWidth()),
-      (layer.atlasY + layer.imageHeight + (isGraphic ? -1 : 0)) / (1.f * texture.GetHeight()),
-      // outline: in_playerColor; !outline && !shadow: in_modulationColor; shadow: unused
-      qRed(outlineOrModulationColor) / 255.f,
-      qGreen(outlineOrModulationColor) / 255.f,
-      qBlue(outlineOrModulationColor) / 255.f,
-      0  // !outline && !shadow: i32 playerIndex, set below since it is an integer
-      };
-  if (!shadow && !outline) {
-    *reinterpret_cast<i32*>(data + 12) = playerIndex;
-  }
   
   texture.DrawCallBuffer().resize(texture.DrawCallBuffer().size() + spriteShader->GetVertexSize());
-  memcpy(texture.DrawCallBuffer().data() + texture.DrawCallBuffer().size() - spriteShader->GetVertexSize(), data, spriteShader->GetVertexSize());
+  float* data = reinterpret_cast<float*>(texture.DrawCallBuffer().data() + texture.DrawCallBuffer().size() - spriteShader->GetVertexSize());
+  
+  // in_position
+  constexpr float kOffScreenDepthBufferExtent = 1000;
+  data[0] = static_cast<float>(centerProjectedCoord.x() + scaling * (-layer.centerX + positiveOffset));
+  data[1] = static_cast<float>(centerProjectedCoord.y() + scaling * (-layer.centerY + positiveOffset));
+  data[2] = static_cast<float>(1.f - 2.f * (kOffScreenDepthBufferExtent + viewMatrix[0] * centerProjectedCoord.y() + viewMatrix[2]) / (2.f * kOffScreenDepthBufferExtent + widgetHeight));
+  // in_size
+  data[3] = scaling * zoom * 2.f * (layer.imageWidth + 2 * negativeOffset) / static_cast<float>(widgetWidth);
+  data[4] = scaling * zoom * 2.f * (layer.imageHeight + 2 * negativeOffset) / static_cast<float>(widgetHeight);
+  // in_tex_topleft
+  data[5] = (layer.atlasX + positiveOffset) / (1.f * texture.GetWidth());
+  data[6] = (layer.atlasY + positiveOffset) / (1.f * texture.GetHeight());
+  // in_tex_bottomright
+  data[7] = (layer.atlasX + layer.imageWidth + negativeOffset) / (1.f * texture.GetWidth());
+  data[8] = (layer.atlasY + layer.imageHeight + negativeOffset) / (1.f * texture.GetHeight());
+  // outline: in_playerColor; !outline && !shadow: in_modulationColor; shadow: unused
+  if (!shadow) {
+    u8* colorData = reinterpret_cast<u8*>(data + 9);
+    *colorData++ = qRed(outlineOrModulationColor);
+    *colorData++ = qGreen(outlineOrModulationColor);
+    *colorData++ = qBlue(outlineOrModulationColor);
+  }
+  if (!shadow && !outline) {
+    *reinterpret_cast<i32*>(data + 10) = playerIndex;
+  }
 }

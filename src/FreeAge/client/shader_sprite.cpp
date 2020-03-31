@@ -252,11 +252,11 @@ SpriteShader::SpriteShader(bool shadow, bool outline)
   CHECK_GE(tex_bottomright_location, 0);
   
   if (outline) {
-    vertexSize = (3 + 2 + 2 + 2 + 3) * sizeof(float);
+    vertexSize = (3 + 2 + 2 + 2 + 1) * sizeof(float);
   } else if (shadow) {
     vertexSize = (3 + 2 + 2 + 2) * sizeof(float);
   } else {
-    vertexSize = (3 + 2 + 2 + 2 + 3 + 1) * sizeof(float);
+    vertexSize = (3 + 2 + 2 + 2 + 1 + 1) * sizeof(float);
   }
 }
 
@@ -286,12 +286,12 @@ void SpriteShader::UseProgram(QOpenGLFunctions_3_2_Core* f) {
   
   if (outline) {
     f->glEnableVertexAttribArray(playerColor_location);
-    f->glVertexAttribPointer(playerColor_location, 3, GetGLType<float>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
-    offset += 3 * sizeof(float);
+    f->glVertexAttribPointer(playerColor_location, 4, GetGLType<u8>::value, GL_TRUE, vertexSize, reinterpret_cast<void*>(offset));
+    offset += 4;
   } else if (!outline && !shadow) {
     f->glEnableVertexAttribArray(modulationColor_location);
-    f->glVertexAttribPointer(modulationColor_location, 3, GetGLType<float>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
-    offset += 3 * sizeof(float);
+    f->glVertexAttribPointer(modulationColor_location, 4, GetGLType<u8>::value, GL_TRUE, vertexSize, reinterpret_cast<void*>(offset));
+    offset += 4;
     
     f->glEnableVertexAttribArray(playerIndex_location);
     f->glVertexAttribPointer(playerIndex_location, 1, GetGLType<int>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));

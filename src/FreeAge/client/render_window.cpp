@@ -899,6 +899,8 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
 void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsThatCauseOutlines, QOpenGLFunctions_3_2_Core* f) {
   spriteShader->UseProgram(f);
   
+  Timer preparationTimer("RenderBuildings() preparation");
+  
   std::vector<Texture*> textures;
   textures.reserve(64);
   
@@ -937,7 +939,12 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
     }
   }
   
+  preparationTimer.Stop();
+  Timer drawCallTimer("RenderBuildings() drawing");
+  
   RenderSprites(&textures, /*shadow*/ false, spriteShader, f);
+  
+  drawCallTimer.Stop();
 }
 
 void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
@@ -2495,7 +2502,6 @@ void RenderWindow::paintGL() {
       // Avoid possible jumps directly after the game start
       lastScrollGetTime = Clock::now();
     } else {
-      Timer renderTimer("paintGL() for loading screen");
       RenderLoadingScreen(f);
       return;
     }
@@ -2519,7 +2525,9 @@ void RenderWindow::paintGL() {
   }
   
   // Render game.
-  Timer renderTimer("paintGL() for game");
+  Timer renderTimer("paintGL()");
+  
+  Timer gameStateUpdateTimer("paintGL() - game state update");
   
   // Get the time for which to render the game state.
   // TODO: Predict the time at which the rendered frame will be displayed rather than taking the current time.
@@ -2569,6 +2577,9 @@ void RenderWindow::paintGL() {
     ShowDefaultCommandButtonsForSelection();
   }
   
+  gameStateUpdateTimer.Stop();
+  Timer initialStatesAndClearTimer("paintGL() - initial state setting & clear");
+  
   // Update scrolling and compute the view transformation.
   UpdateView(now, f);
   CHECK_OPENGL_NO_ERROR();
@@ -2585,6 +2596,9 @@ void RenderWindow::paintGL() {
   f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   CHECK_OPENGL_NO_ERROR();
   
+  initialStatesAndClearTimer.Stop();
+  Timer shadowTimer("paintGL() - shadow rendering");
+  
   // Render the shadows.
   f->glEnable(GL_BLEND);
   f->glDisable(GL_DEPTH_TEST);
@@ -2597,6 +2611,9 @@ void RenderWindow::paintGL() {
   RenderOccludingDecalShadows(f);
   CHECK_OPENGL_NO_ERROR();
   
+  shadowTimer.Stop();
+  Timer mapTimer("paintGL() - map rendering");
+  
   // Render the map terrain.
   f->glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);  // blend with the shadows
   
@@ -2604,10 +2621,15 @@ void RenderWindow::paintGL() {
   map->Render(viewMatrix, graphicsPath, f);
   // Reset pointBuffer as the default array buffer after rendering the map
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+  mapTimer.Stop();
+  Timer groundDecalTimer("paintGL() - ground decal rendering");
   RenderGroundDecals(f);
   CHECK_OPENGL_NO_ERROR();
   
   f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // reset the blend func to standard
+  
+  groundDecalTimer.Stop();
+  Timer selectionOutlinesTimer("paintGL() - selection outlines rendering");
   
   // Render selection outlines below buildings.
   CHECK_OPENGL_NO_ERROR();
@@ -2617,6 +2639,9 @@ void RenderWindow::paintGL() {
   // Enable the depth buffer for sprite rendering.
   f->glEnable(GL_DEPTH_TEST);
   f->glDepthFunc(GL_LEQUAL);
+  
+  selectionOutlinesTimer.Stop();
+  Timer buildingsCausingOutlinesTimer("paintGL() - buildings that cause outlines rendering");
   
   // Render buildings that cause outlines.
   CHECK_OPENGL_NO_ERROR();
@@ -2630,6 +2655,9 @@ void RenderWindow::paintGL() {
     CHECK_OPENGL_NO_ERROR();
   }
   
+  buildingsCausingOutlinesTimer.Stop();
+  Timer outlinesTimer("paintGL() - outlines rendering");
+  
   // Render outlines.
   // Disable depth writing.
   f->glDepthMask(GL_FALSE);
@@ -2641,6 +2669,9 @@ void RenderWindow::paintGL() {
   RenderOutlines(displayedServerTime, f);
   RenderOccludingDecalOutlines(f);
   CHECK_OPENGL_NO_ERROR();
+  
+  outlinesTimer.Stop();
+  Timer objectsNotCausingOutlinesTimer("paintGL() - objects not causing outlines rendering");
   
   // Render units and buildings that do not cause outlines.
   f->glDepthMask(GL_TRUE);
@@ -2659,6 +2690,9 @@ void RenderWindow::paintGL() {
   RenderMoveToMarker(now, f);
   CHECK_OPENGL_NO_ERROR();
   
+  objectsNotCausingOutlinesTimer.Stop();
+  Timer healthBarsTimer("paintGL() - health bars rendering");
+  
   // Render health bars.
   f->glClear(GL_DEPTH_BUFFER_BIT);
   f->glDisable(GL_BLEND);
@@ -2666,6 +2700,9 @@ void RenderWindow::paintGL() {
   CHECK_OPENGL_NO_ERROR();
   RenderHealthBars(displayedServerTime, f);
   CHECK_OPENGL_NO_ERROR();
+  
+  healthBarsTimer.Stop();
+  Timer selectionBoxTimer("paintGL() - selection box rendering");
   
   // Render selection box.
   if (dragging) {
@@ -2680,6 +2717,9 @@ void RenderWindow::paintGL() {
     RenderClosedPath(1.1f, qRgba(255, 255, 255, 255), vertices, QPointF(0, 0), f);
   }
   
+  selectionBoxTimer.Stop();
+  Timer uiTimer("paintGL() - UI rendering");
+  
   // Render game UI.
   f->glEnable(GL_BLEND);
   
@@ -2688,6 +2728,8 @@ void RenderWindow::paintGL() {
   CHECK_OPENGL_NO_ERROR();
   RenderGameUI(displayedServerTime, f);
   CHECK_OPENGL_NO_ERROR();
+  
+  uiTimer.Stop();
   
   syncObject = f->glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
   haveSyncObject = true;

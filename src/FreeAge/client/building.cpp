@@ -297,11 +297,8 @@ QRectF ClientBuilding::GetRectInProjectedCoords(
     double elapsedSeconds,
     bool shadow,
     bool outline) {
-  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
-  const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
-  
   BuildingSprite spriteType = (buildPercentage < 100) ? BuildingSprite::Foundation : BuildingSprite::Building;
-  const Sprite& sprite = buildingType.GetSprites()[static_cast<int>(spriteType)]->sprite;
+  const Sprite& sprite = GetClientBuildingType(type).GetSprites()[static_cast<int>(spriteType)]->sprite;
   QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(GetCenterMapCoord());
   int frameIndex = GetFrameIndex(elapsedSeconds);
   
@@ -325,8 +322,7 @@ void ClientBuilding::Render(
     double elapsedSeconds,
     bool shadow,
     bool outline) {
-  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
-  const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(type)];
+  const ClientBuildingType& buildingType = GetClientBuildingType(type);
   
   BuildingSprite spriteType = (buildPercentage < 100) ? BuildingSprite::Foundation : BuildingSprite::Building;
   const auto& sprite = buildingType.GetSprites()[static_cast<int>(spriteType)];
@@ -338,7 +334,7 @@ void ClientBuilding::Render(
   if (type == BuildingType::TownCenter && spriteType == BuildingSprite::Building) {
     // Special case for town centers: Render all of their separate parts.
     // Main
-    const ClientBuildingType& helperType1 = buildingTypes[static_cast<int>(BuildingType::TownCenterMain)];
+    const ClientBuildingType& helperType1 = GetClientBuildingType(BuildingType::TownCenterMain);
     const auto& helperSprite1 = helperType1.GetSprites()[static_cast<int>(BuildingSprite::Building)];
     DrawSprite(
         helperSprite1->sprite,
@@ -348,7 +344,7 @@ void ClientBuilding::Render(
         outlineOrModulationColor, playerIndex, 1.f);
     
     // Back
-    const ClientBuildingType& helperType2 = buildingTypes[static_cast<int>(BuildingType::TownCenterBack)];
+    const ClientBuildingType& helperType2 = GetClientBuildingType(BuildingType::TownCenterBack);
     const auto& helperSprite2 = helperType2.GetSprites()[static_cast<int>(BuildingSprite::Building)];
     DrawSprite(
         helperSprite2->sprite,
@@ -358,7 +354,7 @@ void ClientBuilding::Render(
         outlineOrModulationColor, playerIndex, 1.f);
     
     // Center
-    const ClientBuildingType& helperType3 = buildingTypes[static_cast<int>(BuildingType::TownCenterCenter)];
+    const ClientBuildingType& helperType3 = GetClientBuildingType(BuildingType::TownCenterCenter);
     const auto& helperSprite3 = helperType3.GetSprites()[static_cast<int>(BuildingSprite::Building)];
     DrawSprite(
         helperSprite3->sprite,
@@ -390,7 +386,7 @@ void ClientBuilding::Render(
   
   if (type == BuildingType::TownCenter && spriteType == BuildingSprite::Building) {
     // Front
-    const ClientBuildingType& helperType4 = buildingTypes[static_cast<int>(BuildingType::TownCenterFront)];
+    const ClientBuildingType& helperType4 = GetClientBuildingType(BuildingType::TownCenterFront);
     const auto& helperSprite4 = helperType4.GetSprites()[static_cast<int>(BuildingSprite::Building)];
     DrawSprite(
         helperSprite4->sprite,
