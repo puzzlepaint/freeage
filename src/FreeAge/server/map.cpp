@@ -111,7 +111,7 @@ void ServerMap::GenerateRandomMap(int playerCount, int seed) {
   constexpr int kForestMinDistanceFromTCs = 10;  // TODO: Make configurable
   constexpr float kForestMinDistanceFromOtherForests = 10;
   const int kNumForests = 11 * (width * height) / (50.f * 50.f) + 0.5f;  // TODO: Make configurable
-  QPointF forestCenters[kNumForests];
+  std::vector<QPointF> forestCenters(kNumForests);
   for (int forest = 0; forest < kNumForests; ++ forest) {
     int tileX;
     int tileY;

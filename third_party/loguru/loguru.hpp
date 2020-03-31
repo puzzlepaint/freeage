@@ -102,10 +102,10 @@ Website: www.ilikebigbits.com
 
 // ----------------------------------------------------------------------------
 
-#ifdef LOGURU_EXPORTS
+#if defined(LOGURU_EXPORTS)
 	// Define to your project's export declaration if needed for use in a shared library.
 	#define LOGURU_EXPORT __declspec(dllexport)
-#else
+#elif !defined(LOGURU_EXPORT)
   #define LOGURU_EXPORT
 #endif
 
@@ -1083,7 +1083,7 @@ namespace loguru
 	class LOGURU_EXPORT StreamLogger
 	{
 	public:
-		StreamLogger(Verbosity verbosity, const char* file, unsigned line) : _verbosity(verbosity), _file(file), _line(line) {}
+		inline StreamLogger(Verbosity verbosity, const char* file, unsigned line) : _verbosity(verbosity), _file(file), _line(line) {}
 		~StreamLogger() noexcept(false);
 
 		template<typename T>
