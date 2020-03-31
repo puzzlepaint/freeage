@@ -1385,13 +1385,13 @@ void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
           false,
           true,
           &texture);
-      if (texture->DrawCallBuffer().size() == spriteShader->GetVertexSize()) {
+      if (texture->DrawCallBuffer().size() == outlineShader->GetVertexSize()) {
         textures.push_back(texture);
       }
     }
   }
   
-  RenderSprites(&textures, /*shadow*/ false, spriteShader, f);
+  RenderSprites(&textures, /*shadow*/ false, outlineShader, f);
 }
 
 void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
@@ -2620,13 +2620,12 @@ void RenderWindow::paintGL() {
   
   // Render the map terrain.
   f->glBlendFuncSeparate(
-      GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA,  // blend with the shadows
+      GL_ONE_MINUS_DST_ALPHA, GL_ZERO,  // blend with the shadows
       GL_ZERO, GL_ONE);  // keep the existing alpha (such that more objects can be rendered while applying the shadows)
+  f->glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);  // reset to default
   
   CHECK_OPENGL_NO_ERROR();
   map->Render(viewMatrix, graphicsPath, f);
-  // Reset pointBuffer as the default array buffer after rendering the map
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   mapTimer.Stop();
   Timer groundDecalTimer("paintGL() - ground decal rendering");
   RenderGroundDecals(f);
