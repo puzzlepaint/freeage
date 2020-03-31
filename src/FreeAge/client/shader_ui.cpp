@@ -54,9 +54,10 @@ UIShader::UIShader() {
       "in vec2 texcoord;\n"
       "\n"
       "uniform sampler2D u_texture;\n"
+      "uniform vec4 u_modulationColor;\n"
       "\n"
       "void main() {\n"
-      "  out_color = texture(u_texture, texcoord.xy);\n"
+      "  out_color = u_modulationColor * texture(u_texture, texcoord.xy);\n"
       "}\n",
       ShaderProgram::ShaderType::kFragmentShader, f));
   
@@ -69,6 +70,7 @@ UIShader::UIShader() {
   size_location = program->GetUniformLocationOrAbort("u_size", f);
   tex_topleft_location = program->GetUniformLocationOrAbort("u_tex_topleft", f);
   tex_bottomright_location = program->GetUniformLocationOrAbort("u_tex_bottomright", f);
+  modulationColor_location = program->GetUniformLocationOrAbort("u_modulationColor", f);
 }
 
 UIShader::~UIShader() {
@@ -76,7 +78,7 @@ UIShader::~UIShader() {
 }
 
 
-void RenderUIGraphic(float x, float y, float width, float height, GLuint pointBuffer, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f) {
+void RenderUIGraphic(float x, float y, float width, float height, QRgb modulationColor, GLuint pointBuffer, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f) {
   ShaderProgram* program = uiShader->GetProgram();
   program->UseProgram(f);
   f->glUniform1i(uiShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
@@ -89,6 +91,8 @@ void RenderUIGraphic(float x, float y, float width, float height, GLuint pointBu
       uiShader->GetSizeLocation(),
       2.f * width / static_cast<float>(widgetWidth),
       2.f * height / static_cast<float>(widgetHeight));
+  
+  f->glUniform4f(uiShader->GetModulationColorLocation(), qRed(modulationColor) / 255.f, qGreen(modulationColor) / 255.f, qBlue(modulationColor) / 255.f, qAlpha(modulationColor) / 255.f);
   
   int elementSizeInBytes = 3 * sizeof(float);
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);

@@ -20,6 +20,7 @@ class UIShader {
   inline GLint GetSizeLocation() const { return size_location; }
   inline GLint GetTexTopLeftLocation() const { return tex_topleft_location; }
   inline GLint GetTexBottomRightLocation() const { return tex_bottomright_location; }
+  inline GLint GetModulationColorLocation() const { return modulationColor_location; }
   
  private:
   std::shared_ptr<ShaderProgram> program;
@@ -29,7 +30,8 @@ class UIShader {
   GLint size_location;
   GLint tex_topleft_location;
   GLint tex_bottomright_location;
+  GLint modulationColor_location;
 };
 
 /// Simple helper function to render a UI element.
-void RenderUIGraphic(float x, float y, float width, float height, GLuint pointBuffer, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f);
+void RenderUIGraphic(float x, float y, float width, float height, QRgb modulationColor, GLuint pointBuffer, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f);

@@ -16,11 +16,9 @@ TextDisplay::~TextDisplay() {
 
 void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& text, const QRect& rect, int alignmentFlags, GLuint bufferObject, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f) {
   if (font != this->font ||
-      color != this->color ||
       text != this->text ||
       alignmentFlags != this->alignmentFlags) {
     this->font = font;
-    this->color = color;
     this->text = text;
     this->alignmentFlags = alignmentFlags;
     
@@ -40,6 +38,8 @@ void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& te
       uiShader->GetSizeLocation(),
       2.f * textureWidth / static_cast<float>(widgetWidth),
       2.f * textureHeight / static_cast<float>(widgetHeight));
+  
+  f->glUniform4f(uiShader->GetModulationColorLocation(), qRed(color) / 255.f, qGreen(color) / 255.f, qBlue(color) / 255.f, qAlpha(color) / 255.f);
   
   float leftX;
   if (alignmentFlags & Qt::AlignLeft) {
@@ -106,7 +106,7 @@ void TextDisplay::UpdateTexture(QOpenGLFunctions_3_2_Core* f) {
   QImage textImage(textureWidth, textureHeight, QImage::Format_RGBA8888);
   textImage.fill(qRgba(0, 0, 0, 0));
   QPainter painter(&textImage);
-  painter.setPen(color);
+  painter.setPen(qRgba(255, 255, 255, 255));
   painter.setFont(font);
   painter.fontMetrics();
   painter.drawText(textImage.rect(), alignmentFlags, text);

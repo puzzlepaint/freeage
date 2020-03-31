@@ -28,7 +28,6 @@ class TextDisplay {
   
   QString text;
   QFont font;
-  QRgb color;
   int alignmentFlags = -1;
   
   bool textureInitialized = false;

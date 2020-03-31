@@ -142,7 +142,9 @@ RenderWindow::~RenderWindow() {
   currentAgeTextDisplay.Destroy();
   
   gameTimeDisplay.Destroy();
+  gameTimeDisplayShadowPointBuffer.Destroy();
   fpsAndPingDisplay.Destroy();
+  fpsAndPingDisplayShadowPointBuffer.Destroy();
   
   commandPanel.Unload();
   buildEconomyBuildings.Unload();
@@ -263,7 +265,9 @@ void RenderWindow::LoadResources() {
   popTextDisplay.Initialize();
   currentAgeTextDisplay.Initialize();
   gameTimeDisplay.Initialize();
+  gameTimeDisplayShadowPointBuffer.Initialize();
   fpsAndPingDisplay.Initialize();
+  fpsAndPingDisplayShadowPointBuffer.Initialize();
   singleObjectNameDisplay.Initialize();
   hpDisplay.Initialize();
   carriedResourcesDisplay.Initialize();
@@ -1423,7 +1427,7 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
             0,
             0),
       Qt::AlignTop | Qt::AlignLeft,
-      gameTimeDisplay.pointBuffer,
+      (i == 0) ? gameTimeDisplayShadowPointBuffer.buffer : gameTimeDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   }
   
@@ -1447,7 +1451,7 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
             0,
             0),
       Qt::AlignTop | Qt::AlignLeft,
-      fpsAndPingDisplay.pointBuffer,
+      (i == 0) ? fpsAndPingDisplayShadowPointBuffer.buffer : fpsAndPingDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   }
 }
@@ -1466,7 +1470,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y(),
       uiScale * resourcePanel.texture->GetWidth(),
       uiScale * resourcePanel.texture->GetHeight(),
-      resourcePanel.pointBuffer,
+      qRgba(255, 255, 255, 255), resourcePanel.pointBuffer,
       *resourcePanel.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
@@ -1475,7 +1479,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
-      resourceWood.pointBuffer,
+      qRgba(255, 255, 255, 255), resourceWood.pointBuffer,
       *resourceWood.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   woodTextDisplay.textDisplay->Render(
@@ -1495,7 +1499,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
-      resourceFood.pointBuffer,
+      qRgba(255, 255, 255, 255), resourceFood.pointBuffer,
       *resourceFood.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   foodTextDisplay.textDisplay->Render(
@@ -1515,7 +1519,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
-      resourceGold.pointBuffer,
+      qRgba(255, 255, 255, 255), resourceGold.pointBuffer,
       *resourceGold.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   goldTextDisplay.textDisplay->Render(
@@ -1535,7 +1539,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
-      resourceStone.pointBuffer,
+      qRgba(255, 255, 255, 255), resourceStone.pointBuffer,
       *resourceStone.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   stoneTextDisplay.textDisplay->Render(
@@ -1555,7 +1559,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
-      pop.pointBuffer,
+      qRgba(255, 255, 255, 255), pop.pointBuffer,
       *pop.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   popTextDisplay.textDisplay->Render(
@@ -1575,7 +1579,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y() + uiScale * 24,
       uiScale * 2 * 34,
       uiScale * 2 * 34,
-      idleVillagerDisabled.pointBuffer,
+      qRgba(255, 255, 255, 255), idleVillagerDisabled.pointBuffer,
       *idleVillagerDisabled.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   RenderUIGraphic(
@@ -1583,7 +1587,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y() + uiScale * 0,
       uiScale * currentAgeShield.texture->GetWidth(),
       uiScale * currentAgeShield.texture->GetHeight(),
-      currentAgeShield.pointBuffer,
+      qRgba(255, 255, 255, 255), currentAgeShield.pointBuffer,
       *currentAgeShield.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   float currentAgeTextLeft = topLeft.x() + uiScale * (17 + 4 * 200 + 234 + 154 + currentAgeShield.texture->GetWidth() / 2);
@@ -1614,7 +1618,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y(),
       uiScale * selectionPanel.texture->GetWidth(),
       uiScale * selectionPanel.texture->GetHeight(),
-      selectionPanel.pointBuffer,
+      qRgba(255, 255, 255, 255), selectionPanel.pointBuffer,
       *selectionPanel.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
@@ -1690,7 +1694,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
           topLeft.y() + uiScale * 50 + uiScale * 2*46 + iconInset,
           uiScale * 2*60 - 2 * iconInset,
           uiScale * 2*60 - 2 * iconInset,
-          selectionPanelIconPointBuffer.buffer,
+          qRgba(255, 255, 255, 255), selectionPanelIconPointBuffer.buffer,
           *iconTexture,
           uiShader.get(), widgetWidth, widgetHeight, f);
       RenderUIGraphic(
@@ -1698,7 +1702,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
           topLeft.y() + uiScale * 50 + uiScale * 2*46,
           uiScale * 2*60,
           uiScale * 2*60,
-          selectionPanelIconOverlayPointBuffer.buffer,
+          qRgba(255, 255, 255, 255), selectionPanelIconOverlayPointBuffer.buffer,
           *iconOverlayNormalTexture,
           uiShader.get(), widgetWidth, widgetHeight, f);
     }
@@ -1719,7 +1723,7 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y(),
       uiScale * commandPanel.texture->GetWidth(),
       uiScale * commandPanel.texture->GetHeight(),
-      commandPanel.pointBuffer,
+      qRgba(255, 255, 255, 255), commandPanel.pointBuffer,
       *commandPanel.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
@@ -2061,7 +2065,7 @@ void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
       loadingText.textDisplay->GetBounds().y() - loadingIcon.texture->GetHeight(),
       loadingIcon.texture->GetWidth(),
       loadingIcon.texture->GetHeight(),
-      loadingIcon.pointBuffer,
+      qRgba(255, 255, 255, 255), loadingIcon.pointBuffer,
       *loadingIcon.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
 }

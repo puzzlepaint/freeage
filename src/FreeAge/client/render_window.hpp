@@ -308,7 +308,9 @@ class RenderWindow : public QOpenGLWidget {
   TextDisplayAndPointBuffer currentAgeTextDisplay;
   
   TextDisplayAndPointBuffer gameTimeDisplay;
+  PointBuffer gameTimeDisplayShadowPointBuffer;
   TextDisplayAndPointBuffer fpsAndPingDisplay;
+  PointBuffer fpsAndPingDisplayShadowPointBuffer;
   
   TextureAndPointBuffer commandPanel;
   OpaquenessMap commandPanelOpaquenessMap;

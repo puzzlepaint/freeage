@@ -73,7 +73,7 @@ void CommandButton::Render(
         y + iconInset,
         size - 2 * iconInset,
         size - 2 * iconInset,
-        iconPointBuffer,
+        qRgba(255, 255, 255, 255), iconPointBuffer,
         *texture,
         uiShader, widgetWidth, widgetHeight, f);
     RenderUIGraphic(
@@ -81,7 +81,7 @@ void CommandButton::Render(
         y,
         size,
         size,
-        overlayPointBuffer,
+        qRgba(255, 255, 255, 255), overlayPointBuffer,
         iconOverlayNormalTexture,
         uiShader, widgetWidth, widgetHeight, f);
   }
