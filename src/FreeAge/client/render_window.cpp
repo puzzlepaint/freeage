@@ -53,8 +53,8 @@ RenderWindow::RenderWindow(
       const Palettes& palettes,
       const std::filesystem::path& graphicsPath,
       const std::filesystem::path& cachePath,
-      QWidget* parent)
-    : QOpenGLWidget(parent),
+      QWindow* parent)
+    : QOpenGLWindow(QOpenGLWindow::NoPartialUpdate, parent),
       uiScale(uiScale),
       match(match),
       gameController(gameController),
@@ -63,8 +63,8 @@ RenderWindow::RenderWindow(
       palettes(palettes),
       graphicsPath(graphicsPath),
       cachePath(cachePath) {
-  setWindowIcon(QIcon(":/free_age/free_age.png"));
-  setWindowTitle(tr("FreeAge"));
+  setIcon(QIcon(":/free_age/free_age.png"));
+  setTitle(tr("FreeAge"));
   
   georgiaFontLarger = georgiaFont;
   georgiaFontLarger.setPixelSize(uiScale * 2*17);
@@ -73,16 +73,7 @@ RenderWindow::RenderWindow(
   georgiaFontSmaller = georgiaFont;
   georgiaFontSmaller.setPixelSize(uiScale * 2*15);
   
-  setAttribute(Qt::WA_OpaquePaintEvent);
-  setAutoFillBackground(false);
-  
   connect(this, &RenderWindow::LoadingProgressUpdated, this, &RenderWindow::SendLoadingProgress, Qt::QueuedConnection);
-  
-  // Receive mouse move events even if no mouse button is pressed
-  setMouseTracking(true);
-  
-  // This may be faster than keeping partial updates possible
-  setUpdateBehavior(QOpenGLWidget::NoPartialUpdate);
   
   // Set the default cursor
   defaultCursor = QCursor(QPixmap::fromImage(QImage((
@@ -2620,7 +2611,9 @@ void RenderWindow::paintGL() {
   Timer mapTimer("paintGL() - map rendering");
   
   // Render the map terrain.
-  f->glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);  // blend with the shadows
+  f->glBlendFuncSeparate(
+      GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA,  // blend with the shadows
+      GL_ZERO, GL_ONE);  // keep the existing alpha (such that more objects can be rendered while applying the shadows)
   
   CHECK_OPENGL_NO_ERROR();
   map->Render(viewMatrix, graphicsPath, f);
@@ -2631,7 +2624,9 @@ void RenderWindow::paintGL() {
   RenderGroundDecals(f);
   CHECK_OPENGL_NO_ERROR();
   
-  f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // reset the blend func to standard
+  f->glBlendFuncSeparate(
+      GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
+      GL_ONE, GL_ZERO);  // reset the blend func to standard
   
   groundDecalTimer.Stop();
   Timer selectionOutlinesTimer("paintGL() - selection outlines rendering");

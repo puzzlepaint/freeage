@@ -4,7 +4,7 @@
 #include <memory>
 
 #include <QOffscreenSurface>
-#include <QOpenGLWidget>
+#include <QOpenGLWindow>
 
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/client/command_button.hpp"
@@ -25,7 +25,7 @@
 class GameController;
 class LoadingThread;
 
-class RenderWindow : public QOpenGLWidget {
+class RenderWindow : public QOpenGLWindow {
  Q_OBJECT
  public:
   RenderWindow(
@@ -37,7 +37,7 @@ class RenderWindow : public QOpenGLWidget {
       const Palettes& palettes,
       const std::filesystem::path& graphicsPath,
       const std::filesystem::path& cachePath,
-      QWidget* parent = nullptr);
+      QWindow* parent = nullptr);
   ~RenderWindow();
   
   /// Called from the loading thread to load the game resources in the background.

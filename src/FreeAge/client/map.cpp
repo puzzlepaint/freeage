@@ -239,14 +239,14 @@ void Map::Render(float* viewMatrix, const std::filesystem::path& graphicsPath, Q
   terrainProgram->SetUniformMatrix2fv(terrainShader->GetViewMatrixLocation(), viewMatrix, true, f);
   
   f->glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+  f->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+  
   terrainProgram->SetPositionAttribute(
       2,
       GetGLType<float>::value,
       5 * sizeof(float),
       0,
       f);
-  
-  f->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
   terrainProgram->SetTexCoordAttribute(
       3,
       GetGLType<float>::value,
