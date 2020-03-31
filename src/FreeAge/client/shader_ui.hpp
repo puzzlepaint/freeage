@@ -32,4 +32,4 @@ class UIShader {
 };
 
 /// Simple helper function to render a UI element.
-void RenderUIGraphic(float x, float y, float width, float height, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f);
+void RenderUIGraphic(float x, float y, float width, float height, GLuint pointBuffer, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f);

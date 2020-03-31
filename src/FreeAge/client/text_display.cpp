@@ -14,7 +14,7 @@ TextDisplay::~TextDisplay() {
   }
 }
 
-void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& text, const QRect& rect, int alignmentFlags, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f) {
+void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& text, const QRect& rect, int alignmentFlags, GLuint bufferObject, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f) {
   if (font != this->font ||
       color != this->color ||
       text != this->text ||
@@ -67,9 +67,14 @@ void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& te
   
   bounds = QRect(leftX, topY, textureWidth, textureHeight);
   
-  float data[] = {leftX, topY, 0.f};
   int elementSizeInBytes = 3 * sizeof(float);
-  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_STREAM_DRAW);
+  f->glBindBuffer(GL_ARRAY_BUFFER, bufferObject);
+  float* data = static_cast<float*>(f->glMapBufferRange(GL_ARRAY_BUFFER, 0, elementSizeInBytes, GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT));
+  data[0] = leftX;
+  data[1] = topY;
+  data[2] = 0.f;
+  f->glUnmapBuffer(GL_ARRAY_BUFFER);
+  
   program->SetPositionAttribute(
       3,
       GetGLType<float>::value,

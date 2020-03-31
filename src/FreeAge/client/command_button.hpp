@@ -27,6 +27,9 @@ class CommandButton {
     Quit
   };
   
+  void InitializePointBuffers();
+  void UnloadPointBuffers();
+  
   /// Hides this button.
   void SetInvisible();
   
@@ -57,6 +60,9 @@ class CommandButton {
   inline BuildingType GetBuildingConstructionType() const { return buildingConstructionType; }
   inline UnitType GetUnitProductionType() const { return unitProductionType; }
   
+  inline GLuint GetIconPointBuffer() const { return iconPointBuffer; }
+  inline GLuint GetOverlayPointBuffer() const { return overlayPointBuffer; }
+  
  private:
   Type type = Type::Invisible;
   Qt::Key hotkey;
@@ -66,4 +72,7 @@ class CommandButton {
   UnitType unitProductionType;
   const Texture* texture = nullptr;
   QRectF buttonRect;
+  
+  GLuint iconPointBuffer;
+  GLuint overlayPointBuffer;
 };

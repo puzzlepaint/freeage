@@ -76,7 +76,7 @@ UIShader::~UIShader() {
 }
 
 
-void RenderUIGraphic(float x, float y, float width, float height, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f) {
+void RenderUIGraphic(float x, float y, float width, float height, GLuint pointBuffer, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f) {
   ShaderProgram* program = uiShader->GetProgram();
   program->UseProgram(f);
   f->glUniform1i(uiShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
@@ -90,9 +90,14 @@ void RenderUIGraphic(float x, float y, float width, float height, const Texture&
       2.f * width / static_cast<float>(widgetWidth),
       2.f * height / static_cast<float>(widgetHeight));
   
-  float data[] = {1.f * x, 1.f * y, 0.f};
   int elementSizeInBytes = 3 * sizeof(float);
-  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_STREAM_DRAW);
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+  float* data = static_cast<float*>(f->glMapBufferRange(GL_ARRAY_BUFFER, 0, elementSizeInBytes, GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT));
+  data[0] = x;
+  data[1] = y;
+  data[2] = 0.f;
+  f->glUnmapBuffer(GL_ARRAY_BUFFER);
+  
   program->SetPositionAttribute(
       3,
       GetGLType<float>::value,

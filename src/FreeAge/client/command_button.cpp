@@ -3,6 +3,26 @@
 #include "FreeAge/client/game_controller.hpp"
 #include "FreeAge/client/unit.hpp"
 
+void CommandButton::InitializePointBuffers() {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
+  int elementSizeInBytes = 3 * sizeof(float);
+  
+  f->glGenBuffers(1, &iconPointBuffer);
+  f->glBindBuffer(GL_ARRAY_BUFFER, iconPointBuffer);
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, nullptr, GL_STREAM_DRAW);
+  
+  f->glGenBuffers(1, &overlayPointBuffer);
+  f->glBindBuffer(GL_ARRAY_BUFFER, overlayPointBuffer);
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, nullptr, GL_STREAM_DRAW);
+}
+
+void CommandButton::UnloadPointBuffers() {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  f->glDeleteBuffers(1, &iconPointBuffer);
+  f->glDeleteBuffers(1, &overlayPointBuffer);
+}
+
 void CommandButton::SetInvisible() {
   type = Type::Invisible;
   this->hotkey = Qt::Key_unknown;
@@ -53,6 +73,7 @@ void CommandButton::Render(
         y + iconInset,
         size - 2 * iconInset,
         size - 2 * iconInset,
+        iconPointBuffer,
         *texture,
         uiShader, widgetWidth, widgetHeight, f);
     RenderUIGraphic(
@@ -60,6 +81,7 @@ void CommandButton::Render(
         y,
         size,
         size,
+        overlayPointBuffer,
         iconOverlayNormalTexture,
         uiShader, widgetWidth, widgetHeight, f);
   }

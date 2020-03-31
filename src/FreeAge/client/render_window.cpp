@@ -111,37 +111,46 @@ RenderWindow::~RenderWindow() {
   // Destroy OpenGL resources here, after makeCurrent() and before doneCurrent().
   makeCurrent();
   
-  loadingIcon.reset();
-  loadingTextDisplay.reset();
+  // Initialize command buttons.
+  for (int row = 0; row < kCommandButtonRows; ++ row) {
+    for (int col = 0; col < kCommandButtonCols; ++ col) {
+      commandButtons[row][col].UnloadPointBuffers();
+    }
+  }
   
-  resourcePanelTexture.reset();
-  resourceWoodTexture.reset();
-  woodTextDisplay.reset();
-  resourceFoodTexture.reset();
-  foodTextDisplay.reset();
-  resourceGoldTexture.reset();
-  goldTextDisplay.reset();
-  resourceStoneTexture.reset();
-  stoneTextDisplay.reset();
-  popTexture.reset();
-  popTextDisplay.reset();
-  idleVillagerDisabledTexture.reset();
-  currentAgeShieldTexture.reset();
-  currentAgeTextDisplay.reset();
+  loadingIcon.Unload();
+  loadingText.Destroy();
   
-  gameTimeDisplay.reset();
-  fpsAndPingDisplay.reset();
+  resourcePanel.Unload();
+  resourceWood.Unload();
+  woodTextDisplay.Destroy();
+  resourceFood.Unload();
+  foodTextDisplay.Destroy();
+  resourceGold.Unload();
+  goldTextDisplay.Destroy();
+  resourceStone.Unload();
+  stoneTextDisplay.Destroy();
+  pop.Unload();
+  popTextDisplay.Destroy();
+  idleVillagerDisabled.Unload();
+  currentAgeShield.Unload();
+  currentAgeTextDisplay.Destroy();
   
-  commandPanelTexture.reset();
-  buildEconomyBuildingsTexture.reset();
-  buildMilitaryBuildingsTexture.reset();
-  toggleBuildingsCategoryTexture.reset();
-  quitTexture.reset();
+  gameTimeDisplay.Destroy();
+  fpsAndPingDisplay.Destroy();
   
-  selectionPanelTexture.reset();
-  singleObjectNameDisplay.reset();
-  hpDisplay.reset();
-  carriedResourcesDisplay.reset();
+  commandPanel.Unload();
+  buildEconomyBuildings.Unload();
+  buildMilitaryBuildings.Unload();
+  toggleBuildingsCategory.Unload();
+  quit.Unload();
+  
+  selectionPanel.Unload();
+  singleObjectNameDisplay.Destroy();
+  hpDisplay.Destroy();
+  carriedResourcesDisplay.Destroy();
+  selectionPanelIconPointBuffer.Destroy();
+  selectionPanelIconOverlayPointBuffer.Destroy();
   
   iconOverlayNormalTexture.reset();
   iconOverlayNormalExpensiveTexture.reset();
@@ -234,6 +243,26 @@ void RenderWindow::LoadResources() {
   f->glActiveTexture(GL_TEXTURE0);
   didLoadingStep();
   
+  // Initialize command buttons.
+  for (int row = 0; row < kCommandButtonRows; ++ row) {
+    for (int col = 0; col < kCommandButtonCols; ++ col) {
+      commandButtons[row][col].InitializePointBuffers();
+    }
+  }
+  
+  // Initialize text displays.
+  woodTextDisplay.Initialize();
+  foodTextDisplay.Initialize();
+  goldTextDisplay.Initialize();
+  stoneTextDisplay.Initialize();
+  popTextDisplay.Initialize();
+  currentAgeTextDisplay.Initialize();
+  gameTimeDisplay.Initialize();
+  fpsAndPingDisplay.Initialize();
+  singleObjectNameDisplay.Initialize();
+  hpDisplay.Initialize();
+  carriedResourcesDisplay.Initialize();
+  
   // Load unit resources.
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   unitTypes.resize(static_cast<int>(UnitType::NumUnits));
@@ -292,67 +321,56 @@ void RenderWindow::LoadResources() {
   // With QImage loading replaced by mango loading:
   //   0.286818,  0.285423
   
-  resourcePanelTexture.reset(new Texture());
-  QImage resourcePanelImage((architecturePanelsPath / "resource-panel.png").string().c_str());
-  resourcePanelTexture->Load(resourcePanelImage, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  QImage resourcePanelImage;
+  resourcePanel.Load(architecturePanelsPath / "resource-panel.png", &resourcePanelImage);
   resourcePanelOpaquenessMap.Create(resourcePanelImage);
   didLoadingStep();
   
-  resourceWoodTexture.reset(new Texture());
-  resourceWoodTexture->Load(QImage((ingameIconsPath / "resource_wood.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  resourceWood.Load(ingameIconsPath / "resource_wood.png");
   didLoadingStep();
   
-  resourceFoodTexture.reset(new Texture());
-  resourceFoodTexture->Load(QImage((ingameIconsPath / "resource_food.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  resourceFood.Load(ingameIconsPath / "resource_food.png");
   didLoadingStep();
   
-  resourceGoldTexture.reset(new Texture());
-  resourceGoldTexture->Load(QImage((ingameIconsPath / "resource_gold.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  resourceGold.Load(ingameIconsPath / "resource_gold.png");
   didLoadingStep();
   
-  resourceStoneTexture.reset(new Texture());
-  resourceStoneTexture->Load(QImage((ingameIconsPath / "resource_stone.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  resourceStone.Load(ingameIconsPath / "resource_stone.png");
   didLoadingStep();
   
-  popTexture.reset(new Texture());
-  popTexture->Load(QImage((ingameIconsPath / "pop.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  pop.Load(ingameIconsPath / "pop.png");
   didLoadingStep();
   
-  idleVillagerDisabledTexture.reset(new Texture());
-  idleVillagerDisabledTexture->Load(QImage((ingameIconsPath / "idle-villager_disabled.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  idleVillagerDisabled.Load(ingameIconsPath / "idle-villager_disabled.png");
   didLoadingStep();
   
-  currentAgeShieldTexture.reset(new Texture());
-  currentAgeShieldTexture->Load(QImage((architecturePanelsPath / ("shield_dark_age_" + architectureNameLower + "_normal.png")).string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  currentAgeShield.Load(architecturePanelsPath / ("shield_dark_age_" + architectureNameLower + "_normal.png"));
   didLoadingStep();
   
-  commandPanelTexture.reset(new Texture());
-  QImage commandPanelImage((architecturePanelsPath / "command-panel_extended.png").string().c_str());
-  commandPanelTexture->Load(commandPanelImage, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  QImage commandPanelImage;
+  commandPanel.Load(architecturePanelsPath / "command-panel_extended.png", &commandPanelImage);
   commandPanelOpaquenessMap.Create(commandPanelImage);
   didLoadingStep();
   
-  buildEconomyBuildingsTexture.reset(new Texture());
-  buildEconomyBuildingsTexture->Load(ingameActionsPath / "030_.png", GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  buildEconomyBuildings.Load(ingameActionsPath / "030_.png", nullptr, TextureManager::Loader::Mango);
   didLoadingStep();
   
-  buildMilitaryBuildingsTexture.reset(new Texture());
-  buildMilitaryBuildingsTexture->Load(ingameActionsPath / "031_.png", GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  buildMilitaryBuildings.Load(ingameActionsPath / "031_.png", nullptr, TextureManager::Loader::Mango);
   didLoadingStep();
   
-  toggleBuildingsCategoryTexture.reset(new Texture());
-  toggleBuildingsCategoryTexture->Load(ingameActionsPath / "032_.png", GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  toggleBuildingsCategory.Load(ingameActionsPath / "032_.png", nullptr, TextureManager::Loader::Mango);
   didLoadingStep();
   
-  quitTexture.reset(new Texture());
-  quitTexture->Load(ingameActionsPath / "000_.png", GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  quit.Load(ingameActionsPath / "000_.png", nullptr, TextureManager::Loader::Mango);
   didLoadingStep();
   
-  selectionPanelTexture.reset(new Texture());
-  QImage selectionPanelImage((architecturePanelsPath / "single-selection-panel.png").string().c_str());
-  selectionPanelTexture->Load(selectionPanelImage, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  QImage selectionPanelImage;
+  selectionPanel.Load(architecturePanelsPath / "single-selection-panel.png", &selectionPanelImage);
   selectionPanelOpaquenessMap.Create(selectionPanelImage);
   didLoadingStep();
+  
+  selectionPanelIconPointBuffer.Initialize();
+  selectionPanelIconOverlayPointBuffer.Initialize();
   
   iconOverlayNormalTexture.reset(new Texture());
   iconOverlayNormalTexture->Load(QImage((ingameIconsPath / "icon_overlay_normal.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
@@ -446,6 +464,118 @@ void RenderWindow::LoadingFinished() {
   connection->Write(CreateLoadingFinishedMessage());
   
   LOG(INFO) << "DEBUG: Loading finished.";
+}
+
+RenderWindow::TextureAndPointBuffer::~TextureAndPointBuffer() {
+  if (texture != nullptr) {
+    LOG(ERROR) << "TextureAndPointBuffer object was destroyed without Unload() being called first.";
+  }
+}
+
+bool RenderWindow::TextureAndPointBuffer::Load(const std::filesystem::path& path, QImage* qimage, TextureManager::Loader loader) {
+  if (texture != nullptr) {
+    LOG(ERROR) << "Load() called on already initialized TextureAndPointBuffer";
+    return false;
+  }
+  
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
+  // Load the texture.
+  texture.reset(new Texture());
+  if (loader == TextureManager::Loader::QImage) {
+    QImage image(path.string().c_str());
+    if (image.isNull()) {
+      return false;
+    }
+    if (qimage) {
+      *qimage = image;
+    }
+    texture->Load(image, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  } else {
+    CHECK(qimage == nullptr);
+    texture->Load(path, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  }
+  
+  // Initialize the point buffer.
+  f->glGenBuffers(1, &pointBuffer);
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+  int elementSizeInBytes = 3 * sizeof(float);
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, nullptr, GL_STREAM_DRAW);
+  
+  return true;
+}
+
+void RenderWindow::TextureAndPointBuffer::Unload() {
+  if (texture) {
+    QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+    
+    f->glDeleteBuffers(1, &pointBuffer);
+    texture.reset();
+  }
+}
+
+RenderWindow::PointBuffer::~PointBuffer() {
+  if (initialized) {
+    LOG(ERROR) << "PointBuffer object was destroyed without Destroy() being called first.";
+  }
+}
+
+RenderWindow::TextDisplayAndPointBuffer::~TextDisplayAndPointBuffer() {
+  if (textDisplay) {
+    LOG(ERROR) << "TextDisplayAndPointBuffer object was destroyed without Destroy() being called first.";
+  }
+}
+
+void RenderWindow::TextDisplayAndPointBuffer::Initialize() {
+  if (textDisplay) {
+    LOG(ERROR) << "Initialize() called on already initialized TextDisplayAndPointBuffer";
+    return;
+  }
+  
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
+  f->glGenBuffers(1, &pointBuffer);
+  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
+  int elementSizeInBytes = 3 * sizeof(float);
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, nullptr, GL_STREAM_DRAW);
+  
+  textDisplay.reset(new TextDisplay());
+}
+
+void RenderWindow::TextDisplayAndPointBuffer::Destroy() {
+  if (textDisplay) {
+    QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+    
+    f->glDeleteBuffers(1, &pointBuffer);
+    
+    textDisplay.reset();
+  }
+}
+
+void RenderWindow::PointBuffer::Initialize() {
+  if (initialized) {
+    LOG(ERROR) << "Initialize() called on already initialized PointBuffer";
+    return;
+  }
+  
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
+  f->glGenBuffers(1, &buffer);
+  f->glBindBuffer(GL_ARRAY_BUFFER, buffer);
+  int elementSizeInBytes = 3 * sizeof(float);
+  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, nullptr, GL_STREAM_DRAW);
+  
+  initialized = true;
+}
+
+void RenderWindow::PointBuffer::Destroy() {
+  if (initialized) {
+    QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+    
+    f->glDeleteBuffers(1, &buffer);
+    
+    initialized = false;
+  }
 }
 
 void RenderWindow::CreatePlayerColorPaletteTexture() {
@@ -1236,11 +1366,8 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
   int hours = std::floor(timeSinceGameStart / (60.0 * 60.0));
   QString timeString = QObject::tr("%1:%2:%3").arg(hours, 2, 10, QChar('0')).arg(minutes, 2, 10, QChar('0')).arg(seconds, 2, 10, QChar('0'));
   
-  if (!gameTimeDisplay) {
-    gameTimeDisplay.reset(new TextDisplay());
-  }
   for (int i = 0; i < 2; ++ i) {
-    gameTimeDisplay->Render(
+    gameTimeDisplay.textDisplay->Render(
       georgiaFontSmaller,
       (i == 0) ? qRgba(0, 0, 0, 255) : qRgba(255, 255, 255, 255),
       timeString,
@@ -1249,6 +1376,7 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
             0,
             0),
       Qt::AlignTop | Qt::AlignLeft,
+      gameTimeDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   }
   
@@ -1262,11 +1390,8 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
     fpsAndPingString = QObject::tr("%1 ms").arg(static_cast<int>(1000 * filteredPing + 0.5f));
   }
   
-  if (!fpsAndPingDisplay) {
-    fpsAndPingDisplay.reset(new TextDisplay());
-  }
   for (int i = 0; i < 2; ++ i) {
-    fpsAndPingDisplay->Render(
+    fpsAndPingDisplay.textDisplay->Render(
       georgiaFontSmaller,
       (i == 0) ? qRgba(0, 0, 0, 255) : qRgba(255, 255, 255, 255),
       fpsAndPingString,
@@ -1275,6 +1400,7 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
             0,
             0),
       Qt::AlignTop | Qt::AlignLeft,
+      fpsAndPingDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   }
 }
@@ -1291,9 +1417,10 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
   RenderUIGraphic(
       topLeft.x(),
       topLeft.y(),
-      uiScale * resourcePanelTexture->GetWidth(),
-      uiScale * resourcePanelTexture->GetHeight(),
-      *resourcePanelTexture,
+      uiScale * resourcePanel.texture->GetWidth(),
+      uiScale * resourcePanel.texture->GetHeight(),
+      resourcePanel.pointBuffer,
+      *resourcePanel.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(
@@ -1301,12 +1428,10 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
-      *resourceWoodTexture,
+      resourceWood.pointBuffer,
+      *resourceWood.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
-  if (!woodTextDisplay) {
-    woodTextDisplay.reset(new TextDisplay());
-  }
-  woodTextDisplay->Render(
+  woodTextDisplay.textDisplay->Render(
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       QString::number(resources.wood()),
@@ -1315,6 +1440,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
+      woodTextDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(
@@ -1322,12 +1448,10 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
-      *resourceFoodTexture,
+      resourceFood.pointBuffer,
+      *resourceFood.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
-  if (!foodTextDisplay) {
-    foodTextDisplay.reset(new TextDisplay());
-  }
-  foodTextDisplay->Render(
+  foodTextDisplay.textDisplay->Render(
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       QString::number(resources.food()),
@@ -1336,6 +1460,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
+      foodTextDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(
@@ -1343,12 +1468,10 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
-      *resourceGoldTexture,
+      resourceGold.pointBuffer,
+      *resourceGold.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
-  if (!goldTextDisplay) {
-    goldTextDisplay.reset(new TextDisplay());
-  }
-  goldTextDisplay->Render(
+  goldTextDisplay.textDisplay->Render(
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       QString::number(resources.gold()),
@@ -1357,6 +1480,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
+      goldTextDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(
@@ -1364,12 +1488,10 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
-      *resourceStoneTexture,
+      resourceStone.pointBuffer,
+      *resourceStone.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
-  if (!stoneTextDisplay) {
-    stoneTextDisplay.reset(new TextDisplay());
-  }
-  stoneTextDisplay->Render(
+  stoneTextDisplay.textDisplay->Render(
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       QString::number(resources.stone()),
@@ -1378,6 +1500,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
+      stoneTextDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(
@@ -1385,12 +1508,10 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y() + uiScale * 16,
       uiScale * 83,
       uiScale * 83,
-      *popTexture,
+      pop.pointBuffer,
+      *pop.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
-  if (!popTextDisplay) {
-    popTextDisplay.reset(new TextDisplay());
-  }
-  popTextDisplay->Render(
+  popTextDisplay.textDisplay->Render(
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
       "4 / 5",  // TODO
@@ -1399,6 +1520,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * 82,
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
+      popTextDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(
@@ -1406,20 +1528,19 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       topLeft.y() + uiScale * 24,
       uiScale * 2 * 34,
       uiScale * 2 * 34,
-      *idleVillagerDisabledTexture,
+      idleVillagerDisabled.pointBuffer,
+      *idleVillagerDisabled.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   RenderUIGraphic(
-      topLeft.x() + uiScale * (17 + 4 * 200 + 234 + 154 - currentAgeShieldTexture->GetWidth() / 2),
+      topLeft.x() + uiScale * (17 + 4 * 200 + 234 + 154 - currentAgeShield.texture->GetWidth() / 2),
       topLeft.y() + uiScale * 0,
-      uiScale * currentAgeShieldTexture->GetWidth(),
-      uiScale * currentAgeShieldTexture->GetHeight(),
-      *currentAgeShieldTexture,
+      uiScale * currentAgeShield.texture->GetWidth(),
+      uiScale * currentAgeShield.texture->GetHeight(),
+      currentAgeShield.pointBuffer,
+      *currentAgeShield.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
-  if (!currentAgeTextDisplay) {
-    currentAgeTextDisplay.reset(new TextDisplay());
-  }
-  float currentAgeTextLeft = topLeft.x() + uiScale * (17 + 4 * 200 + 234 + 154 + currentAgeShieldTexture->GetWidth() / 2);
-  currentAgeTextDisplay->Render(
+  float currentAgeTextLeft = topLeft.x() + uiScale * (17 + 4 * 200 + 234 + 154 + currentAgeShield.texture->GetWidth() / 2);
+  currentAgeTextDisplay.textDisplay->Render(
       georgiaFontLarger,
       qRgba(255, 255, 255, 255),
       tr("Dark Age"),
@@ -1428,13 +1549,14 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * (1623 - 8) - currentAgeTextLeft,
             uiScale * 83),
       Qt::AlignHCenter | Qt::AlignVCenter,
+      currentAgeTextDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
 }
 
 QPointF RenderWindow::GetSelectionPanelTopLeft() {
   return QPointF(
       uiScale * 539,
-      widgetHeight - uiScale * selectionPanelTexture->GetHeight());
+      widgetHeight - uiScale * selectionPanel.texture->GetHeight());
 }
 
 void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
@@ -1443,9 +1565,10 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
   RenderUIGraphic(
       topLeft.x(),
       topLeft.y(),
-      uiScale * selectionPanelTexture->GetWidth(),
-      uiScale * selectionPanelTexture->GetHeight(),
-      *selectionPanelTexture,
+      uiScale * selectionPanel.texture->GetWidth(),
+      uiScale * selectionPanel.texture->GetHeight(),
+      selectionPanel.pointBuffer,
+      *selectionPanel.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
   // Is only a single object selected?
@@ -1453,10 +1576,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
     ClientObject* singleSelectedObject = map->GetObjects().at(selection.front());
     
     // Display the object name
-    if (!singleObjectNameDisplay) {
-      singleObjectNameDisplay.reset(new TextDisplay());
-    }
-    singleObjectNameDisplay->Render(
+    singleObjectNameDisplay.textDisplay->Render(
         georgiaFontLarger,
         qRgba(58, 29, 21, 255),
         singleSelectedObject->GetObjectName(),
@@ -1465,6 +1585,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
               uiScale * 2*172,
               uiScale * 2*16),
         Qt::AlignLeft | Qt::AlignTop,
+        singleObjectNameDisplay.pointBuffer,
         uiShader.get(), widgetWidth, widgetHeight, f);
     
     // Display the object's HP
@@ -1477,10 +1598,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
         maxHP = GetBuildingMaxHP(static_cast<ClientBuilding*>(singleSelectedObject)->GetType());
       }
       
-      if (!hpDisplay) {
-        hpDisplay.reset(new TextDisplay());
-      }
-      hpDisplay->Render(
+      hpDisplay.textDisplay->Render(
           georgiaFontSmaller,
           qRgba(58, 29, 21, 255),
           QStringLiteral("%1 / %2").arg(singleSelectedObject->GetHP()).arg(maxHP),
@@ -1489,6 +1607,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
                 uiScale * 2*172,
                 uiScale * 2*16),
           Qt::AlignLeft | Qt::AlignTop,
+          hpDisplay.pointBuffer,
           uiShader.get(), widgetWidth, widgetHeight, f);
     }
     
@@ -1498,10 +1617,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
       if (IsVillager(singleSelectedUnit->GetType())) {
         // Display the villager's carried resources?
         if (singleSelectedUnit->GetCarriedResourceAmount() > 0) {
-          if (!carriedResourcesDisplay) {
-            carriedResourcesDisplay.reset(new TextDisplay());
-          }
-          carriedResourcesDisplay->Render(
+          carriedResourcesDisplay.textDisplay->Render(
               georgiaFontSmaller,
               qRgba(58, 29, 21, 255),
               QObject::tr("Carries %1 %2")
@@ -1512,6 +1628,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
                     uiScale * 2*172,
                     uiScale * 2*16),
               Qt::AlignLeft | Qt::AlignTop,
+              carriedResourcesDisplay.pointBuffer,
               uiShader.get(), widgetWidth, widgetHeight, f);
         }
       }
@@ -1526,6 +1643,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
           topLeft.y() + uiScale * 50 + uiScale * 2*46 + iconInset,
           uiScale * 2*60 - 2 * iconInset,
           uiScale * 2*60 - 2 * iconInset,
+          selectionPanelIconPointBuffer.buffer,
           *iconTexture,
           uiShader.get(), widgetWidth, widgetHeight, f);
       RenderUIGraphic(
@@ -1533,6 +1651,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
           topLeft.y() + uiScale * 50 + uiScale * 2*46,
           uiScale * 2*60,
           uiScale * 2*60,
+          selectionPanelIconOverlayPointBuffer.buffer,
           *iconOverlayNormalTexture,
           uiShader.get(), widgetWidth, widgetHeight, f);
     }
@@ -1542,7 +1661,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
 QPointF RenderWindow::GetCommandPanelTopLeft() {
   return QPointF(
       0,
-      widgetHeight - uiScale * commandPanelTexture->GetHeight());
+      widgetHeight - uiScale * commandPanel.texture->GetHeight());
 }
 
 void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
@@ -1551,9 +1670,10 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
   RenderUIGraphic(
       topLeft.x(),
       topLeft.y(),
-      uiScale * commandPanelTexture->GetWidth(),
-      uiScale * commandPanelTexture->GetHeight(),
-      *commandPanelTexture,
+      uiScale * commandPanel.texture->GetWidth(),
+      uiScale * commandPanel.texture->GetHeight(),
+      commandPanel.pointBuffer,
+      *commandPanel.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
   float commandButtonsLeft = topLeft.x() + uiScale * 49;
@@ -1879,24 +1999,23 @@ void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
         .arg(loadingPercentage, 3, 10, QChar(' '));
   }
   
-  if (!loadingTextDisplay) {
-    loadingTextDisplay.reset(new TextDisplay());
-  }
-  loadingTextDisplay->Render(
+  loadingText.textDisplay->Render(
       georgiaFont,
       qRgba(255, 255, 255, 255),
       text,
       QRect(0, 0, widgetWidth, widgetHeight),
       Qt::AlignHCenter | Qt::AlignVCenter,
+      loadingText.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
   // Render the loading icon.
   RenderUIGraphic(
-      widgetWidth / 2 - loadingIcon->GetWidth() / 2,
-      loadingTextDisplay->GetBounds().y() - loadingIcon->GetHeight(),
-      loadingIcon->GetWidth(),
-      loadingIcon->GetHeight(),
-      *loadingIcon,
+      widgetWidth / 2 - loadingIcon.texture->GetWidth() / 2,
+      loadingText.textDisplay->GetBounds().y() - loadingIcon.texture->GetHeight(),
+      loadingIcon.texture->GetWidth(),
+      loadingIcon.texture->GetHeight(),
+      loadingIcon.pointBuffer,
+      *loadingIcon.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
 }
 
@@ -2116,8 +2235,8 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
     }
   }
   if (atLeastOneOwnVillagerSelected) {
-    commandButtons[0][0].SetAction(CommandButton::ActionType::BuildEconomyBuilding, buildEconomyBuildingsTexture.get(), Qt::Key_A);
-    commandButtons[0][1].SetAction(CommandButton::ActionType::BuildMilitaryBuilding, buildMilitaryBuildingsTexture.get(), Qt::Key_S);
+    commandButtons[0][0].SetAction(CommandButton::ActionType::BuildEconomyBuilding, buildEconomyBuildings.texture.get(), Qt::Key_A);
+    commandButtons[0][1].SetAction(CommandButton::ActionType::BuildMilitaryBuilding, buildMilitaryBuildings.texture.get(), Qt::Key_S);
   }
 }
 
@@ -2136,8 +2255,8 @@ void RenderWindow::ShowEconomyBuildingCommandButtons() {
   commandButtons[0][3].SetBuilding(BuildingType::LumberCamp, Qt::Key_R);
   commandButtons[0][4].SetBuilding(BuildingType::Dock, Qt::Key_T);
   
-  commandButtons[2][3].SetAction(CommandButton::ActionType::ToggleBuildingsCategory, toggleBuildingsCategoryTexture.get());
-  commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quitTexture.get(), Qt::Key_Escape);
+  commandButtons[2][3].SetAction(CommandButton::ActionType::ToggleBuildingsCategory, toggleBuildingsCategory.texture.get());
+  commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quit.texture.get(), Qt::Key_Escape);
 }
 
 void RenderWindow::ShowMilitaryBuildingCommandButtons() {
@@ -2154,8 +2273,8 @@ void RenderWindow::ShowMilitaryBuildingCommandButtons() {
   commandButtons[1][1].SetBuilding(BuildingType::PalisadeWall, Qt::Key_S);
   commandButtons[2][1].SetBuilding(BuildingType::PalisadeGate, Qt::Key_X);
   
-  commandButtons[2][3].SetAction(CommandButton::ActionType::ToggleBuildingsCategory, toggleBuildingsCategoryTexture.get());
-  commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quitTexture.get(), Qt::Key_Escape);
+  commandButtons[2][3].SetAction(CommandButton::ActionType::ToggleBuildingsCategory, toggleBuildingsCategory.texture.get());
+  commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quit.texture.get(), Qt::Key_Escape);
 }
 
 void RenderWindow::JumpToNextTownCenter() {
@@ -2273,7 +2392,7 @@ void RenderWindow::initializeGL() {
   uiShader.reset(new UIShader());
   uiSingleColorShader.reset(new UISingleColorShader());
   
-  // Create a buffer containing a single point for sprite rendering.
+  // Create a buffer containing a single point for sprite rendering. TODO: Remove this
   f->glGenBuffers(1, &pointBuffer);
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   int elementSizeInBytes = 3 * sizeof(float);
@@ -2283,11 +2402,10 @@ void RenderWindow::initializeGL() {
   CHECK_OPENGL_NO_ERROR();
   
   // Load the loading icon.
-  loadingIcon.reset(new Texture());
+  loadingIcon.Load(graphicsPath.parent_path().parent_path() / "wpfg" / "resources" / "campaign" / "campaign_icon_2swords.png");
   
-  loadingIcon->Load(
-      QImage(QString::fromStdString((graphicsPath.parent_path().parent_path() / "wpfg" / "resources" / "campaign" / "campaign_icon_2swords.png").string())),
-      GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
+  // Create the loading text display.
+  loadingText.Initialize();
   
   // Remember the render start time.
   renderStartTime = Clock::now();
@@ -2304,6 +2422,20 @@ void RenderWindow::paintGL() {
     Timing::print(std::cout, kSortByTotal);
   }
   
+  // Wait for the previous frame to finish rendering.
+  // This allows us to map OpenGL buffer objects while disabling synchronization, avoiding CPU stalls due to impclicit synchronization.
+  // This should also prevent the GPU driver from queuing up multiple future frames. On the one hand this reduces rendering lag,
+  // on the other hand, it reduces the robustness against individual frames taking a long time to render.
+  if (haveSyncObject) {
+    GLenum result = f->glClientWaitSync(syncObject, 0, std::numeric_limits<GLuint64>::max());
+    if (result == GL_TIMEOUT_EXPIRED || result == GL_WAIT_FAILED) {
+      LOG(ERROR) << "glClientWaitSync() failed; result code: " << result;
+    }
+    
+    f->glDeleteSync(syncObject);
+    haveSyncObject = false;
+  }
+  
   // By default, use pointBuffer as the array buffer
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   
@@ -2317,8 +2449,8 @@ void RenderWindow::paintGL() {
       isLoading = false;
       
       // Unload loading screen resources
-      loadingIcon.reset();
-      loadingTextDisplay.reset();
+      loadingIcon.Unload();
+      loadingText.Destroy();
       
       // Avoid possible jumps directly after the game start
       lastScrollGetTime = Clock::now();
@@ -2516,6 +2648,9 @@ void RenderWindow::paintGL() {
   CHECK_OPENGL_NO_ERROR();
   RenderGameUI(displayedServerTime, f);
   CHECK_OPENGL_NO_ERROR();
+  
+  syncObject = f->glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+  haveSyncObject = true;
 }
 
 void RenderWindow::resizeGL(int width, int height) {

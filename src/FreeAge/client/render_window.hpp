@@ -69,6 +69,36 @@ class RenderWindow : public QOpenGLWidget {
   void HandleMouseMoveEvent();
   
  protected:
+  struct TextureAndPointBuffer {
+    ~TextureAndPointBuffer();
+    
+    bool Load(const std::filesystem::path& path, QImage* qimage = nullptr, TextureManager::Loader loader = TextureManager::Loader::QImage);
+    void Unload();
+    
+    GLuint pointBuffer;
+    std::shared_ptr<Texture> texture;
+  };
+  
+  struct TextDisplayAndPointBuffer {
+    ~TextDisplayAndPointBuffer();
+    
+    void Initialize();
+    void Destroy();
+    
+    GLuint pointBuffer;
+    std::shared_ptr<TextDisplay> textDisplay;
+  };
+  
+  struct PointBuffer {
+    ~PointBuffer();
+    
+    void Initialize();
+    void Destroy();
+    
+    GLuint buffer;
+    bool initialized = false;
+  };
+  
   void CreatePlayerColorPaletteTexture();
   
   void ComputePixelToOpenGLMatrix(QOpenGLFunctions_3_2_Core* f);
@@ -254,43 +284,45 @@ class RenderWindow : public QOpenGLWidget {
   // Loading screen.
   bool isLoading;
   
-  std::shared_ptr<Texture> loadingIcon;
-  std::shared_ptr<TextDisplay> loadingTextDisplay;
+  TextureAndPointBuffer loadingIcon;
+  TextDisplayAndPointBuffer loadingText;
   
   // Game UI.
   float uiScale;
   
-  std::shared_ptr<Texture> resourcePanelTexture;
+  TextureAndPointBuffer resourcePanel;
   OpaquenessMap resourcePanelOpaquenessMap;
-  std::shared_ptr<Texture> resourceWoodTexture;
-  std::shared_ptr<TextDisplay> woodTextDisplay;
-  std::shared_ptr<Texture> resourceFoodTexture;
-  std::shared_ptr<TextDisplay> foodTextDisplay;
-  std::shared_ptr<Texture> resourceGoldTexture;
-  std::shared_ptr<TextDisplay> goldTextDisplay;
-  std::shared_ptr<Texture> resourceStoneTexture;
-  std::shared_ptr<TextDisplay> stoneTextDisplay;
-  std::shared_ptr<Texture> popTexture;
-  std::shared_ptr<TextDisplay> popTextDisplay;
-  std::shared_ptr<Texture> idleVillagerDisabledTexture;
-  std::shared_ptr<Texture> currentAgeShieldTexture;
-  std::shared_ptr<TextDisplay> currentAgeTextDisplay;
+  TextureAndPointBuffer resourceWood;
+  TextDisplayAndPointBuffer woodTextDisplay;
+  TextureAndPointBuffer resourceFood;
+  TextDisplayAndPointBuffer foodTextDisplay;
+  TextureAndPointBuffer resourceGold;
+  TextDisplayAndPointBuffer goldTextDisplay;
+  TextureAndPointBuffer resourceStone;
+  TextDisplayAndPointBuffer stoneTextDisplay;
+  TextureAndPointBuffer pop;
+  TextDisplayAndPointBuffer popTextDisplay;
+  TextureAndPointBuffer idleVillagerDisabled;
+  TextureAndPointBuffer currentAgeShield;
+  TextDisplayAndPointBuffer currentAgeTextDisplay;
   
-  std::shared_ptr<TextDisplay> gameTimeDisplay;
-  std::shared_ptr<TextDisplay> fpsAndPingDisplay;
+  TextDisplayAndPointBuffer gameTimeDisplay;
+  TextDisplayAndPointBuffer fpsAndPingDisplay;
   
-  std::shared_ptr<Texture> commandPanelTexture;
+  TextureAndPointBuffer commandPanel;
   OpaquenessMap commandPanelOpaquenessMap;
-  std::shared_ptr<Texture> buildEconomyBuildingsTexture;
-  std::shared_ptr<Texture> buildMilitaryBuildingsTexture;
-  std::shared_ptr<Texture> toggleBuildingsCategoryTexture;
-  std::shared_ptr<Texture> quitTexture;
+  TextureAndPointBuffer buildEconomyBuildings;
+  TextureAndPointBuffer buildMilitaryBuildings;
+  TextureAndPointBuffer toggleBuildingsCategory;
+  TextureAndPointBuffer quit;
   
-  std::shared_ptr<Texture> selectionPanelTexture;
+  TextureAndPointBuffer selectionPanel;
   OpaquenessMap selectionPanelOpaquenessMap;
-  std::shared_ptr<TextDisplay> singleObjectNameDisplay;
-  std::shared_ptr<TextDisplay> hpDisplay;
-  std::shared_ptr<TextDisplay> carriedResourcesDisplay;
+  TextDisplayAndPointBuffer singleObjectNameDisplay;
+  TextDisplayAndPointBuffer hpDisplay;
+  TextDisplayAndPointBuffer carriedResourcesDisplay;
+  PointBuffer selectionPanelIconPointBuffer;
+  PointBuffer selectionPanelIconOverlayPointBuffer;
   
   std::shared_ptr<Texture> iconOverlayNormalTexture;
   std::shared_ptr<Texture> iconOverlayNormalExpensiveTexture;
@@ -309,6 +341,9 @@ class RenderWindow : public QOpenGLWidget {
   BuildingType constructBuildingType = BuildingType::NumBuildings;
   
   // Resources.
+  bool haveSyncObject = false;
+  GLsync syncObject;
+  
   GLuint pointBuffer;
   
   std::shared_ptr<Texture> playerColorsTexture;
