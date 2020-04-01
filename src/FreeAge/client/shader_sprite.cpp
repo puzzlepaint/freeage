@@ -256,7 +256,7 @@ SpriteShader::SpriteShader(bool shadow, bool outline)
   } else if (shadow) {
     vertexSize = (3 + 2 + 2 + 2) * sizeof(float);
   } else {
-    vertexSize = (3 + 2 + 2 + 2 + 1 + 1) * sizeof(float);
+    vertexSize = (3 + 2 + 2 + 2 + 1) * sizeof(float);
   }
 }
 
@@ -276,6 +276,7 @@ void SpriteShader::UseProgram(QOpenGLFunctions_3_2_Core* f) {
   f->glVertexAttribPointer(size_location, 2, GetGLType<float>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
   offset += 2 * sizeof(float);
   
+  // TODO: Can we save space by using (normalized) ushorts for the texture coordinates?
   f->glEnableVertexAttribArray(tex_topleft_location);
   f->glVertexAttribPointer(tex_topleft_location, 2, GetGLType<float>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
   offset += 2 * sizeof(float);
@@ -290,12 +291,12 @@ void SpriteShader::UseProgram(QOpenGLFunctions_3_2_Core* f) {
     offset += 4;
   } else if (!outline && !shadow) {
     f->glEnableVertexAttribArray(modulationColor_location);
-    f->glVertexAttribPointer(modulationColor_location, 4, GetGLType<u8>::value, GL_TRUE, vertexSize, reinterpret_cast<void*>(offset));
-    offset += 4;
+    f->glVertexAttribPointer(modulationColor_location, 3, GetGLType<u8>::value, GL_TRUE, vertexSize, reinterpret_cast<void*>(offset));
+    offset += 3;
     
     f->glEnableVertexAttribArray(playerIndex_location);
-    f->glVertexAttribPointer(playerIndex_location, 1, GetGLType<int>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
-    offset += 1 * sizeof(float);  // same as GL_INT size
+    f->glVertexAttribIPointer(playerIndex_location, 1, GetGLType<u8>::value, vertexSize, reinterpret_cast<void*>(offset));
+    offset += 1;
   }
   
   CHECK_OPENGL_NO_ERROR();

@@ -1161,12 +1161,12 @@ void DrawSprite(
   data[8] = (layer.atlasY + layer.imageHeight + negativeOffset) / (1.f * texture.GetHeight());
   // outline: in_playerColor; !outline && !shadow: in_modulationColor; shadow: unused
   if (!shadow) {
-    u8* colorData = reinterpret_cast<u8*>(data + 9);
-    *colorData++ = qRed(outlineOrModulationColor);
-    *colorData++ = qGreen(outlineOrModulationColor);
-    *colorData++ = qBlue(outlineOrModulationColor);
-  }
-  if (!shadow && !outline) {
-    *reinterpret_cast<i32*>(data + 10) = playerIndex;
+    u8* u8Data = reinterpret_cast<u8*>(data + 9);
+    *u8Data++ = qRed(outlineOrModulationColor);
+    *u8Data++ = qGreen(outlineOrModulationColor);
+    *u8Data++ = qBlue(outlineOrModulationColor);
+    if (!outline) {
+      *u8Data++ = playerIndex;
+    }
   }
 }
