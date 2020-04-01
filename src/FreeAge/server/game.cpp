@@ -276,6 +276,10 @@ void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player)
   }
   ServerBuilding* productionBuilding = static_cast<ServerBuilding*>(buildingObject);
   
+  if (productionBuilding->GetPlayerIndex() != player->index) {
+    LOG(ERROR) << "Received a ProduceUnit message for a building that is not owned by the player";
+    return;
+  }
   if (productionBuilding->GetBuildPercentage() != 100) {
     LOG(ERROR) << "Received a ProduceUnit message for a building that is not fully constructed";
     return;

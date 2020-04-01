@@ -2236,35 +2236,39 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
     }
   }
   
-  // Check whether a single type of building is selected only.
+  // Check whether a single type of own building is selected only.
   // In this case, show the buttons corresponding to this building type.
-  bool singleBuildingTypeSelected = true;
-  bool atLeastOneBuildingFullyConstructed = false;
+  bool singleOwnBuildingTypeSelected = true;
+  bool atLeastOneOwnBuildingFullyConstructed = false;
   BuildingType selectedBuildingType = BuildingType::NumBuildings;
   for (usize i = 0; i < selection.size(); ++ i) {
     u32 objectId = selection[i];
     ClientObject* object = map->GetObjects().at(objectId);
     
     if (object->isUnit()) {
-      singleBuildingTypeSelected = false;
+      singleOwnBuildingTypeSelected = false;
       break;
     } else if (object->isBuilding()) {
       ClientBuilding* building = static_cast<ClientBuilding*>(object);
       
-      if (building->GetBuildPercentage() == 100) {
-        atLeastOneBuildingFullyConstructed = true;
-      }
-      
-      if (i == 0) {
-        selectedBuildingType = building->GetType();
-      } else if (selectedBuildingType != building->GetType()) {
-        singleBuildingTypeSelected = false;
-        break;
+      if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
+        if (building->GetBuildPercentage() == 100) {
+          atLeastOneOwnBuildingFullyConstructed = true;
+        }
+        
+        if (i == 0) {
+          selectedBuildingType = building->GetType();
+        } else if (selectedBuildingType != building->GetType()) {
+          singleOwnBuildingTypeSelected = false;
+          break;
+        }
+      } else {
+        singleOwnBuildingTypeSelected = false;
       }
     }
   }
-  if (!selection.empty() && singleBuildingTypeSelected && atLeastOneBuildingFullyConstructed) {
-    ClientBuildingType::GetBuildingTypes()[static_cast<int>(selectedBuildingType)].SetCommandButtons(commandButtons);
+  if (!selection.empty() && singleOwnBuildingTypeSelected && atLeastOneOwnBuildingFullyConstructed) {
+    GetClientBuildingType(selectedBuildingType).SetCommandButtons(commandButtons);
     return;
   }
   
