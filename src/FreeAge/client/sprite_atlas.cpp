@@ -149,17 +149,13 @@ QImage SpriteAtlas::RenderAtlas() {
           for (int y = 0; y < image.height(); ++ y) {
             const QRgb* inputScanline = reinterpret_cast<const QRgb*>(image.scanLine(y));
             QRgb* outputScanline = reinterpret_cast<QRgb*>(atlas.scanLine(layer.atlasY + y));
-            for (int x = 0; x < image.width(); ++ x) {
-              outputScanline[layer.atlasX + x] = inputScanline[x];
-            }
+            memcpy(outputScanline + layer.atlasX, inputScanline, image.width() * sizeof(QRgb));
           }
         } else {
           for (int y = 0; y < image.height(); ++ y) {
             const u8* inputScanline = reinterpret_cast<const u8*>(image.scanLine(y));
             u8* outputScanline = reinterpret_cast<u8*>(atlas.scanLine(layer.atlasY + y));
-            for (int x = 0; x < image.width(); ++ x) {
-              outputScanline[layer.atlasX + x] = inputScanline[x];
-            }
+            memcpy(outputScanline + layer.atlasX, inputScanline, image.width() * sizeof(u8));
           }
         }
       } else if (packedWidthWithoutBorder == image.height() && packedHeightWithoutBorder == image.width()) {

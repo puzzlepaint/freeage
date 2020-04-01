@@ -388,8 +388,10 @@ void RenderWindow::LoadResources() {
   iconOverlayActiveTexture->Load(QImage((ingameIconsPath / "icon_overlay_active.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
-  // Output timings of the resource loading processes.
+  // Output timings of the resource loading processes and clear those statistics from further timing prints.
+  LOG(INFO) << "Loading timings:";
   Timing::print(std::cout, kSortByTotal);
+  Timing::reset();
   
   // Check that the value of maxLoadingStep is correct.
   if (loadingStep != maxLoadingStep) {
