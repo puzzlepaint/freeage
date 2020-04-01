@@ -786,13 +786,11 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
   f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);  // TODO: remove this
 }
 
-void RenderWindow::RenderSprites(std::vector<Texture*>* textures, bool shadow, const std::shared_ptr<SpriteShader>& shader, QOpenGLFunctions_3_2_Core* f) {
+void RenderWindow::RenderSprites(std::vector<Texture*>* textures, const std::shared_ptr<SpriteShader>& shader, QOpenGLFunctions_3_2_Core* f) {
   for (Texture* texture : *textures) {
     // Bind the texture
     f->glBindTexture(GL_TEXTURE_2D, texture->GetId());
-    if (!shadow) {
-      f->glUniform2f(shader->GetTextureSizeLocation(), texture->GetWidth(), texture->GetHeight());
-    }
+    f->glUniform2f(shader->GetTextureSizeLocation(), texture->GetWidth(), texture->GetHeight());
     
     // Issue the render call
     int vertexSize = shader->GetVertexSize();
@@ -888,7 +886,7 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
     }
   }
   
-  RenderSprites(&textures, /*shadow*/ true, shadowShader, f);
+  RenderSprites(&textures, shadowShader, f);
 }
 
 void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsThatCauseOutlines, QOpenGLFunctions_3_2_Core* f) {
@@ -937,7 +935,7 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
   preparationTimer.Stop();
   Timer drawCallTimer("RenderBuildings() drawing");
   
-  RenderSprites(&textures, /*shadow*/ false, spriteShader, f);
+  RenderSprites(&textures, spriteShader, f);
   
   drawCallTimer.Stop();
 }
@@ -972,7 +970,7 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLF
     
     std::vector<Texture*> textures(1);
     textures[0] = &tempBuilding->GetTexture(/*shadow*/ false);
-    RenderSprites(&textures, /*shadow*/ false, spriteShader, f);
+    RenderSprites(&textures, spriteShader, f);
     
     delete tempBuilding;
   }
@@ -1132,7 +1130,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
     }
   }
   
-  RenderSprites(&textures, /*shadow*/ false, outlineShader, f);
+  RenderSprites(&textures, outlineShader, f);
 }
 
 void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
@@ -1172,7 +1170,7 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
     }
   }
   
-  RenderSprites(&textures, /*shadow*/ false, spriteShader, f);
+  RenderSprites(&textures, spriteShader, f);
 }
 
 void RenderWindow::RenderMoveToMarker(const TimePoint& now, QOpenGLFunctions_3_2_Core* f) {
@@ -1210,7 +1208,7 @@ void RenderWindow::RenderMoveToMarker(const TimePoint& now, QOpenGLFunctions_3_2
     
     std::vector<Texture*> textures(1);
     textures[0] = &moveToSprite->graphicTexture;
-    RenderSprites(&textures, /*shadow*/ false, spriteShader, f);
+    RenderSprites(&textures, spriteShader, f);
   }
 }
 
@@ -1324,7 +1322,7 @@ void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_
     }
   }
   
-  RenderSprites(&textures, /*shadow*/ false, spriteShader, f);
+  RenderSprites(&textures, spriteShader, f);
 }
 
 void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
@@ -1355,7 +1353,7 @@ void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
     }
   }
   
-  RenderSprites(&textures, /*shadow*/ true, shadowShader, f);
+  RenderSprites(&textures, shadowShader, f);
 }
 
 void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
@@ -1391,7 +1389,7 @@ void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
     }
   }
   
-  RenderSprites(&textures, /*shadow*/ false, outlineShader, f);
+  RenderSprites(&textures, outlineShader, f);
 }
 
 void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {

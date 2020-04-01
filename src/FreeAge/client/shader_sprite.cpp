@@ -13,10 +13,12 @@ SpriteShader::SpriteShader(bool shadow, bool outline)
   std::string vertexShaderSrc =
       "#version 330 core\n"
       "\n"
+      "uniform vec2 u_textureSize;\n"
+      "\n"
       "in vec3 in_position;\n"
       "in vec2 in_size;\n"
-      "in vec2 in_tex_topleft;\n"
-      "in vec2 in_tex_bottomright;\n";
+      "in uvec2 in_tex_topleft;\n"
+      "in uvec2 in_tex_bottomright;\n";
   if (outline) {
     vertexShaderSrc +=
         "in vec3 in_playerColor;\n"
@@ -38,8 +40,8 @@ SpriteShader::SpriteShader(bool shadow, bool outline)
       "uniform mat2 u_viewMatrix;\n"
       "void main() {\n"
       "  var_size = in_size;\n"
-      "  var_tex_topleft = in_tex_topleft;\n"
-      "  var_tex_bottomright = in_tex_bottomright;\n";
+      "  var_tex_topleft = vec2(float(in_tex_topleft.x) / u_textureSize.x, float(in_tex_topleft.y) / u_textureSize.y);\n"
+      "  var_tex_bottomright = vec2(float(in_tex_bottomright.x) / u_textureSize.x, float(in_tex_bottomright.y) / u_textureSize.y);\n";
   if (outline) {
     vertexShaderSrc +=
         "var_playerColor = in_playerColor;\n";
@@ -231,16 +233,14 @@ SpriteShader::SpriteShader(bool shadow, bool outline)
   viewMatrix_location = program->GetUniformLocationOrAbort("u_viewMatrix", f);
   size_location = f->glGetAttribLocation(program->program_name(), "in_size");
   CHECK_GE(size_location, 0);
-  if (!shadow) {
-    textureSize_location = program->GetUniformLocationOrAbort("u_textureSize", f);
-    if (!outline) {
-      playerColorsTexture_location = program->GetUniformLocationOrAbort("u_playerColorsTexture", f);
-      playerColorsTextureSize_location = program->GetUniformLocationOrAbort("u_playerColorsTextureSize", f);
-      playerIndex_location = f->glGetAttribLocation(program->program_name(), "in_playerIndex");
-      CHECK_GE(playerIndex_location, 0);
-      modulationColor_location = f->glGetAttribLocation(program->program_name(), "in_modulationColor");
-      CHECK_GE(modulationColor_location, 0);
-    }
+  textureSize_location = program->GetUniformLocationOrAbort("u_textureSize", f);
+  if (!shadow && !outline) {
+    playerColorsTexture_location = program->GetUniformLocationOrAbort("u_playerColorsTexture", f);
+    playerColorsTextureSize_location = program->GetUniformLocationOrAbort("u_playerColorsTextureSize", f);
+    playerIndex_location = f->glGetAttribLocation(program->program_name(), "in_playerIndex");
+    CHECK_GE(playerIndex_location, 0);
+    modulationColor_location = f->glGetAttribLocation(program->program_name(), "in_modulationColor");
+    CHECK_GE(modulationColor_location, 0);
   }
   if (outline) {
     playerColor_location = f->glGetAttribLocation(program->program_name(), "in_playerColor");
@@ -252,11 +252,11 @@ SpriteShader::SpriteShader(bool shadow, bool outline)
   CHECK_GE(tex_bottomright_location, 0);
   
   if (outline) {
-    vertexSize = (3 + 2 + 2 + 2 + 1) * sizeof(float);
+    vertexSize = (3 + 2 + 1 + 1 + 1) * sizeof(float);
   } else if (shadow) {
-    vertexSize = (3 + 2 + 2 + 2) * sizeof(float);
+    vertexSize = (3 + 2 + 1 + 1) * sizeof(float);
   } else {
-    vertexSize = (3 + 2 + 2 + 2 + 1) * sizeof(float);
+    vertexSize = (3 + 2 + 1 + 1 + 1) * sizeof(float);
   }
 }
 
@@ -276,14 +276,13 @@ void SpriteShader::UseProgram(QOpenGLFunctions_3_2_Core* f) {
   f->glVertexAttribPointer(size_location, 2, GetGLType<float>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
   offset += 2 * sizeof(float);
   
-  // TODO: Can we save space by using (normalized) ushorts for the texture coordinates?
   f->glEnableVertexAttribArray(tex_topleft_location);
-  f->glVertexAttribPointer(tex_topleft_location, 2, GetGLType<float>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
-  offset += 2 * sizeof(float);
+  f->glVertexAttribIPointer(tex_topleft_location, 2, GetGLType<u16>::value, vertexSize, reinterpret_cast<void*>(offset));
+  offset += 4;
   
   f->glEnableVertexAttribArray(tex_bottomright_location);
-  f->glVertexAttribPointer(tex_bottomright_location, 2, GetGLType<float>::value, GL_FALSE, vertexSize, reinterpret_cast<void*>(offset));
-  offset += 2 * sizeof(float);
+  f->glVertexAttribIPointer(tex_bottomright_location, 2, GetGLType<u16>::value, vertexSize, reinterpret_cast<void*>(offset));
+  offset += 4;
   
   if (outline) {
     f->glEnableVertexAttribArray(playerColor_location);

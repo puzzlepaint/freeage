@@ -1154,14 +1154,15 @@ void DrawSprite(
   data[3] = scaling * zoom * 2.f * (layer.imageWidth + 2 * negativeOffset) / static_cast<float>(widgetWidth);
   data[4] = scaling * zoom * 2.f * (layer.imageHeight + 2 * negativeOffset) / static_cast<float>(widgetHeight);
   // in_tex_topleft
-  data[5] = (layer.atlasX + positiveOffset) / (1.f * texture.GetWidth());
-  data[6] = (layer.atlasY + positiveOffset) / (1.f * texture.GetHeight());
+  u16* u16Data = reinterpret_cast<u16*>(data + 5);
+  *u16Data++ = layer.atlasX + positiveOffset;
+  *u16Data++ = layer.atlasY + positiveOffset;
   // in_tex_bottomright
-  data[7] = (layer.atlasX + layer.imageWidth + negativeOffset) / (1.f * texture.GetWidth());
-  data[8] = (layer.atlasY + layer.imageHeight + negativeOffset) / (1.f * texture.GetHeight());
+  *u16Data++ = layer.atlasX + layer.imageWidth + negativeOffset;
+  *u16Data++ = layer.atlasY + layer.imageHeight + negativeOffset;
   // outline: in_playerColor; !outline && !shadow: in_modulationColor; shadow: unused
   if (!shadow) {
-    u8* u8Data = reinterpret_cast<u8*>(data + 9);
+    u8* u8Data = reinterpret_cast<u8*>(data + 7);
     *u8Data++ = qRed(outlineOrModulationColor);
     *u8Data++ = qGreen(outlineOrModulationColor);
     *u8Data++ = qBlue(outlineOrModulationColor);
