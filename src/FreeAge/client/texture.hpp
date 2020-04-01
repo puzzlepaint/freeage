@@ -84,6 +84,10 @@ class Texture {
   /// Frees the texture memory on the GPU.
   ~Texture();
   
+  /// Creates an empty texture of the given size. Useful to create textures which are filled by rendering into them.
+  /// This will currently always create textures with 8 bits per color channel, with 4 channels in total.
+  void CreateEmpty(int width, int height, int wrapMode, int magFilter, int minFilter);
+  
   /// Loads the texture from the given QImage into GPU memory. The image can be released afterwards.
   void Load(const QImage& image, int wrapMode, int magFilter, int minFilter);
   
@@ -113,6 +117,9 @@ class Texture {
   
   /// Height of the texture in pixels.
   int height;
+  
+  /// Bytes per pixel (used for keeping track of the used GPU memory only).
+  int bytesPerPixel;
   
   /// Reference count (only to be used if the Texture is loaded via the TextureManager).
   int referenceCount = 0;

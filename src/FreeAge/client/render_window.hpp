@@ -263,6 +263,7 @@ class RenderWindow : public QOpenGLWindow {
   QRectF projectedCoordsViewRect;
   
   // Shaders.
+  std::shared_ptr<ColorDilationShader> colorDilationShader;
   std::shared_ptr<UIShader> uiShader;
   std::shared_ptr<UISingleColorShader> uiSingleColorShader;
   std::shared_ptr<SpriteShader> spriteShader;

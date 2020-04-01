@@ -17,6 +17,7 @@
 #include "FreeAge/client/health_bar.hpp"
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/client/opengl.hpp"
+#include "FreeAge/client/shader_color_dilation.hpp"
 #include "FreeAge/client/sprite.hpp"
 #include "FreeAge/client/sprite_atlas.hpp"
 #include "FreeAge/common/timing.hpp"
@@ -161,6 +162,7 @@ RenderWindow::~RenderWindow() {
   shadowShader.reset();
   outlineShader.reset();
   healthBarShader.reset();
+  colorDilationShader.reset();
   
   if (map) {
     map->UnloadRenderResources();
@@ -209,6 +211,8 @@ void RenderWindow::LoadResources() {
   LOG(1) << "LoadResource(): Cursors loaded";
   
   // Create shaders.
+  colorDilationShader.reset(new ColorDilationShader());
+  
   spriteShader.reset(new SpriteShader(false, false));
   spriteShader->GetProgram()->UseProgram(f);
   f->glUniform1i(spriteShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
@@ -267,7 +271,7 @@ void RenderWindow::LoadResources() {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   unitTypes.resize(static_cast<int>(UnitType::NumUnits));
   for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
-    if (!unitTypes[unitType].Load(static_cast<UnitType>(unitType), graphicsPath, cachePath, palettes)) {
+    if (!unitTypes[unitType].Load(static_cast<UnitType>(unitType), graphicsPath, cachePath, colorDilationShader.get(), palettes)) {
       LOG(ERROR) << "Exiting because of a resource load error for unit " << unitType << ".";
       exit(1);  // TODO: Exit gracefully
     }
@@ -279,7 +283,7 @@ void RenderWindow::LoadResources() {
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   buildingTypes.resize(static_cast<int>(BuildingType::NumBuildings));
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
-    if (!buildingTypes[buildingType].Load(static_cast<BuildingType>(buildingType), graphicsPath, cachePath, palettes)) {
+    if (!buildingTypes[buildingType].Load(static_cast<BuildingType>(buildingType), graphicsPath, cachePath, colorDilationShader.get(), palettes)) {
       LOG(ERROR) << "Exiting because of a resource load error for building " << buildingType << ".";
       exit(1);  // TODO: Exit gracefully
     }
@@ -293,8 +297,7 @@ void RenderWindow::LoadResources() {
       (graphicsPath.parent_path().parent_path() / "particles" / "textures" / "test_move" / "p_all_move_%04i.png").string().c_str(),
       (cachePath / "p_all_move_0000.png").string().c_str(),
       GL_CLAMP_TO_EDGE,
-      GL_NEAREST,
-      GL_NEAREST,
+      colorDilationShader.get(),
       &moveToSprite->sprite,
       &moveToSprite->graphicTexture,
       &moveToSprite->shadowTexture,

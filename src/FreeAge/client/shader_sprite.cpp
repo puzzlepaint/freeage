@@ -188,7 +188,7 @@ SpriteShader::SpriteShader(bool shadow, bool outline)
         "  int alpha = int(round(255 * value.a));"
         "  if (alpha == 254 || alpha == 252) {\n"
         "    // This is a player color pixel that is encoded as a palette index in the texture.\n"
-        "    int palIndex = int(round(256 * value.r)) + 256 * int(round(256 * value.g));\n"
+        "    int palIndex = int(round(255 * value.r)) + 256 * int(round(255 * value.g));\n"
         "    return texture(u_playerColorsTexture, vec2((palIndex + 0.5) / u_playerColorsTextureSize.x, (playerIndex + 0.5) / u_playerColorsTextureSize.y));\n"
         "  } else {\n"
         "    return value;\n"

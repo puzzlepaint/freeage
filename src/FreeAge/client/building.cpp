@@ -4,7 +4,7 @@
 #include "FreeAge/client/map.hpp"
 #include "FreeAge/client/opengl.hpp"
 
-bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes) {
+bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes) {
   this->type = type;
   
   sprites.resize(static_cast<int>(BuildingSprite::NumSprites));
@@ -26,6 +26,7 @@ bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& gr
       sprites[spriteInt] = SpriteManager::Instance().GetOrLoad(
           (graphicsPath / filename.toStdString()).string().c_str(),
           (cachePath / filename.toStdString()).string().c_str(),
+          colorDilationShader,
           palettes);
       if (!sprites[spriteInt] ) {
         return false;

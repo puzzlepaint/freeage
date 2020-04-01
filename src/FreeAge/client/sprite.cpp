@@ -7,6 +7,7 @@
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/common/timing.hpp"
 #include "FreeAge/client/opengl.hpp"
+#include "FreeAge/client/shader_color_dilation.hpp"
 #include "FreeAge/client/shader_program.hpp"
 #include "FreeAge/client/shader_sprite.hpp"
 #include "FreeAge/client/sprite_atlas.hpp"
@@ -976,7 +977,7 @@ bool Sprite::LoadFromPNGFiles(const char* path) {
 }
 
 
-SpriteAndTextures* SpriteManager::GetOrLoad(const char* path, const char* cachePath, const Palettes& palettes) {
+SpriteAndTextures* SpriteManager::GetOrLoad(const char* path, const char* cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes) {
   auto it = loadedSprites.find(path);
   if (it != loadedSprites.end()) {
     ++ it->second->referenceCount;
@@ -986,7 +987,7 @@ SpriteAndTextures* SpriteManager::GetOrLoad(const char* path, const char* cacheP
   // Load the sprite.
   SpriteAndTextures* newSprite = new SpriteAndTextures();
   newSprite->referenceCount = 1;
-  if (!LoadSpriteAndTexture(path, cachePath, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST, &newSprite->sprite, &newSprite->graphicTexture, &newSprite->shadowTexture, palettes)) {
+  if (!LoadSpriteAndTexture(path, cachePath, GL_CLAMP_TO_EDGE, colorDilationShader, &newSprite->sprite, &newSprite->graphicTexture, &newSprite->shadowTexture, palettes)) {
     LOG(ERROR) << "Failed to load sprite: " << path;
     return nullptr;
   }
@@ -1020,7 +1021,65 @@ SpriteManager::~SpriteManager() {
 }
 
 
-bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode, int /*magFilter*/, int /*minFilter*/, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes) {
+bool DilateColorsIntoTransparentRegions(const Texture& srcTexture, int wrapMode, int magFilter, int minFilter, ColorDilationShader* shader, Texture* destTexture) {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
+  // Create a framebuffer that allows rendering to a texture
+  GLuint framebuffer = 0;
+  f->glGenFramebuffers(1, &framebuffer);
+  f->glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+  
+  // Create the destination texture
+  destTexture->CreateEmpty(srcTexture.GetWidth(), srcTexture.GetHeight(), wrapMode, magFilter, minFilter);
+  
+  // Set destTexture as our colour attachement #0
+  f->glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, destTexture->GetId(), 0);
+
+  // Set the list of draw buffers.
+  GLenum drawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+  f->glDrawBuffers(1, drawBuffers);
+  
+  // Verify that the framebuffer was constructed correctly
+  if (f->glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    LOG(ERROR) << "Failed to create framebuffer";
+    return false;
+  }
+  
+  // Set the framebuffer to be used for rendering
+  f->glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+  f->glViewport(0, 0, destTexture->GetWidth(), destTexture->GetHeight());
+  
+  // Render a quad over the whole framebuffer to apply the fragment shader to all pixels
+  f->glDisable(GL_BLEND);
+  f->glDisable(GL_CULL_FACE);
+  
+  GLuint vao;
+  f->glGenVertexArrays(1, &vao);
+  f->glBindVertexArray(vao);
+  
+  shader->GetProgram()->UseProgram(f);
+  f->glUniform2f(shader->GetPixelStepLocation(), 1.f / destTexture->GetWidth(), 1.f / destTexture->GetHeight());
+  f->glUniform1i(shader->GetTextureLocation(), 0);  // use GL_TEXTURE0
+  f->glActiveTexture(GL_TEXTURE0);
+  f->glBindTexture(GL_TEXTURE_2D, srcTexture.GetId());
+  
+  f->glDrawArrays(GL_TRIANGLES, 0, 3);
+  CHECK_OPENGL_NO_ERROR();
+  
+  f->glDeleteVertexArrays(1, &vao);
+  
+  // Switch back to the default framebuffer
+  f->glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  
+  // Clean up
+  f->glDeleteFramebuffers(1, &framebuffer);
+  
+  CHECK_OPENGL_NO_ERROR();
+  return true;
+}
+
+
+bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode, ColorDilationShader* colorDilationShader, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes) {
   // TODO magFilter and minFilter are unused here
   
   if (!sprite->LoadFromFile(path, palettes)) {
@@ -1110,8 +1169,17 @@ bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode,
       }
     }
     
-    // Transfer the atlasImage to the GPU
-    texture->Load(atlasImage, wrapMode, (graphicOrShadow == 0) ? GL_NEAREST : GL_LINEAR, (graphicOrShadow == 0) ? GL_NEAREST : GL_LINEAR);
+    // Transfer the atlasImage to the GPU.
+    if (graphicOrShadow == 0) {
+      // For graphic sprites, dilate the colors by one pixel into transparent areas
+      // to prevent the rendering interpolating the colors towards black at the sprite boundary.
+      Texture temporaryTexture;
+      temporaryTexture.Load(atlasImage, wrapMode, GL_NEAREST, GL_NEAREST);
+      
+      DilateColorsIntoTransparentRegions(temporaryTexture, wrapMode, GL_NEAREST, GL_NEAREST, colorDilationShader, texture);
+    } else {
+      texture->Load(atlasImage, wrapMode, GL_LINEAR, GL_LINEAR);
+    }
   }
   
   return true;

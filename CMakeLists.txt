@@ -131,6 +131,7 @@ set(FREEAGE_SRCS
   src/FreeAge/client/opengl.cpp
   src/FreeAge/client/render_window.cpp
   src/FreeAge/client/server_connection.cpp
+  src/FreeAge/client/shader_color_dilation.cpp
   src/FreeAge/client/shader_health_bar.cpp
   src/FreeAge/client/shader_program.cpp
   src/FreeAge/client/shader_sprite.cpp

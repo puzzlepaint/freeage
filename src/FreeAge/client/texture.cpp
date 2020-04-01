@@ -73,7 +73,32 @@ Texture::~Texture() {
   if (width != -1) {
     QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
     f->glDeleteTextures(1, &textureId);
+    
+    debugUsedGPUMemory -= width * height * bytesPerPixel;
+    PrintGPUMemoryUsage();
   }
+}
+
+void Texture::CreateEmpty(int width, int height, int wrapMode, int magFilter, int minFilter) {
+  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
+  
+  this->width = width;
+  this->height = height;
+  bytesPerPixel = 4;
+  
+  f->glGenTextures(1, &textureId);
+  f->glBindTexture(GL_TEXTURE_2D, textureId);
+  
+  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapMode);
+  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapMode);
+  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
+  f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
+  
+  f->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
+  
+  debugUsedGPUMemory += width * height * bytesPerPixel;
+  PrintGPUMemoryUsage();
+  CHECK_OPENGL_NO_ERROR();
 }
 
 void Texture::Load(const QImage& image, int wrapMode, int magFilter, int minFilter) {
@@ -81,6 +106,7 @@ void Texture::Load(const QImage& image, int wrapMode, int magFilter, int minFilt
   
   width = image.width();
   height = image.height();
+  bytesPerPixel = (image.format() == QImage::Format_ARGB32) ? 4 : 1;
   
   f->glGenTextures(1, &textureId);
   f->glBindTexture(GL_TEXTURE_2D, textureId);
@@ -100,8 +126,6 @@ void Texture::Load(const QImage& image, int wrapMode, int magFilter, int minFilt
         image.width(), image.height(),
         0, GL_BGRA, GL_UNSIGNED_BYTE,
         image.scanLine(0));
-    
-    debugUsedGPUMemory += image.width() * image.height() * 4;
   } else if (image.format() == QImage::Format_Grayscale8) {
     f->glTexImage2D(
         GL_TEXTURE_2D,
@@ -109,12 +133,11 @@ void Texture::Load(const QImage& image, int wrapMode, int magFilter, int minFilt
         image.width(), image.height(),
         0, GL_RED, GL_UNSIGNED_BYTE,
         image.scanLine(0));
-    
-    debugUsedGPUMemory += image.width() * image.height() * 4;
   } else {
     LOG(FATAL) << "Unsupported QImage format.";
   }
   
+  debugUsedGPUMemory += width * height * bytesPerPixel;
   PrintGPUMemoryUsage();
   CHECK_OPENGL_NO_ERROR();
 }
@@ -129,6 +152,7 @@ bool Texture::Load(const std::filesystem::path& path, int wrapMode, int magFilte
   
   width = bitmap.width;
   height = bitmap.height;
+  bytesPerPixel = 4;
   
   f->glGenTextures(1, &textureId);
   f->glBindTexture(GL_TEXTURE_2D, textureId);
@@ -148,8 +172,7 @@ bool Texture::Load(const std::filesystem::path& path, int wrapMode, int magFilte
       0, GL_BGRA, GL_UNSIGNED_BYTE,
       bitmap.address<u32>(0, 0));
   
-  debugUsedGPUMemory += bitmap.width * bitmap.height * 4;
-  
+  debugUsedGPUMemory += width * height * bytesPerPixel;
   PrintGPUMemoryUsage();
   CHECK_OPENGL_NO_ERROR();
   return true;

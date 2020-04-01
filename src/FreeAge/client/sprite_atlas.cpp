@@ -178,52 +178,6 @@ QImage SpriteAtlas::RenderAtlas() {
       // Unload the sprite image since it should not be needed anymore.
       image = QImage();
       
-      // Dilate the sprite colors by one (without touching the alpha channel).
-      // This prevents us from getting an ugly influence of the black (color value: (0, 0, 0, 0)) background
-      // when using bilinear filtering to access pixels on the border of the sprite.
-      // TODO: Use integral images for better performance
-      if (mode == Mode::Graphic) {
-        for (int y = 0; y < packedRect.height; ++ y) {
-          QRgb* outputScanline = reinterpret_cast<QRgb*>(atlas.scanLine(packedRect.y + y));
-          
-          for (int x = 0; x < packedRect.width; ++ x) {
-            int alpha = qAlpha(outputScanline[packedRect.x + x]);
-            if (alpha > 1) {
-              continue;
-            }
-            
-            int minX = std::max(0, x - 1);
-            int minY = std::max(0, y - 1);
-            int maxX = std::min(packedRect.width - 1, x + 1);
-            int maxY = std::min(packedRect.height - 1, y + 1);
-            
-            int redSum = 0;
-            int greenSum = 0;
-            int blueSum = 0;
-            int count = 0;
-            for (int sy = minY; sy <= maxY; ++ sy) {
-              for (int sx = minX; sx <= maxX; ++ sx) {
-                QRgb rgba = *(reinterpret_cast<QRgb*>(atlas.scanLine(packedRect.y + sy)) + (packedRect.x + sx));
-                if (qAlpha(rgba) <= 1) {
-                  continue;
-                }
-                
-                redSum += qRed(rgba);
-                greenSum += qGreen(rgba);
-                blueSum += qBlue(rgba);
-                ++ count;
-              }
-            }
-            
-            if (count > 0) {
-              float factor = 1.f / count;
-              outputScanline[packedRect.x + x] =
-                  qRgba(redSum * factor + 0.5f, greenSum * factor + 0.5f, blueSum * factor + 0.5f, alpha);
-            }
-          }
-        }
-      }
-      
       ++ index;
     }
   }

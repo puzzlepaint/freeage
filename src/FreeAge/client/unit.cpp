@@ -17,7 +17,7 @@ ClientUnitType::~ClientUnitType() {
   }
 }
 
-bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes) {
+bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes) {
   std::filesystem::path ingameUnitsPath =
       graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame" / "units";
   
@@ -149,7 +149,7 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     // Load each variant.
     animations[animationTypeInt].resize(animationVariants.size());
     for (usize variant = 0; variant < animationVariants.size(); ++ variant) {
-      ok = ok && LoadAnimation(variant, animationVariants[variant].c_str(), graphicsPath, cachePath, palettes, animationType);
+      ok = ok && LoadAnimation(variant, animationVariants[variant].c_str(), graphicsPath, cachePath, colorDilationShader, palettes, animationType);
       
       // For extracting attack durations.
       // TODO: Remove this once we get those in a better way.
@@ -183,11 +183,12 @@ int ClientUnitType::GetHealthBarHeightAboveCenter() const {
   return maxCenterY + kHealthBarOffset;
 }
 
-bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes, UnitAnimation type) {
+bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes, UnitAnimation type) {
   std::vector<SpriteAndTextures*>& animationVector = animations[static_cast<int>(type)];
   animationVector[index] = SpriteManager::Instance().GetOrLoad(
       (graphicsPath / filename).string().c_str(),
       (cachePath / filename).string().c_str(),
+      colorDilationShader,
       palettes);
   return animationVector[index] != nullptr;
 }

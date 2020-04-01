@@ -28,7 +28,7 @@ class ClientBuildingType {
   ClientBuildingType() = default;
   ~ClientBuildingType();
   
-  bool Load(BuildingType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, const Palettes& palettes);
+  bool Load(BuildingType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes);
   
   QSize GetSize() const;
   bool UsesRandomSpriteFrame() const;

@@ -12,6 +12,7 @@
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/client/texture.hpp"
 
+class ColorDilationShader;
 class SpriteShader;
 class Texture;
 
@@ -104,7 +105,7 @@ class SpriteManager {
   /// Loads the given sprite with the given settings, or returns an existing instance if available.
   /// The returned pointer must not be freed, but must be passed to Dereference() once it is not needed anymore.
   /// The function returns nullptr if it fails to load the given file.
-  SpriteAndTextures* GetOrLoad(const char* path, const char* cachePath, const Palettes& palettes);
+  SpriteAndTextures* GetOrLoad(const char* path, const char* cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes);
   
   /// Must be called once the sprite is not needed anymore. Once all references are gone, the sprite is unloaded.
   void Dereference(SpriteAndTextures* sprite);
@@ -119,7 +120,7 @@ class SpriteManager {
 
 /// Convenience function which loads a sprite and creates a texture atlas (just) for it.
 /// Attempts to find a good texture size automatically.
-bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode, int magFilter, int minFilter, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes);
+bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode, ColorDilationShader* colorDilationShader, Sprite* sprite, Texture* graphicTexture, Texture* shadowTexture, const Palettes& palettes);
 
 void DrawSprite(
     const Sprite& sprite,
