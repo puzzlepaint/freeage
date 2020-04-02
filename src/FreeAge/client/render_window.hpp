@@ -47,7 +47,7 @@ class RenderWindow : public QOpenGLWindow {
   void Scroll(float x, float y, QPointF* mapCoord);
   
   /// Computes the current scroll, taking into account the currently pressed keys.
-  QPointF GetCurrentScroll(const TimePoint& atTime);
+  QPointF GetCurrentScroll(const TimePoint& atTime, bool* scrollApplied);
   
   inline void SetScroll(const QPointF& value) { scroll = value; }
   
@@ -67,6 +67,7 @@ class RenderWindow : public QOpenGLWindow {
   void LoadingFinished();
   
   void HandleMouseMoveEvent();
+  void UpdateCursor();
   
  protected:
   struct TextureAndPointBuffer {
@@ -103,6 +104,7 @@ class RenderWindow : public QOpenGLWindow {
   usize PrepareBufferObject(usize size, QOpenGLFunctions_3_2_Core* f);
   
   void ComputePixelToOpenGLMatrix(QOpenGLFunctions_3_2_Core* f);
+  void UpdateViewMatrix();
   void UpdateView(const TimePoint& now, QOpenGLFunctions_3_2_Core* f);
   /// Renders a closed path consisting of line segments between the given vertices.
   /// The last vertex will be connected to the first. The vertex coordinates are in screen (pixel) coordinates.

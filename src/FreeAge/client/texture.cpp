@@ -75,7 +75,8 @@ Texture::~Texture() {
     f->glDeleteTextures(1, &textureId);
     
     debugUsedGPUMemory -= width * height * bytesPerPixel;
-    PrintGPUMemoryUsage();
+    // NOTE: We do not print the new memory usage here to prevent log spam on program exit.
+    // PrintGPUMemoryUsage();
   }
 }
 

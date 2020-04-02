@@ -408,23 +408,29 @@ void RenderWindow::Scroll(float x, float y, QPointF* mapCoord) {
   map->ProjectedCoordToMapCoord(projectedCoord, mapCoord);
 }
 
-QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime) {
+QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime, bool* scrollApplied) {
+  *scrollApplied = false;
+  
   QPointF projectedCoord = map->MapCoordToProjectedCoord(scroll);
   if (scrollRightPressed) {
     double seconds = SecondsDuration(atTime - scrollRightPressTime).count();
     projectedCoord += QPointF(scrollDistancePerSecond / zoom * seconds, 0);
+    *scrollApplied = true;
   }
   if (scrollLeftPressed) {
     double seconds = SecondsDuration(atTime - scrollLeftPressTime).count();
     projectedCoord += QPointF(-scrollDistancePerSecond / zoom * seconds, 0);
+    *scrollApplied = true;
   }
   if (scrollDownPressed) {
     double seconds = SecondsDuration(atTime - scrollDownPressTime).count();
     projectedCoord += QPointF(0, scrollDistancePerSecond / zoom * seconds);
+    *scrollApplied = true;
   }
   if (scrollUpPressed) {
     double seconds = SecondsDuration(atTime - scrollUpPressTime).count();
     projectedCoord += QPointF(0, -scrollDistancePerSecond / zoom * seconds);
+    *scrollApplied = true;
   }
   
   if (borderScrollingEnabled) {
@@ -432,15 +438,19 @@ QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime) {
     
     if (lastCursorPos.x() == widgetWidth - 1) {
       projectedCoord += QPointF(scrollDistancePerSecond / zoom * mouseImpactSeconds, 0);
+      *scrollApplied = true;
     }
     if (lastCursorPos.x() == 0) {
       projectedCoord += QPointF(-scrollDistancePerSecond / zoom * mouseImpactSeconds, 0);
+      *scrollApplied = true;
     }
     if (lastCursorPos.y() == widgetHeight - 1) {
       projectedCoord += QPointF(0, scrollDistancePerSecond / zoom * mouseImpactSeconds);
+      *scrollApplied = true;
     }
     if (lastCursorPos.y() == 0) {
       projectedCoord += QPointF(0, -scrollDistancePerSecond / zoom * mouseImpactSeconds);
+      *scrollApplied = true;
     }
   }
   
@@ -660,10 +670,27 @@ void RenderWindow::ComputePixelToOpenGLMatrix(QOpenGLFunctions_3_2_Core* f) {
   uiSingleColorShader->GetProgram()->SetUniformMatrix2fv(uiSingleColorShader->GetViewMatrixLocation(), pixelToOpenGLMatrix, true, f);
 }
 
+void RenderWindow::UpdateViewMatrix() {
+// Projected coordinates: arbitrary origin, +x goes right, +y goes down, scale is the default scale.
+  // OpenGL normalized device coordinates: top-left widget corner is (-1, 1), bottom-right widget corner is (1, -1).
+  // The transformation is stored as a matrix but applied as follows:
+  // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
+  // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
+  QPointF projectedCoordAtScreenCenter = map->MapCoordToProjectedCoord(scroll);
+  float scalingX = zoom * 2.f / widgetWidth;
+  float scalingY = zoom * -2.f / widgetHeight;
+  
+  viewMatrix[0] = scalingX;
+  viewMatrix[1] = scalingY;
+  viewMatrix[2] = -scalingX * projectedCoordAtScreenCenter.x();
+  viewMatrix[3] = -scalingY * projectedCoordAtScreenCenter.y();
+}
+
 void RenderWindow::UpdateView(const TimePoint& now, QOpenGLFunctions_3_2_Core* f) {
   // Update scrolling state
+  bool scrollApplied = false;
   if (!isLoading) {
-    scroll = GetCurrentScroll(now);
+    scroll = GetCurrentScroll(now, &scrollApplied);
     lastScrollGetTime = now;
     if (scrollRightPressed) { scrollRightPressTime = now; }
     if (scrollLeftPressed) { scrollLeftPressTime = now; }
@@ -676,19 +703,7 @@ void RenderWindow::UpdateView(const TimePoint& now, QOpenGLFunctions_3_2_Core* f
   
   // Compute the view (projected-to-OpenGL) transformation.
   if (!isLoading) {
-    // Projected coordinates: arbitrary origin, +x goes right, +y goes down, scale is the default scale.
-    // OpenGL normalized device coordinates: top-left widget corner is (-1, 1), bottom-right widget corner is (1, -1).
-    // The transformation is stored as a matrix but applied as follows:
-    // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
-    // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
-    QPointF projectedCoordAtScreenCenter = map->MapCoordToProjectedCoord(scroll);
-    float scalingX = zoom * 2.f / widgetWidth;
-    float scalingY = zoom * -2.f / widgetHeight;
-    
-    viewMatrix[0] = scalingX;
-    viewMatrix[1] = scalingY;
-    viewMatrix[2] = -scalingX * projectedCoordAtScreenCenter.x();
-    viewMatrix[3] = -scalingY * projectedCoordAtScreenCenter.y();
+    UpdateViewMatrix();
     
     // Apply the view transformation to all shaders.
     // TODO: Use a uniform buffer object for that.
@@ -719,6 +734,10 @@ void RenderWindow::UpdateView(const TimePoint& now, QOpenGLFunctions_3_2_Core* f
         topProjectedCoords,
         rightProjectedCoords - leftProjectedCoords,
         bottomProjectedCoords - topProjectedCoords);
+  }
+  
+  if (scrollApplied) {
+    UpdateCursor();
   }
 }
 
@@ -2390,9 +2409,13 @@ void RenderWindow::JumpToObject(u32 objectId, ClientObject* object) {
   if (object->isBuilding()) {
     ClientBuilding* building = static_cast<ClientBuilding*>(object);
     scroll = building->GetCenterMapCoord();
+    UpdateViewMatrix();
+    UpdateCursor();
   } else if (object->isUnit()) {
     ClientUnit* unit = static_cast<ClientUnit*>(object);
     scroll = unit->GetMapCoord();
+    UpdateViewMatrix();
+    UpdateCursor();
   }
 }
 
@@ -2952,6 +2975,10 @@ void RenderWindow::HandleMouseMoveEvent() {
   }
   
   // If hovering over the game area, possibly change the cursor to indicate possible interactions.
+  UpdateCursor();
+}
+
+void RenderWindow::UpdateCursor() {
   QCursor* cursor = &defaultCursor;
   if (!IsUIAt(lastMouseMoveEventPos.x(), lastMouseMoveEventPos.y())) {
     u32 targetObjectId;
@@ -3086,21 +3113,29 @@ void RenderWindow::keyReleaseEvent(QKeyEvent* event) {
     TimePoint now = Clock::now();
     double seconds = std::chrono::duration<double>(now - scrollRightPressTime).count();
     Scroll(scrollDistancePerSecond / zoom * seconds, 0, &scroll);
+    UpdateViewMatrix();
+    UpdateCursor();
   } else if (event->key() == Qt::Key_Left) {
     scrollLeftPressed = false;
     TimePoint now = Clock::now();
     double seconds = std::chrono::duration<double>(now - scrollLeftPressTime).count();
     Scroll(-scrollDistancePerSecond / zoom * seconds, 0, &scroll);
+    UpdateViewMatrix();
+    UpdateCursor();
   } else if (event->key() == Qt::Key_Up) {
     scrollUpPressed = false;
     TimePoint now = Clock::now();
     double seconds = std::chrono::duration<double>(now - scrollUpPressTime).count();
     Scroll(0, -scrollDistancePerSecond / zoom * seconds, &scroll);
+    UpdateViewMatrix();
+    UpdateCursor();
   } else if (event->key() == Qt::Key_Down) {
     scrollDownPressed = false;
     TimePoint now = Clock::now();
     double seconds = std::chrono::duration<double>(now - scrollDownPressTime).count();
     Scroll(0, scrollDistancePerSecond / zoom * seconds, &scroll);
+    UpdateViewMatrix();
+    UpdateCursor();
   } else {
     // Check whether a hotkey for a command button was released.
     for (int row = 0; row < kCommandButtonRows; ++ row) {
