@@ -5,6 +5,7 @@
 #include <QDoubleValidator>
 #include <QFileDialog>
 #include <QGridLayout>
+#include <QGroupBox>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
@@ -206,6 +207,9 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   setWindowIcon(QIcon(":/free_age/free_age.png"));
   setWindowTitle(tr("FreeAge - Setup"));
   
+  
+  QGroupBox* dataGroup = new QGroupBox(tr("Data files"));
+  
   QLabel* dataFolderLabel = new QLabel(tr("AoE2DE folder path: "));
   dataFolderEdit = new QLineEdit(QString::fromStdString(settings->dataPath.string()));
   QPushButton* dataFolderButton = new QPushButton(tr("Select"));
@@ -226,22 +230,46 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   modsFolderEditLayout->addWidget(modsFolderEdit);
   modsFolderEditLayout->addWidget(modsFolderButton);
   
+  QGridLayout* dataLayout = new QGridLayout();
+  int row = 0;
+  dataLayout->addWidget(dataFolderLabel, row, 0);
+  dataLayout->addLayout(dataFolderEditLayout, row, 1);
+  ++ row;
+  dataLayout->addWidget(modsFolderLabel, row, 0);
+  dataLayout->addLayout(modsFolderEditLayout, row, 1);
+  dataGroup->setLayout(dataLayout);
+  
+  
+  QGroupBox* preferencesGroup = new QGroupBox(tr("Preferences"));
+  
   QLabel* playerNameLabel = new QLabel(tr("Player name: "));
   playerNameEdit = new QLineEdit(settings->playerName);
-  
-  fullscreenCheck = new QCheckBox(tr("Fullscreen"));
-  fullscreenCheck->setChecked(settings->fullscreen);
   
   QLabel* uiScaleLabel = new QLabel(tr("UI Scale: "));
   uiScaleEdit = new QLineEdit(QString::number(settings->uiScale));
   uiScaleEdit->setValidator(new QDoubleValidator(0.01, 100, 2, uiScaleEdit));
   
+  fullscreenCheck = new QCheckBox(tr("Fullscreen"));
+  fullscreenCheck->setChecked(settings->fullscreen);
+  
+  QGridLayout* preferencesLayout = new QGridLayout();
+  row = 0;
+  preferencesLayout->addWidget(playerNameLabel, row, 0);
+  preferencesLayout->addWidget(playerNameEdit, row, 1);
+  ++ row;
+  preferencesLayout->addWidget(uiScaleLabel, row, 0);
+  preferencesLayout->addWidget(uiScaleEdit, row, 1);
+  ++ row;
+  preferencesLayout->addWidget(fullscreenCheck, row, 0, 1, 2);
+  preferencesGroup->setLayout(preferencesLayout);
+  
+  
   debugNetworkingCheck = new QCheckBox(tr("Enable debug logging for networking"));
   debugNetworkingCheck->setChecked(settings->debugNetworking);
   
   QPushButton* exitButton = new QPushButton(tr("Exit"));
-  QPushButton* hostButton = new QPushButton(tr("Host a game"));
-  QPushButton* joinButton = new QPushButton(tr("Join a game"));
+  QPushButton* hostButton = new QPushButton(tr("Create new lobby"));
+  QPushButton* joinButton = new QPushButton(tr("Join existing lobby"));
   
   QHBoxLayout* buttonsLayout = new QHBoxLayout();
   buttonsLayout->addWidget(exitButton);
@@ -249,25 +277,12 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   buttonsLayout->addWidget(hostButton);
   buttonsLayout->addWidget(joinButton);
   
-  QGridLayout* layout = new QGridLayout();
-  int row = 0;
-  layout->addWidget(dataFolderLabel, row, 0);
-  layout->addLayout(dataFolderEditLayout, row, 1);
-  ++ row;
-  layout->addWidget(modsFolderLabel, row, 0);
-  layout->addLayout(modsFolderEditLayout, row, 1);
-  ++ row;
-  layout->addWidget(playerNameLabel, row, 0);
-  layout->addWidget(playerNameEdit, row, 1);
-  ++ row;
-  layout->addWidget(fullscreenCheck, row, 0, 1, 2);
-  ++ row;
-  layout->addWidget(uiScaleLabel, row, 0);
-  layout->addWidget(uiScaleEdit, row, 1);
-  ++ row;
-  layout->addWidget(debugNetworkingCheck, row, 0, 1, 2);
-  ++ row;
-  layout->addLayout(buttonsLayout, row, 0, 1, 2);
+  
+  QVBoxLayout* layout = new QVBoxLayout();
+  layout->addWidget(dataGroup);
+  layout->addWidget(preferencesGroup);
+  layout->addWidget(debugNetworkingCheck);
+  layout->addLayout(buttonsLayout);
   setLayout(layout);
   
   resize(std::max(600, width()), 0);
