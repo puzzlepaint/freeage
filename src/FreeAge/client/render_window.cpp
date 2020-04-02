@@ -1938,6 +1938,9 @@ void RenderWindow::BoxSelection(const QPoint& p0, const QPoint& p1) {
       std::abs(pr0.x() - pr1.x()),
       std::abs(pr0.y() - pr1.y()));
   
+  std::vector<std::pair<u32, ClientObject*>> objects;
+  bool haveOwnObject = false;
+  
   for (auto& object : map->GetObjects()) {
     if (object.second->isUnit()) {
       ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
@@ -1949,9 +1952,24 @@ void RenderWindow::BoxSelection(const QPoint& p0, const QPoint& p1) {
           false);
       
       if (projectedCoordsRect.intersects(selectionRect)) {
+        objects.push_back(object);
+        if (object.second->GetPlayerIndex() == match->GetPlayerIndex()) {
+          haveOwnObject = true;
+        }
+      }
+    }
+  }
+  
+  // If at least one own object is there, select only the own objects.
+  // Else, select a single object only (TODO: Any preference for which single one to select?)
+  if (haveOwnObject) {
+    for (auto& object : objects) {
+      if (object.second->GetPlayerIndex() == match->GetPlayerIndex()) {
         AddToSelection(object.first);
       }
     }
+  } else if (!objects.empty()) {
+    AddToSelection(objects.front().first);
   }
   
   SelectionChanged();
