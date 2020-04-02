@@ -517,7 +517,7 @@ void Game::StartGame() {
   // Send a start message with the server time at which the game starts,
   // including the initial view center for each player (on its initial TC),
   // the player's initial resources, and the map size.
-  constexpr double kGameBeginOffsetSeconds = 1.0;  // give some time for the initial messages to arrive and be processed
+  constexpr double kGameBeginOffsetSeconds = 0.2;  // give some time for the initial messages to arrive and be processed
   double serverTime = GetCurrentServerTime();
   gameBeginServerTime = serverTime + kGameBeginOffsetSeconds;
   lastSimulationTime = gameBeginServerTime;
