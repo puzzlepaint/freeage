@@ -1,10 +1,13 @@
 #include "FreeAge/server/game.hpp"
 
+#include <queue>
+
 #include <QApplication>
 #include <QThread>
 
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/common/messages.hpp"
+#include "FreeAge/common/timing.hpp"
 #include "FreeAge/server/building.hpp"
 #include "FreeAge/server/unit.hpp"
 
@@ -790,7 +793,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
     
     if (!stayInPlace && unit->HasPath()) {
       // Test whether the current goal was reached.
-      QPointF toGoal = unit->GetPathTarget() - unit->GetMapCoord();
+      QPointF toGoal = unit->GetNextPathTarget() - unit->GetMapCoord();
       float squaredDistanceToGoal = toGoal.x() * toGoal.x() + toGoal.y() * toGoal.y();
       float directionDotToGoal =
           unit->GetMovementDirection().x() * toGoal.x() +
@@ -798,10 +801,23 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
       
       if (squaredDistanceToGoal <= moveDistance * moveDistance || directionDotToGoal <= 0) {
         // The goal was reached.
-        if (!map->DoesUnitCollide(unit, unit->GetPathTarget())) {
-          unit->SetMapCoord(unit->GetPathTarget());
+        if (!map->DoesUnitCollide(unit, unit->GetNextPathTarget())) {
+          unit->SetMapCoord(unit->GetNextPathTarget());
         }
-        unit->StopMovement();
+        
+        // Continue with the next part of the path if any, or stop if the path was completed.
+        unit->PathSegmentCompleted();
+        if (unit->HasPath()) {
+          // Continue with the next path segment.
+          // TODO: This is a duplicate of the code at the end of PlanUnitPath()
+          QPointF direction = unit->GetNextPathTarget() - unit->GetMapCoord();
+          direction = direction / std::max(1e-4f, sqrtf(direction.x() * direction.x() + direction.y() * direction.y()));
+          unit->SetMovementDirection(direction);
+        } else {
+          // Completed the path.
+          unit->StopMovement();
+        }
+        
         unitMovementChanged = true;
       } else {
         // Move the unit if the path is free.
@@ -839,12 +855,190 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
 }
 
 void Game::PlanUnitPath(ServerUnit* unit) {
-  // TODO: Actually plan a path. For now, we just set the move-to target as a single path target point.
-  unit->SetPath(unit->GetMoveToTargetMapCoord());
+  Timer pathPlanningTimer;
+  
+  typedef int CostT;
+  
+  int mapWidth = map->GetWidth();
+  int mapHeight = map->GetHeight();
+  
+  // Determine the tile that the unit stands on. This will be the start tile.
+  QPoint start(
+      std::max(0, std::min(mapWidth - 1, static_cast<int>(unit->GetMapCoord().x()))),
+      std::max(0, std::min(mapHeight - 1, static_cast<int>(unit->GetMapCoord().y()))));
+  
+  // Determine the goal tile.
+  QPoint goal(
+      std::max(0, std::min(mapWidth - 1, static_cast<int>(unit->GetMoveToTargetMapCoord().x()))),
+      std::max(0, std::min(mapHeight - 1, static_cast<int>(unit->GetMoveToTargetMapCoord().y()))));
+  
+  // Determine the tiles to treat as open despite being occupied.
+  // This is done for the tiles taken up by the unit's target.
+  // This allows us to plan a path "into" the target.
+  QRect openRect;
+  if (unit->GetTargetObjectId() != kInvalidObjectId) {
+    auto targetIt = map->GetObjects().find(unit->GetTargetObjectId());
+    if (targetIt != map->GetObjects().end()) {
+      ServerObject* targetObject = targetIt->second;
+      if (targetObject->isBuilding()) {
+        ServerBuilding* targetBuilding = static_cast<ServerBuilding*>(targetObject);
+        
+        const QPoint& baseTile = targetBuilding->GetBaseTile();
+        QSize buildingSize = GetBuildingSize(targetBuilding->GetBuildingType());
+        openRect = QRect(baseTile, buildingSize);
+      }
+    }
+  }
+  
+  // Use A* to plan a path from the start to the goal tile.
+  // * Treat unit-occupied tiles as obstacles.
+  // * Treat tiles that are occupied by the unit's target building (if any) as free,
+  //   such that the algorithm can plan a path "into" the goal.
+  // * If the goal is not reachable, return the path that leads to the reachable
+  //   position that is closest to the goal.
+  struct Location {
+    QPoint loc;
+    float priority;
+    
+    inline Location(const QPoint& loc, float priority)
+        : loc(loc),
+          priority(priority) {}
+    
+    inline bool operator> (const Location& other) const {
+      return priority > other.priority;
+    }
+  };
+  
+  std::priority_queue<Location, std::vector<Location>, std::greater<Location>> priorityQueue;
+  
+  priorityQueue.emplace(start, 0.f);
+  
+  std::vector<CostT> costSoFar(mapWidth * mapHeight);
+  memset(costSoFar.data(), 0xff, mapWidth * mapHeight * sizeof(CostT));
+  costSoFar[start.x() + mapWidth * start.y()] = 0;
+  
+  std::vector<u8> cameFrom(mapWidth * mapHeight);
+  memset(cameFrom.data(), 255, mapWidth * mapHeight);
+  
+  CostT smallestReachedHeuristicValue = std::numeric_limits<CostT>::max();
+  QPoint smallestReachedHeuristicTile(-1, -1);
+  
+  int debugConsideredNodesCount = 0;
+  
+  while (!priorityQueue.empty()) {
+    ++ debugConsideredNodesCount;
+    
+    Location current = priorityQueue.top();
+    priorityQueue.pop();
+    
+    if (current.loc == goal) {
+      break;
+    }
+    
+    CostT currentCost = costSoFar[current.loc.x() + mapWidth * current.loc.y()];
+    
+    // TODO: Use 8 neighbors, including diagonal movements, instead of 4.
+    // TODO: Can we use JPS' expansion strategy? (Skip looking at some neighbors
+    //       for which we know that the cost will not decrease.)
+    for (int neighborIdx = 0; neighborIdx < 4; ++ neighborIdx) {
+      QPoint nextTile(
+          current.loc.x() + ((neighborIdx == 0) ? -1 : ((neighborIdx == 1) ? 1 : 0)),
+          current.loc.y() + ((neighborIdx == 2) ? -1 : ((neighborIdx == 3) ? 1 : 0)));
+      int nextGridIndex = nextTile.x() + mapWidth * nextTile.y();
+      
+      if (nextTile.x() < 0 || nextTile.y() < 0 ||
+          nextTile.x() >= mapWidth || nextTile.y() >= mapHeight ||
+          (map->occupiedForUnitsAt(nextTile.x(), nextTile.y()) && !openRect.contains(nextTile, false))) {
+        continue;
+      }
+      
+      CostT newCost = currentCost + 1;
+      CostT* nextCostSoFar = &costSoFar[nextGridIndex];
+      if (*nextCostSoFar == -1 || newCost < *nextCostSoFar) {
+        *nextCostSoFar = newCost;
+        
+        CostT heuristic = std::abs(nextTile.x() - goal.x()) + std::abs(nextTile.y() - goal.y());
+        if (heuristic < smallestReachedHeuristicValue) {
+          smallestReachedHeuristicValue = heuristic;
+          smallestReachedHeuristicTile = nextTile;
+        }
+        
+        priorityQueue.emplace(nextTile, newCost + heuristic);
+        cameFrom[nextGridIndex] = neighborIdx;
+      }
+    }
+  }
+  
+  LOG(1) << "Pathfinding: considered " << debugConsideredNodesCount << " nodes (max possible: " << (mapWidth * mapHeight) << ")";
+  
+  // Did we find a path to the goal or only to some other tile that is close to the goal?
+  QPoint targetTile;
+  if (cameFrom[goal.x() + mapWidth * goal.y()] == 255) {
+    // No path to the goal was found. Go to the reachable node that is closest to the goal.
+    if (smallestReachedHeuristicTile.x() >= 0) {
+      LOG(1) << "Pathfinding: Goal not reached; going as close as possible";
+      targetTile = smallestReachedHeuristicTile;
+    } else {
+      // Goal not reached and we do not have an optimum tile. This happens if the unit is on a single
+      // tile surrounded by obstacles, or if start == goal.
+      if (start == goal) {
+        LOG(1) << "Pathfinding: start == goal";
+        targetTile = goal;
+      } else {
+        LOG(1) << "Pathfinding: Goal not reached and there is no better tile than the initial one. Stopping.";
+        unit->StopMovement();
+        return;
+      }
+    }
+  } else {
+    LOG(1) << "Pathfinding: Goal reached";
+    targetTile = goal;
+  }
+  
+  // Reconstruct the path, tracking back from "targetTile" using "cameFrom".
+  // We leave out the start tile since the unit is already within that tile.
+  std::vector<QPointF> reversePath;
+  QPoint currentTile = targetTile;
+  while (currentTile != start) {
+    reversePath.push_back(QPointF(currentTile.x() + 0.5f, currentTile.y() + 0.5f));
+    
+    int cameFromDirection = cameFrom[currentTile.x() + mapWidth * currentTile.y()];
+    if (cameFromDirection == 0) {
+      currentTile.setX(currentTile.x() + 1);
+    } else if (cameFromDirection == 1) {
+      currentTile.setX(currentTile.x() - 1);
+    } else if (cameFromDirection == 2) {
+      currentTile.setY(currentTile.y() + 1);
+    } else if (cameFromDirection == 3) {
+      currentTile.setY(currentTile.y() - 1);
+    } else {
+      LOG(ERROR) << "Unexpected value in cameFrom[] while reconstructing path: " << cameFromDirection;
+      break;
+    }
+  }
+  
+  // Replace the last point with the exact goal location (if we can reach the goal)
+  if (targetTile == goal) {
+    if (reversePath.empty()) {
+      reversePath.push_back(unit->GetMoveToTargetMapCoord());
+    } else {
+      reversePath[0] = unit->GetMoveToTargetMapCoord();
+    }
+  }
+  
+  LOG(1) << "Pathfinding: Non-smoothed path length is " << reversePath.size();
+  
+  // Smooth the planned path by attempting to drop corners.
+  // TODO
+  
+  LOG(1) << "Pathfinding: Took " << pathPlanningTimer.Stop(false) << " s";
+  
+  // Assign the path to the unit.
+  unit->SetPath(reversePath);
   
   // Start traversing the path:
   // Set the unit's movement direction to the first segment of the path.
-  QPointF direction = unit->GetMoveToTargetMapCoord() - unit->GetMapCoord();
+  QPointF direction = unit->GetNextPathTarget() - unit->GetMapCoord();
   direction = direction / std::max(1e-4f, sqrtf(direction.x() * direction.x() + direction.y() * direction.y()));
   unit->SetMovementDirection(direction);
 }

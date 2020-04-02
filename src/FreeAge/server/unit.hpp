@@ -35,9 +35,10 @@ class ServerUnit : public ServerObject {
   
   // TODO: Accept more complex paths (rather than just a single target).
   inline bool HasPath() const { return hasPath; }
-  inline void SetPath(const QPointF& pathTarget) { hasPath = true; this->pathTarget = pathTarget; }
+  inline void SetPath(const std::vector<QPointF>& reversePath) { hasPath = true; this->reversePath = reversePath; }
   inline void StopMovement() { currentAction = UnitAction::Idle; hasMoveToTarget = false; hasPath = false; currentMovementDirection = QPointF(0, 0); }
-  inline const QPointF& GetPathTarget() const { return pathTarget; }
+  inline const QPointF& GetNextPathTarget() const { return reversePath.empty() ? moveToTarget : reversePath.back(); }
+  inline void PathSegmentCompleted() { reversePath.pop_back(); if (reversePath.empty()) { hasPath = false; } }
   
   inline const QPointF& GetMovementDirection() const { return currentMovementDirection; }
   inline void SetMovementDirection(const QPointF& direction) { currentMovementDirection = direction; }
@@ -83,9 +84,10 @@ class ServerUnit : public ServerObject {
   bool hasMoveToTarget = false;
   QPointF moveToTarget;
   
-  /// The currenly planned path to the unit's target.
+  /// Whether reversePath is valid. TODO: Could be dropped now; could represent not having a path as reversePath being empty
   bool hasPath = false;
-  QPointF pathTarget;
+  /// The currenly planned path to the unit's target. The first entry is the last node in the path, thus "reverse".
+  std::vector<QPointF> reversePath;
   
   /// The current movement direction of the unit for the current linear segment of its planned path.
   /// This is in general the only movement-related piece of information that the clients know about.
