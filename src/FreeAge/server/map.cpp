@@ -330,14 +330,17 @@ void ServerMap::PlaceElevation(int tileX, int tileY, int elevationValue) {
   }
 }
 
-bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord) {
+bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord, ServerUnit** collidingUnit) {
   float radius = GetUnitRadius(unit->GetUnitType());
   
-  // Test collision with the map bounds
-  if (mapCoord.x() < radius ||
-      mapCoord.y() < radius ||
-      mapCoord.x() >= width - radius ||
-      mapCoord.y() >= height - radius) {
+  // Test collision with the map bounds, accounting for NaNs with the negation
+  if (!(mapCoord.x() >= radius &&
+        mapCoord.y() >= radius &&
+        mapCoord.x() < width - radius &&
+        mapCoord.y() < height - radius)) {
+    if (collidingUnit) {
+      *collidingUnit = nullptr;
+    }
     return true;
   }
   
@@ -361,6 +364,9 @@ bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord) {
       QPointF offset = mapCoord - closestPointInTile;
       float squaredDistance = offset.x() * offset.x() + offset.y() * offset.y();
       if (squaredDistance < squaredRadius) {
+        if (collidingUnit) {
+          *collidingUnit = nullptr;
+        }
         return true;
       }
     }
@@ -378,6 +384,9 @@ bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord) {
       QPointF offset = otherUnit->GetMapCoord() - mapCoord;
       float squaredDistance = offset.x() * offset.x() + offset.y() * offset.y();
       if (squaredDistance < (radius + otherRadius) * (radius + otherRadius)) {
+        if (collidingUnit) {
+          *collidingUnit = otherUnit;
+        }
         return true;
       }
     }

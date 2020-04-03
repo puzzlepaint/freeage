@@ -704,6 +704,43 @@ static bool IsFoundationFree(ServerBuilding* foundation, ServerMap* map) {
   return true;
 }
 
+static bool TryEvadeUnit(ServerUnit* unit, float moveDistance, const QPointF& newMapCoord, ServerUnit* collidingUnit, QPointF* evadeMapCoord) {
+  // Intersect a circle of radius "moveDistance", centered at unit->GetMapCoord(),
+  // with a circle of radius GetUnitRadius(unit->GetUnitType()) + GetUnitRadius(collidingUnit->GetUnitType()), centered at collidingUnit->GetMapCoord().
+  constexpr float kErrorTolerance = 1e-3f;
+  
+  const QPointF unitCenter = unit->GetMapCoord();
+  float unitMoveRadius = moveDistance;
+  
+  const QPointF obstacleCenter = collidingUnit->GetMapCoord();
+  float obstacleRadius = GetUnitRadius(unit->GetUnitType()) + GetUnitRadius(collidingUnit->GetUnitType()) + kErrorTolerance;
+  
+  QPointF unitToObstacle = obstacleCenter - unitCenter;
+  float centerDistance = sqrtf(unitToObstacle.x() * unitToObstacle.x() + unitToObstacle.y() * unitToObstacle.y());
+  QPointF unitToObstacleDir = unitToObstacle / std::max(1e-5f, centerDistance);
+  
+  float a = (unitMoveRadius * unitMoveRadius - obstacleRadius * obstacleRadius + centerDistance * centerDistance) / (2 * centerDistance);
+  float termInSqrt = unitMoveRadius * unitMoveRadius - a * a;
+  if (termInSqrt <= 0) {
+    return false;
+  }
+  float h = sqrtf(termInSqrt);
+  
+  QPointF basePoint = unitCenter + a * unitToObstacleDir;
+  
+  QPointF intersection1 = basePoint + h * QPointF(unitToObstacleDir.y(), -unitToObstacleDir.x());
+  QPointF intersection2 = basePoint - h * QPointF(unitToObstacleDir.y(), -unitToObstacleDir.x());
+  
+  QPointF intersection1ToNewMapCoord = newMapCoord - intersection1;
+  float squaredDistance1 = intersection1ToNewMapCoord.x() * intersection1ToNewMapCoord.x() + intersection1ToNewMapCoord.y() * intersection1ToNewMapCoord.y();
+  
+  QPointF intersection2ToNewMapCoord = newMapCoord - intersection2;
+  float squaredDistance2 = intersection2ToNewMapCoord.x() * intersection2ToNewMapCoord.x() + intersection2ToNewMapCoord.y() * intersection2ToNewMapCoord.y();
+  
+  *evadeMapCoord = (squaredDistance1 < squaredDistance2) ? intersection1 : intersection2;
+  return true;
+}
+
 void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStepServerTime, float stepLengthInSeconds) {
   bool unitMovementChanged = false;
   
@@ -835,8 +872,32 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
         unitMovementChanged = true;
       } else {
         // Move the unit if the path is free.
-        if (map->DoesUnitCollide(unit, newMapCoord)) {
-          if (unit->GetCurrentAction() != UnitAction::Idle) {
+        ServerUnit* collidingUnit;
+        if (map->DoesUnitCollide(unit, newMapCoord, &collidingUnit)) {
+          bool evaded = false;
+          if (collidingUnit != nullptr) {
+            // Try to evade the unit by moving alongside it.
+            QPointF evadeMapCoord;
+            if (TryEvadeUnit(unit, moveDistance, newMapCoord, collidingUnit, &evadeMapCoord) &&
+                !map->DoesUnitCollide(unit, evadeMapCoord, &collidingUnit)) {
+              // Successfully found a side step to avoid bumping into the other unit.
+              // Change our movement direction in order to still face the next path goal.
+              unit->SetMapCoord(evadeMapCoord);
+              
+              QPointF direction = unit->GetNextPathTarget() - unit->GetMapCoord();
+              direction = direction / std::max(1e-4f, sqrtf(direction.x() * direction.x() + direction.y() * direction.y()));
+              unit->SetMovementDirection(direction);
+              
+              if (unit->GetCurrentAction() != UnitAction::Moving) {
+                unit->SetCurrentAction(UnitAction::Moving);
+              }
+              
+              unitMovementChanged = true;
+              evaded = true;
+            }
+          }
+          
+          if (!evaded && unit->GetCurrentAction() != UnitAction::Idle) {
             unit->PauseMovement();
             unitMovementChanged = true;
           }

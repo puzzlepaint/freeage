@@ -43,8 +43,10 @@ class ServerMap {
   u32 AddUnit(ServerUnit* newUnit);
   
   /// Tests whether the given unit could stand at the given mapCoord without
-  /// colliding with other units or occupied space (buildings, etc.)
-  bool DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord);
+  /// colliding with other units or occupied space (buildings, etc.).
+  /// If the function returns true and the unit would collide with another unit,
+  /// returns that unit in "collidingUnit".
+  bool DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord, ServerUnit** collidingUnit = nullptr);
   
   /// Returns the elevation at the given tile corner.
   inline int& elevationAt(int cornerX, int cornerY) { return elevation[cornerY * (width + 1) + cornerX]; }
