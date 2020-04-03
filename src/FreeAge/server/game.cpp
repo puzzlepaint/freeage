@@ -1,5 +1,6 @@
 #include "FreeAge/server/game.hpp"
 
+#include <iostream>
 #include <queue>
 
 #include <QApplication>
@@ -867,6 +868,153 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
   }
 }
 
+/// Tests whether the unit could walk from p0 to p1 (or vice versa) without colliding
+/// with a building. Notice that this function does not check whether the start and
+/// end points themselves are (fully) free, it only checks the space between them.
+bool Game::IsPathFree(float unitRadius, const QPointF& p0, const QPointF& p1) {
+  // Obtain the points to the right and left of p0 and p1.
+  constexpr float kErrorEpsilon = 1e-3f;
+  
+  QPointF p0ToP1 = p1 - p0;
+  QPointF right(
+      -p0ToP1.y(),
+      p0ToP1.x());
+  float rightNorm = sqrtf(right.x() * right.x() + right.y() * right.y());
+  right *= (unitRadius + kErrorEpsilon) / std::max(1e-4f, rightNorm);
+  
+  QPointF p0Right = p0 + right;
+  QPointF p0Left = p0 - right;
+  QPointF p1Right = p1 + right;
+  QPointF p1Left = p1 - right;
+  
+  // Rasterize the polygon defined by all the points into the map grid.
+  int minRow = std::numeric_limits<int>::max();
+  int maxRow = 0;
+  std::vector<std::pair<int, int>> rowRanges(map->GetHeight(), std::make_pair(std::numeric_limits<int>::max(), 0));
+  
+  auto rasterize = [&](int x, int y) {
+    // For safety, clamp the coordinate to the map area.
+    x = std::max(0, std::min(map->GetWidth() - 1, x));
+    y = std::max(0, std::min(map->GetHeight() - 1, y));
+    
+    minRow = std::min(minRow, y);
+    maxRow = std::max(maxRow, y);
+    
+    auto& rowRange = rowRanges[y];
+    rowRange.first = std::min(rowRange.first, x);
+    rowRange.second = std::max(rowRange.second, x);
+  };
+  
+  auto rasterizeLine = [&](const QPointF& start, const QPointF& end) {
+    QPointF cur = start;
+    QPointF remaining = end - start;
+    
+    int x = static_cast<int>(cur.x());
+    int y = static_cast<int>(cur.y());
+    
+    int endX = static_cast<int>(end.x());
+    int endY = static_cast<int>(end.y());
+    
+    int sx = (remaining.x() > 0) ? 1 : -1;
+    int sy = (remaining.y() > 0) ? 1 : -1;
+    
+    while (true) {
+      rasterize(x, y);
+      
+      float fx = cur.x() - x;
+      float fy = cur.y() - y;
+      
+      float xToBorder = (sx > 0) ? (1 - fx) : fx;
+      float yToBorder = (sy > 0) ? (1 - fy) : fy;
+      
+      if (fabs(remaining.x()) <= xToBorder &&
+          fabs(remaining.y()) <= yToBorder) {
+        // The goal is in the current square.
+        break;
+      }
+      if ((endX - x) * sx <= 0 &&
+          (endY - y) * sy <= 0) {
+        // We somehow surpassed the end without noticing.
+        LOG(WARNING) << "Emergency exit.";
+        break;
+      }
+      
+      float diffX, diffY;
+      if (fabs(remaining.x()) / std::max<float>(1e-5f, fabs(remaining.y())) >
+          xToBorder / std::max(1e-5f, yToBorder)) {
+        // Go in x direction
+        if (sx > 0) {
+          // Go to the right.
+          diffX = - (1 - fx);
+        } else {
+          // Go to the left.
+          diffX = fx;
+        }
+        diffY = remaining.y() * ((remaining.x() + diffX) / remaining.x() - 1);
+        x += sx;
+      } else {
+        // Go in y direction
+        if (sy > 0) {
+          // Go to the bottom.
+          diffY = - (1 - fy);
+        } else {
+          // Go to the top.
+          diffY = fy;
+        }
+        diffX = remaining.x() * ((remaining.y() + diffY) / remaining.y() - 1);
+        y += sy;
+      }
+      
+      remaining.setX(remaining.x() + diffX);
+      remaining.setY(remaining.y() + diffY);
+      cur.setX(cur.x() - diffX);
+      cur.setY(cur.y() - diffY);
+    }
+  };
+  
+  rasterizeLine(p0Right, p1Right);
+  rasterizeLine(p0Left, p1Left);
+  rasterizeLine(p0Right, p0Left);
+  rasterizeLine(p1Right, p1Left);
+  
+  // Test whether any tile within the boundaries of the rasterized area is occupied.
+  // If yes, the path is blocked.
+  constexpr bool kDebugRasterization = false;
+  constexpr const char* kDebugImagePath = "/tmp/FreeAge_pathFree_debug.png";
+  if (kDebugRasterization) {
+    QImage debugImage(map->GetWidth(), map->GetHeight(), QImage::Format_RGB32);
+    debugImage.fill(qRgb(255, 255, 255));
+    
+    for (int row = minRow; row <= maxRow; ++ row) {
+      auto& rowRange = rowRanges[row];
+      for (int col = rowRange.first; col <= rowRange.second; ++ col) {
+        if (map->occupiedForUnitsAt(col, row)) {
+          debugImage.setPixelColor(col, row, qRgb(255, 0, 0));
+        } else {
+          debugImage.setPixelColor(col, row, qRgb(0, 255, 0));
+        }
+      }
+    }
+    
+    LOG(WARNING) << "Saving IsPathFree() debug image to " << kDebugImagePath;
+    debugImage.save(kDebugImagePath);
+    
+    char dummy;
+    std::cin >> dummy;
+  }
+  
+  for (int row = minRow; row <= maxRow; ++ row) {
+    auto& rowRange = rowRanges[row];
+    for (int col = rowRange.first; col <= rowRange.second; ++ col) {
+      if (map->occupiedForUnitsAt(col, row)) {
+        return false;
+      }
+    }
+  }
+  
+  return true;
+}
+
 void Game::PlanUnitPath(ServerUnit* unit) {
   Timer pathPlanningTimer;
   
@@ -939,8 +1087,9 @@ void Game::PlanUnitPath(ServerUnit* unit) {
   // from the movement origin. So, the movement came from (-1, -1).
   // Second example: The value 4 corresponds to cell (0, 1) with movement (-1, 0).
   // The value 5 corresponds to zero movement, this is used for the start and for initialization.
+  constexpr u8 cameFromUninitializedValue = 5;
   std::vector<u8> cameFrom(mapWidth * mapHeight);
-  memset(cameFrom.data(), 5, mapWidth * mapHeight);
+  memset(cameFrom.data(), cameFromUninitializedValue, mapWidth * mapHeight);
   
   CostT smallestReachedHeuristicValue = std::numeric_limits<CostT>::max();
   QPoint smallestReachedHeuristicTile(-1, -1);
@@ -1120,7 +1269,7 @@ void Game::PlanUnitPath(ServerUnit* unit) {
   
   // Did we find a path to the goal or only to some other tile that is close to the goal?
   QPoint targetTile;
-  if (cameFrom[goal.x() + mapWidth * goal.y()] == 255) {
+  if (cameFrom[goal.x() + mapWidth * goal.y()] == cameFromUninitializedValue) {
     // No path to the goal was found. Go to the reachable node that is closest to the goal.
     if (smallestReachedHeuristicTile.x() >= 0) {
       LOG(1) << "Pathfinding: Goal not reached; going as close as possible";
@@ -1184,8 +1333,18 @@ void Game::PlanUnitPath(ServerUnit* unit) {
   LOG(1) << "Pathfinding: Non-smoothed path length is " << reversePath.size();
   
   // Smooth the planned path by attempting to drop corners.
-  // TODO
+  float unitRadius = GetUnitRadius(unit->GetUnitType());
+  for (usize i = 1; i < reversePath.size(); ++ i) {
+    const QPointF& p0 = (i == reversePath.size() - 1) ? unit->GetMapCoord() : reversePath[i + 1];
+    const QPointF& p1 = reversePath[i - 1];
+    
+    if (IsPathFree(unitRadius, p0, p1)) {
+      reversePath.erase(reversePath.begin() + i);
+      -- i;
+    }
+  }
   
+  LOG(1) << "Pathfinding: Smoothed path length is " << reversePath.size();
   LOG(1) << "Pathfinding: Took " << pathPlanningTimer.Stop(false) << " s" << (kOutputDebugImage ? " (not accurate since kOutputDebugImage is true!)" : "");
   
   // Assign the path to the unit.
