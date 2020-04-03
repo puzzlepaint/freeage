@@ -220,7 +220,7 @@ QRectF ClientUnit::GetRectInProjectedCoords(Map* map, double serverTime, bool sh
   float framesPerSecond = 30.f;
   int framesPerDirection = sprite.NumFrames() / kNumFacingDirections;
   double animationTime = (idleBlockedStartTime > 0) ? idleBlockedStartTime : serverTime;
-  int frameIndex = direction * framesPerDirection + static_cast<int>(framesPerSecond * animationTime + 0.5f) % framesPerDirection;
+  int frameIndex = GetDirection(serverTime) * framesPerDirection + static_cast<int>(framesPerSecond * animationTime + 0.5f) % framesPerDirection;
   
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameIndex).shadow : sprite.frame(frameIndex).graphic;
   bool isGraphic = !shadow && !outline;
@@ -274,7 +274,7 @@ void ClientUnit::Render(
       currentAnimationVariant = rand() % unitType.GetAnimations(currentAnimation).size();
     }
   }
-  int frameIndex = direction * framesPerDirection + frame;
+  int frameIndex = GetDirection(serverTime) * framesPerDirection + frame;
   
   DrawSprite(
       sprite,
@@ -324,27 +324,55 @@ Texture& ClientUnit::GetTexture(bool shadow) {
   return shadow ? animationSpriteAndTexture.shadowTexture : animationSpriteAndTexture.graphicTexture;
 }
 
+static int ComputeFacingDirection(const QPointF& movement) {
+  // This angle goes from (-3) * M_PI / 4 to (+5) * M_PI / 4, with 0 being the right direction in the projected view.
+  double angle = -1 * (atan2(movement.y(), movement.x()) - M_PI / 4);
+  if (angle < 0) {
+    angle += 2 * M_PI;
+  }
+  int direction = std::max(0, std::min(kNumFacingDirections, static_cast<int>(kNumFacingDirections * angle / (2 * M_PI) + 0.5f)));
+  if (direction == kNumFacingDirections) {
+    direction = 0;
+  }
+  return direction;
+}
+
+void ClientUnit::SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action) {
+  // Check whether the unit moved differently than we expected.
+  // In this case, for a short time, we change the facing direction to the direction
+  // in which the unit actually moved.
+  constexpr float kChangeDurationThreshold = 0.15f;
+  constexpr float kOverrideDirectionDuration = 0.1f;
+  
+  UpdateMapCoord(serverTime);
+  
+  if (serverTime - movementSegment.serverTime < kChangeDurationThreshold) {
+    overrideDirection = ComputeFacingDirection(startPoint - movementSegment.startPoint);
+    overrideDirectionExpireTime = serverTime + kOverrideDirectionDuration;
+  }
+  
+  // // NOTE: Old approach, triggers in cases where it should not, and yields wrong directions due to the "dead reckoning" on the client
+  // 
+  // constexpr float kUnexpectedMovementThreshold = 5e-3f;
+  // constexpr float kOverrideDirectionDuration = 0.1f;
+  // 
+  // QPointF actualMoveDirection = startPoint - mapCoord;
+  // if (actualMoveDirection.x() * actualMoveDirection.x() + actualMoveDirection.y() * actualMoveDirection.y() >= kUnexpectedMovementThreshold * kUnexpectedMovementThreshold) {
+  //   overrideDirection = ComputeFacingDirection(actualMoveDirection);
+  //   overrideDirectionExpireTime = serverTime + kOverrideDirectionDuration;
+  // }
+  
+  // Store the received movement.
+  movementSegment = MovementSegment(serverTime, startPoint, speed, action);
+}
+
 void ClientUnit::UpdateGameState(double serverTime) {
   // Update the unit's movment according to the movement segment.
-  if (movementSegment.action == UnitAction::Idle ||
-      movementSegment.action == UnitAction::Task ||
-      movementSegment.action == UnitAction::Attack) {
-    mapCoord = movementSegment.startPoint;
-  } else {
-    mapCoord = movementSegment.startPoint + (serverTime - movementSegment.serverTime) * movementSegment.speed;
-  }
+  UpdateMapCoord(serverTime);
   
   // Update facing direction.
   if (movementSegment.speed != QPointF(0, 0)) {
-    // This angle goes from (-3) * M_PI / 4 to (+5) * M_PI / 4, with 0 being the right direction in the projected view.
-    double angle = -1 * (atan2(movementSegment.speed.y(), movementSegment.speed.x()) - M_PI / 4);
-    if (angle < 0) {
-      angle += 2 * M_PI;
-    }
-    direction = std::max(0, std::min(kNumFacingDirections, static_cast<int>(kNumFacingDirections * angle / (2 * M_PI) + 0.5f)));
-    if (direction == kNumFacingDirections) {
-      direction = 0;
-    }
+    direction = ComputeFacingDirection(movementSegment.speed);
   }
   
   if (movementSegment.action == UnitAction::Task) {
@@ -379,4 +407,18 @@ void ClientUnit::UpdateGameState(double serverTime) {
   if (movementSegment.speed == QPointF(0, 0)) {
     mapCoord = movementSegment.startPoint;
   }
+}
+
+void ClientUnit::UpdateMapCoord(double serverTime) {
+  if (movementSegment.action == UnitAction::Idle ||
+      movementSegment.action == UnitAction::Task ||
+      movementSegment.action == UnitAction::Attack) {
+    mapCoord = movementSegment.startPoint;
+  } else {
+    mapCoord = movementSegment.startPoint + (serverTime - movementSegment.serverTime) * movementSegment.speed;
+  }
+}
+
+int ClientUnit::GetDirection(double serverTime) {
+  return (serverTime >= overrideDirectionExpireTime) ? direction : overrideDirection;
 }

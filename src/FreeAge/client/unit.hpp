@@ -114,9 +114,7 @@ class ClientUnit : public ClientObject {
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   inline int GetDirection() const { return direction; }
   
-  void SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action) {
-    movementSegment = MovementSegment(serverTime, startPoint, speed, action);
-  }
+  void SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action);
   
   inline void SetCarriedResources(ResourceType type, u8 amount) {
     carriedResourceType = type;
@@ -129,6 +127,10 @@ class ClientUnit : public ClientObject {
   void UpdateGameState(double serverTime);
   
  private:
+  void UpdateMapCoord(double serverTime);
+  int GetDirection(double serverTime);
+  
+  
   UnitType type;
   
   /// Current position of the unit sprite's center on the map.
@@ -137,6 +139,13 @@ class ClientUnit : public ClientObject {
   /// Directions are from 0 to kNumFacingDirections - 1.
   /// Direction 0 is to the right, increasing the direction successively rotates the unit in clockwise direction.
   int direction;
+  
+  /// Direction overriding the standard one. This is used for a short time after we got an unexpected movement
+  /// for the unit from the server.
+  int overrideDirection;
+  
+  /// If this is in the past, then overrideDirection must be ignored.
+  double overrideDirectionExpireTime = -1;
   
   UnitAnimation currentAnimation;
   int currentAnimationVariant;
