@@ -79,7 +79,7 @@ class ClientUnit : public ClientObject {
   /// Computes the sprite rectangle for this unit in projected coordinates.
   QRectF GetRectInProjectedCoords(
       Map* map,
-      double elapsedSeconds,
+      double serverTime,
       bool shadow,
       bool outline);
   
@@ -141,6 +141,7 @@ class ClientUnit : public ClientObject {
   UnitAnimation currentAnimation;
   int currentAnimationVariant;
   double lastAnimationStartTime;
+  double idleBlockedStartTime = -1;
   
   /// Represents a segment of linear unit movement.
   struct MovementSegment {

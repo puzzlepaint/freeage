@@ -836,8 +836,10 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
       } else {
         // Move the unit if the path is free.
         if (map->DoesUnitCollide(unit, newMapCoord)) {
-          unit->StopMovement();
-          unitMovementChanged = true;
+          if (unit->GetCurrentAction() != UnitAction::Idle) {
+            unit->PauseMovement();
+            unitMovementChanged = true;
+          }
         } else {
           unit->SetMapCoord(newMapCoord);
           
@@ -846,9 +848,6 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
             unit->SetCurrentAction(UnitAction::Moving);
           }
         }
-        
-        // Check whether the unit moves over to the next segment in its planned path.
-        // TODO
       }
     }
   }

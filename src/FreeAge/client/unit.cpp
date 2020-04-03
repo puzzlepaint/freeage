@@ -208,7 +208,7 @@ QPointF ClientUnit::GetCenterProjectedCoord(Map* map) {
   return map->MapCoordToProjectedCoord(mapCoord);
 }
 
-QRectF ClientUnit::GetRectInProjectedCoords(Map* map, double elapsedSeconds, bool shadow, bool outline) {
+QRectF ClientUnit::GetRectInProjectedCoords(Map* map, double serverTime, bool shadow, bool outline) {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
   const ClientUnitType& unitType = unitTypes[static_cast<int>(type)];
@@ -219,7 +219,8 @@ QRectF ClientUnit::GetRectInProjectedCoords(Map* map, double elapsedSeconds, boo
   
   float framesPerSecond = 30.f;
   int framesPerDirection = sprite.NumFrames() / kNumFacingDirections;
-  int frameIndex = direction * framesPerDirection + static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % framesPerDirection;
+  double animationTime = (idleBlockedStartTime > 0) ? idleBlockedStartTime : serverTime;
+  int frameIndex = direction * framesPerDirection + static_cast<int>(framesPerSecond * animationTime + 0.5f) % framesPerDirection;
   
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameIndex).shadow : sprite.frame(frameIndex).graphic;
   bool isGraphic = !shadow && !outline;
@@ -258,7 +259,8 @@ void ClientUnit::Render(
   }
   int frame;
   while (true) {
-    frame = std::max(0, static_cast<int>(framesPerSecond * (serverTime - lastAnimationStartTime) + 0.5f));
+    double animationTime = (idleBlockedStartTime > 0) ? idleBlockedStartTime : serverTime;
+    frame = std::max(0, static_cast<int>(framesPerSecond * (animationTime - lastAnimationStartTime) + 0.5f));
     if (frame < framesPerDirection) {
       break;
     }
@@ -312,6 +314,7 @@ void ClientUnit::SetCurrentAnimation(UnitAnimation animation, double serverTime)
   
   currentAnimation = animation;
   lastAnimationStartTime = serverTime;
+  idleBlockedStartTime = -1;
   currentAnimationVariant = rand() % unitType.GetAnimations(currentAnimation).size();
 }
 
@@ -323,7 +326,8 @@ Texture& ClientUnit::GetTexture(bool shadow) {
 
 void ClientUnit::UpdateGameState(double serverTime) {
   // Update the unit's movment according to the movement segment.
-  if (movementSegment.action == UnitAction::Task ||
+  if (movementSegment.action == UnitAction::Idle ||
+      movementSegment.action == UnitAction::Task ||
       movementSegment.action == UnitAction::Attack) {
     mapCoord = movementSegment.startPoint;
   } else {
@@ -347,13 +351,32 @@ void ClientUnit::UpdateGameState(double serverTime) {
     SetCurrentAnimation(UnitAnimation::Task, serverTime);
   } else if (movementSegment.action == UnitAction::Attack) {
     SetCurrentAnimation(UnitAnimation::Attack, serverTime);
-  } else if (movementSegment.speed == QPointF(0, 0)) {
-    // If the movement is zero, set the unit to the final position and delete the segment.
-    SetCurrentAnimation(UnitAnimation::Idle, serverTime);
-    
-    mapCoord = movementSegment.startPoint;
-  } else {
-    // Use moving animation
+  } else if (movementSegment.action == UnitAction::Idle) {
+    if (currentAnimation != UnitAnimation::Idle) {
+      if (movementSegment.speed == QPointF(0, 0)) {
+        SetCurrentAnimation(UnitAnimation::Idle, serverTime);
+      } else {
+        // This means that the unit tries to move but cannot. Continue showing the
+        // move animation for a short while before switching to the idle animation.
+        // This avoids twitching.
+        constexpr float kIdleBlockedAnimationDelay = 0.1f;
+        
+        if (idleBlockedStartTime < 0) {
+          idleBlockedStartTime = serverTime;
+        } else if (serverTime - idleBlockedStartTime >= kIdleBlockedAnimationDelay) {
+          SetCurrentAnimation(UnitAnimation::Idle, serverTime);
+        }
+      }
+    }
+  } else if (currentAnimation != UnitAnimation::Walk) {
     SetCurrentAnimation(UnitAnimation::Walk, serverTime);
+  }
+  
+  if (movementSegment.action != UnitAction::Idle) {
+    idleBlockedStartTime = -1;
+  }
+  
+  if (movementSegment.speed == QPointF(0, 0)) {
+    mapCoord = movementSegment.startPoint;
   }
 }

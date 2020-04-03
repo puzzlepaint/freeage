@@ -36,6 +36,7 @@ class ServerUnit : public ServerObject {
   // TODO: Accept more complex paths (rather than just a single target).
   inline bool HasPath() const { return hasPath; }
   inline void SetPath(const std::vector<QPointF>& reversePath) { hasPath = true; this->reversePath = reversePath; }
+  inline void PauseMovement() { currentAction = UnitAction::Idle; }
   inline void StopMovement() { currentAction = UnitAction::Idle; hasMoveToTarget = false; hasPath = false; currentMovementDirection = QPointF(0, 0); }
   inline const QPointF& GetNextPathTarget() const { return reversePath.empty() ? moveToTarget : reversePath.back(); }
   inline void PathSegmentCompleted() { reversePath.pop_back(); if (reversePath.empty()) { hasPath = false; } }
