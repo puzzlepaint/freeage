@@ -39,38 +39,50 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
   
   while (true) {
     // Read data from player connections and handle broken connections.
-    for (auto it = playersInGame->begin(); it != playersInGame->end(); ++ it) {
-      PlayerInGame& player = **it;
-      if (!player.isConnected) {
+    for (auto& player : *playersInGame) {
+      if (!player->isConnected) {
         // TODO: Allow players to reconnect to the game
         continue;
       }
       
       // Read new data from the connection.
-      int prevSize = player.unparsedBuffer.size();
-      player.unparsedBuffer += player.socket->readAll();
+      int prevSize = player->unparsedBuffer.size();
+      player->unparsedBuffer += player->socket->readAll();
       
       bool removePlayer = false;
-      if (player.unparsedBuffer.size() > prevSize ||
-          (firstLoopIteration && !player.unparsedBuffer.isEmpty())) {
-        ParseMessagesResult parseResult = TryParseClientMessages(&player, *playersInGame);
+      if (player->unparsedBuffer.size() > prevSize ||
+          (firstLoopIteration && !player->unparsedBuffer.isEmpty())) {
+        ParseMessagesResult parseResult = TryParseClientMessages(player.get(), *playersInGame);
         removePlayer = parseResult == ParseMessagesResult::PlayerLeftOrShouldBeDisconnected;
       }
       
       // Remove connections which got ParseMessagesResult::PlayerLeftOrShouldBeDisconnected,
       // which did not send pings in time, or if the connection was lost.
       constexpr int kNoPingTimeout = 5000;
-      bool socketDisconnected = player.socket->state() != QAbstractSocket::ConnectedState;
-      bool pingTimeout = MillisecondsDuration(Clock::now() - player.lastPingTime).count() > kNoPingTimeout;
+      bool socketDisconnected = player->socket->state() != QAbstractSocket::ConnectedState;
+      bool pingTimeout = MillisecondsDuration(Clock::now() - player->lastPingTime).count() > kNoPingTimeout;
       if (removePlayer || socketDisconnected || pingTimeout) {
-        LOG(WARNING) << "Removing player: " << player.name.toStdString() << " (index " << player.index << "). Reason: "
+        LOG(WARNING) << "Removing player: " << player->name.toStdString() << " (index " << player->index << "). Reason: "
                      << (removePlayer ? "handled message" : (socketDisconnected ? "socket disconnected" : "ping timeout"));
         
-        player.RemoveFromGame();
+        player->RemoveFromGame();
         
         // TODO: Notify the remaining players about the player drop / leave
         // TODO: If all other players finished loading and the last player who did not drops,
         //       then start the game for the remaining players (or cancel it altogether)
+        
+        bool allPlayersGone = true;
+        for (auto& otherPlayer : *playersInGame) {
+          if (otherPlayer->isConnected) {
+            allPlayersGone = false;
+            break;
+          }
+        }
+        if (allPlayersGone) {
+          LOG(INFO) << "Server: All players disconnected. Exiting.";
+          return;
+        }
+        
         continue;
       }
     }
