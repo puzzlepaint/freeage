@@ -118,6 +118,7 @@ RenderWindow::~RenderWindow() {
   loadingIcon.Unload();
   for (usize i = 0; i < playerNames.size(); ++ i) {
     playerNames[i].Destroy();
+    playerNameShadowPointBuffers[i].Destroy();
   }
   
   resourcePanel.Unload();
@@ -1468,6 +1469,23 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
       (i == 0) ? fpsAndPingDisplayShadowPointBuffer.buffer : fpsAndPingDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   }
+  
+  // Render the player names in the bottom-right
+  const auto& players = match->GetPlayers();
+  int currentY = widgetHeight - uiScale * 4;
+  for (int i = static_cast<int>(players.size()) - 1; i >= 0; -- i) {
+    for (int shadow = 0; shadow < 2; ++ shadow) {
+      playerNames[i].textDisplay->Render(
+          georgiaFontLarger,
+          (shadow == 0) ? qRgba(0, 0, 0, 255) : playerColors[i],
+          players[i].name,
+          QRect(0, 0, widgetWidth - uiScale * 10 - ((shadow == 0) ? 0 : (uiScale * 2)), currentY - ((shadow == 0) ? 0 : (uiScale * 2))),
+          Qt::AlignRight | Qt::AlignBottom,
+          (shadow == 0) ? playerNameShadowPointBuffers[i].buffer : playerNames[i].pointBuffer,
+          uiShader.get(), widgetWidth, widgetHeight, f);
+    }
+    currentY = playerNames[i].textDisplay->GetBounds().y();
+  }
 }
 
 QPointF RenderWindow::GetResourcePanelTopLeft() {
@@ -2504,8 +2522,10 @@ void RenderWindow::initializeGL() {
   
   // Create the loading text display.
   playerNames.resize(match->GetPlayers().size());
+  playerNameShadowPointBuffers.resize(playerNames.size());
   for (usize i = 0; i < playerNames.size(); ++ i) {
     playerNames[i].Initialize();
+    playerNameShadowPointBuffers[i].Initialize();
   }
   
   // Define the player colors.
