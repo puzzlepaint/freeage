@@ -53,6 +53,10 @@ target_link_libraries(loguru
 )
 
 
+# Packaged dependency: yaml-cpp (for json file loading)
+add_subdirectory(third_party/yaml-cpp-0.6.0)
+
+
 # Packaged dependency: googletest (for unit tests)
 add_subdirectory(third_party/googletest)
 set_target_properties(gtest gtest_main PROPERTIES FOLDER "third_party")
@@ -84,11 +88,13 @@ target_include_directories(FreeAgeLib PUBLIC
   src
   third_party
   third_party/mango/include
+  third_party/yaml-cpp-0.6.0/include
 )
 target_link_libraries(FreeAgeLib PUBLIC
   Qt5::Widgets
   Qt5::Network
   mango
+  yaml-cpp2
   loguru
   Threads::Threads
 )
@@ -126,6 +132,7 @@ set(FREEAGE_SRCS
   src/FreeAge/client/main.cpp
   src/FreeAge/client/map.cpp
   src/FreeAge/client/match.cpp
+  src/FreeAge/client/mod_manager.cpp
   src/FreeAge/client/object.cpp
   src/FreeAge/client/opaqueness_map.cpp
   src/FreeAge/client/opengl.cpp

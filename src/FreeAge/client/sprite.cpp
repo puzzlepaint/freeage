@@ -1108,6 +1108,14 @@ bool LoadSpriteAndTexture(const char* path, const char* cachePath, int wrapMode,
       // Attempt to load the atlas from the cache.
       // TODO: Add some mechanism which discards the cache in case the sprite file has changed
       loaded = atlas.Load(cacheFilePath.c_str(), sprite->NumFrames());
+      if (loaded) {
+        // Check whether the loaded atlas is compatible with the sprite.
+        // If not, discard the atlas.
+        if (!atlas.IsConsistent()) {
+          LOG(WARNING) << "Discarding cached sprite atlas since it is not consistent: " << cacheFilePath;
+          loaded = false;
+        }
+      }
     }
     
     if (!loaded) {

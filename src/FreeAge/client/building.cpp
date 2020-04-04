@@ -2,9 +2,10 @@
 
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/client/map.hpp"
+#include "FreeAge/client/mod_manager.hpp"
 #include "FreeAge/client/opengl.hpp"
 
-bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes) {
+bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& graphicsSubPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes) {
   this->type = type;
   
   sprites.resize(static_cast<int>(BuildingSprite::NumSprites));
@@ -24,7 +25,7 @@ bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& gr
       sprites[spriteInt] = nullptr;
     } else {
       sprites[spriteInt] = SpriteManager::Instance().GetOrLoad(
-          (graphicsPath / filename.toStdString()).string().c_str(),
+          GetModdedPath(graphicsSubPath / filename.toStdString()).string().c_str(),
           (cachePath / filename.toStdString()).string().c_str(),
           colorDilationShader,
           palettes);
@@ -40,11 +41,10 @@ bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& gr
     maxCenterY = std::max(maxCenterY, buildingSprite.frame(frame).graphic.centerY);
   }
   
-  std::filesystem::path ingameTexturesPath =
-      graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame";
+  std::filesystem::path ingameTexturesSubPath = std::filesystem::path("widgetui") / "textures" / "ingame";
   std::filesystem::path iconFilename = GetIconFilename();
   if (!iconFilename.empty()) {
-    iconTexture.Load(ingameTexturesPath / iconFilename, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+    iconTexture.Load(GetModdedPath(ingameTexturesSubPath / iconFilename), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   }
   
   doesCauseOutlines = DoesCauseOutlinesInternal();

@@ -35,7 +35,7 @@ class RenderWindow : public QOpenGLWindow {
       float uiScale,
       int georgiaFontID,
       const Palettes& palettes,
-      const std::filesystem::path& graphicsPath,
+      const std::filesystem::path& graphicsSubPath,
       const std::filesystem::path& cachePath,
       QWindow* parent = nullptr);
   ~RenderWindow();
@@ -381,6 +381,6 @@ class RenderWindow : public QOpenGLWindow {
   QFont georgiaFontSmaller;
   QFont georgiaFontLarger;
   const Palettes& palettes;
-  const std::filesystem::path& graphicsPath;
+  const std::filesystem::path& graphicsSubPath;
   const std::filesystem::path& cachePath;
 };

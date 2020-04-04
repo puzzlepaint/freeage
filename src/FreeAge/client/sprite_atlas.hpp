@@ -38,6 +38,10 @@ class SpriteAtlas {
   /// Returns true on success, false otherwise.
   bool Load(const char* path, int expectedNumRects);
   
+  /// May be used to check whether a loaded atlas contains the correct sprite
+  /// frame dimensions for the added sprites.
+  bool IsConsistent();
+  
   /// May be called after BuildAtlas() succeeded to render the atlas image.
   /// Writes the atlas positions of each layer into the Sprites, and
   /// unloads the QImages in the sprite layers that were used to create the atlas.

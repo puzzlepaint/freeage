@@ -35,7 +35,7 @@ class ClientUnitType {
   ClientUnitType() = default;
   ~ClientUnitType();
   
-  bool Load(UnitType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes);
+  bool Load(UnitType type, const std::filesystem::path& graphicsSubPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes);
   
   int GetHealthBarHeightAboveCenter() const;
   
@@ -50,7 +50,7 @@ class ClientUnitType {
   }
   
  private:
-  bool LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes, UnitAnimation type);
+  bool LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsSubPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes, UnitAnimation type);
   
   /// Indexed by: [static_cast<int>(UnitAnimation animation)][animation_variant]
   std::vector<std::vector<SpriteAndTextures*>> animations;

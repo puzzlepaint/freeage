@@ -4,6 +4,7 @@
 
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/client/map.hpp"
+#include "FreeAge/client/mod_manager.hpp"
 
 ClientUnitType::~ClientUnitType() {
   for (usize i = 0; i < animations.size(); ++ i) {
@@ -17,9 +18,8 @@ ClientUnitType::~ClientUnitType() {
   }
 }
 
-bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes) {
-  std::filesystem::path ingameUnitsPath =
-      graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame" / "units";
+bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsSubPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes) {
+  std::filesystem::path ingameUnitsSubPath = std::filesystem::path("widgetui") / "textures" / "ingame" / "units";
   
   // Later entries are used as fallbacks if the previous do not contain an animation type.
   // For example, for stone-miner-villagers, there is only a single sprite specific to stone mining,
@@ -27,77 +27,77 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   // So, these three base names are specified in this order here for this villager type.
   constexpr int kMaxNumBaseNames = 3;
   std::string spriteBaseName[3];
-  std::string iconPath;
+  std::filesystem::path iconSubPath;
   
   bool ok = true;
   switch (type) {
   case UnitType::FemaleVillager:
     spriteBaseName[0] = "u_vil_female_villager";
-    iconPath = (ingameUnitsPath / "016_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "016_50730.DDS";
     break;
   case UnitType::FemaleVillagerBuilder:
     spriteBaseName[0] = "u_vil_female_builder";
     spriteBaseName[1] = "u_vil_female_villager";
-    iconPath = (ingameUnitsPath / "016_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "016_50730.DDS";
     break;
   case UnitType::FemaleVillagerForager:
     spriteBaseName[0] = "u_vil_female_forager";
     spriteBaseName[1] = "u_vil_female_villager";
-    iconPath = (ingameUnitsPath / "016_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "016_50730.DDS";
     break;
   case UnitType::FemaleVillagerLumberjack:
     spriteBaseName[0] = "u_vil_female_lumberjack";
     spriteBaseName[1] = "u_vil_female_villager";
-    iconPath = (ingameUnitsPath / "016_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "016_50730.DDS";
     break;
   case UnitType::FemaleVillagerGoldMiner:
     spriteBaseName[0] = "u_vil_female_miner_gold";
     spriteBaseName[1] = "u_vil_female_villager";
-    iconPath = (ingameUnitsPath / "016_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "016_50730.DDS";
     break;
   case UnitType::FemaleVillagerStoneMiner:
     spriteBaseName[0] = "u_vil_female_miner_stone";
     spriteBaseName[1] = "u_vil_female_miner_gold";
     spriteBaseName[2] = "u_vil_female_villager";
-    iconPath = (ingameUnitsPath / "016_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "016_50730.DDS";
     break;
   case UnitType::MaleVillager:
     spriteBaseName[0] = "u_vil_male_villager";
-    iconPath = (ingameUnitsPath / "015_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "015_50730.DDS";
     break;
   case UnitType::MaleVillagerBuilder:
     spriteBaseName[0] = "u_vil_male_builder";
     spriteBaseName[1] = "u_vil_male_villager";
-    iconPath = (ingameUnitsPath / "015_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "015_50730.DDS";
     break;
   case UnitType::MaleVillagerForager:
     spriteBaseName[0] = "u_vil_male_forager";
     spriteBaseName[1] = "u_vil_male_villager";
-    iconPath = (ingameUnitsPath / "015_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "015_50730.DDS";
     break;
   case UnitType::MaleVillagerLumberjack:
     spriteBaseName[0] = "u_vil_male_lumberjack";
     spriteBaseName[1] = "u_vil_male_villager";
-    iconPath = (ingameUnitsPath / "015_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "015_50730.DDS";
     break;
   case UnitType::MaleVillagerGoldMiner:
     spriteBaseName[0] = "u_vil_male_miner_gold";
     spriteBaseName[1] = "u_vil_male_villager";
-    iconPath = (ingameUnitsPath / "015_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "015_50730.DDS";
     break;
   case UnitType::MaleVillagerStoneMiner:
     spriteBaseName[0] = "u_vil_male_miner_stone";
     spriteBaseName[1] = "u_vil_male_miner_gold";
     spriteBaseName[2] = "u_vil_male_villager";
-    iconPath = (ingameUnitsPath / "015_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "015_50730.DDS";
     break;
   case UnitType::Militia:
     spriteBaseName[0] = "u_inf_militia";
-    iconPath = (ingameUnitsPath / "008_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "008_50730.DDS";
     break;
   case UnitType::Scout:
     spriteBaseName[0] = "u_cav_scout";
-    iconPath = (ingameUnitsPath / "064_50730.DDS").string();
+    iconSubPath = ingameUnitsSubPath / "064_50730.DDS";
     break;
   case UnitType::NumUnits:
     LOG(ERROR) << "Invalid unit type in ClientUnitType constructor: " << static_cast<int>(type);
@@ -134,7 +134,7 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
       bool fileExists = false;
       for (int fallbackNumber = 0; fallbackNumber < kMaxNumBaseNames; ++ fallbackNumber) {
         std::string filename = makeSpriteFilename(spriteBaseName[fallbackNumber], animationFilenameComponent, variant);
-        if (std::filesystem::exists(graphicsPath / filename)) {
+        if (std::filesystem::exists(GetModdedPath(graphicsSubPath / filename))) {
           animationVariants.push_back(filename);
           fileExists = true;
           break;
@@ -149,7 +149,7 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
     // Load each variant.
     animations[animationTypeInt].resize(animationVariants.size());
     for (usize variant = 0; variant < animationVariants.size(); ++ variant) {
-      ok = ok && LoadAnimation(variant, animationVariants[variant].c_str(), graphicsPath, cachePath, colorDilationShader, palettes, animationType);
+      ok = ok && LoadAnimation(variant, animationVariants[variant].c_str(), graphicsSubPath, cachePath, colorDilationShader, palettes, animationType);
       
       // For extracting attack durations.
       // TODO: Remove this once we get those in a better way.
@@ -160,7 +160,7 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsPa
   }
   
   // Load the icon.
-  iconTexture = TextureManager::Instance().GetOrLoad(iconPath, TextureManager::Loader::Mango, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  iconTexture = TextureManager::Instance().GetOrLoad(GetModdedPath(iconSubPath), TextureManager::Loader::Mango, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   
   if (!ok) {
     return false;
@@ -183,10 +183,10 @@ int ClientUnitType::GetHealthBarHeightAboveCenter() const {
   return maxCenterY + kHealthBarOffset;
 }
 
-bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes, UnitAnimation type) {
+bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::filesystem::path& graphicsSubPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes, UnitAnimation type) {
   std::vector<SpriteAndTextures*>& animationVector = animations[static_cast<int>(type)];
   animationVector[index] = SpriteManager::Instance().GetOrLoad(
-      (graphicsPath / filename).string().c_str(),
+      GetModdedPath(graphicsSubPath / filename).string().c_str(),
       (cachePath / filename).string().c_str(),
       colorDilationShader,
       palettes);

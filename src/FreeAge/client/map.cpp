@@ -4,6 +4,7 @@
 
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/logging.hpp"
+#include "FreeAge/client/mod_manager.hpp"
 #include "FreeAge/client/opengl.hpp"
 
 // TODO: Make this configurable
@@ -224,9 +225,9 @@ bool Map::ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCo
   return converged;
 }
 
-void Map::Render(float* viewMatrix, const std::filesystem::path& graphicsPath, QOpenGLFunctions_3_2_Core* f) {
+void Map::Render(float* viewMatrix, const std::filesystem::path& graphicsSubPath, QOpenGLFunctions_3_2_Core* f) {
   if (needsRenderResourcesUpdate) {
-    UpdateRenderResources(graphicsPath, f);
+    UpdateRenderResources(graphicsSubPath, f);
     needsRenderResourcesUpdate = false;
   }
   
@@ -272,11 +273,11 @@ void Map::UnloadRenderResources() {
   }
 }
 
-void Map::UpdateRenderResources(const std::filesystem::path& graphicsPath, QOpenGLFunctions_3_2_Core* f) {
+void Map::UpdateRenderResources(const std::filesystem::path& graphicsSubPath, QOpenGLFunctions_3_2_Core* f) {
   // Load texture
   if (!hasTextureBeenLoaded) {
     mango::Bitmap textureBitmap(
-        (graphicsPath.parent_path().parent_path() / "terrain" / "textures" / "2x" / "g_gr2.dds").string(),
+        GetModdedPath(graphicsSubPath.parent_path().parent_path() / "terrain" / "textures" / "2x" / "g_gr2.dds").string(),
         mango::Format(32, mango::Format::UNORM, mango::Format::BGRA, 8, 8, 8, 8));
     
     f->glGenTextures(1, &textureId);

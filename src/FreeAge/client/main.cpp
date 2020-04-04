@@ -25,6 +25,7 @@
 #include "FreeAge/client/map.hpp"
 #include "FreeAge/client/match.hpp"
 #include "FreeAge/common/messages.hpp"
+#include "FreeAge/client/mod_manager.hpp"
 #include "FreeAge/client/render_window.hpp"
 #include "FreeAge/client/server_connection.hpp"
 #include "FreeAge/client/settings_dialog.hpp"
@@ -65,7 +66,6 @@ int main(int argc, char** argv) {
   qapp.setAttribute(Qt::AA_CompressHighFrequencyEvents, false);
   
   // Resources to be loaded later.
-  std::filesystem::path commonResourcesPath;
   Palettes palettes;
   QProcess serverProcess;
   int georgiaFontID;
@@ -111,15 +111,22 @@ int main(int argc, char** argv) {
     
     connection->SetDebugNetworking(settings.debugNetworking);
     
-    // Load some initial basic game resources that are required for the game dialog.
-    commonResourcesPath = std::filesystem::path(settingsDialog.GetDataPath().toStdString()) / "resources" / "_common";
-    if (!std::filesystem::exists(commonResourcesPath)) {
-      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("The common resources path (%1) does not exist.").arg(QString::fromStdString(commonResourcesPath.string())));
+    // Verify that the common resources path exists in the given game directory.
+    std::filesystem::path commonResourcesSubPath = std::filesystem::path("resources") / "_common";
+    if (!std::filesystem::exists(settingsDialog.GetDataPath().toStdString() / commonResourcesSubPath)) {
+      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("The common resources path (%1) does not exist.").arg(QString::fromStdString((settingsDialog.GetDataPath().toStdString() / commonResourcesSubPath).string())));
       continue;
     }
     
+    // Load the mod info
+    std::filesystem::path modStatusJsonPath = QDir(settingsDialog.GetModsPath()).filePath("mod-status.json").toStdString();
+    if (!ModManager::Instance().LoadModStatus(modStatusJsonPath, settingsDialog.GetDataPath().toStdString())) {
+      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to load mod-status.json (full path: %1). No mods will be used.").arg(QString::fromStdString(modStatusJsonPath.string())));
+    }
+    
+    // Load some initial basic game resources that are required for the game dialog.
     // Load palettes (to get the player colors).
-    if (!ReadPalettesConf((commonResourcesPath / "palettes" / "palettes.conf").string().c_str(), &palettes)) {
+    if (!ReadPalettesConf(GetModdedPath(commonResourcesSubPath / "palettes" / "palettes.conf").string().c_str(), &palettes)) {
       QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to load palettes."));
       continue;
     }
@@ -131,8 +138,7 @@ int main(int argc, char** argv) {
     }
     
     // Load fonts (to use them in the dialog).
-    std::filesystem::path fontsPath = commonResourcesPath / "fonts";
-    QString georgiaFontPath = QString::fromStdString((fontsPath / "georgia.ttf").string());
+    QString georgiaFontPath = GetModdedPathAsQString(commonResourcesSubPath / "fonts" / "georgia.ttf");
     georgiaFontID = QFontDatabase::addApplicationFont(georgiaFontPath);
     if (georgiaFontID == -1) {
       QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to load the Georgia font from %1.").arg(georgiaFontPath));
@@ -170,7 +176,7 @@ int main(int argc, char** argv) {
       }
       
       // Connect to the server.
-      constexpr int kConnectTimeout = 5000;
+      constexpr int kConnectTimeout = 2500;
       if (!connection->ConnectToServer("127.0.0.1", kConnectTimeout, /*retryUntilTimeout*/ true)) {
         QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to connect to the server."));
         QFontDatabase::removeApplicationFont(georgiaFontID);
@@ -181,7 +187,7 @@ int main(int argc, char** argv) {
       connection->Write(CreateHostConnectMessage(hostToken, settings.playerName));
     } else {
       // Try to connect to the server.
-      constexpr int kConnectTimeout = 5000;
+      constexpr int kConnectTimeout = 2500;
       if (!connection->ConnectToServer(settingsDialog.GetIP(), kConnectTimeout, /*retryUntilTimeout*/ false)) {
         QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to connect to the server."));
         QFontDatabase::removeApplicationFont(georgiaFontID);
@@ -193,7 +199,7 @@ int main(int argc, char** argv) {
     }
     
     // Wait for the server's welcome message.
-    constexpr int kWelcomeWaitTimeout = 5000;
+    constexpr int kWelcomeWaitTimeout = 2500;
     if (!connection->WaitForWelcomeMessage(kWelcomeWaitTimeout)) {
       QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Did not receive a welcome message from the server."));
       QFontDatabase::removeApplicationFont(georgiaFontID);
@@ -250,14 +256,14 @@ int main(int argc, char** argv) {
   std::shared_ptr<GameController> gameController(new GameController(match, connection, settings.debugNetworking));
   
   // Get the graphics path.
-  std::filesystem::path graphicsPath = commonResourcesPath / "drs" / "graphics";
+  std::filesystem::path graphicsSubPath = std::filesystem::path("resources") / "_common" / "drs" / "graphics";
   std::filesystem::path cachePath = std::filesystem::path(argv[0]).parent_path() / "graphics_cache";
   if (!std::filesystem::exists(cachePath)) {
     std::filesystem::create_directories(cachePath);
   }
   
   // Create an OpenGL render window using Qt.
-  std::shared_ptr<RenderWindow> renderWindow(new RenderWindow(match, gameController, connection, settings.uiScale, georgiaFontID, palettes, graphicsPath, cachePath));
+  std::shared_ptr<RenderWindow> renderWindow(new RenderWindow(match, gameController, connection, settings.uiScale, georgiaFontID, palettes, graphicsSubPath, cachePath));
   gameController->SetRenderWindow(renderWindow);
   if (settings.fullscreen) {
     renderWindow->showFullScreen();

@@ -111,6 +111,46 @@ bool SpriteAtlas::Load(const char* path, int expectedNumRects) {
   return true;
 }
 
+bool SpriteAtlas::IsConsistent() {
+  // Invert packedRectIndices
+  std::vector<int> originalToPackedIndex(packedRects.size());
+  for (std::size_t i = 0; i < packedRectIndices.size(); ++ i) {
+    int index = packedRectIndices[i];
+    if (index < 0 || index >= static_cast<int>(originalToPackedIndex.size())) {
+      return false;
+    }
+    originalToPackedIndex[index] = i;
+  }
+  
+  int index = 0;
+  for (Sprite* sprite : sprites) {
+    for (int frameIdx = 0; frameIdx < sprite->NumFrames(); ++ frameIdx) {
+      Sprite::Frame::Layer& layer =
+          (mode == Mode::Graphic) ?
+          sprite->frame(frameIdx).graphic :
+          sprite->frame(frameIdx).shadow;
+      QImage& image = layer.image;
+      const Rect& packedRect = packedRects[originalToPackedIndex[index]];
+      
+      int packedWidthWithoutBorder = packedRect.width - 2 * atlasBorderPixels;
+      int packedHeightWithoutBorder = packedRect.height - 2 * atlasBorderPixels;
+      
+      if (packedWidthWithoutBorder == image.width() && packedHeightWithoutBorder == image.height()) {
+        // ok
+      } else if (packedWidthWithoutBorder == image.height() && packedHeightWithoutBorder == image.width()) {
+        // NOTE: We currently do not support frame rotation
+        return false;
+      } else {
+        return false;
+      }
+      
+      ++ index;
+    }
+  }
+  
+  return true;
+}
+
 QImage SpriteAtlas::RenderAtlas() {
   Timer paintTimer("SpriteAtlas::BuildAtlas rendering");
   

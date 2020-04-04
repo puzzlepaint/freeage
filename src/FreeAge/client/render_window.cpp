@@ -16,6 +16,7 @@
 #include "FreeAge/client/game_controller.hpp"
 #include "FreeAge/client/health_bar.hpp"
 #include "FreeAge/common/logging.hpp"
+#include "FreeAge/client/mod_manager.hpp"
 #include "FreeAge/client/opengl.hpp"
 #include "FreeAge/client/shader_color_dilation.hpp"
 #include "FreeAge/client/sprite.hpp"
@@ -52,7 +53,7 @@ RenderWindow::RenderWindow(
       float uiScale,
       int georgiaFontID,
       const Palettes& palettes,
-      const std::filesystem::path& graphicsPath,
+      const std::filesystem::path& graphicsSubPath,
       const std::filesystem::path& cachePath,
       QWindow* parent)
     : QOpenGLWindow(QOpenGLWindow::NoPartialUpdate, parent),
@@ -62,7 +63,7 @@ RenderWindow::RenderWindow(
       connection(connection),
       georgiaFont(QFont(QFontDatabase::applicationFontFamilies(georgiaFontID)[0])),
       palettes(palettes),
-      graphicsPath(graphicsPath),
+      graphicsSubPath(graphicsSubPath),
       cachePath(cachePath) {
   setIcon(QIcon(":/free_age/free_age.png"));
   setTitle(tr("FreeAge"));
@@ -77,8 +78,8 @@ RenderWindow::RenderWindow(
   connect(this, &RenderWindow::LoadingProgressUpdated, this, &RenderWindow::SendLoadingProgress, Qt::QueuedConnection);
   
   // Set the default cursor
-  defaultCursor = QCursor(QPixmap::fromImage(QImage((
-      graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame" / "cursor" / "default32x32.cur").string().c_str())),
+  defaultCursor = QCursor(QPixmap::fromImage(QImage(
+      GetModdedPathAsQString(std::filesystem::path("widgetui") / "textures" / "ingame" / "cursor" / "default32x32.cur"))),
       0, 0);
   setCursor(defaultCursor);
   
@@ -197,20 +198,19 @@ void RenderWindow::LoadResources() {
     // one thread. So, we notify the main thread via a queued signal/slot connection.
     emit LoadingProgressUpdated(static_cast<int>(100 * loadingStep / static_cast<float>(maxLoadingStep) + 0.5f));
   };
-
+  
   LOG(1) << "LoadResource() start";
   
   // Load cursors.
-  std::filesystem::path cursorsPath =
-      graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures" / "ingame" / "cursor";
-  attackCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "attack32x32.cur").string().c_str())), 0, 0);
-  buildCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "build32x32.cur").string().c_str())), 0, 0);
-  chopCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "chop32x32.cur").string().c_str())), 0, 0);
-  gatherCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "gather32x32.cur").string().c_str())), 0, 0);
-  mineGoldCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "mine_gold32x32.cur").string().c_str())), 0, 0);
-  mineStoneCursor = QCursor(QPixmap::fromImage(QImage((cursorsPath / "mine_stone32x32.cur").string().c_str())), 0, 0);
+  std::filesystem::path cursorsSubPath = std::filesystem::path("widgetui") / "textures" / "ingame" / "cursor";
+  attackCursor = QCursor(QPixmap::fromImage(QImage(GetModdedPathAsQString(cursorsSubPath / "attack32x32.cur"))), 0, 0);
+  buildCursor = QCursor(QPixmap::fromImage(QImage(GetModdedPathAsQString(cursorsSubPath / "build32x32.cur"))), 0, 0);
+  chopCursor = QCursor(QPixmap::fromImage(QImage(GetModdedPathAsQString(cursorsSubPath / "chop32x32.cur"))), 0, 0);
+  gatherCursor = QCursor(QPixmap::fromImage(QImage(GetModdedPathAsQString(cursorsSubPath / "gather32x32.cur"))), 0, 0);
+  mineGoldCursor = QCursor(QPixmap::fromImage(QImage(GetModdedPathAsQString(cursorsSubPath / "mine_gold32x32.cur"))), 0, 0);
+  mineStoneCursor = QCursor(QPixmap::fromImage(QImage(GetModdedPathAsQString(cursorsSubPath / "mine_stone32x32.cur"))), 0, 0);
   didLoadingStep();
-
+  
   LOG(1) << "LoadResource(): Cursors loaded";
   
   // Create shaders.
@@ -273,7 +273,7 @@ void RenderWindow::LoadResources() {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   unitTypes.resize(static_cast<int>(UnitType::NumUnits));
   for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
-    if (!unitTypes[unitType].Load(static_cast<UnitType>(unitType), graphicsPath, cachePath, colorDilationShader.get(), palettes)) {
+    if (!unitTypes[unitType].Load(static_cast<UnitType>(unitType), graphicsSubPath, cachePath, colorDilationShader.get(), palettes)) {
       LOG(ERROR) << "Exiting because of a resource load error for unit " << unitType << ".";
       exit(1);  // TODO: Exit gracefully
     }
@@ -285,7 +285,7 @@ void RenderWindow::LoadResources() {
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   buildingTypes.resize(static_cast<int>(BuildingType::NumBuildings));
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
-    if (!buildingTypes[buildingType].Load(static_cast<BuildingType>(buildingType), graphicsPath, cachePath, colorDilationShader.get(), palettes)) {
+    if (!buildingTypes[buildingType].Load(static_cast<BuildingType>(buildingType), graphicsSubPath, cachePath, colorDilationShader.get(), palettes)) {
       LOG(ERROR) << "Exiting because of a resource load error for building " << buildingType << ".";
       exit(1);  // TODO: Exit gracefully
     }
@@ -296,7 +296,7 @@ void RenderWindow::LoadResources() {
   // Load "move to" sprite.
   moveToSprite.reset(new SpriteAndTextures());
   LoadSpriteAndTexture(
-      (graphicsPath.parent_path().parent_path() / "particles" / "textures" / "test_move" / "p_all_move_%04i.png").string().c_str(),
+      GetModdedPath(graphicsSubPath.parent_path().parent_path() / "particles" / "textures" / "test_move" / "p_all_move_%04i.png").string().c_str(),
       (cachePath / "p_all_move_0000.png").string().c_str(),
       GL_CLAMP_TO_EDGE,
       colorDilationShader.get(),
@@ -310,14 +310,10 @@ void RenderWindow::LoadResources() {
   const std::string architectureNameCaps = "ASIA";  // TODO: Choose depending on civilization
   const std::string architectureNameLower = "asia";  // TODO: Choose depending on civilization
   
-  std::filesystem::path widgetuiTexturesPath =
-      graphicsPath.parent_path().parent_path().parent_path().parent_path() / "widgetui" / "textures";
-  std::filesystem::path architecturePanelsPath =
-      widgetuiTexturesPath / "ingame" / "panels" / architectureNameCaps;
-  std::filesystem::path ingameIconsPath =
-      widgetuiTexturesPath / "ingame" / "icons";
-  std::filesystem::path ingameActionsPath =
-      widgetuiTexturesPath / "ingame" / "actions";
+  std::filesystem::path widgetuiTexturesSubPath = std::filesystem::path("widgetui") / "textures";
+  std::filesystem::path architecturePanelsSubPath = widgetuiTexturesSubPath / "ingame" / "panels" / architectureNameCaps;
+  std::filesystem::path ingameIconsSubPath = widgetuiTexturesSubPath / "ingame" / "icons";
+  std::filesystem::path ingameActionsSubPath = widgetuiTexturesSubPath / "ingame" / "actions";
   
   // Note: I profiled the loading below and replacing the QImage() variants with the mango variants
   // was significantly slower.
@@ -327,50 +323,50 @@ void RenderWindow::LoadResources() {
   //   0.286818,  0.285423
   
   QImage resourcePanelImage;
-  resourcePanel.Load(architecturePanelsPath / "resource-panel.png", &resourcePanelImage);
+  resourcePanel.Load(GetModdedPath(architecturePanelsSubPath / "resource-panel.png"), &resourcePanelImage);
   resourcePanelOpaquenessMap.Create(resourcePanelImage);
   didLoadingStep();
   
-  resourceWood.Load(ingameIconsPath / "resource_wood.png");
+  resourceWood.Load(GetModdedPath(ingameIconsSubPath / "resource_wood.png"));
   didLoadingStep();
   
-  resourceFood.Load(ingameIconsPath / "resource_food.png");
+  resourceFood.Load(GetModdedPath(ingameIconsSubPath / "resource_food.png"));
   didLoadingStep();
   
-  resourceGold.Load(ingameIconsPath / "resource_gold.png");
+  resourceGold.Load(GetModdedPath(ingameIconsSubPath / "resource_gold.png"));
   didLoadingStep();
   
-  resourceStone.Load(ingameIconsPath / "resource_stone.png");
+  resourceStone.Load(GetModdedPath(ingameIconsSubPath / "resource_stone.png"));
   didLoadingStep();
   
-  pop.Load(ingameIconsPath / "pop.png");
+  pop.Load(GetModdedPath(ingameIconsSubPath / "pop.png"));
   didLoadingStep();
   
-  idleVillagerDisabled.Load(ingameIconsPath / "idle-villager_disabled.png");
+  idleVillagerDisabled.Load(GetModdedPath(ingameIconsSubPath / "idle-villager_disabled.png"));
   didLoadingStep();
   
-  currentAgeShield.Load(architecturePanelsPath / ("shield_dark_age_" + architectureNameLower + "_normal.png"));
+  currentAgeShield.Load(GetModdedPath(architecturePanelsSubPath / ("shield_dark_age_" + architectureNameLower + "_normal.png")));
   didLoadingStep();
   
   QImage commandPanelImage;
-  commandPanel.Load(architecturePanelsPath / "command-panel_extended.png", &commandPanelImage);
+  commandPanel.Load(GetModdedPath(architecturePanelsSubPath / "command-panel_extended.png"), &commandPanelImage);
   commandPanelOpaquenessMap.Create(commandPanelImage);
   didLoadingStep();
   
-  buildEconomyBuildings.Load(ingameActionsPath / "030_.png", nullptr, TextureManager::Loader::Mango);
+  buildEconomyBuildings.Load(GetModdedPath(ingameActionsSubPath / "030_.png"), nullptr, TextureManager::Loader::Mango);
   didLoadingStep();
   
-  buildMilitaryBuildings.Load(ingameActionsPath / "031_.png", nullptr, TextureManager::Loader::Mango);
+  buildMilitaryBuildings.Load(GetModdedPath(ingameActionsSubPath / "031_.png"), nullptr, TextureManager::Loader::Mango);
   didLoadingStep();
   
-  toggleBuildingsCategory.Load(ingameActionsPath / "032_.png", nullptr, TextureManager::Loader::Mango);
+  toggleBuildingsCategory.Load(GetModdedPath(ingameActionsSubPath / "032_.png"), nullptr, TextureManager::Loader::Mango);
   didLoadingStep();
   
-  quit.Load(ingameActionsPath / "000_.png", nullptr, TextureManager::Loader::Mango);
+  quit.Load(GetModdedPath(ingameActionsSubPath / "000_.png"), nullptr, TextureManager::Loader::Mango);
   didLoadingStep();
   
   QImage selectionPanelImage;
-  selectionPanel.Load(architecturePanelsPath / "single-selection-panel.png", &selectionPanelImage);
+  selectionPanel.Load(GetModdedPath(architecturePanelsSubPath / "single-selection-panel.png"), &selectionPanelImage);
   selectionPanelOpaquenessMap.Create(selectionPanelImage);
   didLoadingStep();
   
@@ -378,19 +374,19 @@ void RenderWindow::LoadResources() {
   selectionPanelIconOverlayPointBuffer.Initialize();
   
   iconOverlayNormalTexture.reset(new Texture());
-  iconOverlayNormalTexture->Load(QImage((ingameIconsPath / "icon_overlay_normal.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  iconOverlayNormalTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "icon_overlay_normal.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   iconOverlayNormalExpensiveTexture.reset(new Texture());
-  iconOverlayNormalExpensiveTexture->Load(QImage((ingameIconsPath / "icon_overlay_normal_expensive.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  iconOverlayNormalExpensiveTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "icon_overlay_normal_expensive.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   iconOverlayHoverTexture.reset(new Texture());
-  iconOverlayHoverTexture->Load(QImage((ingameIconsPath / "icon_overlay_hover.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  iconOverlayHoverTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "icon_overlay_hover.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   iconOverlayActiveTexture.reset(new Texture());
-  iconOverlayActiveTexture->Load(QImage((ingameIconsPath / "icon_overlay_active.png").string().c_str()), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  iconOverlayActiveTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "icon_overlay_active.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
   // Output timings of the resource loading processes and clear those statistics from further timing prints.
@@ -2520,7 +2516,7 @@ void RenderWindow::initializeGL() {
   CHECK_OPENGL_NO_ERROR();
   
   // Load the loading icon.
-  loadingIcon.Load(graphicsPath.parent_path().parent_path() / "wpfg" / "resources" / "campaign" / "campaign_icon_2swords.png");
+  loadingIcon.Load(GetModdedPath(graphicsSubPath.parent_path().parent_path() / "wpfg" / "resources" / "campaign" / "campaign_icon_2swords.png"));
   
   // Create the loading text display.
   playerNames.resize(match->GetPlayers().size());
@@ -2700,7 +2696,7 @@ void RenderWindow::paintGL() {
   f->glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);  // reset to default
   
   CHECK_OPENGL_NO_ERROR();
-  map->Render(viewMatrix, graphicsPath, f);
+  map->Render(viewMatrix, graphicsSubPath, f);
   mapTimer.Stop();
   Timer groundDecalTimer("paintGL() - ground decal rendering");
   RenderGroundDecals(f);
