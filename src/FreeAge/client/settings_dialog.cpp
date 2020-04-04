@@ -5,7 +5,6 @@
 #include <QDoubleValidator>
 #include <QFileDialog>
 #include <QGridLayout>
-#include <QGroupBox>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
@@ -13,6 +12,7 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QTabWidget>
 #include <QTimer>
 
 #include "FreeAge/common/logging.hpp"
@@ -208,7 +208,7 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   setWindowTitle(tr("FreeAge - Setup"));
   
   
-  QGroupBox* dataGroup = new QGroupBox(tr("Data files"));
+  QWidget* dataGroup = new QWidget();
   
   QLabel* dataFolderLabel = new QLabel(tr("AoE2DE folder path: "));
   dataFolderEdit = new QLineEdit(QString::fromStdString(settings->dataPath.string()));
@@ -240,7 +240,7 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   dataGroup->setLayout(dataLayout);
   
   
-  QGroupBox* preferencesGroup = new QGroupBox(tr("Preferences"));
+  QWidget* preferencesGroup = new QWidget();
   
   QLabel* playerNameLabel = new QLabel(tr("Player name: "));
   playerNameEdit = new QLineEdit(settings->playerName);
@@ -264,6 +264,10 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   preferencesGroup->setLayout(preferencesLayout);
   
   
+  QTabWidget* tabWidget = new QTabWidget();
+  tabWidget->addTab(preferencesGroup, tr("Preferences"));
+  tabWidget->addTab(dataGroup, tr("Data files"));
+  
   debugNetworkingCheck = new QCheckBox(tr("Enable debug logging for networking"));
   debugNetworkingCheck->setChecked(settings->debugNetworking);
   
@@ -279,8 +283,7 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   
   
   QVBoxLayout* layout = new QVBoxLayout();
-  layout->addWidget(dataGroup);
-  layout->addWidget(preferencesGroup);
+  layout->addWidget(tabWidget);
   layout->addWidget(debugNetworkingCheck);
   layout->addLayout(buttonsLayout);
   setLayout(layout);
