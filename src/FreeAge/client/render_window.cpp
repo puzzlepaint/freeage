@@ -1597,7 +1597,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
   popTextDisplay.textDisplay->Render(
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
-      "4 / 5",  // TODO
+      "-",  // TODO
       QRect(topLeft.x() + uiScale * (17 + 4 * 200 + 83 + 16),
             topLeft.y() + uiScale * 16,
             uiScale * 82,
@@ -2381,8 +2381,10 @@ void RenderWindow::ShowMilitaryBuildingCommandButtons() {
   
   commandButtons[0][0].SetBuilding(BuildingType::Barracks, Qt::Key_Q);
   commandButtons[1][0].SetBuilding(BuildingType::Outpost, Qt::Key_A);
-  commandButtons[1][1].SetBuilding(BuildingType::PalisadeWall, Qt::Key_S);
-  commandButtons[2][1].SetBuilding(BuildingType::PalisadeGate, Qt::Key_X);
+  
+  // TODO: Temporarily deactivated since they don't work as expected yet.
+  // commandButtons[1][1].SetBuilding(BuildingType::PalisadeWall, Qt::Key_S);
+  // commandButtons[2][1].SetBuilding(BuildingType::PalisadeGate, Qt::Key_X);
   
   commandButtons[2][3].SetAction(CommandButton::ActionType::ToggleBuildingsCategory, toggleBuildingsCategory.texture.get());
   commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quit.texture.get(), Qt::Key_Escape);
