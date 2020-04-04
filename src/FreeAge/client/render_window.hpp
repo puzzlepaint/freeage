@@ -289,7 +289,7 @@ class RenderWindow : public QOpenGLWindow {
   bool isLoading;
   
   TextureAndPointBuffer loadingIcon;
-  TextDisplayAndPointBuffer loadingText;
+  std::vector<TextDisplayAndPointBuffer> playerNames;
   
   // Game UI.
   float uiScale;

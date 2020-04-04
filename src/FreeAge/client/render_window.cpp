@@ -116,7 +116,9 @@ RenderWindow::~RenderWindow() {
   }
   
   loadingIcon.Unload();
-  loadingText.Destroy();
+  for (usize i = 0; i < playerNames.size(); ++ i) {
+    playerNames[i].Destroy();
+  }
   
   resourcePanel.Unload();
   resourceWood.Unload();
@@ -236,7 +238,6 @@ void RenderWindow::LoadResources() {
   LOG(1) << "LoadResource(): Shaders loaded";
   
   // Create player color palette texture.
-  CreatePlayerColorPaletteTexture();
   spriteShader->GetProgram()->UseProgram(f);
   f->glUniform2f(spriteShader->GetPlayerColorsTextureSizeLocation(), playerColorsTextureWidth, playerColorsTextureHeight);
   f->glUniform1i(spriteShader->GetPlayerColorsTextureLocation(), 1);  // use GL_TEXTURE1
@@ -2059,41 +2060,40 @@ void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
   f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   
   // Clear background.
-  f->glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
+  f->glClearColor(0.2f, 0.2f, 0.2f, 0.0f);
   f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   CHECK_OPENGL_NO_ERROR();
   
   // Render the loading state text.
-  QString text;
+  const float lineHeight = uiScale * 40;
+  float totalHeight = match->GetPlayers().size() * lineHeight;
+  
   const auto& players = match->GetPlayers();
   for (int i = 0; i < static_cast<int>(players.size()); ++ i) {
-    if (i > 0) {
-      text += QStringLiteral("\n");
-    }
     int loadingPercentage;
     if (i == match->GetPlayerIndex()) {
       loadingPercentage = static_cast<int>(100 * loadingStep / static_cast<float>(maxLoadingStep) + 0.5f);
     } else {
       loadingPercentage = players[i].loadingPercentage;
     }
-    text += tr("%1: %2%")
+    QString text = tr("%1: %2%")
         .arg(players[i].name)
         .arg(loadingPercentage, 3, 10, QChar(' '));
+    
+    playerNames[i].textDisplay->Render(
+        georgiaFont,
+        playerColors[i],
+        text,
+        QRect(0, 0.5f * widgetHeight - 0.5f * totalHeight + i * lineHeight + 0.5f * lineHeight, widgetWidth, lineHeight),
+        Qt::AlignHCenter | Qt::AlignVCenter,
+        playerNames[i].pointBuffer,
+        uiShader.get(), widgetWidth, widgetHeight, f);
   }
-  
-  loadingText.textDisplay->Render(
-      georgiaFont,
-      qRgba(255, 255, 255, 255),
-      text,
-      QRect(0, 0, widgetWidth, widgetHeight),
-      Qt::AlignHCenter | Qt::AlignVCenter,
-      loadingText.pointBuffer,
-      uiShader.get(), widgetWidth, widgetHeight, f);
   
   // Render the loading icon.
   RenderUIGraphic(
       widgetWidth / 2 - loadingIcon.texture->GetWidth() / 2,
-      loadingText.textDisplay->GetBounds().y() - loadingIcon.texture->GetHeight(),
+      0.5f * widgetHeight - 0.5f * totalHeight - loadingIcon.texture->GetHeight(),
       loadingIcon.texture->GetWidth(),
       loadingIcon.texture->GetHeight(),
       qRgba(255, 255, 255, 255), loadingIcon.pointBuffer,
@@ -2503,7 +2503,13 @@ void RenderWindow::initializeGL() {
   loadingIcon.Load(graphicsPath.parent_path().parent_path() / "wpfg" / "resources" / "campaign" / "campaign_icon_2swords.png");
   
   // Create the loading text display.
-  loadingText.Initialize();
+  playerNames.resize(match->GetPlayers().size());
+  for (usize i = 0; i < playerNames.size(); ++ i) {
+    playerNames[i].Initialize();
+  }
+  
+  // Define the player colors.
+  CreatePlayerColorPaletteTexture();
   
   // Remember the render start time.
   renderStartTime = Clock::now();
@@ -2549,7 +2555,6 @@ void RenderWindow::paintGL() {
       
       // Unload loading screen resources
       loadingIcon.Unload();
-      loadingText.Destroy();
       
       // Avoid possible jumps directly after the game start
       lastScrollGetTime = Clock::now();
