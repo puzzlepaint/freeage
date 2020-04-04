@@ -881,19 +881,29 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
             if (TryEvadeUnit(unit, moveDistance, newMapCoord, collidingUnit, &evadeMapCoord) &&
                 !map->DoesUnitCollide(unit, evadeMapCoord, &collidingUnit)) {
               // Successfully found a side step to avoid bumping into the other unit.
-              // Change our movement direction in order to still face the next path goal.
-              unit->SetMapCoord(evadeMapCoord);
+              // Test whether this would still bring us closer to our goal.
+              QPointF currentToGoal = unit->GetNextPathTarget() - unit->GetMapCoord();
+              float currentToGoalSquaredDistance = currentToGoal.x() * currentToGoal.x() + currentToGoal.y() * currentToGoal.y();
               
-              QPointF direction = unit->GetNextPathTarget() - unit->GetMapCoord();
-              direction = direction / std::max(1e-4f, sqrtf(direction.x() * direction.x() + direction.y() * direction.y()));
-              unit->SetMovementDirection(direction);
+              QPointF proposedToGoal = unit->GetNextPathTarget() - evadeMapCoord;
+              float proposedToGoalSquaredDistance = proposedToGoal.x() * proposedToGoal.x() + proposedToGoal.y() * proposedToGoal.y();
               
-              if (unit->GetCurrentAction() != UnitAction::Moving) {
-                unit->SetCurrentAction(UnitAction::Moving);
+              if (proposedToGoalSquaredDistance < currentToGoalSquaredDistance) {
+                // Use the evade step.
+                // Change our movement direction in order to still face the next path goal.
+                unit->SetMapCoord(evadeMapCoord);
+                
+                QPointF direction = unit->GetNextPathTarget() - unit->GetMapCoord();
+                direction = direction / std::max(1e-4f, sqrtf(direction.x() * direction.x() + direction.y() * direction.y()));
+                unit->SetMovementDirection(direction);
+                
+                if (unit->GetCurrentAction() != UnitAction::Moving) {
+                  unit->SetCurrentAction(UnitAction::Moving);
+                }
+                
+                unitMovementChanged = true;
+                evaded = true;
               }
-              
-              unitMovementChanged = true;
-              evaded = true;
             }
           }
           
