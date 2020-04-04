@@ -122,6 +122,20 @@ RenderWindow::~RenderWindow() {
     playerNameShadowPointBuffers[i].Destroy();
   }
   
+  menuPanel.Unload();
+  menuButtonPointBuffer.Destroy();
+  menuButtonTexture.reset();
+  menuButtonHoverTexture.reset();
+  menuButtonActiveTexture.reset();
+  objectivesButtonPointBuffer.Destroy();
+  objectivesButtonDisabledTexture.reset();
+  chatButtonPointBuffer.Destroy();
+  chatButtonDisabledTexture.reset();
+  diplomacyButtonPointBuffer.Destroy();
+  diplomacyButtonDisabledTexture.reset();
+  settingsButtonPointBuffer.Destroy();
+  settingsButtonDisabledTexture.reset();
+  
   resourcePanel.Unload();
   resourceWood.Unload();
   woodTextDisplay.Destroy();
@@ -321,6 +335,37 @@ void RenderWindow::LoadResources() {
   //   0.0421275, 0.0420974, 0.0429374
   // With QImage loading replaced by mango loading:
   //   0.286818,  0.285423
+  
+  QImage menuPanelImage;
+  menuPanel.Load(GetModdedPath(architecturePanelsSubPath / "menu-panel.png"), &menuPanelImage);
+  menuPanelOpaquenessMap.Create(menuPanelImage);
+  didLoadingStep();
+  
+  menuButtonPointBuffer.Initialize();
+  menuButtonTexture.reset(new Texture());
+  menuButtonTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "menu_menu_normal.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  menuButtonHoverTexture.reset(new Texture());
+  menuButtonHoverTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "menu_menu_hover.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  menuButtonActiveTexture.reset(new Texture());
+  menuButtonActiveTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "menu_menu_active.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
+  
+  objectivesButtonPointBuffer.Initialize();
+  objectivesButtonDisabledTexture.reset(new Texture());
+  objectivesButtonDisabledTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "menu_objectives_disabled.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  
+  chatButtonPointBuffer.Initialize();
+  chatButtonDisabledTexture.reset(new Texture());
+  chatButtonDisabledTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "menu_chat_disabled.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  
+  diplomacyButtonPointBuffer.Initialize();
+  diplomacyButtonDisabledTexture.reset(new Texture());
+  diplomacyButtonDisabledTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "menu_diplomacy_disabled.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  
+  settingsButtonPointBuffer.Initialize();
+  settingsButtonDisabledTexture.reset(new Texture());
+  settingsButtonDisabledTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "menu_settings_disabled.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  didLoadingStep();
   
   QImage resourcePanelImage;
   resourcePanel.Load(GetModdedPath(architecturePanelsSubPath / "resource-panel.png"), &resourcePanelImage);
@@ -1415,6 +1460,8 @@ void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
 }
 
 void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
+  RenderMenuPanel(f);
+  
   RenderResourcePanel(f);
   
   RenderSelectionPanel(f);
@@ -1482,6 +1529,75 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
     }
     currentY = playerNames[i].textDisplay->GetBounds().y();
   }
+}
+
+QPointF RenderWindow::GetMenuPanelTopLeft() {
+  return QPointF(
+      widgetWidth - uiScale * menuPanel.texture->GetWidth(),
+      0);
+}
+
+void RenderWindow::RenderMenuPanel(QOpenGLFunctions_3_2_Core* f) {
+  QPointF topLeft = GetMenuPanelTopLeft();
+  
+  RenderUIGraphic(
+      topLeft.x(),
+      topLeft.y(),
+      uiScale * menuPanel.texture->GetWidth(),
+      uiScale * menuPanel.texture->GetHeight(),
+      qRgba(255, 255, 255, 255), menuPanel.pointBuffer,
+      *menuPanel.texture,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+  
+  constexpr int kButtonSize = 70;
+  constexpr int kButtonLeftRightMargin = 22;
+  constexpr int kNumButtons = 5;
+  
+  RenderUIGraphic(
+      topLeft.x() + uiScale * (270 + kButtonLeftRightMargin + (0 / (kNumButtons - 1.f)) * (454 - 2 * kButtonLeftRightMargin - kButtonSize)),
+      topLeft.y() + uiScale * (23),
+      uiScale * kButtonSize,
+      uiScale * kButtonSize,
+      qRgba(255, 255, 255, 255), objectivesButtonPointBuffer.buffer,
+      *objectivesButtonDisabledTexture,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+  
+  RenderUIGraphic(
+      topLeft.x() + uiScale * (270 + kButtonLeftRightMargin + (1 / (kNumButtons - 1.f)) * (454 - 2 * kButtonLeftRightMargin - kButtonSize)),
+      topLeft.y() + uiScale * (23),
+      uiScale * kButtonSize,
+      uiScale * kButtonSize,
+      qRgba(255, 255, 255, 255), chatButtonPointBuffer.buffer,
+      *chatButtonDisabledTexture,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+  
+  RenderUIGraphic(
+      topLeft.x() + uiScale * (270 + kButtonLeftRightMargin + (2 / (kNumButtons - 1.f)) * (454 - 2 * kButtonLeftRightMargin - kButtonSize)),
+      topLeft.y() + uiScale * (23),
+      uiScale * kButtonSize,
+      uiScale * kButtonSize,
+      qRgba(255, 255, 255, 255), diplomacyButtonPointBuffer.buffer,
+      *diplomacyButtonDisabledTexture,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+  
+  RenderUIGraphic(
+      topLeft.x() + uiScale * (270 + kButtonLeftRightMargin + (3 / (kNumButtons - 1.f)) * (454 - 2 * kButtonLeftRightMargin - kButtonSize)),
+      topLeft.y() + uiScale * (23),
+      uiScale * kButtonSize,
+      uiScale * kButtonSize,
+      qRgba(255, 255, 255, 255), settingsButtonPointBuffer.buffer,
+      *settingsButtonDisabledTexture,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+  
+  Texture* menuButtonTex = menuButtonTexture.get();  // TODO: hover / active?
+  RenderUIGraphic(
+      topLeft.x() + uiScale * (270 + kButtonLeftRightMargin + (4 / (kNumButtons - 1.f)) * (454 - 2 * kButtonLeftRightMargin - kButtonSize)),
+      topLeft.y() + uiScale * (23),
+      uiScale * kButtonSize,
+      uiScale * kButtonSize,
+      qRgba(255, 255, 255, 255), menuButtonPointBuffer.buffer,
+      *menuButtonTex,
+      uiShader.get(), widgetWidth, widgetHeight, f);
 }
 
 QPointF RenderWindow::GetResourcePanelTopLeft() {
@@ -1802,6 +1918,11 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
 
 bool RenderWindow::IsUIAt(int x, int y) {
   float factor = 1.f / uiScale;
+  
+  QPointF menuPanelTopLeft = GetMenuPanelTopLeft();
+  if (menuPanelOpaquenessMap.IsOpaque(factor * (x - menuPanelTopLeft.x()), factor * (y - menuPanelTopLeft.y()))) {
+    return true;
+  }
   
   QPointF resourcePanelTopLeft = GetResourcePanelTopLeft();
   if (resourcePanelOpaquenessMap.IsOpaque(factor * (x - resourcePanelTopLeft.x()), factor * (y - resourcePanelTopLeft.y()))) {
@@ -2497,7 +2618,7 @@ void RenderWindow::initializeGL() {
   
   isLoading = true;
   loadingStep = 0;
-  maxLoadingStep = 57;
+  maxLoadingStep = 60;
   loadingThread->start();
   
   // Create resources right now which are required for rendering the loading screen:

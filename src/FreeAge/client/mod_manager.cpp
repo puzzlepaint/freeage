@@ -53,7 +53,6 @@ std::filesystem::path ModManager::GetPath(const std::filesystem::path& subPath) 
   for (const auto& mod : mods) {
     std::filesystem::path testPath = mod.path / subPath;
     if (std::filesystem::exists(testPath)) {
-      LOG(WARNING) << "Debug: found file in mod directory: " << subPath;
       return testPath;
     }
   }

@@ -128,6 +128,8 @@ class RenderWindow : public QOpenGLWindow {
   
   
   void RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2_Core* f);
+  QPointF GetMenuPanelTopLeft();
+  void RenderMenuPanel(QOpenGLFunctions_3_2_Core* f);
   QPointF GetResourcePanelTopLeft();
   void RenderResourcePanel(QOpenGLFunctions_3_2_Core* f);
   QPointF GetSelectionPanelTopLeft();
@@ -294,6 +296,21 @@ class RenderWindow : public QOpenGLWindow {
   
   // Game UI.
   float uiScale;
+  
+  TextureAndPointBuffer menuPanel;
+  OpaquenessMap menuPanelOpaquenessMap;
+  PointBuffer menuButtonPointBuffer;
+  std::shared_ptr<Texture> menuButtonTexture;
+  std::shared_ptr<Texture> menuButtonHoverTexture;
+  std::shared_ptr<Texture> menuButtonActiveTexture;
+  PointBuffer objectivesButtonPointBuffer;
+  std::shared_ptr<Texture> objectivesButtonDisabledTexture;
+  PointBuffer chatButtonPointBuffer;
+  std::shared_ptr<Texture> chatButtonDisabledTexture;
+  PointBuffer diplomacyButtonPointBuffer;
+  std::shared_ptr<Texture> diplomacyButtonDisabledTexture;
+  PointBuffer settingsButtonPointBuffer;
+  std::shared_ptr<Texture> settingsButtonDisabledTexture;
   
   TextureAndPointBuffer resourcePanel;
   OpaquenessMap resourcePanelOpaquenessMap;
