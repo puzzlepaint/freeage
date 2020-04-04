@@ -10,6 +10,7 @@
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/common/messages.hpp"
 #include "FreeAge/common/timing.hpp"
+#include "FreeAge/common/util.hpp"
 #include "FreeAge/server/building.hpp"
 #include "FreeAge/server/unit.hpp"
 
@@ -662,21 +663,17 @@ static bool DoesUnitTouchBuildingArea(ServerUnit* unit, const QPointF& unitMapCo
       std::max<float>(baseTile.y(), std::min<float>(baseTile.y() + buildingSize.height(), unitMapCoord.y())));
   
   // Check whether this point is closer to the unit than the unit's radius.
-  QPointF offset = unitMapCoord - closestPointInBuilding;
-  float offsetLengthSquared = offset.x() * offset.x() + offset.y() * offset.y();
   float unitRadius = GetUnitRadius(unit->GetUnitType());
   float threshold = unitRadius - errorMargin;
-  return offsetLengthSquared < threshold * threshold;
+  return SquaredDistance(unitMapCoord, closestPointInBuilding) < threshold * threshold;
 }
 
 static bool DoUnitsTouch(ServerUnit* unit, const QPointF& unitMapCoord, ServerUnit* otherUnit, float errorMargin) {
   float unitRadius = GetUnitRadius(unit->GetUnitType());
   float otherUnitRadius = GetUnitRadius(otherUnit->GetUnitType());
   
-  QPointF offset = unitMapCoord - otherUnit->GetMapCoord();
-  float offsetLengthSquared = offset.x() * offset.x() + offset.y() * offset.y();
   float threshold = unitRadius + otherUnitRadius - errorMargin;
-  return offsetLengthSquared < threshold * threshold;
+  return SquaredDistance(unitMapCoord, otherUnit->GetMapCoord()) < threshold * threshold;
 }
 
 static bool IsFoundationFree(ServerBuilding* foundation, ServerMap* map) {
@@ -716,7 +713,7 @@ static bool TryEvadeUnit(ServerUnit* unit, float moveDistance, const QPointF& ne
   float obstacleRadius = GetUnitRadius(unit->GetUnitType()) + GetUnitRadius(collidingUnit->GetUnitType()) + kErrorTolerance;
   
   QPointF unitToObstacle = obstacleCenter - unitCenter;
-  float centerDistance = sqrtf(unitToObstacle.x() * unitToObstacle.x() + unitToObstacle.y() * unitToObstacle.y());
+  float centerDistance = Length(unitToObstacle);
   QPointF unitToObstacleDir = unitToObstacle / std::max(1e-5f, centerDistance);
   
   float a = (unitMoveRadius * unitMoveRadius - obstacleRadius * obstacleRadius + centerDistance * centerDistance) / (2 * centerDistance);
@@ -731,11 +728,8 @@ static bool TryEvadeUnit(ServerUnit* unit, float moveDistance, const QPointF& ne
   QPointF intersection1 = basePoint + h * QPointF(unitToObstacleDir.y(), -unitToObstacleDir.x());
   QPointF intersection2 = basePoint - h * QPointF(unitToObstacleDir.y(), -unitToObstacleDir.x());
   
-  QPointF intersection1ToNewMapCoord = newMapCoord - intersection1;
-  float squaredDistance1 = intersection1ToNewMapCoord.x() * intersection1ToNewMapCoord.x() + intersection1ToNewMapCoord.y() * intersection1ToNewMapCoord.y();
-  
-  QPointF intersection2ToNewMapCoord = newMapCoord - intersection2;
-  float squaredDistance2 = intersection2ToNewMapCoord.x() * intersection2ToNewMapCoord.x() + intersection2ToNewMapCoord.y() * intersection2ToNewMapCoord.y();
+  float squaredDistance1 = SquaredDistance(newMapCoord, intersection1);
+  float squaredDistance2 = SquaredDistance(newMapCoord, intersection2);
   
   *evadeMapCoord = (squaredDistance1 < squaredDistance2) ? intersection1 : intersection2;
   return true;
@@ -785,11 +779,8 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
     } else if (targetIt->second->isUnit()) {
       ServerUnit* targetUnit = static_cast<ServerUnit*>(targetIt->second);
       
-      QPointF offset = targetUnit->GetMapCoord() - unit->GetMoveToTargetMapCoord();
-      float offsetLengthSquared = offset.x() * offset.x() + offset.y() * offset.y();
-      constexpr float kReplanThresholdDistance = 0.05f * 0.05f;
-      
-      if (offsetLengthSquared > kReplanThresholdDistance) {
+      constexpr float kReplanThresholdDistance = 0.1f * 0.1f;
+      if (SquaredDistance(targetUnit->GetMapCoord(), unit->GetMoveToTargetMapCoord()) > kReplanThresholdDistance) {
         unit->SetTarget(unit->GetTargetObjectId(), targetUnit, false);
         PlanUnitPath(unit);
         unitMovementChanged = true;
@@ -845,7 +836,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
     if (!stayInPlace && unit->HasPath()) {
       // Test whether the current goal was reached.
       QPointF toGoal = unit->GetNextPathTarget() - unit->GetMapCoord();
-      float squaredDistanceToGoal = toGoal.x() * toGoal.x() + toGoal.y() * toGoal.y();
+      float squaredDistanceToGoal = SquaredLength(toGoal);
       float directionDotToGoal =
           unit->GetMovementDirection().x() * toGoal.x() +
           unit->GetMovementDirection().y() * toGoal.y();
@@ -862,7 +853,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
           // Continue with the next path segment.
           // TODO: This is a duplicate of the code at the end of PlanUnitPath()
           QPointF direction = unit->GetNextPathTarget() - unit->GetMapCoord();
-          direction = direction / std::max(1e-4f, sqrtf(direction.x() * direction.x() + direction.y() * direction.y()));
+          direction = direction / std::max(1e-4f, Length(direction));
           unit->SetMovementDirection(direction);
         } else {
           // Completed the path.
@@ -882,19 +873,14 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
                 !map->DoesUnitCollide(unit, evadeMapCoord, &collidingUnit)) {
               // Successfully found a side step to avoid bumping into the other unit.
               // Test whether this would still bring us closer to our goal.
-              QPointF currentToGoal = unit->GetNextPathTarget() - unit->GetMapCoord();
-              float currentToGoalSquaredDistance = currentToGoal.x() * currentToGoal.x() + currentToGoal.y() * currentToGoal.y();
-              
-              QPointF proposedToGoal = unit->GetNextPathTarget() - evadeMapCoord;
-              float proposedToGoalSquaredDistance = proposedToGoal.x() * proposedToGoal.x() + proposedToGoal.y() * proposedToGoal.y();
-              
-              if (proposedToGoalSquaredDistance < currentToGoalSquaredDistance) {
+              if (SquaredDistance(unit->GetNextPathTarget(), evadeMapCoord) <
+                  SquaredDistance(unit->GetNextPathTarget(), unit->GetMapCoord())) {
                 // Use the evade step.
                 // Change our movement direction in order to still face the next path goal.
                 unit->SetMapCoord(evadeMapCoord);
                 
                 QPointF direction = unit->GetNextPathTarget() - unit->GetMapCoord();
-                direction = direction / std::max(1e-4f, sqrtf(direction.x() * direction.x() + direction.y() * direction.y()));
+                direction = direction / std::max(1e-4f, Length(direction));
                 unit->SetMovementDirection(direction);
                 
                 if (unit->GetCurrentAction() != UnitAction::Moving) {
@@ -949,8 +935,7 @@ bool Game::IsPathFree(float unitRadius, const QPointF& p0, const QPointF& p1) {
   QPointF right(
       -p0ToP1.y(),
       p0ToP1.x());
-  float rightNorm = sqrtf(right.x() * right.x() + right.y() * right.y());
-  right *= (unitRadius + kErrorEpsilon) / std::max(1e-4f, rightNorm);
+  right *= (unitRadius + kErrorEpsilon) / std::max(1e-4f, Length(right));
   
   QPointF p0Right = p0 + right;
   QPointF p0Left = p0 - right;
@@ -1423,7 +1408,7 @@ void Game::PlanUnitPath(ServerUnit* unit) {
   // Start traversing the path:
   // Set the unit's movement direction to the first segment of the path.
   QPointF direction = unit->GetNextPathTarget() - unit->GetMapCoord();
-  direction = direction / std::max(1e-4f, sqrtf(direction.x() * direction.x() + direction.y() * direction.y()));
+  direction = direction / std::max(1e-4f, Length(direction));
   unit->SetMovementDirection(direction);
 }
 
@@ -1545,7 +1530,7 @@ void Game::SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, 
   // Make the villager target a resource drop-off point if its carrying capacity is reached.
   if (villager->GetCarriedResourceAmount() == carryCapacity) {
     // TODO: Speed up this search?
-    float bestDistance = std::numeric_limits<float>::infinity();
+    float bestSquaredDistance = std::numeric_limits<float>::infinity();
     u32 bestDropOffPointId;
     ServerBuilding* bestDropOffPoint = nullptr;
     
@@ -1558,11 +1543,11 @@ void Game::SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, 
           //       villager has to walk to the edge of the building, not the straight-line distance to its center.
           QSize candidateSize = GetBuildingSize(candidateDropOffPoint->GetBuildingType());
           QPointF candidateCenter = candidateDropOffPoint->GetBaseTile() + 0.5f * QPointF(candidateSize.width(), candidateSize.height());
-          QPointF offset = candidateCenter - villager->GetMapCoord();
-          float distance = offset.x() * offset.x() + offset.y() * offset.y();
           
-          if (distance < bestDistance) {
-            bestDistance = distance;
+          float squaredDistance = SquaredDistance(candidateCenter, villager->GetMapCoord());
+          
+          if (squaredDistance < bestSquaredDistance) {
+            bestSquaredDistance = squaredDistance;
             bestDropOffPoint = candidateDropOffPoint;
             bestDropOffPointId = item.first;
           }
