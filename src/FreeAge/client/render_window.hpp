@@ -100,6 +100,32 @@ class RenderWindow : public QOpenGLWindow {
     bool initialized = false;
   };
   
+  struct Button {
+    void Load(const std::filesystem::path& defaultSubPath, const std::filesystem::path& hoverSubPath, const std::filesystem::path& activeSubPath, const std::filesystem::path& disabledSubPath);
+    void Render(float x, float y, float width, float height, RenderWindow* renderWindow, QOpenGLFunctions_3_2_Core* f);
+    void MouseMove(const QPoint& pos);
+    void MousePress(const QPoint& pos);
+    /// Returns true if the button was clicked.
+    bool MouseRelease(const QPoint& pos);
+    void SetEnabled(bool enabled);
+    bool IsInButton(const QPoint& pos);
+    void Destroy();
+    
+    PointBuffer pointBuffer;
+    OpaquenessMap opaquenessMap;
+    std::shared_ptr<Texture> defaultTexture;
+    std::shared_ptr<Texture> hoverTexture;
+    std::shared_ptr<Texture> activeTexture;
+    std::shared_ptr<Texture> disabledTexture;
+    
+    float lastX = -1;
+    float lastY = -1;
+    float lastWidth = -1;
+    float lastHeight = -1;
+    
+    int state = 0;  // 0: default, 1: hover, 2: active, 3: disabled
+  };
+  
   void CreatePlayerColorPaletteTexture();
   usize PrepareBufferObject(usize size, QOpenGLFunctions_3_2_Core* f);
   
@@ -136,7 +162,10 @@ class RenderWindow : public QOpenGLWindow {
   void RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f);
   QPointF GetCommandPanelTopLeft();
   void RenderCommandPanel(QOpenGLFunctions_3_2_Core* f);
+  void RenderMenu(QOpenGLFunctions_3_2_Core* f);
   bool IsUIAt(int x, int y);
+  
+  void ShowMenu(bool show);
   
   /// Given screen-space coordinates (x, y), finds the (next) object to select at
   /// this point. If an object is found, true is returned, and the object's ID is
@@ -295,17 +324,25 @@ class RenderWindow : public QOpenGLWindow {
   std::vector<PointBuffer> playerNameShadowPointBuffers;
   
   // Menu.
+  bool menuShown = false;
   TextureAndPointBuffer menuDialog;
+  TextDisplayAndPointBuffer menuTextDisplay;
+  Button menuButtonExit;
+  TextDisplayAndPointBuffer menuButtonExitText;
+  Button menuButtonResign;
+  TextDisplayAndPointBuffer menuButtonResignText;
+  Button menuButtonCancel;
+  TextDisplayAndPointBuffer menuButtonCancelText;
   
   // Game UI.
   float uiScale;
   
+  TextDisplayAndPointBuffer gameEndTextDisplay;
+  PointBuffer gameEndTextDisplayShadowPointBuffer;
+  
   TextureAndPointBuffer menuPanel;
   OpaquenessMap menuPanelOpaquenessMap;
-  PointBuffer menuButtonPointBuffer;
-  std::shared_ptr<Texture> menuButtonTexture;
-  std::shared_ptr<Texture> menuButtonHoverTexture;
-  std::shared_ptr<Texture> menuButtonActiveTexture;
+  Button menuButton;
   PointBuffer objectivesButtonPointBuffer;
   std::shared_ptr<Texture> objectivesButtonDisabledTexture;
   PointBuffer chatButtonPointBuffer;
@@ -400,6 +437,8 @@ class RenderWindow : public QOpenGLWindow {
   QFont georgiaFont;
   QFont georgiaFontSmaller;
   QFont georgiaFontLarger;
+  QFont georgiaFontLargerStrikeOut;
+  QFont georgiaFontHuge;
   const Palettes& palettes;
   const std::filesystem::path& graphicsSubPath;
   const std::filesystem::path& cachePath;

@@ -8,7 +8,7 @@ OpaquenessMap::OpaquenessMap(const QImage& image) {
 
 void OpaquenessMap::Create(const QImage& image) {
   if (image.format() != QImage::Format_ARGB32) {
-    LOG(ERROR) << "The given image format is not supported: " << image.format();
+    LOG(FATAL) << "The given image format is not supported: " << image.format();
     return;
   }
   

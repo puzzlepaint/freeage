@@ -150,8 +150,8 @@ int main(int argc, char** argv) {
     if (isHost) {
       // Start the server.
       QByteArray hostToken;
-      if (noServer) {
-        hostToken = "aaaaaa";
+      if (noServer || !settingsDialog.GetHostPassword().isEmpty()) {
+        hostToken = noServer ? "aaaaaa" : settingsDialog.GetHostPassword().toUtf8();
       } else {
         hostToken.resize(hostTokenLength);
         for (int i = 0; i < hostTokenLength; ++ i) {
@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
       
       // Connect to the server.
       constexpr int kConnectTimeout = 2500;
-      if (!connection->ConnectToServer("127.0.0.1", kConnectTimeout, /*retryUntilTimeout*/ true)) {
+      if (!connection->ConnectToServer(settingsDialog.GetHostPassword().isEmpty() ? "127.0.0.1" : settingsDialog.GetServerAddress(), kConnectTimeout, /*retryUntilTimeout*/ true)) {
         QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to connect to the server."));
         QFontDatabase::removeApplicationFont(georgiaFontID);
         continue;
@@ -188,7 +188,7 @@ int main(int argc, char** argv) {
     } else {
       // Try to connect to the server.
       constexpr int kConnectTimeout = 2500;
-      if (!connection->ConnectToServer(settingsDialog.GetIP(), kConnectTimeout, /*retryUntilTimeout*/ false)) {
+      if (!connection->ConnectToServer(settingsDialog.GetServerAddress(), kConnectTimeout, /*retryUntilTimeout*/ false)) {
         QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to connect to the server."));
         QFontDatabase::removeApplicationFont(georgiaFontID);
         continue;
@@ -274,6 +274,10 @@ int main(int argc, char** argv) {
   
   // Run the Qt event loop.
   qapp.exec();
+  
+  // Disconnect from the server.
+  connection->WriteBlocking(CreateLeaveMessage());
+  // TODO: Give the server some time to exit cleanly? However, it won't exit if there are still other players in the game.
   
   // Manually delete the render window before the ClientUnitType or ClientBuildingType singleton vectors
   // are deleted automatically (without an active OpenGL context, causing this to fail).

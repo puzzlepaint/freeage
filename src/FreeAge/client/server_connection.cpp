@@ -495,6 +495,13 @@ void ServerConnection::Write(const QByteArray& message) {
   }, Qt::QueuedConnection);
 }
 
+void ServerConnection::WriteBlocking(const QByteArray& message) {
+  QMetaObject::invokeMethod(dummyWorker, [=]() {
+    // This runs in the ServerConnectionThread.
+    thread->Write(message);
+  }, Qt::BlockingQueuedConnection);
+}
+
 void ServerConnection::Lock() {
   thread->GetReceivedMessagesMutex().lock();
 }

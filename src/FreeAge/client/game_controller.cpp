@@ -147,6 +147,9 @@ void GameController::ParseMessage(const QByteArray& data, ServerToClientMessage 
   case ServerToClientMessage::LoadingProgressBroadcast:
     HandleLoadingProgressBroadcast(data);
     break;
+  case ServerToClientMessage::PlayerLeaveBroadcast:
+    HandlePlayerLeaveBroadcast(data);
+    break;
   case ServerToClientMessage::GameBegin:
     HandleGameBeginMessage(data);
     break;
@@ -371,4 +374,11 @@ void GameController::HandleHPUpdateMessage(const QByteArray& data) {
   u32 newHP = mango::uload32(buffer + 4);
   
   object->SetHP(newHP);
+}
+
+void GameController::HandlePlayerLeaveBroadcast(const QByteArray& data) {
+  u8 playerIndex = data[0];
+  u8 reason = data[1];
+  
+  match->SetPlayerState(playerIndex, (reason == 0) ? Match::PlayerState::Resigned : Match::PlayerState::Dropped);
 }

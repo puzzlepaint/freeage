@@ -273,12 +273,14 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   
   QPushButton* exitButton = new QPushButton(tr("Exit"));
   QPushButton* hostButton = new QPushButton(tr("Create new lobby"));
+  QPushButton* hostOnServerButton = new QPushButton(tr("Create lobby on existing server"));
   QPushButton* joinButton = new QPushButton(tr("Join existing lobby"));
   
   QHBoxLayout* buttonsLayout = new QHBoxLayout();
   buttonsLayout->addWidget(exitButton);
   buttonsLayout->addStretch(1);
   buttonsLayout->addWidget(hostButton);
+  buttonsLayout->addWidget(hostOnServerButton);
   buttonsLayout->addWidget(joinButton);
   
   
@@ -292,6 +294,7 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   
   // --- Connections ---
   connect(hostButton, &QPushButton::clicked, this, &SettingsDialog::HostGame);
+  connect(hostOnServerButton, &QPushButton::clicked, this, &SettingsDialog::HostGameOnServer);
   connect(joinButton, &QPushButton::clicked, this, &SettingsDialog::JoinGame);
   connect(exitButton, &QPushButton::clicked, this, &QDialog::reject);
   
@@ -317,6 +320,30 @@ void SettingsDialog::HostGame() {
   }
   SaveSettings();
   
+  hostPassword = "";
+  hostGameChosen = true;
+  accept();
+}
+
+void SettingsDialog::HostGameOnServer() {
+  if (!CheckSettings()) {
+    return;
+  }
+  SaveSettings();
+  
+  bool ok;
+  serverAddressText = QInputDialog::getText(
+      this, tr("Enter server address to connect to"), tr("Address:"), QLineEdit::Normal, "127.0.0.1", &ok);
+  if (!ok || serverAddressText.isEmpty()) {
+    return;
+  }
+  
+  hostPassword = QInputDialog::getText(
+      this, tr("Enter host password"), tr("Host password:"), QLineEdit::Normal, "", &ok);
+  if (!ok || hostPassword.isEmpty()) {
+    return;
+  }
+  
   hostGameChosen = true;
   accept();
 }
@@ -328,9 +355,9 @@ void SettingsDialog::JoinGame() {
   SaveSettings();
   
   bool ok;
-  ipText = QInputDialog::getText(
-      this, tr("Enter IP to connect to"), tr("IP:"), QLineEdit::Normal, "127.0.0.1", &ok);
-  if (ok && !ipText.isEmpty()) {
+  serverAddressText = QInputDialog::getText(
+      this, tr("Enter server address to connect to"), tr("Address:"), QLineEdit::Normal, "127.0.0.1", &ok);
+  if (ok && !serverAddressText.isEmpty()) {
     hostGameChosen = false;
     accept();
   }

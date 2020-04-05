@@ -54,6 +54,7 @@ class GameController : public QObject {
   void HandleChangeUnitTypeMessage(const QByteArray& data);
   void HandleSetCarriedResourcesMessage(const QByteArray& data);
   void HandleHPUpdateMessage(const QByteArray& data);
+  void HandlePlayerLeaveBroadcast(const QByteArray& data);
   
   
   std::shared_ptr<ServerConnection> connection;

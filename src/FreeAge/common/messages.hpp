@@ -192,6 +192,9 @@ enum class ServerToClientMessage {
   /// both cases this entity will not affect the remaining objects anymore, and units / buildings
   /// in this state should not be selectable anymore.
   ObjectDeath,
+  
+  /// Sent to notify a client about another client leaving the game (either by resigning or due to dropping).
+  PlayerLeaveBroadcast,
 };
 
 QByteArray CreateWelcomeMessage();
@@ -235,3 +238,6 @@ QByteArray CreateSetCarriedResourcesMessage(u32 unitId, ResourceType type, u8 am
 QByteArray CreateHPUpdateMessage(u32 objectId, u32 newHP);
 
 QByteArray CreateObjectDeathMessage(u32 objectId);
+
+/// Possible reasons: 0: resign, 1: drop
+QByteArray CreatePlayerLeaveBroadcastMessage(u8 playerIndex, u8 reason);

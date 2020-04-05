@@ -72,8 +72,15 @@ RenderWindow::RenderWindow(
   georgiaFontLarger.setPixelSize(uiScale * 2*17);
   georgiaFontLarger.setBold(true);
   
+  georgiaFontLargerStrikeOut = georgiaFontLarger;
+  georgiaFontLargerStrikeOut.setStrikeOut(true);
+  
   georgiaFontSmaller = georgiaFont;
   georgiaFontSmaller.setPixelSize(uiScale * 2*15);
+  
+  georgiaFontHuge = georgiaFont;
+  georgiaFontHuge.setPixelSize(uiScale * 2*40);
+  georgiaFontHuge.setBold(true);
   
   connect(this, &RenderWindow::LoadingProgressUpdated, this, &RenderWindow::SendLoadingProgress, Qt::QueuedConnection);
   
@@ -123,12 +130,19 @@ RenderWindow::~RenderWindow() {
   }
   
   menuDialog.Unload();
+  menuTextDisplay.Destroy();
+  menuButtonExit.Destroy();
+  menuButtonExitText.Destroy();
+  menuButtonResign.Destroy();
+  menuButtonResignText.Destroy();
+  menuButtonCancel.Destroy();
+  menuButtonCancelText.Destroy();
+  
+  gameEndTextDisplay.Destroy();
+  gameEndTextDisplayShadowPointBuffer.Destroy();
   
   menuPanel.Unload();
-  menuButtonPointBuffer.Destroy();
-  menuButtonTexture.reset();
-  menuButtonHoverTexture.reset();
-  menuButtonActiveTexture.reset();
+  menuButton.Destroy();
   objectivesButtonPointBuffer.Destroy();
   objectivesButtonDisabledTexture.reset();
   chatButtonPointBuffer.Destroy();
@@ -330,6 +344,7 @@ void RenderWindow::LoadResources() {
   std::filesystem::path architecturePanelsSubPath = widgetuiTexturesSubPath / "ingame" / "panels" / architectureNameCaps;
   std::filesystem::path ingameIconsSubPath = widgetuiTexturesSubPath / "ingame" / "icons";
   std::filesystem::path ingameActionsSubPath = widgetuiTexturesSubPath / "ingame" / "actions";
+  std::filesystem::path menuButtonsSubPath = widgetuiTexturesSubPath / "menu" / "buttons";
   
   // Note: I profiled the loading below and replacing the QImage() variants with the mango variants
   // was significantly slower.
@@ -338,21 +353,43 @@ void RenderWindow::LoadResources() {
   // With QImage loading replaced by mango loading:
   //   0.286818,  0.285423
   
-  menuPanel.Load(GetModdedPath(widgetuiTexturesSubPath / "ingame" / "panels" / "menu_bg.png"));
+  menuDialog.Load(GetModdedPath(widgetuiTexturesSubPath / "ingame" / "panels" / "menu_bg.png"));
+  menuTextDisplay.Initialize();
+  menuButtonExit.Load(
+      menuButtonsSubPath / "button_wide_normal.png",
+      menuButtonsSubPath / "button_wide_hover.png",
+      menuButtonsSubPath / "button_wide_active.png",
+      menuButtonsSubPath / "button_wide_disabled.png");
+  menuButtonExitText.Initialize();
+  // TODO: Do not load these button textures multiple times!
+  menuButtonResign.Load(
+      menuButtonsSubPath / "button_wide_normal.png",
+      menuButtonsSubPath / "button_wide_hover.png",
+      menuButtonsSubPath / "button_wide_active.png",
+      menuButtonsSubPath / "button_wide_disabled.png");
+  menuButtonResignText.Initialize();
+  // TODO: Do not load these button textures multiple times!
+  menuButtonCancel.Load(
+      menuButtonsSubPath / "button_wide_normal.png",
+      menuButtonsSubPath / "button_wide_hover.png",
+      menuButtonsSubPath / "button_wide_active.png",
+      menuButtonsSubPath / "button_wide_disabled.png");
+  menuButtonCancelText.Initialize();
   didLoadingStep();
+  
+  gameEndTextDisplay.Initialize();
+  gameEndTextDisplayShadowPointBuffer.Initialize();
   
   QImage menuPanelImage;
   menuPanel.Load(GetModdedPath(architecturePanelsSubPath / "menu-panel.png"), &menuPanelImage);
   menuPanelOpaquenessMap.Create(menuPanelImage);
   didLoadingStep();
   
-  menuButtonPointBuffer.Initialize();
-  menuButtonTexture.reset(new Texture());
-  menuButtonTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "menu_menu_normal.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
-  menuButtonHoverTexture.reset(new Texture());
-  menuButtonHoverTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "menu_menu_hover.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
-  menuButtonActiveTexture.reset(new Texture());
-  menuButtonActiveTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "menu_menu_active.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  menuButton.Load(
+      ingameIconsSubPath / "menu_menu_normal.png",
+      ingameIconsSubPath / "menu_menu_hover.png",
+      ingameIconsSubPath / "menu_menu_active.png",
+      "");
   didLoadingStep();
   
   objectivesButtonPointBuffer.Initialize();
@@ -533,6 +570,7 @@ void RenderWindow::LoadingFinished() {
   LOG(INFO) << "DEBUG: Loading finished.";
 }
 
+
 RenderWindow::TextureAndPointBuffer::~TextureAndPointBuffer() {
   if (texture != nullptr) {
     LOG(ERROR) << "TextureAndPointBuffer object was destroyed without Unload() being called first.";
@@ -581,11 +619,6 @@ void RenderWindow::TextureAndPointBuffer::Unload() {
   }
 }
 
-RenderWindow::PointBuffer::~PointBuffer() {
-  if (initialized) {
-    LOG(ERROR) << "PointBuffer object was destroyed without Destroy() being called first.";
-  }
-}
 
 RenderWindow::TextDisplayAndPointBuffer::~TextDisplayAndPointBuffer() {
   if (textDisplay) {
@@ -619,6 +652,13 @@ void RenderWindow::TextDisplayAndPointBuffer::Destroy() {
   }
 }
 
+
+RenderWindow::PointBuffer::~PointBuffer() {
+  if (initialized) {
+    LOG(ERROR) << "PointBuffer object was destroyed without Destroy() being called first.";
+  }
+}
+
 void RenderWindow::PointBuffer::Initialize() {
   if (initialized) {
     LOG(ERROR) << "Initialize() called on already initialized PointBuffer";
@@ -644,6 +684,113 @@ void RenderWindow::PointBuffer::Destroy() {
     initialized = false;
   }
 }
+
+
+void RenderWindow::Button::Load(const std::filesystem::path& defaultSubPath, const std::filesystem::path& hoverSubPath, const std::filesystem::path& activeSubPath, const std::filesystem::path& disabledSubPath) {
+  pointBuffer.Initialize();
+  
+  defaultTexture.reset(new Texture());
+  QImage image(GetModdedPathAsQString(defaultSubPath));
+  opaquenessMap.Create(image);
+  defaultTexture->Load(image, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  
+  hoverTexture.reset(new Texture());
+  hoverTexture->Load(QImage(GetModdedPathAsQString(hoverSubPath)), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  
+  activeTexture.reset(new Texture());
+  activeTexture->Load(QImage(GetModdedPathAsQString(activeSubPath)), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  
+  if (!disabledSubPath.empty()) {
+    disabledTexture.reset(new Texture());
+    disabledTexture->Load(QImage(GetModdedPathAsQString(disabledSubPath)), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+  }
+}
+
+void RenderWindow::Button::Render(float x, float y, float width, float height, RenderWindow* renderWindow, QOpenGLFunctions_3_2_Core* f) {
+  lastX = x;
+  lastY = y;
+  lastWidth = width;
+  lastHeight = height;
+  
+  Texture* menuButtonTex = (state == 3) ? disabledTexture.get() : ((state == 2) ? activeTexture.get() : ((state == 1) ? hoverTexture.get() : defaultTexture.get()));
+  RenderUIGraphic(
+      x,
+      y,
+      width,
+      height,
+      qRgba(255, 255, 255, 255), pointBuffer.buffer,
+      *menuButtonTex,
+      renderWindow->uiShader.get(), renderWindow->widgetWidth, renderWindow->widgetHeight, f);
+}
+
+void RenderWindow::Button::MouseMove(const QPoint& pos) {
+  if (state == 3) {
+    return;
+  }
+  
+  if (IsInButton(pos)) {
+    if (state == 0) {
+      state = 1;
+    }
+  } else {
+    state = 0;
+  }
+}
+
+void RenderWindow::Button::MousePress(const QPoint& pos) {
+  if (state == 3) {
+    return;
+  }
+  
+  if (IsInButton(pos)) {
+    state = 2;
+  }
+}
+
+bool RenderWindow::Button::MouseRelease(const QPoint& pos) {
+  if (state == 3) {
+    return false;
+  }
+  
+  if (IsInButton(pos)) {
+    bool clicked = state == 2;
+    state = 1;
+    return clicked;
+  }
+  
+  state = 0;
+  return false;
+}
+
+void RenderWindow::Button::SetEnabled(bool enabled) {
+  if (enabled) {
+    state = 0;
+  } else {
+    state = 3;
+  }
+}
+
+bool RenderWindow::Button::IsInButton(const QPoint& pos) {
+  if (pos.x() >= lastX && pos.y() >= lastY &&
+      pos.x() < lastX + lastWidth && pos.y() < lastY + lastHeight) {
+    int ix = (pos.x() - lastX) * defaultTexture->GetWidth() / lastWidth;
+    int iy = (pos.y() - lastY) * defaultTexture->GetHeight() / lastHeight;
+    if (opaquenessMap.IsOpaque(ix, iy)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+void RenderWindow::Button::Destroy() {
+  pointBuffer.Destroy();
+  defaultTexture.reset();
+  hoverTexture.reset();
+  activeTexture.reset();
+  disabledTexture.reset();
+}
+
 
 void RenderWindow::CreatePlayerColorPaletteTexture() {
   constexpr int maxNumPlayers = 8;
@@ -1531,7 +1678,7 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
   for (int i = static_cast<int>(players.size()) - 1; i >= 0; -- i) {
     for (int shadow = 0; shadow < 2; ++ shadow) {
       playerNames[i].textDisplay->Render(
-          georgiaFontLarger,
+          (match->GetPlayers()[i].state == Match::PlayerState::Playing) ? georgiaFontLarger : georgiaFontLargerStrikeOut,
           (shadow == 0) ? qRgba(0, 0, 0, 255) : playerColors[i],
           players[i].name,
           QRect(0, 0, widgetWidth - uiScale * 10 - ((shadow == 0) ? 0 : (uiScale * 2)), currentY - ((shadow == 0) ? 0 : (uiScale * 2))),
@@ -1540,6 +1687,25 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
           uiShader.get(), widgetWidth, widgetHeight, f);
     }
     currentY = playerNames[i].textDisplay->GetBounds().y();
+  }
+  
+  if (menuShown) {
+    RenderMenu(f);
+  }
+  
+  // Render the game end text display ("Victory!" or "Defeat!")
+  if (match->GetThisPlayer().state != Match::PlayerState::Playing) {
+    for (int shadow = 0; shadow < 2; ++ shadow) {
+      int offset = (shadow == 0) ? (uiScale * 8) : 0;
+      gameEndTextDisplay.textDisplay->Render(
+          georgiaFontHuge,
+          (shadow == 0) ? qRgba(0, 0, 0, 255) : qRgba(255, 255, 255, 255),
+          (match->GetThisPlayer().state == Match::PlayerState::Won) ? tr("Victory!") : tr("Defeat!"),
+          QRect(offset, offset, widgetWidth, widgetHeight),
+          Qt::AlignHCenter | Qt::AlignVCenter,
+          (shadow == 0) ? gameEndTextDisplayShadowPointBuffer.buffer : gameEndTextDisplay.pointBuffer,
+          uiShader.get(), widgetWidth, widgetHeight, f);
+    }
   }
 }
 
@@ -1601,15 +1767,12 @@ void RenderWindow::RenderMenuPanel(QOpenGLFunctions_3_2_Core* f) {
       *settingsButtonDisabledTexture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
-  Texture* menuButtonTex = menuButtonTexture.get();  // TODO: hover / active?
-  RenderUIGraphic(
+  menuButton.Render(
       topLeft.x() + uiScale * (270 + kButtonLeftRightMargin + (4 / (kNumButtons - 1.f)) * (454 - 2 * kButtonLeftRightMargin - kButtonSize)),
       topLeft.y() + uiScale * (23),
       uiScale * kButtonSize,
       uiScale * kButtonSize,
-      qRgba(255, 255, 255, 255), menuButtonPointBuffer.buffer,
-      *menuButtonTex,
-      uiShader.get(), widgetWidth, widgetHeight, f);
+      this, f);
 }
 
 QPointF RenderWindow::GetResourcePanelTopLeft() {
@@ -1928,6 +2091,90 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
   }
 }
 
+void RenderWindow::RenderMenu(QOpenGLFunctions_3_2_Core* f) {
+  QPointF topLeft(
+      0.5f * widgetWidth - uiScale * 0.5f * menuDialog.texture->GetWidth(),
+      0.5f * widgetHeight - uiScale * 0.5f * menuDialog.texture->GetHeight());
+  
+  // Dialog background and "Menu" text in its title bar
+  RenderUIGraphic(
+      topLeft.x(),
+      topLeft.y(),
+      uiScale * menuDialog.texture->GetWidth(),
+      uiScale * menuDialog.texture->GetHeight(),
+      qRgba(255, 255, 255, 255), menuDialog.pointBuffer,
+      *menuDialog.texture,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+  menuTextDisplay.textDisplay->Render(
+      georgiaFontLarger,
+      qRgba(54, 18, 18, 255),
+      QObject::tr("Menu"),
+      QRect(topLeft.x() + uiScale * 228,
+            topLeft.y() + uiScale * 101,
+            uiScale * (655 - 228),
+            uiScale * (164 - 101)),
+      Qt::AlignHCenter | Qt::AlignVCenter,
+      menuTextDisplay.pointBuffer,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+  
+  // Exit button
+  QRect menuButtonExitRect(
+      0.5f * widgetWidth - uiScale * 0.5f * menuButtonExit.defaultTexture->GetWidth(),
+      topLeft.y() + uiScale * 220,
+      uiScale * menuButtonExit.defaultTexture->GetWidth(),
+      uiScale * menuButtonExit.defaultTexture->GetHeight());
+  menuButtonExit.Render(
+      menuButtonExitRect.x(), menuButtonExitRect.y(),
+      menuButtonExitRect.width(), menuButtonExitRect.height(),
+      this, f);
+  menuButtonExitText.textDisplay->Render(
+      georgiaFontLarger,
+      qRgba(252, 201, 172, 255),
+      QObject::tr("Exit"),
+      menuButtonExitRect,
+      Qt::AlignHCenter | Qt::AlignVCenter,
+      menuButtonExitText.pointBuffer,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+  
+  // Resign button
+  QRect menuButtonResignRect(
+      0.5f * widgetWidth - uiScale * 0.5f * menuButtonResign.defaultTexture->GetWidth(),
+      topLeft.y() + uiScale * (220 + menuButtonResign.defaultTexture->GetHeight() + 26),
+      uiScale * menuButtonResign.defaultTexture->GetWidth(),
+      uiScale * menuButtonResign.defaultTexture->GetHeight());
+  menuButtonResign.Render(
+      menuButtonResignRect.x(), menuButtonResignRect.y(),
+      menuButtonResignRect.width(), menuButtonResignRect.height(),
+      this, f);
+  menuButtonResignText.textDisplay->Render(
+      georgiaFontLarger,
+      qRgba(252, 201, 172, 255),
+      QObject::tr("Resign"),
+      menuButtonResignRect,
+      Qt::AlignHCenter | Qt::AlignVCenter,
+      menuButtonResignText.pointBuffer,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+  
+  // Cancel button
+  QRect menuButtonCancelRect(
+      0.5f * widgetWidth - uiScale * 0.5f * menuButtonCancel.defaultTexture->GetWidth(),
+      topLeft.y() + uiScale * (763 - menuButtonResign.defaultTexture->GetHeight()),
+      uiScale * menuButtonCancel.defaultTexture->GetWidth(),
+      uiScale * menuButtonCancel.defaultTexture->GetHeight());
+  menuButtonCancel.Render(
+      menuButtonCancelRect.x(), menuButtonCancelRect.y(),
+      menuButtonCancelRect.width(), menuButtonCancelRect.height(),
+      this, f);
+  menuButtonCancelText.textDisplay->Render(
+      georgiaFontLarger,
+      qRgba(252, 201, 172, 255),
+      QObject::tr("Cancel"),
+      menuButtonCancelRect,
+      Qt::AlignHCenter | Qt::AlignVCenter,
+      menuButtonCancelText.pointBuffer,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+}
+
 bool RenderWindow::IsUIAt(int x, int y) {
   float factor = 1.f / uiScale;
   
@@ -1952,6 +2199,16 @@ bool RenderWindow::IsUIAt(int x, int y) {
   }
   
   return false;
+}
+
+void RenderWindow::ShowMenu(bool show) {
+  menuShown = show;
+  
+  if (menuShown) {
+    setCursor(defaultCursor);
+  } else {
+    UpdateCursor();
+  }
 }
 
 struct PossibleSelectedObject {
@@ -2965,26 +3222,37 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
     return;
   }
   
+  if (menuShown) {
+    menuButtonExit.MousePress(event->pos());
+    menuButtonResign.MousePress(event->pos());
+    menuButtonCancel.MousePress(event->pos());
+    return;
+  }
+  
   bool isUIClick = IsUIAt(event->x(), event->y());
   
   if (event->button() == Qt::LeftButton) {
     // Has a command button been pressed?
-    for (int row = 0; row < kCommandButtonRows; ++ row) {
-      for (int col = 0; col < kCommandButtonCols; ++ col) {
-        if (commandButtons[row][col].IsPointInButton(event->pos())) {
-          pressedCommandButtonRow = row;
-          pressedCommandButtonCol = col;
-          return;
+    if (match->IsPlayerStillInGame()) {
+      for (int row = 0; row < kCommandButtonRows; ++ row) {
+        for (int col = 0; col < kCommandButtonCols; ++ col) {
+          if (commandButtons[row][col].IsPointInButton(event->pos())) {
+            pressedCommandButtonRow = row;
+            pressedCommandButtonCol = col;
+            return;
+          }
         }
       }
     }
     
     if (isUIClick) {
+      menuButton.MousePress(event->pos());
+      
       return;
     }
     
     // Place a building foundation?
-    if (constructBuildingType != BuildingType::NumBuildings) {
+    if (match->IsPlayerStillInGame() && constructBuildingType != BuildingType::NumBuildings) {
       ignoreLeftMouseRelease = true;
       
       QPoint foundationBaseTile;
@@ -3018,7 +3286,8 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
     possibleDragStart = true;
     dragging = false;
   } else if (event->button() == Qt::RightButton &&
-             !isUIClick) {
+             !isUIClick &&
+             match->IsPlayerStillInGame()) {
     bool haveOwnUnitSelected = false;
     bool haveBuildingSelected = false;
     std::vector<ClientObject*> selectedObject(selection.size());
@@ -3115,6 +3384,15 @@ void RenderWindow::HandleMouseMoveEvent() {
   
   lastCursorPos = lastMouseMoveEventPos;
   
+  if (menuShown) {
+    menuButtonExit.MouseMove(lastCursorPos);
+    menuButtonResign.MouseMove(lastCursorPos);
+    menuButtonCancel.MouseMove(lastCursorPos);
+    return;
+  }
+  
+  menuButton.MouseMove(lastCursorPos);
+  
   if (possibleDragStart) {
     if ((lastCursorPos - dragStartPos).manhattanLength() >= QApplication::startDragDistance()) {
       dragging = true;
@@ -3166,6 +3444,23 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
     return;
   }
   
+  if (menuShown) {
+    if (menuButtonExit.MouseRelease(event->pos())) {
+      close();
+      qApp->exit();
+    }
+    if (menuButtonResign.MouseRelease(event->pos())) {
+      menuButtonResign.SetEnabled(false);
+      connection->Write(CreateLeaveMessage());
+      match->GetThisPlayer().state = Match::PlayerState::Resigned;
+      ShowMenu(false);
+    }
+    if (menuButtonCancel.MouseRelease(event->pos())) {
+      ShowMenu(false);
+    }
+    return;
+  }
+  
   bool isUIClick = IsUIAt(event->x(), event->y());
   
   if (event->button() == Qt::LeftButton) {
@@ -3185,7 +3480,8 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
     }
     
     if (pressedCommandButtonRow >= 0 &&
-        pressedCommandButtonCol >= 0) {
+        pressedCommandButtonCol >= 0 &&
+        match->IsPlayerStillInGame()) {
       PressCommandButton(&commandButtons[pressedCommandButtonRow][pressedCommandButtonCol]);
       
       pressedCommandButtonRow = -1;
@@ -3194,6 +3490,11 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
     }
     
     if (isUIClick) {
+      if (menuButton.MouseRelease(event->pos())) {
+        // The menu button was clicked, show the menu dialog.
+        ShowMenu(true);
+      }
+      
       return;
     }
     
@@ -3214,6 +3515,9 @@ void RenderWindow::wheelEvent(QWheelEvent* event) {
   if (isLoading) {
     return;
   }
+  if (menuShown) {
+    return;
+  }
   
   double degrees = event->angleDelta().y() / 8.0;
   double numSteps = degrees / 15.0;
@@ -3224,6 +3528,14 @@ void RenderWindow::wheelEvent(QWheelEvent* event) {
 
 void RenderWindow::keyPressEvent(QKeyEvent* event) {
   if (isLoading) {
+    return;
+  }
+  
+  if (event->key() == Qt::Key_Escape) {
+    ShowMenu(!menuShown);
+  }
+  
+  if (menuShown) {
     return;
   }
   
@@ -3240,10 +3552,12 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
     scrollDownPressed = true;
     scrollDownPressTime = Clock::now();
   } else if (event->key() == Qt::Key_Delete) {
-    DeleteSelectedObjects();
+    if (match->IsPlayerStillInGame()) {
+      DeleteSelectedObjects();
+    }
   } else if (event->key() == Qt::Key_H) {
     JumpToNextTownCenter();
-  } else {
+  } else if (match->IsPlayerStillInGame()) {
     // Check whether a hotkey for a command button was pressed.
     for (int row = 0; row < kCommandButtonRows; ++ row) {
       for (int col = 0; col < kCommandButtonCols; ++ col) {
@@ -3261,6 +3575,10 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
 
 void RenderWindow::keyReleaseEvent(QKeyEvent* event) {
   if (isLoading) {
+    return;
+  }
+  
+  if (menuShown) {
     return;
   }
   
@@ -3292,7 +3610,7 @@ void RenderWindow::keyReleaseEvent(QKeyEvent* event) {
     Scroll(0, scrollDistancePerSecond / zoom * seconds, &scroll);
     UpdateViewMatrix();
     UpdateCursor();
-  } else {
+  } else if (match->IsPlayerStillInGame()) {
     // Check whether a hotkey for a command button was released.
     for (int row = 0; row < kCommandButtonRows; ++ row) {
       for (int col = 0; col < kCommandButtonCols; ++ col) {

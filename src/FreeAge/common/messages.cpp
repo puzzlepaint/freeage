@@ -520,3 +520,19 @@ QByteArray CreateObjectDeathMessage(u32 objectId) {
   
   return msg;
 }
+
+QByteArray CreatePlayerLeaveBroadcastMessage(u8 playerIndex, u8 reason) {
+  // Create buffer
+  QByteArray msg(5, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(ServerToClientMessage::PlayerLeaveBroadcast);
+  mango::ustore16(data + 1, msg.size());
+  
+  // Fill buffer
+  data[3] = playerIndex;
+  data[4] = reason;
+  
+  return msg;
+}

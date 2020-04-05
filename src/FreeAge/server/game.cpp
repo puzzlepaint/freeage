@@ -69,7 +69,15 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
         
         player->RemoveFromGame();
         
-        // TODO: Notify the remaining players about the player drop / leave
+        // Notify the remaining players about the player drop / leave
+        bool isDrop = socketDisconnected || pingTimeout;
+        QByteArray leaveBroadcastMsg = CreatePlayerLeaveBroadcastMessage(player->index, isDrop ? 1 : 0);
+        for (auto& otherPlayer : *playersInGame) {
+          if (otherPlayer->isConnected) {
+            otherPlayer->socket->write(leaveBroadcastMsg);
+          }
+        }
+        
         // TODO: If all other players finished loading and the last player who did not drops,
         //       then start the game for the remaining players (or cancel it altogether)
         

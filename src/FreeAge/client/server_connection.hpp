@@ -49,6 +49,9 @@ class ServerConnection : public QObject {
   /// Sends the given message to the server. The connection object does not need to be locked when calling this.
   void Write(const QByteArray& message);
   
+  /// Variant of Write() which blocks until finished.
+  void WriteBlocking(const QByteArray& message);
+  
   /// Locks the connection object for calling GetReceivedMessages().
   void Lock();
   

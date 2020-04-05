@@ -33,10 +33,12 @@ class SettingsDialog : public QDialog {
   inline QString GetModsPath() const { return modsFolderEdit->text(); }
   inline QString GetPlayerName() const { return playerNameEdit->text(); }
   inline bool HostGameChosen() const { return hostGameChosen; }
-  inline QString GetIP() const { return ipText; }
+  inline const QString& GetServerAddress() const { return serverAddressText; }
+  inline const QString& GetHostPassword() const { return hostPassword; }
   
  private slots:
   void HostGame();
+  void HostGameOnServer();
   void JoinGame();
   
  private:
@@ -50,7 +52,8 @@ class SettingsDialog : public QDialog {
   QLineEdit* uiScaleEdit;
   QCheckBox* debugNetworkingCheck;
   bool hostGameChosen;
-  QString ipText;
+  QString serverAddressText;
+  QString hostPassword;
   
   Settings* settings;
 };
