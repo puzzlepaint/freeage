@@ -378,9 +378,21 @@ void GameController::HandleHPUpdateMessage(const QByteArray& data) {
 
 void GameController::HandlePlayerLeaveBroadcast(const QByteArray& data) {
   u8 playerIndex = data[0];
-  u8 reason = data[1];
+  PlayerExitReason reason = static_cast<PlayerExitReason>(data[1]);
   
-  match->SetPlayerState(playerIndex, (reason == 0) ? Match::PlayerState::Resigned : Match::PlayerState::Dropped);
+  Match::PlayerState newState;
+  if (reason == PlayerExitReason::Resign) {
+    newState = Match::PlayerState::Resigned;
+  } else if (reason == PlayerExitReason::Drop) {
+    newState = Match::PlayerState::Dropped;
+  } else if (reason == PlayerExitReason::Defeat) {
+    newState = Match::PlayerState::Defeated;
+  } else {
+    LOG(ERROR) << "Invalid PlayerExitReason received with PlayerLeaveBroadcast message: " << static_cast<int>(reason);
+    return;
+  }
+  
+  match->SetPlayerState(playerIndex, newState);
   
   // If we are the last remaining player, we win.
   if (match->GetThisPlayer().state == Match::PlayerState::Playing) {

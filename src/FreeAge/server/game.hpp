@@ -8,6 +8,7 @@
 #include <QTcpSocket>
 
 #include "FreeAge/common/free_age.hpp"
+#include "FreeAge/common/messages.hpp"
 #include "FreeAge/common/resources.hpp"
 #include "FreeAge/server/map.hpp"
 #include "FreeAge/server/settings.hpp"
@@ -104,6 +105,8 @@ class Game {
   
   void DeleteObject(u32 objectId);
   
+  void RemovePlayer(int playerIndex, PlayerExitReason reason);
+  
   
   /// Stores the game map and the objects on it.
   std::shared_ptr<ServerMap> map;
@@ -134,6 +137,8 @@ class Game {
   /// that other individual messages do not need to repeat the current server
   /// time in each message.
   std::vector<QByteArray> accumulatedMessages;
+  
+  bool shouldExit = false;
   
   ServerSettings* settings;  // not owned
 };

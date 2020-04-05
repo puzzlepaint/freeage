@@ -10,6 +10,7 @@ class Match {
   enum class PlayerState {
     Playing,
     Resigned,
+    Defeated,
     Won,
     Dropped
   };

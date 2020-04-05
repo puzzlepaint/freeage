@@ -764,7 +764,9 @@ bool RenderWindow::Button::MouseRelease(const QPoint& pos) {
 
 void RenderWindow::Button::SetEnabled(bool enabled) {
   if (enabled) {
-    state = 0;
+    if (state == 3) {
+      state = 0;
+    }
   } else {
     state = 3;
   }
@@ -2094,6 +2096,10 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
 }
 
 void RenderWindow::RenderMenu(QOpenGLFunctions_3_2_Core* f) {
+  // Update the enabled state of the resign button
+  menuButtonResign.SetEnabled(match->GetThisPlayer().state == Match::PlayerState::Playing);
+  
+  // Render.
   QPointF topLeft(
       0.5f * widgetWidth - uiScale * 0.5f * menuDialog.texture->GetWidth(),
       0.5f * widgetHeight - uiScale * 0.5f * menuDialog.texture->GetHeight());
@@ -2208,6 +2214,7 @@ void RenderWindow::ShowMenu(bool show) {
   
   if (menuShown) {
     setCursor(defaultCursor);
+    menuButtonResign.SetEnabled(match->GetThisPlayer().state == Match::PlayerState::Playing);
   } else {
     UpdateCursor();
   }
@@ -3003,7 +3010,7 @@ void RenderWindow::paintGL() {
   // double elapsedSeconds = std::chrono::duration<double>(now - renderStartTime).count();
   
   // Update the game state to the server time that should be displayed.
-  double displayedServerTime = connection->GetServerTimeToDisplayNow();
+  double displayedServerTime = connection->ConnectionToServerLost() ? lastDisplayedServerTime : connection->GetServerTimeToDisplayNow();
   if (displayedServerTime > lastDisplayedServerTime) {
     // 1) Parse messages until the displayed server time
     gameController->ParseMessagesUntil(displayedServerTime);
@@ -3452,7 +3459,6 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
       qApp->exit();
     }
     if (menuButtonResign.MouseRelease(event->pos())) {
-      menuButtonResign.SetEnabled(false);
       connection->Write(CreateLeaveMessage());
       match->GetThisPlayer().state = Match::PlayerState::Resigned;
       ShowMenu(false);

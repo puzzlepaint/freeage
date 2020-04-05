@@ -521,7 +521,7 @@ QByteArray CreateObjectDeathMessage(u32 objectId) {
   return msg;
 }
 
-QByteArray CreatePlayerLeaveBroadcastMessage(u8 playerIndex, u8 reason) {
+QByteArray CreatePlayerLeaveBroadcastMessage(u8 playerIndex, PlayerExitReason reason) {
   // Create buffer
   QByteArray msg(5, Qt::Initialization::Uninitialized);
   char* data = msg.data();
@@ -532,7 +532,7 @@ QByteArray CreatePlayerLeaveBroadcastMessage(u8 playerIndex, u8 reason) {
   
   // Fill buffer
   data[3] = playerIndex;
-  data[4] = reason;
+  data[4] = static_cast<u8>(reason);
   
   return msg;
 }

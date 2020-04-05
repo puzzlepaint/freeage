@@ -39,9 +39,11 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
   this->playersInGame = playersInGame;
   bool firstLoopIteration = true;
   
-  while (true) {
+  while (!shouldExit) {
     // Read data from player connections and handle broken connections.
-    for (auto& player : *playersInGame) {
+    for (usize playerIndex = 0; playerIndex < playersInGame->size(); ++ playerIndex) {
+      auto& player = playersInGame->at(playerIndex);
+      
       if (!player->isConnected) {
         // TODO: Allow players to reconnect to the game
         continue;
@@ -64,35 +66,7 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
       bool socketDisconnected = player->socket->state() != QAbstractSocket::ConnectedState;
       bool pingTimeout = MillisecondsDuration(Clock::now() - player->lastPingTime).count() > kNoPingTimeout;
       if (removePlayer || socketDisconnected || pingTimeout) {
-        LOG(WARNING) << "Removing player: " << player->name.toStdString() << " (index " << player->index << "). Reason: "
-                     << (removePlayer ? "handled message" : (socketDisconnected ? "socket disconnected" : "ping timeout"));
-        
-        player->RemoveFromGame();
-        
-        // Notify the remaining players about the player drop / leave
-        bool isDrop = socketDisconnected || pingTimeout;
-        QByteArray leaveBroadcastMsg = CreatePlayerLeaveBroadcastMessage(player->index, isDrop ? 1 : 0);
-        for (auto& otherPlayer : *playersInGame) {
-          if (otherPlayer->isConnected) {
-            otherPlayer->socket->write(leaveBroadcastMsg);
-            otherPlayer->socket->flush();
-          }
-        }
-        
-        // TODO: If all other players finished loading and the last player who did not drops,
-        //       then start the game for the remaining players (or cancel it altogether)
-        
-        int numConnectedPlayers = 0;
-        for (auto& otherPlayer : *playersInGame) {
-          if (otherPlayer->isConnected) {
-            ++ numConnectedPlayers;
-          }
-        }
-        if (numConnectedPlayers <= 1) {
-          LOG(INFO) << "Server: All, or all but one player disconnected. Exiting.";
-          return;
-        }
-        
+        RemovePlayer(playerIndex, (socketDisconnected || pingTimeout) ? PlayerExitReason::Drop : PlayerExitReason::Resign);
         continue;
       }
     }
@@ -1817,5 +1791,71 @@ void Game::DeleteObject(u32 objectId) {
       it->second->isBuilding()) {
     ServerBuilding* building = static_cast<ServerBuilding*>(it->second);
     map->RemoveBuildingOccupancy(building);
+  }
+  
+  // If all objects of a player are gone, the player gets defeated.
+  if (it != map->GetObjects().end() &&
+      it->second->GetPlayerIndex() != kGaiaPlayerIndex) {
+    bool playerHasRemainingObject = false;
+    for (const auto& item : map->GetObjects()) {
+      if (item.second->GetPlayerIndex() == it->second->GetPlayerIndex() &&
+          item.first != it->first) {
+        playerHasRemainingObject = true;
+        break;
+      }
+    }
+    
+    if (!playerHasRemainingObject) {
+      RemovePlayer(it->second->GetPlayerIndex(), PlayerExitReason::Defeat);
+    }
+  }
+}
+
+void Game::RemovePlayer(int playerIndex, PlayerExitReason reason) {
+  QString reasonString;
+  if (reason == PlayerExitReason::Resign) {
+    reasonString = "player resigned";
+  } else if (reason == PlayerExitReason::Drop) {
+    reasonString = "connection dropped";
+  } else if (reason == PlayerExitReason::Defeat) {
+    reasonString = "player got defeated";
+  } else {
+    LOG(ERROR) << "Unknown reason passed to RemovePlayer(): " << static_cast<int>(reason);
+  }
+  
+  auto& player = playersInGame->at(playerIndex);
+  LOG(WARNING) << "Removing player: " << player->name.toStdString() << " (index " << player->index << "). Reason: " << reasonString.toStdString();
+  player->RemoveFromGame();
+  
+  // Notify the remaining players about the player's exit
+  // TODO: For these messages and the one sent below, clients may think
+  //       that they receive them late since they are not preceded by a game time message.
+  //       Maybe create a special case for this message type on the client side?
+  QByteArray leaveBroadcastMsg = CreatePlayerLeaveBroadcastMessage(player->index, reason);
+  for (auto& otherPlayer : *playersInGame) {
+    if (otherPlayer->isConnected) {
+      otherPlayer->socket->write(leaveBroadcastMsg);
+      otherPlayer->socket->flush();
+    }
+  }
+  
+  // In case of a defeat, notify the defeated player.
+  if (reason == PlayerExitReason::Defeat) {
+    player->socket->write(CreatePlayerLeaveBroadcastMessage(player->index, reason));
+    player->socket->flush();
+  }
+  
+  // TODO: If all other players finished loading and the last player who did not drops,
+  //       then start the game for the remaining players (or cancel it altogether)
+  
+  int numConnectedPlayers = 0;
+  for (auto& otherPlayer : *playersInGame) {
+    if (otherPlayer->isConnected) {
+      ++ numConnectedPlayers;
+    }
+  }
+  if (numConnectedPlayers <= 1) {
+    LOG(INFO) << "Server: All, or all but one player disconnected. Exiting.";
+    shouldExit = true;
   }
 }

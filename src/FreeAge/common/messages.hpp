@@ -239,5 +239,10 @@ QByteArray CreateHPUpdateMessage(u32 objectId, u32 newHP);
 
 QByteArray CreateObjectDeathMessage(u32 objectId);
 
-/// Possible reasons: 0: resign, 1: drop
-QByteArray CreatePlayerLeaveBroadcastMessage(u8 playerIndex, u8 reason);
+enum class PlayerExitReason {
+  Resign = 0,
+  Drop = 1,
+  Defeat = 2
+};
+
+QByteArray CreatePlayerLeaveBroadcastMessage(u8 playerIndex, PlayerExitReason reason);
