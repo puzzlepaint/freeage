@@ -294,6 +294,9 @@ class RenderWindow : public QOpenGLWindow {
   std::vector<TextDisplayAndPointBuffer> playerNames;
   std::vector<PointBuffer> playerNameShadowPointBuffers;
   
+  // Menu.
+  TextureAndPointBuffer menuDialog;
+  
   // Game UI.
   float uiScale;
   

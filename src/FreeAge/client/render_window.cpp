@@ -122,6 +122,8 @@ RenderWindow::~RenderWindow() {
     playerNameShadowPointBuffers[i].Destroy();
   }
   
+  menuDialog.Unload();
+  
   menuPanel.Unload();
   menuButtonPointBuffer.Destroy();
   menuButtonTexture.reset();
@@ -336,6 +338,9 @@ void RenderWindow::LoadResources() {
   // With QImage loading replaced by mango loading:
   //   0.286818,  0.285423
   
+  menuPanel.Load(GetModdedPath(widgetuiTexturesSubPath / "ingame" / "panels" / "menu_bg.png"));
+  didLoadingStep();
+  
   QImage menuPanelImage;
   menuPanel.Load(GetModdedPath(architecturePanelsSubPath / "menu-panel.png"), &menuPanelImage);
   menuPanelOpaquenessMap.Create(menuPanelImage);
@@ -498,7 +503,11 @@ QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime, bool* scrollAppl
   }
   
   QPointF result;
-  map->ProjectedCoordToMapCoord(projectedCoord, &result);
+  if (scrollApplied) {
+    map->ProjectedCoordToMapCoord(projectedCoord, &result);
+  } else {
+    result = scroll;
+  }
   return result;
 }
 
@@ -733,7 +742,10 @@ void RenderWindow::UpdateView(const TimePoint& now, QOpenGLFunctions_3_2_Core* f
   // Update scrolling state
   bool scrollApplied = false;
   if (!isLoading) {
-    scroll = GetCurrentScroll(now, &scrollApplied);
+    QPointF newScroll = GetCurrentScroll(now, &scrollApplied);
+    if (scrollApplied) {
+      scroll = newScroll;
+    }
     lastScrollGetTime = now;
     if (scrollRightPressed) { scrollRightPressTime = now; }
     if (scrollLeftPressed) { scrollLeftPressTime = now; }
@@ -2618,7 +2630,7 @@ void RenderWindow::initializeGL() {
   
   isLoading = true;
   loadingStep = 0;
-  maxLoadingStep = 60;
+  maxLoadingStep = 61;
   loadingThread->start();
   
   // Create resources right now which are required for rendering the loading screen:
