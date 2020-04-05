@@ -75,21 +75,21 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
         for (auto& otherPlayer : *playersInGame) {
           if (otherPlayer->isConnected) {
             otherPlayer->socket->write(leaveBroadcastMsg);
+            otherPlayer->socket->flush();
           }
         }
         
         // TODO: If all other players finished loading and the last player who did not drops,
         //       then start the game for the remaining players (or cancel it altogether)
         
-        bool allPlayersGone = true;
+        int numConnectedPlayers = 0;
         for (auto& otherPlayer : *playersInGame) {
           if (otherPlayer->isConnected) {
-            allPlayersGone = false;
-            break;
+            ++ numConnectedPlayers;
           }
         }
-        if (allPlayersGone) {
-          LOG(INFO) << "Server: All players disconnected. Exiting.";
+        if (numConnectedPlayers <= 1) {
+          LOG(INFO) << "Server: All, or all but one player disconnected. Exiting.";
           return;
         }
         

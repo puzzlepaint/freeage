@@ -1676,9 +1676,13 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
   const auto& players = match->GetPlayers();
   int currentY = widgetHeight - uiScale * 4;
   for (int i = static_cast<int>(players.size()) - 1; i >= 0; -- i) {
+    bool isPlayingOrHasWon =
+        (match->GetPlayers()[i].state == Match::PlayerState::Playing) ||
+        (match->GetPlayers()[i].state == Match::PlayerState::Won);
+    
     for (int shadow = 0; shadow < 2; ++ shadow) {
       playerNames[i].textDisplay->Render(
-          (match->GetPlayers()[i].state == Match::PlayerState::Playing) ? georgiaFontLarger : georgiaFontLargerStrikeOut,
+          isPlayingOrHasWon ? georgiaFontLarger : georgiaFontLargerStrikeOut,
           (shadow == 0) ? qRgba(0, 0, 0, 255) : playerColors[i],
           players[i].name,
           QRect(0, 0, widgetWidth - uiScale * 10 - ((shadow == 0) ? 0 : (uiScale * 2)), currentY - ((shadow == 0) ? 0 : (uiScale * 2))),
@@ -1691,10 +1695,8 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
   
   if (menuShown) {
     RenderMenu(f);
-  }
-  
-  // Render the game end text display ("Victory!" or "Defeat!")
-  if (match->GetThisPlayer().state != Match::PlayerState::Playing) {
+  } else if (match->GetThisPlayer().state != Match::PlayerState::Playing) {
+    // Render the game end text display ("Victory!" or "Defeat!")
     for (int shadow = 0; shadow < 2; ++ shadow) {
       int offset = (shadow == 0) ? (uiScale * 8) : 0;
       gameEndTextDisplay.textDisplay->Render(

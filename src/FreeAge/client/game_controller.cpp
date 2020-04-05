@@ -381,4 +381,24 @@ void GameController::HandlePlayerLeaveBroadcast(const QByteArray& data) {
   u8 reason = data[1];
   
   match->SetPlayerState(playerIndex, (reason == 0) ? Match::PlayerState::Resigned : Match::PlayerState::Dropped);
+  
+  // If we are the last remaining player, we win.
+  if (match->GetThisPlayer().state == Match::PlayerState::Playing) {
+    bool haveOtherPlayingPlayer = false;
+    for (usize playerIdx = 0; playerIdx < match->GetPlayers().size(); ++ playerIdx) {
+      if (playerIdx == static_cast<usize>(match->GetPlayerIndex())) {
+        continue;
+      }
+      
+      const auto& player = match->GetPlayers()[playerIdx];
+      if (player.state == Match::PlayerState::Playing) {
+        haveOtherPlayingPlayer = true;
+        break;
+      }
+    }
+    
+    if (!haveOtherPlayingPlayer) {
+      match->SetPlayerState(match->GetPlayerIndex(), Match::PlayerState::Won);
+    }
+  }
 }
