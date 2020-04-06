@@ -289,6 +289,11 @@ void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player)
     return;
   }
   
+  // Is there space in the production queue?
+  if (productionBuilding->GetProductionQueue().size() >= kMaxProductionQueueSize) {
+    return;
+  }
+  
   // Does the player have sufficient resources to produce this unit?
   ResourceAmount unitCost = GetUnitCost(unitType);
   if (!player->resources.CanAfford(unitCost)) {
@@ -300,6 +305,7 @@ void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player)
   
   // Add the unit to the production queue.
   productionBuilding->QueueUnit(unitType);
+  accumulatedMessages[player->index] += CreateQueueUnitMessage(buildingId, static_cast<u16>(unitType));
 }
 
 void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInGame* player) {
@@ -1576,13 +1582,16 @@ void Game::SimulateResourceDropOff(u32 villagerId, ServerUnit* villager, bool* u
   }
 }
 
-void Game::SimulateGameStepForBuilding(u32 /*buildingId*/, ServerBuilding* building, float stepLengthInSeconds) {
+void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building, float stepLengthInSeconds) {
   // If the building's production queue is non-empty, add progress on the item that is currently being produced / researched.
   UnitType unitInProduction;
   if (building->IsUnitQueued(&unitInProduction)) {
+    float previousPercentage = building->GetProductionPercentage();
     float productionTime = GetUnitProductionTime(unitInProduction);
     float timeStepPercentage = 100 * stepLengthInSeconds / productionTime;
     float newPercentage = building->GetProductionPercentage() + timeStepPercentage;
+    
+    bool completed = false;
     if (newPercentage >= 100) {
       // Special case for UnitType::MaleVillager: Randomly decide whether to produce a male or female.
       if (unitInProduction == UnitType::MaleVillager) {
@@ -1594,8 +1603,15 @@ void Game::SimulateGameStepForBuilding(u32 /*buildingId*/, ServerBuilding* build
       building->RemoveCurrentItemFromQueue();
       
       newPercentage = 0;
+      completed = true;
+      accumulatedMessages[building->GetPlayerIndex()] += CreateRemoveFromProductionQueueMessage(buildingId);
     }
+    
     building->SetProductionPercentage(newPercentage);
+    if (!completed && previousPercentage == 0) {
+      // If the production just starts, notify the client about it.
+      accumulatedMessages[building->GetPlayerIndex()] += CreateUpdateProductionMessage(buildingId, building->GetProductionPercentage(), 100.f / productionTime);
+    }
   }
 }
 

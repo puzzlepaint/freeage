@@ -129,6 +129,9 @@ void GameController::ParseMessage(const QByteArray& data, ServerToClientMessage 
   case ServerToClientMessage::BuildPercentageUpdate:
     HandleBuildPercentageUpdate(data);
     break;
+  case ServerToClientMessage::QueueUnit:
+    HandleQueueUnitMessage(data);
+    break;
   case ServerToClientMessage::MapUncover:
     HandleMapUncoverMessage(data);
     break;
@@ -140,6 +143,12 @@ void GameController::ParseMessage(const QByteArray& data, ServerToClientMessage 
     break;
   case ServerToClientMessage::ResourcesUpdate:
     HandleResourcesUpdateMessage(data, &playerResources);
+    break;
+  case ServerToClientMessage::UpdateProduction:
+    HandleUpdateProductionMessage(data);
+    break;
+  case ServerToClientMessage::RemoveFromProductionQueue:
+    HandleRemoveFromProductionQueueMessage(data);
     break;
   case ServerToClientMessage::ChatBroadcast:
     // TODO
@@ -413,4 +422,63 @@ void GameController::HandlePlayerLeaveBroadcast(const QByteArray& data) {
       match->SetPlayerState(match->GetPlayerIndex(), Match::PlayerState::Won);
     }
   }
+}
+
+void GameController::HandleQueueUnitMessage(const QByteArray& data) {
+  const char* buffer = data.data();
+  
+  u32 buildingId = mango::uload32(buffer + 0);
+  auto it = map->GetObjects().find(buildingId);
+  if (it == map->GetObjects().end()) {
+    LOG(ERROR) << "Received a QueueUnit message for an object ID that is not in the map.";
+    return;
+  }
+  if (!it->second->isBuilding()) {
+    LOG(ERROR) << "Received a QueueUnit message for an object ID that is a different type than a building.";
+    return;
+  }
+  
+  UnitType unitType = static_cast<UnitType>(mango::uload16(buffer + 4));
+  
+  ClientBuilding* building = static_cast<ClientBuilding*>(it->second);
+  building->QueueUnit(unitType);
+}
+
+void GameController::HandleUpdateProductionMessage(const QByteArray& data) {
+  const char* buffer = data.data();
+  
+  u32 buildingId = mango::uload32(buffer + 0);
+  auto it = map->GetObjects().find(buildingId);
+  if (it == map->GetObjects().end()) {
+    LOG(ERROR) << "Received a UpdateProduction message for an object ID that is not in the map.";
+    return;
+  }
+  if (!it->second->isBuilding()) {
+    LOG(ERROR) << "Received a UpdateProduction message for an object ID that is a different type than a building.";
+    return;
+  }
+  
+  float percentage = *reinterpret_cast<const float*>(buffer + 4);
+  float progressPerSecond = *reinterpret_cast<const float*>(buffer + 8);
+  
+  ClientBuilding* building = static_cast<ClientBuilding*>(it->second);
+  building->SetProductionState(currentGameStepServerTime, percentage, progressPerSecond);
+}
+
+void GameController::HandleRemoveFromProductionQueueMessage(const QByteArray& data) {
+  const char* buffer = data.data();
+  
+  u32 buildingId = mango::uload32(buffer + 0);
+  auto it = map->GetObjects().find(buildingId);
+  if (it == map->GetObjects().end()) {
+    LOG(ERROR) << "Received a RemoveFromProductionQueue message for an object ID that is not in the map.";
+    return;
+  }
+  if (!it->second->isBuilding()) {
+    LOG(ERROR) << "Received a RemoveFromProductionQueue message for an object ID that is a different type than a building.";
+    return;
+  }
+  
+  ClientBuilding* building = static_cast<ClientBuilding*>(it->second);
+  building->DequeueFirstUnit();
 }

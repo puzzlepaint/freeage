@@ -148,6 +148,7 @@ bool Texture::Load(const std::filesystem::path& path, int wrapMode, int magFilte
   
   mango::Bitmap bitmap(path.string(), mango::Format(32, mango::Format::UNORM, mango::Format::BGRA, 8, 8, 8, 8));
   if (bitmap.width <= 0) {
+    LOG(ERROR) << "Failed to load image: " << path.string();
     return false;
   }
   

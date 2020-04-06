@@ -195,6 +195,16 @@ enum class ServerToClientMessage {
   
   /// Sent to notify a client about another client leaving the game (either by resigning or due to dropping).
   PlayerLeaveBroadcast,
+  
+  /// Sent when a unit is successfully queued in a production building.
+  QueueUnit,
+  
+  /// Tells the client about the current state of the production of the first queued unit/technology in a building.
+  UpdateProduction,
+  
+  /// Tells the client to remove the first item of a building's production queue,
+  /// and reset the current production progress of that building to zero.
+  RemoveFromProductionQueue,
 };
 
 QByteArray CreateWelcomeMessage();
@@ -246,3 +256,9 @@ enum class PlayerExitReason {
 };
 
 QByteArray CreatePlayerLeaveBroadcastMessage(u8 playerIndex, PlayerExitReason reason);
+
+QByteArray CreateQueueUnitMessage(u32 buildingId, u16 unitType);
+
+QByteArray CreateUpdateProductionMessage(u32 buildingId, float progressValue, float progressPerSecond);
+
+QByteArray CreateRemoveFromProductionQueueMessage(u32 buildingId);

@@ -160,6 +160,7 @@ class RenderWindow : public QOpenGLWindow {
   QPointF GetResourcePanelTopLeft();
   void RenderResourcePanel(QOpenGLFunctions_3_2_Core* f);
   QPointF GetSelectionPanelTopLeft();
+  void RenderObjectIcon(const Texture* iconTexture, float x, float y, float size, GLuint iconPointBuffer, GLuint overlayPointBuffer, QOpenGLFunctions_3_2_Core* f);
   void RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f);
   QPointF GetCommandPanelTopLeft();
   void RenderCommandPanel(QOpenGLFunctions_3_2_Core* f);
@@ -406,6 +407,11 @@ class RenderWindow : public QOpenGLWindow {
   TextDisplayAndPointBuffer carriedResourcesDisplay;
   PointBuffer selectionPanelIconPointBuffer;
   PointBuffer selectionPanelIconOverlayPointBuffer;
+  PointBuffer productionQueuePointBuffers[kMaxProductionQueueSize];
+  PointBuffer productionQueueOverlayPointBuffers[kMaxProductionQueueSize];
+  TextDisplayAndPointBuffer productionProgressText;
+  TextureAndPointBuffer productionProgressBar;
+  PointBuffer productionProgressBarBackgroundPointBuffer;
   
   std::shared_ptr<Texture> iconOverlayNormalTexture;
   std::shared_ptr<Texture> iconOverlayNormalExpensiveTexture;

@@ -31,6 +31,8 @@ class ServerBuilding : public ServerObject {
   /// Removes the currenly produced unit / the currently researched technology from the queue.
   void RemoveCurrentItemFromQueue();
   
+  inline const std::vector<UnitType>& GetProductionQueue() const { return productionQueue; }
+  
   inline float GetProductionPercentage() const { return productionPercentage; }
   inline void SetProductionPercentage(float percentage) { productionPercentage = percentage; }
   

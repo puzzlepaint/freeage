@@ -78,14 +78,14 @@ UIShader::~UIShader() {
 }
 
 
-void RenderUIGraphic(float x, float y, float width, float height, QRgb modulationColor, GLuint pointBuffer, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f) {
+void RenderUIGraphic(float x, float y, float width, float height, QRgb modulationColor, GLuint pointBuffer, const Texture& texture, UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f, float rightTexCoord, float bottomTexCoord) {
   ShaderProgram* program = uiShader->GetProgram();
   program->UseProgram(f);
   f->glUniform1i(uiShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   f->glBindTexture(GL_TEXTURE_2D, texture.GetId());
   
   f->glUniform2f(uiShader->GetTexTopLeftLocation(), 0, 0);
-  f->glUniform2f(uiShader->GetTexBottomRightLocation(), 1, 1);
+  f->glUniform2f(uiShader->GetTexBottomRightLocation(), rightTexCoord, bottomTexCoord);
   
   f->glUniform2f(
       uiShader->GetSizeLocation(),

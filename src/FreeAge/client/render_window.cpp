@@ -184,6 +184,13 @@ RenderWindow::~RenderWindow() {
   carriedResourcesDisplay.Destroy();
   selectionPanelIconPointBuffer.Destroy();
   selectionPanelIconOverlayPointBuffer.Destroy();
+  for (int i = 0; i < kMaxProductionQueueSize; ++ i) {
+    productionQueuePointBuffers[i].Destroy();
+    productionQueueOverlayPointBuffers[i].Destroy();
+  }
+  productionProgressText.Destroy();
+  productionProgressBar.Unload();
+  productionProgressBarBackgroundPointBuffer.Destroy();
   
   iconOverlayNormalTexture.reset();
   iconOverlayNormalExpensiveTexture.reset();
@@ -459,6 +466,13 @@ void RenderWindow::LoadResources() {
   
   selectionPanelIconPointBuffer.Initialize();
   selectionPanelIconOverlayPointBuffer.Initialize();
+  for (int i = 0; i < kMaxProductionQueueSize; ++ i) {
+    productionQueuePointBuffers[i].Initialize();
+    productionQueueOverlayPointBuffers[i].Initialize();
+  }
+  productionProgressText.Initialize();
+  productionProgressBar.Load(GetModdedPath(widgetuiTexturesSubPath / "ingame" / "panels" / "loadingbar_full.png"));
+  productionProgressBarBackgroundPointBuffer.Initialize();
   
   iconOverlayNormalTexture.reset(new Texture());
   iconOverlayNormalTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "icon_overlay_normal.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
@@ -591,6 +605,7 @@ bool RenderWindow::TextureAndPointBuffer::Load(const std::filesystem::path& path
   if (loader == TextureManager::Loader::QImage) {
     QImage image(path.string().c_str());
     if (image.isNull()) {
+      LOG(ERROR) << "Failed to load image: " << path.string();
       return false;
     }
     if (qimage) {
@@ -1967,6 +1982,28 @@ QPointF RenderWindow::GetSelectionPanelTopLeft() {
       widgetHeight - uiScale * selectionPanel.texture->GetHeight());
 }
 
+void RenderWindow::RenderObjectIcon(const Texture* iconTexture, float x, float y, float size, GLuint iconPointBuffer, GLuint overlayPointBuffer, QOpenGLFunctions_3_2_Core* f) {
+  float iconInset = uiScale * 4;
+  RenderUIGraphic(
+      x + iconInset,
+      y + iconInset,
+      size - (size / (uiScale * 2 * 60.f)) * 2 * iconInset,
+      size - (size / (uiScale * 2 * 60.f)) * 2 * iconInset,
+      qRgba(255, 255, 255, 255),
+      iconPointBuffer,
+      *iconTexture,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+  RenderUIGraphic(
+      x,
+      y,
+      size,
+      size,
+      qRgba(255, 255, 255, 255),
+      overlayPointBuffer,
+      *iconOverlayNormalTexture,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+}
+
 void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
   QPointF topLeft = GetSelectionPanelTopLeft();
   
@@ -1988,8 +2025,8 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
         georgiaFontLarger,
         qRgba(58, 29, 21, 255),
         singleSelectedObject->GetObjectName(),
-        QRect(topLeft.x() + uiScale * 2*32,
-              topLeft.y() + uiScale * 50 + uiScale * 2*25,
+        QRect(topLeft.x() + uiScale * (2*32),
+              topLeft.y() + uiScale * (50 + 2*25),
               uiScale * 2*172,
               uiScale * 2*16),
         Qt::AlignLeft | Qt::AlignTop,
@@ -2010,8 +2047,8 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
           georgiaFontSmaller,
           qRgba(58, 29, 21, 255),
           QStringLiteral("%1 / %2").arg(singleSelectedObject->GetHP()).arg(maxHP),
-          QRect(topLeft.x() + uiScale * 2*32,
-                topLeft.y() + uiScale * 50 + uiScale * 2*46 + uiScale * 2*60,
+          QRect(topLeft.x() + uiScale * (2*32),
+                topLeft.y() + uiScale * (50 + 2*46 + 2*60),
                 uiScale * 2*172,
                 uiScale * 2*16),
           Qt::AlignLeft | Qt::AlignTop,
@@ -2019,9 +2056,10 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
           uiShader.get(), widgetWidth, widgetHeight, f);
     }
     
-    // Display unit details?
+    // Display unit / building details?
     if (singleSelectedObject->isUnit()) {
       ClientUnit* singleSelectedUnit = static_cast<ClientUnit*>(singleSelectedObject);
+      
       if (IsVillager(singleSelectedUnit->GetType())) {
         // Display the villager's carried resources?
         if (singleSelectedUnit->GetCarriedResourceAmount() > 0) {
@@ -2031,8 +2069,8 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
               QObject::tr("Carries %1 %2")
                   .arg(singleSelectedUnit->GetCarriedResourceAmount())
                   .arg(GetResourceName(singleSelectedUnit->GetCarriedResourceType())),
-              QRect(topLeft.x() + uiScale * 2*32,
-                    topLeft.y() + uiScale * 50 + uiScale * 2*46 + uiScale * 2*60 + uiScale * 2*20,
+              QRect(topLeft.x() + uiScale * (2*32),
+                    topLeft.y() + uiScale * (50 + 2*46 + 2*60 + 2*20),
                     uiScale * 2*172,
                     uiScale * 2*16),
               Qt::AlignLeft | Qt::AlignTop,
@@ -2040,28 +2078,90 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
               uiShader.get(), widgetWidth, widgetHeight, f);
         }
       }
+    } else if (singleSelectedObject->isBuilding()) {
+      ClientBuilding* singleSelectedBuilding = static_cast<ClientBuilding*>(singleSelectedObject);
+      
+      if (!singleSelectedBuilding->GetProductionQueue().empty()) {
+        // Render the unit that is currently being produced.
+        UnitType type = singleSelectedBuilding->GetProductionQueue().front();
+        const Texture* iconTexture = ClientUnitType::GetUnitTypes()[static_cast<int>(type)].GetIconTexture();
+        if (iconTexture) {
+          RenderObjectIcon(
+              iconTexture,
+              topLeft.x() + uiScale * (2*32 + 2*155),
+              topLeft.y() + uiScale * (50 + 2*46),
+              uiScale * 2*35,
+              productionQueuePointBuffers[0].buffer,
+              productionQueueOverlayPointBuffers[0].buffer,
+              f);
+        }
+        
+        // Render progress text
+        float floatProgress = singleSelectedBuilding->GetProductionProgress(lastDisplayedServerTime);
+        int progress = static_cast<int>(floatProgress + 0.5f);
+        productionProgressText.textDisplay->Render(
+              georgiaFontLarger,
+              qRgba(58, 29, 21, 255),
+              QObject::tr("Creating (%1%)").arg(progress),
+              QRect(topLeft.x() + uiScale * (2*32 + 2*155 + 2*35 + 2*6),
+                    topLeft.y() + uiScale * (50 + 2*46),
+                    uiScale * 2*200,
+                    uiScale * 2*35),
+              Qt::AlignLeft | Qt::AlignVCenter,
+              productionProgressText.pointBuffer,
+              uiShader.get(), widgetWidth, widgetHeight, f);
+        
+        // Render progress bar
+        int progressBarMaxWidth = uiScale * 2 * 140;
+        RenderUIGraphic(
+            topLeft.x() + uiScale * (2*32 + 2*155),
+            topLeft.y() + uiScale * (50 + 2*46 + 2*35 + 2*2),
+            progressBarMaxWidth,
+            uiScale * 2*10,
+            qRgba(20, 20, 20, 255),
+            productionProgressBarBackgroundPointBuffer.buffer,
+            *productionProgressBar.texture,
+            uiShader.get(), widgetWidth, widgetHeight, f);
+        RenderUIGraphic(
+            topLeft.x() + uiScale * (2*32 + 2*155),
+            topLeft.y() + uiScale * (50 + 2*46 + 2*35 + 2*2),
+            floatProgress / 100.f * progressBarMaxWidth,
+            uiScale * 2*10,
+            qRgba(255, 255, 255, 255),
+            productionProgressBar.pointBuffer,
+            *productionProgressBar.texture,
+            uiShader.get(), widgetWidth, widgetHeight, f,
+            floatProgress / 100.f, 1.f);
+      }
+      
+      // Render the units that are queued behind the currently produced one.
+      for (usize queueIndex = 1; queueIndex < singleSelectedBuilding->GetProductionQueue().size(); ++ queueIndex) {
+        UnitType type = singleSelectedBuilding->GetProductionQueue()[queueIndex];
+        const Texture* iconTexture = ClientUnitType::GetUnitTypes()[static_cast<int>(type)].GetIconTexture();
+        if (iconTexture) {
+          RenderObjectIcon(
+              iconTexture,
+              topLeft.x() + uiScale * (2*32 + 2*155 + 2*(queueIndex - 1)*35),
+              topLeft.y() + uiScale * (50 + 2*46 + 2*49),
+              uiScale * 2*35,
+              productionQueuePointBuffers[queueIndex].buffer,
+              productionQueueOverlayPointBuffers[queueIndex].buffer,
+              f);
+        }
+      }
     }
     
     // Render icon of single selected object
     const Texture* iconTexture = singleSelectedObject->GetIconTexture();
     if (iconTexture) {
-      float iconInset = uiScale * 4;
-      RenderUIGraphic(
-          topLeft.x() + uiScale * 2*32 + iconInset,
-          topLeft.y() + uiScale * 50 + uiScale * 2*46 + iconInset,
-          uiScale * 2*60 - 2 * iconInset,
-          uiScale * 2*60 - 2 * iconInset,
-          qRgba(255, 255, 255, 255), selectionPanelIconPointBuffer.buffer,
-          *iconTexture,
-          uiShader.get(), widgetWidth, widgetHeight, f);
-      RenderUIGraphic(
-          topLeft.x() + uiScale * 2*32,
-          topLeft.y() + uiScale * 50 + uiScale * 2*46,
+      RenderObjectIcon(
+          iconTexture,
+          topLeft.x() + uiScale * (2*32),
+          topLeft.y() + uiScale * (50 + 2*46),
           uiScale * 2*60,
-          uiScale * 2*60,
-          qRgba(255, 255, 255, 255), selectionPanelIconOverlayPointBuffer.buffer,
-          *iconOverlayNormalTexture,
-          uiShader.get(), widgetWidth, widgetHeight, f);
+          selectionPanelIconPointBuffer.buffer,
+          selectionPanelIconOverlayPointBuffer.buffer,
+          f);
     }
   }
 }
@@ -2568,7 +2668,9 @@ void RenderWindow::UpdateGameState(double displayedServerTime) {
       ClientUnit* unit = static_cast<ClientUnit*>(item.second);
       unit->UpdateGameState(displayedServerTime);
     } else if (item.second->isBuilding()) {
-      // TODO: Anything to do here?
+      // TODO: Is this needed?
+      // ClientBuilding* building = static_cast<ClientBuilding*>(item.second);
+      // building->UpdateGameState(displayedServerTime);
     }
   }
   

@@ -433,3 +433,14 @@ int ClientBuilding::GetFrameIndex(double elapsedSeconds) {
     return static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % buildingSprite.NumFrames();
   }
 }
+
+void ClientBuilding::DequeueFirstUnit() {
+  if (productionQueue.empty()) {
+    LOG(ERROR) << "Cannot dequeue a unit since this building's production queue is empty.";
+    return;
+  }
+  
+  productionQueue.erase(productionQueue.begin());
+  productionPercentage = 0;
+  productionProgressPerSecond = 0;
+}

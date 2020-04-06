@@ -6,19 +6,26 @@
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/common/resources.hpp"
 
-// TODO: Create a helper function to create the base of all of these similar messages
+static inline QByteArray CreateClientToServerMessageHeader(int dataSize, ClientToServerMessage type) {
+  // Create buffer
+  QByteArray msg(3 + dataSize, Qt::Initialization::Uninitialized);
+  char* data = msg.data();
+  
+  // Set buffer header (3 bytes)
+  data[0] = static_cast<char>(type);
+  mango::ustore16(data + 1, msg.size());
+  
+  return msg;
+}
+
 
 QByteArray CreateHostConnectMessage(const QByteArray& hostToken, const QString& playerName) {
   // Prepare
   QByteArray playerNameUtf8 = playerName.toUtf8();
   
   // Create buffer
-  QByteArray msg(1 + 2 + hostToken.size() + playerNameUtf8.size(), Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateClientToServerMessageHeader(hostToken.size() + playerNameUtf8.size(), ClientToServerMessage::HostConnect);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::HostConnect);
-  mango::ustore16(data + 1, msg.size());
   
   // Fill buffer
   memcpy(data + 3, hostToken.data(), hostToken.size());
@@ -32,12 +39,8 @@ QByteArray CreateConnectMessage(const QString& playerName) {
   QByteArray playerNameUtf8 = playerName.toUtf8();
   
   // Create buffer
-  QByteArray msg(1 + 2 + playerNameUtf8.size(), Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateClientToServerMessageHeader(playerNameUtf8.size(), ClientToServerMessage::Connect);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::Connect);
-  mango::ustore16(data + 1, msg.size());
   
   // Fill buffer
   memcpy(data + 3, playerNameUtf8.data(), playerNameUtf8.size());
@@ -62,17 +65,9 @@ QByteArray CreateSettingsUpdateMessage(bool allowMorePlayersToJoin, u16 mapSize,
 }
 
 QByteArray CreateReadyUpMessage(bool clientIsReady) {
-  // Create buffer
-  QByteArray msg(1 + 2 + 1, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateClientToServerMessageHeader(1, ClientToServerMessage::ReadyUp);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::ReadyUp);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   data[3] = clientIsReady ? 1 : 0;
-  
   return msg;
 }
 
@@ -81,12 +76,8 @@ QByteArray CreateChatMessage(const QString& text) {
   QByteArray textUtf8 = text.toUtf8();
   
   // Create buffer
-  QByteArray msg(1 + 2 + textUtf8.size(), Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateClientToServerMessageHeader(textUtf8.size(), ClientToServerMessage::Chat);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::Chat);
-  mango::ustore16(data + 1, msg.size());
   
   // Fill buffer
   memcpy(data + 3, textUtf8.data(), textUtf8.size());
@@ -95,69 +86,28 @@ QByteArray CreateChatMessage(const QString& text) {
 }
 
 QByteArray CreatePingMessage(u64 number) {
-  // Create buffer
-  QByteArray msg(1 + 2 + 8, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateClientToServerMessageHeader(8, ClientToServerMessage::Ping);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::Ping);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   mango::ustore64(data + 3, number);
-  
   return msg;
 }
 
 QByteArray CreateLeaveMessage() {
-  // Create buffer
-  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
-  char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::Leave);
-  mango::ustore16(data + 1, msg.size());
-  
-  return msg;
+  return CreateClientToServerMessageHeader(0, ClientToServerMessage::Leave);
 }
 
 QByteArray CreateStartGameMessage() {
-  // Create buffer
-  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
-  char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::StartGame);
-  mango::ustore16(data + 1, msg.size());
-  
-  return msg;
+  return CreateClientToServerMessageHeader(0, ClientToServerMessage::StartGame);
 }
 
 QByteArray CreateLoadingProgressMessage(u8 percentage) {
-  // Create buffer
-  QByteArray msg(1 + 2 + 1, Qt::Initialization::Uninitialized);
-  char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::LoadingProgress);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
-  data[3] = percentage;
-  
+  QByteArray msg = CreateClientToServerMessageHeader(1, ClientToServerMessage::LoadingProgress);
+  msg[3] = percentage;
   return msg;
 }
 
 QByteArray CreateLoadingFinishedMessage() {
-  // Create buffer
-  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
-  char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::LoadingFinished);
-  mango::ustore16(data + 1, msg.size());
-  
-  return msg;
+  return CreateClientToServerMessageHeader(0, ClientToServerMessage::LoadingFinished);
 }
 
 QByteArray CreateMoveToMapCoordMessage(const std::vector<u32>& selectedUnitIds, const QPointF& targetMapCoord) {
@@ -166,12 +116,8 @@ QByteArray CreateMoveToMapCoordMessage(const std::vector<u32>& selectedUnitIds, 
   }
   
   // Create buffer
-  QByteArray msg(13 + 4 * selectedUnitIds.size(), Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateClientToServerMessageHeader(10 + 4 * selectedUnitIds.size(), ClientToServerMessage::MoveToMapCoord);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::MoveToMapCoord);
-  mango::ustore16(data + 1, msg.size());
   
   // Fill buffer
   *reinterpret_cast<float*>(data + 3) = targetMapCoord.x();
@@ -193,12 +139,8 @@ QByteArray CreateSetTargetMessage(const std::vector<u32>& unitIds, u32 targetObj
   }
   
   // Create buffer
-  QByteArray msg(9 + 4 * unitIds.size(), Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateClientToServerMessageHeader(6 + 4 * unitIds.size(), ClientToServerMessage::SetTarget);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::SetTarget);
-  mango::ustore16(data + 1, msg.size());
   
   // Fill buffer
   mango::ustore32(data + 3, targetObjectId);
@@ -214,31 +156,17 @@ QByteArray CreateSetTargetMessage(const std::vector<u32>& unitIds, u32 targetObj
 }
 
 QByteArray CreateProduceUnitMessage(u32 buildingId, u16 unitType) {
-  // Create buffer
-  QByteArray msg(9, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateClientToServerMessageHeader(6, ClientToServerMessage::ProduceUnit);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::ProduceUnit);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   mango::ustore32(data + 3, buildingId);
   mango::ustore16(data + 7, unitType);
-  
   return msg;
 }
 
 QByteArray CreatePlaceBuildingFoundationMessage(BuildingType type, const QPoint& baseTile, const std::vector<u32>& selectedVillagerIds) {
-  // Create buffer
-  QByteArray msg(11 + 4 * selectedVillagerIds.size(), Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateClientToServerMessageHeader(8 + 4 * selectedVillagerIds.size(), ClientToServerMessage::PlaceBuildingFoundation);
   char* data = msg.data();
   
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::PlaceBuildingFoundation);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   mango::ustore16(data + 3, static_cast<u16>(type));
   mango::ustore16(data + 5, baseTile.x());
   mango::ustore16(data + 7, baseTile.y());
@@ -254,43 +182,31 @@ QByteArray CreatePlaceBuildingFoundationMessage(BuildingType type, const QPoint&
 }
 
 QByteArray CreateDeleteObjectMessage(u32 objectId) {
-  // Create buffer
-  QByteArray msg(7, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateClientToServerMessageHeader(4, ClientToServerMessage::DeleteObject);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ClientToServerMessage::DeleteObject);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   mango::ustore32(data + 3, objectId);
-  
   return msg;
 }
 
 
-QByteArray CreateWelcomeMessage() {
+static inline QByteArray CreateServerToClientMessageHeader(int dataSize, ServerToClientMessage type) {
   // Create buffer
-  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
+  QByteArray msg(3 + dataSize, Qt::Initialization::Uninitialized);
   char* data = msg.data();
   
   // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::Welcome);
+  data[0] = static_cast<char>(type);
   mango::ustore16(data + 1, msg.size());
   
   return msg;
+}
+
+QByteArray CreateWelcomeMessage() {
+  return CreateServerToClientMessageHeader(0, ServerToClientMessage::Welcome);
 }
 
 QByteArray CreateGameAbortedMessage() {
-  // Create buffer
-  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
-  char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::GameAborted);
-  mango::ustore16(data + 1, msg.size());
-  
-  return msg;
+  return CreateServerToClientMessageHeader(0, ServerToClientMessage::GameAborted);
 }
 
 QByteArray CreateChatBroadcastMessage(u16 sendingPlayerIndex, const QString& text) {
@@ -298,12 +214,8 @@ QByteArray CreateChatBroadcastMessage(u16 sendingPlayerIndex, const QString& tex
   QByteArray textUtf8 = text.toUtf8();
   
   // Create buffer
-  QByteArray msg(1 + 2 + 2 + textUtf8.size(), Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateServerToClientMessageHeader(2 + textUtf8.size(), ServerToClientMessage::ChatBroadcast);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::ChatBroadcast);
-  mango::ustore16(data + 1, msg.size());
   
   // Fill buffer
   mango::ustore16(data + 3, sendingPlayerIndex);
@@ -314,46 +226,22 @@ QByteArray CreateChatBroadcastMessage(u16 sendingPlayerIndex, const QString& tex
 }
 
 QByteArray CreatePingResponseMessage(u64 number, double serverTimeSeconds) {
-  // Create buffer
-  QByteArray msg(1 + 2 + 8 + 8, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateServerToClientMessageHeader(8 + 8, ServerToClientMessage::PingResponse);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::PingResponse);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   mango::ustore64(data + 3, number);
   memcpy(data + 3 + 8, &serverTimeSeconds, 8);
-  
   return msg;
 }
 
 QByteArray CreateStartGameBroadcastMessage() {
-  // Create buffer
-  QByteArray msg(1 + 2, Qt::Initialization::Uninitialized);
-  char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::StartGameBroadcast);
-  mango::ustore16(data + 1, msg.size());
-  
-  return msg;
+  return CreateServerToClientMessageHeader(0, ServerToClientMessage::StartGameBroadcast);
 }
 
 QByteArray CreateLoadingProgressBroadcastMessage(u8 playerIndex, u8 percentage) {
-  // Create buffer
-  QByteArray msg(1 + 2 + 1 + 1, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateServerToClientMessageHeader(1 + 1, ServerToClientMessage::LoadingProgressBroadcast);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::LoadingProgressBroadcast);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   data[3] = playerIndex;
   data[4] = percentage;
-  
   return msg;
 }
 
@@ -367,12 +255,8 @@ QByteArray CreateGameBeginMessage(
     u16 mapWidth,
     u16 mapHeight) {
   // Create buffer
-  QByteArray msg(39, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateServerToClientMessageHeader(36, ServerToClientMessage::GameBegin);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::GameBegin);
-  mango::ustore16(data + 1, msg.size());
   
   // Fill buffer
   memcpy(data + 3, &gameStartServerTimeSeconds, 8);
@@ -389,150 +273,102 @@ QByteArray CreateGameBeginMessage(
 }
 
 QByteArray CreateGameStepTimeMessage(double gameStepServerTime) {
-  // Create buffer
-  QByteArray msg(1 + 2 + 8, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateServerToClientMessageHeader(8, ServerToClientMessage::GameStepTime);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::GameStepTime);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   memcpy(data + 3, &gameStepServerTime, 8);
-  
   return msg;
 }
 
 QByteArray CreateUnitMovementMessage(u32 unitId, const QPointF& startPoint, const QPointF& speed, UnitAction action) {
-  // Create buffer
-  QByteArray msg(24, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateServerToClientMessageHeader(21, ServerToClientMessage::UnitMovement);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::UnitMovement);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   mango::ustore32(data + 3, unitId);
   *reinterpret_cast<float*>(data + 7) = startPoint.x();
   *reinterpret_cast<float*>(data + 11) = startPoint.y();
   *reinterpret_cast<float*>(data + 15) = speed.x();
   *reinterpret_cast<float*>(data + 19) = speed.y();
   data[23] = static_cast<u8>(action);
-  
   return msg;
 }
 
 QByteArray CreateResourcesUpdateMessage(const ResourceAmount& amount) {
-  // Create buffer
-  QByteArray msg(19, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateServerToClientMessageHeader(16, ServerToClientMessage::ResourcesUpdate);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::ResourcesUpdate);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   mango::ustore32(data + 3, amount.wood());
   mango::ustore32(data + 7, amount.food());
   mango::ustore32(data + 11, amount.gold());
   mango::ustore32(data + 15, amount.stone());
-  
   return msg;
 }
 
 QByteArray CreateBuildPercentageUpdateMessage(u32 buildingId, float progress) {
-  // Create buffer
-  QByteArray msg(1 + 2 + 4 + 4, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateServerToClientMessageHeader(4 + 4, ServerToClientMessage::BuildPercentageUpdate);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::BuildPercentageUpdate);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   mango::ustore32(data + 3, buildingId);
   memcpy(data + 3 + 4, &progress, 4);
-  
   return msg;
 }
 
 QByteArray CreateChangeUnitTypeMessage(u32 unitId, UnitType type) {
-  // Create buffer
-  QByteArray msg(1 + 2 + 4 + 2, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateServerToClientMessageHeader(4 + 2, ServerToClientMessage::ChangeUnitType);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::ChangeUnitType);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   mango::ustore32(data + 3, unitId);
   mango::ustore16(data + 7, static_cast<u16>(type));
-  
   return msg;
 }
 
 QByteArray CreateSetCarriedResourcesMessage(u32 unitId, ResourceType type, u8 amount) {
-  // Create buffer
-  QByteArray msg(9, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateServerToClientMessageHeader(6, ServerToClientMessage::SetCarriedResources);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::SetCarriedResources);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   mango::ustore32(data + 3, unitId);
   data[7] = static_cast<u8>(type);
   data[8] = amount;
-  
   return msg;
 }
 
 QByteArray CreateHPUpdateMessage(u32 objectId, u32 newHP) {
-  // Create buffer
-  QByteArray msg(11, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateServerToClientMessageHeader(8, ServerToClientMessage::HPUpdate);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::HPUpdate);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   mango::ustore32(data + 3, objectId);
   mango::ustore32(data + 7, newHP);
-  
   return msg;
 }
 
 QByteArray CreateObjectDeathMessage(u32 objectId) {
-  // Create buffer
-  QByteArray msg(7, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateServerToClientMessageHeader(4, ServerToClientMessage::ObjectDeath);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::ObjectDeath);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   mango::ustore32(data + 3, objectId);
-  
   return msg;
 }
 
 QByteArray CreatePlayerLeaveBroadcastMessage(u8 playerIndex, PlayerExitReason reason) {
-  // Create buffer
-  QByteArray msg(5, Qt::Initialization::Uninitialized);
+  QByteArray msg = CreateServerToClientMessageHeader(2, ServerToClientMessage::PlayerLeaveBroadcast);
   char* data = msg.data();
-  
-  // Set buffer header (3 bytes)
-  data[0] = static_cast<char>(ServerToClientMessage::PlayerLeaveBroadcast);
-  mango::ustore16(data + 1, msg.size());
-  
-  // Fill buffer
   data[3] = playerIndex;
   data[4] = static_cast<u8>(reason);
-  
+  return msg;
+}
+
+QByteArray CreateQueueUnitMessage(u32 buildingId, u16 unitType) {
+  QByteArray msg = CreateServerToClientMessageHeader(6, ServerToClientMessage::QueueUnit);
+  char* data = msg.data();
+  mango::ustore32(data + 3, buildingId);
+  mango::ustore16(data + 7, unitType);
+  return msg;
+}
+
+QByteArray CreateUpdateProductionMessage(u32 buildingId, float progressValue, float progressPerSecond) {
+  QByteArray msg = CreateServerToClientMessageHeader(4 + 4 + 4, ServerToClientMessage::UpdateProduction);
+  char* data = msg.data();
+  mango::ustore32(data + 3, buildingId);
+  *reinterpret_cast<float*>(data + 7) = progressValue;
+  *reinterpret_cast<float*>(data + 11) = progressPerSecond;
+  return msg;
+}
+
+QByteArray CreateRemoveFromProductionQueueMessage(u32 buildingId) {
+  QByteArray msg = CreateServerToClientMessageHeader(4, ServerToClientMessage::RemoveFromProductionQueue);
+  char* data = msg.data();
+  mango::ustore32(data + 3, buildingId);
   return msg;
 }

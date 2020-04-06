@@ -55,6 +55,9 @@ class GameController : public QObject {
   void HandleSetCarriedResourcesMessage(const QByteArray& data);
   void HandleHPUpdateMessage(const QByteArray& data);
   void HandlePlayerLeaveBroadcast(const QByteArray& data);
+  void HandleQueueUnitMessage(const QByteArray& data);
+  void HandleUpdateProductionMessage(const QByteArray& data);
+  void HandleRemoveFromProductionQueueMessage(const QByteArray& data);
   
   
   std::shared_ptr<ServerConnection> connection;

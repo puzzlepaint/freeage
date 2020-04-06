@@ -123,7 +123,38 @@ class ClientBuilding : public ClientObject {
   inline float GetBuildPercentage() const { return buildPercentage; }
   inline void SetBuildPercentage(float percentage) { buildPercentage = percentage; }
   
+  /// Adds a unit to the end of the production queue.
+  inline void QueueUnit(UnitType type) { productionQueue.push_back(type); }
+  void DequeueFirstUnit();
+  inline const std::vector<UnitType>& GetProductionQueue() const { return productionQueue; }
+  
+  inline void SetProductionState(double serverTime, float percentage, float progressPerSecond) {
+    productionStateServerTime = serverTime;
+    productionPercentage = percentage;
+    productionProgressPerSecond = progressPerSecond;
+  }
+  
+  inline float GetProductionProgress(double serverTime) {
+    if (productionProgressPerSecond == 0) {
+      return productionPercentage;
+    } else {
+      return productionPercentage + (serverTime - productionStateServerTime) * productionProgressPerSecond;
+    }
+  }
+  
  private:
+  // TODO: Allow to queue technologies as well
+  std::vector<UnitType> productionQueue;
+  
+  /// The server time for which productionPercentage is valid.
+  double productionStateServerTime;
+  
+  /// The progress on the production of the first item in the productionQueue, in percent, at productionStateServerTime.
+  float productionPercentage = 0;
+  
+  /// The value that should be added per second to productionPercentage.
+  float productionProgressPerSecond = 0;
+  
   BuildingType type;
   
   /// In case the building uses a random but fixed frame index, it is stored here.
