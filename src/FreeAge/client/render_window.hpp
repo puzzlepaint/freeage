@@ -180,6 +180,9 @@ class RenderWindow : public QOpenGLWindow {
   bool GetObjectToSelectAt(float x, float y, u32* objectId, std::vector<u32>* currentSelection, bool toggleThroughObjects, bool selectSuitableTargetsOnly);
   
   QPointF ScreenCoordToProjectedCoord(float x, float y);
+  inline QPointF ScreenCoordToProjectedCoord(const QPointF& input) { return ScreenCoordToProjectedCoord(input.x(), input.y()); }
+  QPointF ProjectedCoordToScreenCoord(float x, float y);
+  inline QPointF ProjectedCoordToScreenCoord(const QPointF& input) { return ProjectedCoordToScreenCoord(input.x(), input.y()); }
   
   void ClearSelection();
   void AddToSelection(u32 objectId);

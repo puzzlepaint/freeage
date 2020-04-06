@@ -2414,6 +2414,12 @@ QPointF RenderWindow::ScreenCoordToProjectedCoord(float x, float y) {
       ((1 - 2 * y / (1.f * height())) - viewMatrix[3]) / viewMatrix[1]);
 }
 
+QPointF RenderWindow::ProjectedCoordToScreenCoord(float x, float y) {
+  return QPointF(
+      width() * (0.5f * (viewMatrix[0] * x + viewMatrix[2]) + 0.5f),
+      height() * (-0.5f * (viewMatrix[1] * y + viewMatrix[3]) + 0.5f));
+}
+
 void RenderWindow::ClearSelection() {
   for (u32 objectId : selection) {
     auto objectIt = map->GetObjects().find(objectId);
@@ -3527,11 +3533,28 @@ void RenderWindow::wheelEvent(QWheelEvent* event) {
     return;
   }
   
+  // Compute new zoom
   double degrees = event->angleDelta().y() / 8.0;
   double numSteps = degrees / 15.0;
   
   double scaleFactor = std::pow(std::sqrt(2.0), numSteps);
-  zoom *= scaleFactor;
+  double newZoom = zoom * scaleFactor;
+  
+  // Compute new scroll value to keep the map coord under the cursor fixed (if possible)
+  QPointF cursorProjectedCoord = ScreenCoordToProjectedCoord(lastCursorPos.x(), lastCursorPos.y());
+  
+  // Instant application.
+  // TODO: Smooth application
+  zoom = newZoom;
+  UpdateViewMatrix();
+  QPointF screenCoordDifference = lastCursorPos - ProjectedCoordToScreenCoord(cursorProjectedCoord);
+  QPointF requiredProjectedCoordDifference(
+       2.f / (widgetWidth * viewMatrix[0]) * screenCoordDifference.x(),
+      -2.f / (widgetHeight * viewMatrix[1]) * screenCoordDifference.y());
+  
+  QPointF newScreenCenterProjectedCoords = map->MapCoordToProjectedCoord(scroll) - requiredProjectedCoordDifference;
+  map->ProjectedCoordToMapCoord(newScreenCenterProjectedCoords, &scroll);
+  UpdateViewMatrix();
 }
 
 void RenderWindow::keyPressEvent(QKeyEvent* event) {
