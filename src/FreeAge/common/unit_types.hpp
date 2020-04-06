@@ -37,6 +37,7 @@ enum class UnitAction {
   Moving,
   Task,
   Attack,
+  NumActions
 };
 
 inline bool IsVillager(UnitType type) {

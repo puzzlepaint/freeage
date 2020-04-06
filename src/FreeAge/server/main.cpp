@@ -95,8 +95,8 @@ int main(int argc, char** argv) {
       newPlayer->lastPingTime = player->lastPingTime;
       
       // TODO: Set the starting resources according to the map
-      newPlayer->resources.wood() = 2000;
-      newPlayer->resources.food() = 2000;
+      newPlayer->resources.wood() = 200;
+      newPlayer->resources.food() = 200;
       newPlayer->resources.gold() = 100;
       newPlayer->resources.stone() = 200;
       

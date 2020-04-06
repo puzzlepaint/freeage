@@ -80,6 +80,8 @@ class Map {
   inline int GetWidth() const { return width; }
   inline int GetHeight() const { return height; }
   
+  inline int GetMaxElevation() const { return maxElevation; }
+  
  private:
   void UpdateRenderResources(const std::filesystem::path& graphicsSubPath, QOpenGLFunctions_3_2_Core* f);
   

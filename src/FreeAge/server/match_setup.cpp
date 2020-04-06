@@ -121,7 +121,8 @@ void SendWelcomeAndJoinMessage(PlayerInMatch* player, const std::vector<std::sha
 bool HandleHostConnect(const QByteArray& msg, int len, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch, const ServerSettings& settings) {
   LOG(INFO) << "Server: Received HostConnect";
   
-  if (msg.length() < 3 + hostTokenLength) {
+  if (msg.length() < 3 + hostTokenLength || len < 3 + hostTokenLength) {
+    LOG(ERROR) << "Received a too short HostConnect message";
     return false;
   }
   
@@ -147,8 +148,20 @@ bool HandleHostConnect(const QByteArray& msg, int len, PlayerInMatch* player, co
   return true;
 }
 
-void HandleConnect(const QByteArray& msg, int len, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
+bool HandleConnect(const QByteArray& msg, int len, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
   LOG(INFO) << "Server: Received Connect";
+  
+  bool thereIsAHost = false;
+  for (const auto& otherPlayer : playersInMatch) {
+    if (otherPlayer->isHost) {
+      thereIsAHost = true;
+      break;
+    }
+  }
+  if (!thereIsAHost) {
+    LOG(ERROR) << "Received Connect message, but there is no host. Rejecting the connection.";
+    return false;
+  }
   
   player->name = QString::fromUtf8(msg.mid(3, len - 3));
   // Find the lowest free player color index
@@ -170,10 +183,14 @@ void HandleConnect(const QByteArray& msg, int len, PlayerInMatch* player, const 
   player->state = PlayerInMatch::State::Joined;
   
   SendWelcomeAndJoinMessage(player, playersInMatch);
+  return true;
 }
 
 void HandleSettingsUpdate(const QByteArray& msg, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch, QTcpServer* server, ServerSettings* settings) {
-  LOG(INFO) << "Server: Received SettingsUpdate";
+  if (msg.size() < 3 + 3) {
+    LOG(ERROR) << "Received a too short SettingsUpdate message";
+    return;
+  }
   
   settings->allowNewConnections = msg.data()[3] > 0;
   
@@ -207,7 +224,10 @@ void HandleSettingsUpdate(const QByteArray& msg, const std::vector<std::shared_p
 }
 
 void HandleReadyUp(const QByteArray& msg, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch, QTcpServer* server, ServerSettings* settings) {
-  LOG(INFO) << "Server: Received ReadyUp";
+  if (msg.size() < 3 + 1) {
+    LOG(ERROR) << "Received a too short ReadyUp message";
+    return;
+  }
   
   bool isReady = msg.data()[3] > 0;
   
@@ -234,8 +254,6 @@ void HandleReadyUp(const QByteArray& msg, PlayerInMatch* player, const std::vect
 }
 
 static void HandleChat(const QByteArray& msg, PlayerInMatch* player, int len, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
-  LOG(INFO) << "Server: Received Chat";
-  
   QString text = QString::fromUtf8(msg.mid(3, len - 3));
   
   // Determine the index of the sending player.
@@ -252,6 +270,11 @@ static void HandleChat(const QByteArray& msg, PlayerInMatch* player, int len, co
 }
 
 static void HandlePing(const QByteArray& msg, PlayerInMatch* player, const ServerSettings& settings) {
+  if (msg.size() < 3 + 8) {
+    LOG(ERROR) << "Received a too short Ping message";
+    return;
+  }
+  
   u64 number = mango::uload64(msg.data() + 3);
   
   TimePoint pingHandleTime = Clock::now();
@@ -332,39 +355,45 @@ static ParseMessagesResult TryParseClientMessages(PlayerInMatch* player, const s
       return ParseMessagesResult::NoAction;
     }
     
-    ClientToServerMessage msgType = static_cast<ClientToServerMessage>(data[0]);
-    
-    switch (msgType) {
-    case ClientToServerMessage::HostConnect:
-      if (!HandleHostConnect(player->unparsedBuffer, msgLength, player, playersInMatch, *settings)) {
+    if (msgLength < 3) {
+      LOG(ERROR) << "Received a too short message. The given message length is (should be at least 3): " << msgLength;
+    } else {
+      ClientToServerMessage msgType = static_cast<ClientToServerMessage>(data[0]);
+      
+      switch (msgType) {
+      case ClientToServerMessage::HostConnect:
+        if (!HandleHostConnect(player->unparsedBuffer, msgLength, player, playersInMatch, *settings)) {
+          return ParseMessagesResult::PlayerLeftOrShouldBeDisconnected;
+        }
+        break;
+      case ClientToServerMessage::Connect:
+        if (!HandleConnect(player->unparsedBuffer, msgLength, player, playersInMatch)) {
+          return ParseMessagesResult::PlayerLeftOrShouldBeDisconnected;
+        }
+        break;
+      case ClientToServerMessage::SettingsUpdate:
+        HandleSettingsUpdate(player->unparsedBuffer, playersInMatch, server, settings);
+        break;
+      case ClientToServerMessage::ReadyUp:
+        HandleReadyUp(player->unparsedBuffer, player, playersInMatch, server, settings);
+        break;
+      case ClientToServerMessage::Chat:
+        HandleChat(player->unparsedBuffer, player, msgLength, playersInMatch);
+        break;
+      case ClientToServerMessage::Ping:
+        HandlePing(player->unparsedBuffer, player, *settings);
+        break;
+      case ClientToServerMessage::Leave:
+        HandleLeave(player->unparsedBuffer, player, playersInMatch);
         return ParseMessagesResult::PlayerLeftOrShouldBeDisconnected;
+      case ClientToServerMessage::StartGame:
+        HandleStartGame(player->unparsedBuffer, player, playersInMatch);
+        player->unparsedBuffer.remove(0, msgLength);
+        return ParseMessagesResult::GameStarted;
+      default:
+        LOG(ERROR) << "Received a message in the match setup phase that cannot be parsed in this phase: " << static_cast<int>(msgType);
+        break;
       }
-      break;
-    case ClientToServerMessage::Connect:
-      HandleConnect(player->unparsedBuffer, msgLength, player, playersInMatch);
-      break;
-    case ClientToServerMessage::SettingsUpdate:
-      HandleSettingsUpdate(player->unparsedBuffer, playersInMatch, server, settings);
-      break;
-    case ClientToServerMessage::ReadyUp:
-      HandleReadyUp(player->unparsedBuffer, player, playersInMatch, server, settings);
-      break;
-    case ClientToServerMessage::Chat:
-      HandleChat(player->unparsedBuffer, player, msgLength, playersInMatch);
-      break;
-    case ClientToServerMessage::Ping:
-      HandlePing(player->unparsedBuffer, player, *settings);
-      break;
-    case ClientToServerMessage::Leave:
-      HandleLeave(player->unparsedBuffer, player, playersInMatch);
-      return ParseMessagesResult::PlayerLeftOrShouldBeDisconnected;
-    case ClientToServerMessage::StartGame:
-      HandleStartGame(player->unparsedBuffer, player, playersInMatch);
-      player->unparsedBuffer.remove(0, msgLength);
-      return ParseMessagesResult::GameStarted;
-    default:
-      LOG(ERROR) << "Received a message in the match setup phase that cannot be parsed in this phase: " << static_cast<int>(msgType);
-      break;
     }
     
     player->unparsedBuffer.remove(0, msgLength);

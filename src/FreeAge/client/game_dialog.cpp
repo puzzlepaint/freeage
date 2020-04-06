@@ -259,6 +259,11 @@ void GameDialog::AddPlayerWidget(const PlayerInMatch& player) {
 }
 
 void GameDialog::HandleSettingsUpdateBroadcast(const QByteArray& msg) {
+  if (msg.size() < 3) {
+    LOG(ERROR) << "Received a too short SettingsUpdateBroadcast message";
+    return;
+  }
+  
   bool allowMorePlayersToJoin = msg.data()[0] > 0;
   u16 mapSize = mango::uload16(msg.data() + 1);
   
@@ -274,26 +279,46 @@ void GameDialog::HandlePlayerListMessage(const QByteArray& msg) {
   playersInMatch.clear();
   int index = 1;
   while (index < msg.size()) {
+    if (index + 2 > msg.size()) {
+      LOG(ERROR) << "Received PlayerList message ends unexpectedly (1)";
+      return;
+    }
     u16 nameLength = mango::uload16(msg.data() + index);
     index += 2;
     
+    if (index + nameLength > msg.size()) {
+      LOG(ERROR) << "Received PlayerList message ends unexpectedly (2)";
+      return;
+    }
     QString name = QString::fromUtf8(msg.mid(index, nameLength));
     index += nameLength;
     
+    if (index + 2 > msg.size()) {
+      LOG(ERROR) << "Received PlayerList message ends unexpectedly (3)";
+      return;
+    }
     u16 playerColorIndex = mango::uload16(msg.data() + index);
     index += 2;
     
+    if (index + 1 > msg.size()) {
+      LOG(ERROR) << "Received PlayerList message ends unexpectedly (4)";
+      return;
+    }
     bool playerIsReady = msg.data()[index] > 0;
     allPlayersAreReady &= playerIsReady;
     ++ index;
     
     playersInMatch.emplace_back(name, playerColorIndex, playerIsReady);
   }
+  if (playersInMatch.empty()) {
+    LOG(ERROR) << "Received PlayerList message with empty player list";
+    return;
+  }
   if (index != msg.size()) {
-    LOG(WARNING) << "index != len after parsing a PlayerList message";
+    LOG(ERROR) << "index != len after parsing a PlayerList message";
   }
   
-  playerIndexInList = std::min<int>(msg.data()[0], playersInMatch.size() - 1);
+  playerIndexInList = std::max<int>(0, std::min<int>(msg.data()[0], playersInMatch.size() - 1));
   
   // Remove all items from playerListLayout
   while (QLayoutItem* item = playerListLayout->takeAt(0)) {
@@ -317,7 +342,10 @@ void GameDialog::HandlePlayerListMessage(const QByteArray& msg) {
 }
 
 void GameDialog::HandleChatBroadcastMessage(const QByteArray& msg) {
-  LOG(INFO) << "Got chat broadcast message";
+  if (msg.size() < 2) {
+    LOG(ERROR) << "Received a too short ChatBroadcast message";
+    return;
+  }
   
   int index = 0;
   u16 sendingPlayerIndex = mango::uload16(msg.data() + index);
@@ -328,7 +356,7 @@ void GameDialog::HandleChatBroadcastMessage(const QByteArray& msg) {
   if (sendingPlayerIndex == std::numeric_limits<u16>::max()) {
     // Use the chatText without modification.
   } else if (sendingPlayerIndex >= playersInMatch.size()) {
-    LOG(WARNING) << "Chat broadcast message has an out-of-bounds player index";
+    LOG(ERROR) << "Chat broadcast message has an out-of-bounds player index";
     chatText = tr("???: %1").arg(chatText);
   } else {
     const PlayerInMatch& sendingPlayer = playersInMatch[sendingPlayerIndex];

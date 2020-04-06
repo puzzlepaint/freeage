@@ -107,7 +107,7 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
 
 void Game::HandleLoadingProgress(const QByteArray& msg, PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players) {
   if (msg.size() < 4) {
-    LOG(ERROR) << "Server: Received LoadingProgress message which is too short";
+    LOG(ERROR) << "Received a too short LoadingProgress message";
     return;
   }
   
@@ -155,8 +155,6 @@ void Game::SendChatBroadcast(u16 sendingPlayerIndex, const QString& text, const 
 
 // TODO: This is duplicated from match_setup.cpp, de-duplicate this
 void Game::HandleChat(const QByteArray& msg, PlayerInGame* player, u32 len, const std::vector<std::shared_ptr<PlayerInGame>>& players) {
-  LOG(INFO) << "Server: Received Chat";
-  
   QString text = QString::fromUtf8(msg.mid(3, len - 3));
   
   // Determine the index of the sending player.
@@ -174,6 +172,11 @@ void Game::HandleChat(const QByteArray& msg, PlayerInGame* player, u32 len, cons
 
 // TODO: This is duplicated from match_setup.cpp, de-duplicate this
 void Game::HandlePing(const QByteArray& msg, PlayerInGame* player) {
+  if (msg.size() < 3 + 8) {
+    LOG(ERROR) << "Received a too short Ping message";
+    return;
+  }
+  
   u64 number = mango::uload64(msg.data() + 3);
   
   TimePoint pingHandleTime = Clock::now();
@@ -258,6 +261,10 @@ void Game::HandleSetTargetMessage(const QByteArray& msg, PlayerInGame* player, u
 }
 
 void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player) {
+  if (msg.size() < 3 + 6) {
+    LOG(ERROR) << "Received a too short ProduceUnit message";
+    return;
+  }
   const char* data = msg.data();
   
   u32 buildingId = mango::uload32(data + 3);
@@ -309,15 +316,30 @@ void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player)
 }
 
 void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInGame* player) {
+  if (msg.size() < 3 + 8) {
+    LOG(ERROR) << "Received a too short PlaceBuildingFoundation message (1)";
+    return;
+  }
   const char* data = msg.data();
   
   BuildingType type = static_cast<BuildingType>(mango::uload16(data + 3));
+  // TODO: Check whether the player is allowed to build this type of building
+  
   QSize foundationSize = GetBuildingSize(type);
   QPoint baseTile(
       mango::uload16(data + 5),
       mango::uload16(data + 7));
+  if (baseTile.x() + foundationSize.width() > map->GetWidth() ||
+      baseTile.y() + foundationSize.height() > map->GetHeight()) {
+    LOG(ERROR) << "Received a PlaceBuildingFoundation message with out-of-bounds building coordinates";
+    return;
+  }
   
   u16 villagerIdsSize = mango::uload16(data + 9);
+  if (msg.size() < 3 + 8 + 4 * villagerIdsSize) {
+    LOG(ERROR) << "Received a too short PlaceBuildingFoundation message (2)";
+    return;
+  }
   std::vector<u32> villagerIds(villagerIdsSize);
   int offset = 11;
   for (usize i = 0; i < villagerIdsSize; ++ i) {
@@ -381,6 +403,10 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
 }
 
 void Game::HandleDeleteObjectMessage(const QByteArray& msg, PlayerInGame* player) {
+  if (msg.size() < 3 + 4) {
+    LOG(ERROR) << "Received a too short DeleteObject message";
+    return;
+  }
   const char* data = msg.data();
   
   u32 objectId = mango::uload32(data + 3);
@@ -413,42 +439,46 @@ Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, con
       return ParseMessagesResult::NoAction;
     }
     
-    ClientToServerMessage msgType = static_cast<ClientToServerMessage>(data[0]);
-    
-    switch (msgType) {
-    case ClientToServerMessage::MoveToMapCoord:
-      HandleMoveToMapCoordMessage(player->unparsedBuffer, player, msgLength);
-      break;
-    case ClientToServerMessage::SetTarget:
-      HandleSetTargetMessage(player->unparsedBuffer, player, msgLength);
-      break;
-    case ClientToServerMessage::ProduceUnit:
-      HandleProduceUnitMessage(player->unparsedBuffer, player);
-      break;
-    case ClientToServerMessage::PlaceBuildingFoundation:
-      HandlePlaceBuildingFoundationMessage(player->unparsedBuffer, player);
-      break;
-    case ClientToServerMessage::DeleteObject:
-      HandleDeleteObjectMessage(player->unparsedBuffer, player);
-      break;
-    case ClientToServerMessage::Chat:
-      HandleChat(player->unparsedBuffer, player, msgLength, players);
-      break;
-    case ClientToServerMessage::Ping:
-      HandlePing(player->unparsedBuffer, player);
-      break;
-    case ClientToServerMessage::Leave:
-      LOG(INFO) << "Server: Got leave message from player " << player->name.toStdString() << " (index " << player->index << ")";
-      return ParseMessagesResult::PlayerLeftOrShouldBeDisconnected;
-    case ClientToServerMessage::LoadingProgress:
-      HandleLoadingProgress(player->unparsedBuffer, player, players);
-      break;
-    case ClientToServerMessage::LoadingFinished:
-      HandleLoadingFinished(player, players);
-      break;
-    default:
-      LOG(ERROR) << "Server: Received a message in the game phase that cannot be parsed in this phase: " << static_cast<int>(msgType);
-      break;
+    if (msgLength < 3) {
+      LOG(ERROR) << "Received a too short message. The received message length is (should be at least 3): " << msgLength;
+    } else {
+      ClientToServerMessage msgType = static_cast<ClientToServerMessage>(data[0]);
+      
+      switch (msgType) {
+      case ClientToServerMessage::MoveToMapCoord:
+        HandleMoveToMapCoordMessage(player->unparsedBuffer, player, msgLength);
+        break;
+      case ClientToServerMessage::SetTarget:
+        HandleSetTargetMessage(player->unparsedBuffer, player, msgLength);
+        break;
+      case ClientToServerMessage::ProduceUnit:
+        HandleProduceUnitMessage(player->unparsedBuffer, player);
+        break;
+      case ClientToServerMessage::PlaceBuildingFoundation:
+        HandlePlaceBuildingFoundationMessage(player->unparsedBuffer, player);
+        break;
+      case ClientToServerMessage::DeleteObject:
+        HandleDeleteObjectMessage(player->unparsedBuffer, player);
+        break;
+      case ClientToServerMessage::Chat:
+        HandleChat(player->unparsedBuffer, player, msgLength, players);
+        break;
+      case ClientToServerMessage::Ping:
+        HandlePing(player->unparsedBuffer, player);
+        break;
+      case ClientToServerMessage::Leave:
+        LOG(INFO) << "Server: Got leave message from player " << player->name.toStdString() << " (index " << player->index << ")";
+        return ParseMessagesResult::PlayerLeftOrShouldBeDisconnected;
+      case ClientToServerMessage::LoadingProgress:
+        HandleLoadingProgress(player->unparsedBuffer, player, players);
+        break;
+      case ClientToServerMessage::LoadingFinished:
+        HandleLoadingFinished(player, players);
+        break;
+      default:
+        LOG(ERROR) << "Server: Received a message in the game phase that cannot be parsed in this phase: " << static_cast<int>(msgType);
+        break;
+      }
     }
     
     player->unparsedBuffer.remove(0, msgLength);
@@ -492,7 +522,7 @@ QByteArray Game::CreateAddObjectMessage(u32 objectId, ServerObject* object) {
   // Fill buffer
   data[3] = static_cast<u8>(object->GetObjectType());  // TODO: Currently unneeded since this could be derived from the message length
   mango::ustore32(data + 4, objectId);  // TODO: Maybe save bytes here as long as e.g. less than 16 bits are non-zero?
-  data[8] = (object->GetPlayerIndex() == -1) ? 127 : object->GetPlayerIndex();
+  *reinterpret_cast<u8*>(data + 8) = object->GetPlayerIndex();
   mango::ustore32(data + 9, object->GetHP());
   
   if (object->isBuilding()) {

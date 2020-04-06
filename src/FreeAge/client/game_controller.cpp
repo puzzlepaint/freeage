@@ -172,38 +172,57 @@ void GameController::ParseMessage(const QByteArray& data, ServerToClientMessage 
 }
 
 void GameController::HandleLoadingProgressBroadcast(const QByteArray& data) {
-  int playerIndex = std::min<int>(data[0], match->GetPlayers().size() - 1);
+  if (data.size() < 2) {
+    LOG(ERROR) << "Received a too short LoadingProgressBroadcast message";
+    return;
+  }
+  int playerIndex = data[0];
+  if (playerIndex < 0 || playerIndex >= static_cast<int>(match->GetPlayers().size())) {
+    LOG(ERROR) << "Received a LoadingProgressBroadcast message containing an invalid player index";
+    return;
+  }
   int percentage = std::min<int>(100, data[1]);
   match->SetPlayerLoadingPercentage(playerIndex, percentage);
 }
 
 void GameController::HandleGameBeginMessage(const QByteArray& data) {
+  if (data.size() < 36) {
+    LOG(ERROR) << "Received a too short GameBegin message";
+    return;
+  }
   const char* buffer = data.data();
   
   memcpy(&gameStartServerTimeSeconds, buffer + 0, 8);
-  
-  QPointF initialViewCenterMapCoord(
-      *reinterpret_cast<const float*>(buffer + 8),
-      *reinterpret_cast<const float*>(buffer + 12));
   
   u32 initialWood = mango::uload32(buffer + 16);
   u32 initialFood = mango::uload32(buffer + 20);
   u32 initialGold = mango::uload32(buffer + 24);
   u32 initialStone = mango::uload32(buffer + 28);
   playerResources = ResourceAmount(initialWood, initialFood, initialGold, initialStone);
-  // latestKnownPlayerResources = playerResources;  // TODO: Remove?
   
   u16 mapWidth = mango::uload16(buffer + 32);
   u16 mapHeight = mango::uload16(buffer + 34);
   map.reset(new Map(mapWidth, mapHeight));
   renderWindow->SetMap(map);
+  QPointF initialViewCenterMapCoord(
+      std::max<float>(0, std::min<float>(map->GetWidth(), *reinterpret_cast<const float*>(buffer + 8))),
+      std::max<float>(0, std::min<float>(map->GetHeight(), *reinterpret_cast<const float*>(buffer + 12))));
   renderWindow->SetScroll(initialViewCenterMapCoord);
 }
 
 void GameController::HandleMapUncoverMessage(const QByteArray& data) {
+  if (data.size() < (map->GetWidth() + 1) * (map->GetHeight() + 1)) {
+    LOG(ERROR) << "Received a too short MapUncover message";
+    return;
+  }
+  
   for (int y = 0; y <= map->GetHeight(); ++ y) {
     for (int x = 0; x <= map->GetWidth(); ++ x) {
-      map->elevationAt(x, y) = data[x + y * (map->GetWidth() + 1)];
+      int elevation = data[x + y * (map->GetWidth() + 1)];
+      if (elevation < 0 || elevation > map->GetMaxElevation()) {
+        LOG(WARNING) << "Received invalid map elevation: " << elevation << " (should be from 0 to " << map->GetMaxElevation() << ")";
+      }
+      map->elevationAt(x, y) = elevation;
     }
   }
   
@@ -211,17 +230,36 @@ void GameController::HandleMapUncoverMessage(const QByteArray& data) {
 }
 
 void GameController::HandleAddObjectMessage(const QByteArray& data) {
+  if (data.size() < 20) {
+    LOG(ERROR) << "Received a too short AddObject message";
+    return;
+  }
   const char* buffer = data.data();
   
   ObjectType objectType = static_cast<ObjectType>(buffer[0]);
   u32 objectId = mango::uload32(buffer + 1);
-  int playerIndex = (buffer[5] == 127) ? -1 : buffer[5];
+  int playerIndex = *reinterpret_cast<const u8*>(buffer + 5);
+  if (playerIndex != kGaiaPlayerIndex && playerIndex >= static_cast<int>(match->GetPlayers().size())) {
+    LOG(ERROR) << "Received an AddObject message containing an invalid player index";
+    return;
+  }
   u32 initialHP = mango::uload32(buffer + 6);
   
   if (objectType == ObjectType::Building) {
     BuildingType buildingType = static_cast<BuildingType>(mango::uload16(buffer + 10));
+    if (buildingType >= BuildingType::NumBuildings) {
+      LOG(ERROR) << "Received an AddObject message containing an invalid BuildingType";
+      return;
+    }
+    
     QPoint baseTile(mango::uload16(buffer + 12),
                     mango::uload16(buffer + 14));
+    QSize buildingSize = GetBuildingSize(buildingType);
+    if (baseTile.x() + buildingSize.width() > map->GetWidth() ||
+        baseTile.y() + buildingSize.height() > map->GetHeight()) {
+      LOG(ERROR) << "Received an AddObject message containing a building with out-of-bounds coordinates";
+      return;
+    }
     float buildPercentage = *reinterpret_cast<const float*>(buffer + 16);
     
     map->AddObject(objectId, new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y(), buildPercentage, initialHP));
@@ -229,18 +267,29 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
     if (buildPercentage == 100) {
       availablePopulationSpace += GetBuildingProvidedPopulationSpace(buildingType);
     }
-  } else {
+  } else if (objectType == ObjectType::Unit) {
     UnitType unitType = static_cast<UnitType>(mango::uload16(buffer + 10));
+    if (unitType >= UnitType::NumUnits) {
+      LOG(ERROR) << "Received an AddObject message containing an invalid UnitType";
+      return;
+    }
+    
     QPointF mapCoord(*reinterpret_cast<const float*>(buffer + 12),
                      *reinterpret_cast<const float*>(buffer + 16));
     
     map->AddObject(objectId, new ClientUnit(playerIndex, unitType, mapCoord, initialHP));
     
     populationCount += 1;
+  } else {
+    LOG(ERROR) << "Received AddObject message with invalid ObjectType";
   }
 }
 
 void GameController::HandleObjectDeathMessage(const QByteArray& data) {
+  if (data.size() < 4) {
+    LOG(ERROR) << "Received a too short ObjectDeath message";
+    return;
+  }
   const char* buffer = data.data();
   
   u32 objectId = mango::uload32(buffer + 0);
@@ -279,6 +328,10 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
 }
 
 void GameController::HandleUnitMovementMessage(const QByteArray& data) {
+  if (data.size() < 21) {
+    LOG(ERROR) << "Received a too short SetCarriedResources message";
+    return;
+  }
   const char* buffer = data.data();
   
   u32 unitId = mango::uload32(buffer + 0);
@@ -288,6 +341,10 @@ void GameController::HandleUnitMovementMessage(const QByteArray& data) {
   QPointF speed(
       *reinterpret_cast<const float*>(buffer + 12),
       *reinterpret_cast<const float*>(buffer + 16));
+  if (buffer[20] >= static_cast<int>(UnitAction::NumActions)) {
+    LOG(ERROR) << "Received UnitMovement message with invalid UnitAction";
+    return;
+  }
   UnitAction action = static_cast<UnitAction>(buffer[20]);
   
   auto it = map->GetObjects().find(unitId);
@@ -305,10 +362,18 @@ void GameController::HandleUnitMovementMessage(const QByteArray& data) {
 }
 
 void GameController::HandleGameStepTimeMessage(const QByteArray& data) {
+  if (data.size() < 8) {
+    LOG(ERROR) << "Received a too short GameStepTime message";
+    return;
+  }
   memcpy(&currentGameStepServerTime, data.data() + 0, 8);
 }
 
 void GameController::HandleResourcesUpdateMessage(const QByteArray& data, ResourceAmount* resources) {
+  if (data.size() < 16) {
+    LOG(ERROR) << "Received a too short ResourcesUpdate message";
+    return;
+  }
   const char* buffer = data.data();
   
   u32 wood = mango::uload32(buffer + 0);
@@ -320,6 +385,10 @@ void GameController::HandleResourcesUpdateMessage(const QByteArray& data, Resour
 }
 
 void GameController::HandleBuildPercentageUpdate(const QByteArray& data) {
+  if (data.size() < 4 + 4) {
+    LOG(ERROR) << "Received a too short BuildPercentageUpdate message";
+    return;
+  }
   const char* buffer = data.data();
   
   u32 buildingId = mango::uload32(buffer + 0);
@@ -345,10 +414,14 @@ void GameController::HandleBuildPercentageUpdate(const QByteArray& data) {
 }
 
 void GameController::HandleChangeUnitTypeMessage(const QByteArray& data) {
+  if (data.size() < 4 + 2) {
+    LOG(ERROR) << "Received a too short ChangeUnitType message";
+    return;
+  }
   const char* buffer = data.data();
   
-  u32 buildingId = mango::uload32(buffer + 0);
-  auto it = map->GetObjects().find(buildingId);
+  u32 unitId = mango::uload32(buffer + 0);
+  auto it = map->GetObjects().find(unitId);
   if (it == map->GetObjects().end()) {
     LOG(ERROR) << "Received a ChangeUnitType message for an object ID that is not in the map.";
     return;
@@ -359,12 +432,20 @@ void GameController::HandleChangeUnitTypeMessage(const QByteArray& data) {
   }
   
   UnitType newType = static_cast<UnitType>(mango::uload16(buffer + 4));
+  if (newType >= UnitType::NumUnits) {
+    LOG(ERROR) << "Received a ChangeUnitType message with an invalid UnitType";
+    return;
+  }
   
   ClientUnit* unit = static_cast<ClientUnit*>(it->second);
   unit->SetType(newType);
 }
 
 void GameController::HandleSetCarriedResourcesMessage(const QByteArray& data) {
+  if (data.size() < 6) {
+    LOG(ERROR) << "Received too short SetCarriedResources message";
+    return;
+  }
   const char* buffer = data.data();
   
   u32 unitId = mango::uload32(buffer + 0);
@@ -383,6 +464,10 @@ void GameController::HandleSetCarriedResourcesMessage(const QByteArray& data) {
     return;
   }
   
+  if (buffer[4] >= static_cast<int>(ResourceType::NumTypes)) {
+    LOG(ERROR) << "Received SetCarriedResources message with invalid resource type";
+    return;
+  }
   ResourceType type = static_cast<ResourceType>(buffer[4]);
   u8 amount = buffer[5];
   
@@ -390,6 +475,10 @@ void GameController::HandleSetCarriedResourcesMessage(const QByteArray& data) {
 }
 
 void GameController::HandleHPUpdateMessage(const QByteArray& data) {
+  if (data.size() < 8) {
+    LOG(ERROR) << "Received a too short HPUpdate message";
+    return;
+  }
   const char* buffer = data.data();
   
   u32 objectId = mango::uload32(buffer + 0);
@@ -401,12 +490,19 @@ void GameController::HandleHPUpdateMessage(const QByteArray& data) {
   ClientObject* object = it->second;
   
   u32 newHP = mango::uload32(buffer + 4);
-  
   object->SetHP(newHP);
 }
 
 void GameController::HandlePlayerLeaveBroadcast(const QByteArray& data) {
+  if (data.size() < 2) {
+    LOG(ERROR) << "Received a too short PlayerLeaveBroadcast message";
+    return;
+  }
   u8 playerIndex = data[0];
+  if (playerIndex >= match->GetPlayers().size()) {
+    LOG(ERROR) << "Received a PlayerLeaveBroadcast message with an invalid player index";
+    return;
+  }
   PlayerExitReason reason = static_cast<PlayerExitReason>(data[1]);
   
   Match::PlayerState newState;
@@ -445,6 +541,10 @@ void GameController::HandlePlayerLeaveBroadcast(const QByteArray& data) {
 }
 
 void GameController::HandleQueueUnitMessage(const QByteArray& data) {
+  if (data.size() < 6) {
+    LOG(ERROR) << "Received a too short QueueUnit message";
+    return;
+  }
   const char* buffer = data.data();
   
   u32 buildingId = mango::uload32(buffer + 0);
@@ -459,12 +559,20 @@ void GameController::HandleQueueUnitMessage(const QByteArray& data) {
   }
   
   UnitType unitType = static_cast<UnitType>(mango::uload16(buffer + 4));
+  if (unitType >= UnitType::NumUnits) {
+    LOG(ERROR) << "Received a QueueUnit message with an invalid UnitType";
+    return;
+  }
   
   ClientBuilding* building = static_cast<ClientBuilding*>(it->second);
   building->QueueUnit(unitType);
 }
 
 void GameController::HandleUpdateProductionMessage(const QByteArray& data) {
+  if (data.size() < 4 + 4 + 4) {
+    LOG(ERROR) << "Received a too short UpdateProduction message";
+    return;
+  }
   const char* buffer = data.data();
   
   u32 buildingId = mango::uload32(buffer + 0);
@@ -486,6 +594,10 @@ void GameController::HandleUpdateProductionMessage(const QByteArray& data) {
 }
 
 void GameController::HandleRemoveFromProductionQueueMessage(const QByteArray& data) {
+  if (data.size() < 4) {
+    LOG(ERROR) << "Received a too short RemoveFromProductionQueue message";
+    return;
+  }
   const char* buffer = data.data();
   
   u32 buildingId = mango::uload32(buffer + 0);
@@ -500,9 +612,14 @@ void GameController::HandleRemoveFromProductionQueueMessage(const QByteArray& da
   }
   
   ClientBuilding* building = static_cast<ClientBuilding*>(it->second);
+  // This handles the case of the queue being empty.
   building->DequeueFirstUnit();
 }
 
 void GameController::HandleSetHousedMessage(const QByteArray& data) {
+  if (data.size() < 1) {
+    LOG(ERROR) << "Received a too short SetHoused message";
+    return;
+  }
   isHoused = data.data()[0] != 0;
 }

@@ -163,15 +163,19 @@ class ServerConnectionThread : public QThread {
         return;
       }
       
-      ServerToClientMessage msgType = static_cast<ServerToClientMessage>(data[0]);
-      
-      if (msgType == ServerToClientMessage::PingResponse) {
-        HandlePingResponseMessage(buffer, receiveTime);
+      if (msgLength < 3) {
+        LOG(ERROR) << "Received a too short message. The given message length is (should be at least 3): " << msgLength;
       } else {
-        receivedMessagesMutex.lock();
-        receivedMessages.emplace_back(msgType, buffer.mid(3, msgLength - 3));
-        receivedMessagesMutex.unlock();
-        emit NewMessage();
+        ServerToClientMessage msgType = static_cast<ServerToClientMessage>(data[0]);
+        
+        if (msgType == ServerToClientMessage::PingResponse) {
+          HandlePingResponseMessage(buffer, receiveTime);
+        } else {
+          receivedMessagesMutex.lock();
+          receivedMessages.emplace_back(msgType, buffer.mid(3, msgLength - 3));
+          receivedMessagesMutex.unlock();
+          emit NewMessage();
+        }
       }
       
       buffer.remove(0, msgLength);
@@ -196,6 +200,11 @@ class ServerConnectionThread : public QThread {
   }
   
   void HandlePingResponseMessage(const QByteArray& msg, const TimePoint& receiveTime) {
+    if (msg.size() < 3 + 8 + 8) {
+      LOG(ERROR) << "Received a too short PingResponse message";
+      return;
+    }
+    
     u64 number = mango::uload64(msg.data() + 3);
     double serverTimeSeconds;
     memcpy(&serverTimeSeconds, msg.data() + 3 + 8, 8);
