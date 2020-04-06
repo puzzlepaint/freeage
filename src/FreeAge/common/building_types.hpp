@@ -58,3 +58,5 @@ bool IsDropOffPointForResource(BuildingType building, ResourceType resource);
 /// TODO: This needs to consider the player's civilization and researched technologies
 u32 GetBuildingMaxHP(BuildingType type);
 u32 GetBuildingMeleeArmor(BuildingType type);
+
+int GetBuildingProvidedPopulationSpace(BuildingType type);

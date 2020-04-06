@@ -213,3 +213,10 @@ u32 GetBuildingMeleeArmor(BuildingType type) {
   }
   return 0;
 }
+
+int GetBuildingProvidedPopulationSpace(BuildingType type) {
+  if (type == BuildingType::House || type == BuildingType::TownCenter) {
+    return 5;
+  }
+  return 0;
+}

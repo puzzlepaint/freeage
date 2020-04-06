@@ -1937,7 +1937,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
   popTextDisplay.textDisplay->Render(
       georgiaFontSmaller,
       qRgba(255, 255, 255, 255),
-      "-",  // TODO
+      tr("%1 / %2").arg(gameController->GetPopulationCount()).arg(gameController->GetAvailablePopulationSpace()),
       QRect(topLeft.x() + uiScale * (17 + 4 * 200 + 83 + 16),
             topLeft.y() + uiScale * 16,
             uiScale * 82,

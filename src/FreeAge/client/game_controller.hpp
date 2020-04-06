@@ -34,6 +34,9 @@ class GameController : public QObject {
   // TODO: Remove? Does not seem really useful and we cannot get this unless we peek into messages just for it.
   inline const ResourceAmount& GetLatestKnownResourceAmount() { return /*latestKnownPlayerResources*/ playerResources; }
   
+  inline int GetPopulationCount() const { return populationCount; }
+  inline int GetAvailablePopulationSpace() const { return availablePopulationSpace; }
+  
   inline double GetGameStartServerTimeSeconds() const { return gameStartServerTimeSeconds; }
   
   inline void SetLastDisplayedServerTime(double serverTime) { lastDisplayedServerTime = serverTime; }
@@ -73,8 +76,14 @@ class GameController : public QObject {
   /// is set to a negative value.
   double currentGameStepServerTime = -1;
   
-  /// The resources of the player at the last rendered server time.
+  /// The resources of the player.
   ResourceAmount playerResources;
+  
+  /// The current population count.
+  int populationCount = 0;
+  
+  /// The available population space.
+  int availablePopulationSpace = 0;
   
   /// The most up-to-date known resources of the player (possibly for a server time in the future).
   // TODO: Remove? Does not seem really useful and we cannot get this unless we peek into messages just for it.

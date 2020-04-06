@@ -222,12 +222,18 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
     float buildPercentage = *reinterpret_cast<const float*>(buffer + 16);
     
     map->AddObject(objectId, new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y(), buildPercentage, initialHP));
+    
+    if (buildPercentage == 100) {
+      availablePopulationSpace += GetBuildingProvidedPopulationSpace(buildingType);
+    }
   } else {
     UnitType unitType = static_cast<UnitType>(mango::uload16(buffer + 10));
     QPointF mapCoord(*reinterpret_cast<const float*>(buffer + 12),
                      *reinterpret_cast<const float*>(buffer + 16));
     
     map->AddObject(objectId, new ClientUnit(playerIndex, unitType, mapCoord, initialHP));
+    
+    populationCount += 1;
   }
 }
 
@@ -245,17 +251,24 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
   // Convert the object into a decal that:
   // - First plays the destruction / death animation (if any)
   // - Then displays a rubble pile / decay sprite (if any)
+  //
+  // In addition, handle population count / space changes.
   if (object->isBuilding()) {
     ClientBuilding* building = static_cast<ClientBuilding*>(object);
     if (building->GetBuildPercentage() == 100) {
       Decal* newDecal = new Decal(building, map.get(), currentGameStepServerTime);
       renderWindow->AddDecal(newDecal);
+      
+      // Subtract the population space that this building gave.
+      availablePopulationSpace -= GetBuildingProvidedPopulationSpace(building->GetType());
     } else {
       // TODO: Destruction animations for foundations
     }
   } else if (object->isUnit()) {
     Decal* newDecal = new Decal(static_cast<ClientUnit*>(object), map.get(), currentGameStepServerTime);
     renderWindow->AddDecal(newDecal);
+    
+    populationCount -= 1;
   }
   
   delete object;
@@ -321,6 +334,10 @@ void GameController::HandleBuildPercentageUpdate(const QByteArray& data) {
   memcpy(&percentage, buffer + 4, 4);
   
   ClientBuilding* building = static_cast<ClientBuilding*>(it->second);
+  if (building->GetBuildPercentage() != 100 && percentage == 100) {
+    // The building has been completed.
+    availablePopulationSpace += GetBuildingProvidedPopulationSpace(building->GetType());
+  }
   building->SetBuildPercentage(percentage);
 }
 
