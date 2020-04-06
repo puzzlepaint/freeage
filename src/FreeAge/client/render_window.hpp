@@ -131,6 +131,7 @@ class RenderWindow : public QOpenGLWindow {
   
   void ComputePixelToOpenGLMatrix(QOpenGLFunctions_3_2_Core* f);
   void UpdateViewMatrix();
+  float ComputeEffectiveZoom();
   void UpdateView(const TimePoint& now, QOpenGLFunctions_3_2_Core* f);
   /// Renders a closed path consisting of line segments between the given vertices.
   /// The last vertex will be connected to the first. The vertex coordinates are in screen (pixel) coordinates.
@@ -252,6 +253,11 @@ class RenderWindow : public QOpenGLWindow {
   /// The "scroll" map coordinate is visible at the center of the screen.
   QPointF scroll;
   
+  /// An offset on the scroll position, in projected coordinates.
+  /// This is used to implement smooth zooming.
+  /// The offset step is gradually reduced to zero.
+  QPointF scrollProjectedCoordOffset = QPointF(0, 0);
+  
   bool scrollRightPressed = false;
   TimePoint scrollRightPressTime;
   
@@ -284,8 +290,18 @@ class RenderWindow : public QOpenGLWindow {
   /// Current zoom factor. The default zoom is one, two would make everything twice as big, etc.
   float zoom;
   
+  /// An offset on the zoom factor step. This is used to implement smooth zooming.
+  /// The offset step is gradually reduced to zero.
+  float remainingZoomStepOffset = 0;
+  
+  /// Whether to use smooth zooming or step-wise zooming. TODO: Make configurable.
+  bool smoothZooming = true;
+  
   /// Game start time.
   TimePoint renderStartTime;
+  
+  bool haveLastFrameTime = false;
+  TimePoint lastFrameTime;
   
   /// The server time displayed in the last rendering iteration.
   /// Do not set this to something negative as this might make the code try to access negative frame numbers of animations.

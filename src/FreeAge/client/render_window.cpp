@@ -495,26 +495,27 @@ void RenderWindow::Scroll(float x, float y, QPointF* mapCoord) {
 
 QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime, bool* scrollApplied) {
   *scrollApplied = false;
+  float effectiveZoom = ComputeEffectiveZoom();
   
   QPointF projectedCoord = map->MapCoordToProjectedCoord(scroll);
   if (scrollRightPressed) {
     double seconds = SecondsDuration(atTime - scrollRightPressTime).count();
-    projectedCoord += QPointF(scrollDistancePerSecond / zoom * seconds, 0);
+    projectedCoord += QPointF(scrollDistancePerSecond / effectiveZoom * seconds, 0);
     *scrollApplied = true;
   }
   if (scrollLeftPressed) {
     double seconds = SecondsDuration(atTime - scrollLeftPressTime).count();
-    projectedCoord += QPointF(-scrollDistancePerSecond / zoom * seconds, 0);
+    projectedCoord += QPointF(-scrollDistancePerSecond / effectiveZoom * seconds, 0);
     *scrollApplied = true;
   }
   if (scrollDownPressed) {
     double seconds = SecondsDuration(atTime - scrollDownPressTime).count();
-    projectedCoord += QPointF(0, scrollDistancePerSecond / zoom * seconds);
+    projectedCoord += QPointF(0, scrollDistancePerSecond / effectiveZoom * seconds);
     *scrollApplied = true;
   }
   if (scrollUpPressed) {
     double seconds = SecondsDuration(atTime - scrollUpPressTime).count();
-    projectedCoord += QPointF(0, -scrollDistancePerSecond / zoom * seconds);
+    projectedCoord += QPointF(0, -scrollDistancePerSecond / effectiveZoom * seconds);
     *scrollApplied = true;
   }
   
@@ -522,19 +523,19 @@ QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime, bool* scrollAppl
     double mouseImpactSeconds = SecondsDuration(atTime - lastScrollGetTime).count();
     
     if (lastCursorPos.x() == widgetWidth - 1) {
-      projectedCoord += QPointF(scrollDistancePerSecond / zoom * mouseImpactSeconds, 0);
+      projectedCoord += QPointF(scrollDistancePerSecond / effectiveZoom * mouseImpactSeconds, 0);
       *scrollApplied = true;
     }
     if (lastCursorPos.x() == 0) {
-      projectedCoord += QPointF(-scrollDistancePerSecond / zoom * mouseImpactSeconds, 0);
+      projectedCoord += QPointF(-scrollDistancePerSecond / effectiveZoom * mouseImpactSeconds, 0);
       *scrollApplied = true;
     }
     if (lastCursorPos.y() == widgetHeight - 1) {
-      projectedCoord += QPointF(0, scrollDistancePerSecond / zoom * mouseImpactSeconds);
+      projectedCoord += QPointF(0, scrollDistancePerSecond / effectiveZoom * mouseImpactSeconds);
       *scrollApplied = true;
     }
     if (lastCursorPos.y() == 0) {
-      projectedCoord += QPointF(0, -scrollDistancePerSecond / zoom * mouseImpactSeconds);
+      projectedCoord += QPointF(0, -scrollDistancePerSecond / effectiveZoom * mouseImpactSeconds);
       *scrollApplied = true;
     }
   }
@@ -872,19 +873,30 @@ void RenderWindow::ComputePixelToOpenGLMatrix(QOpenGLFunctions_3_2_Core* f) {
 }
 
 void RenderWindow::UpdateViewMatrix() {
-// Projected coordinates: arbitrary origin, +x goes right, +y goes down, scale is the default scale.
+  float effectiveZoom = ComputeEffectiveZoom();
+  
+  // Projected coordinates: arbitrary origin, +x goes right, +y goes down, scale is the default scale.
   // OpenGL normalized device coordinates: top-left widget corner is (-1, 1), bottom-right widget corner is (1, -1).
   // The transformation is stored as a matrix but applied as follows:
   // opengl_x = viewMatrix[0] * projected_x + viewMatrix[2];
   // opengl_y = viewMatrix[1] * projected_y + viewMatrix[3];
-  QPointF projectedCoordAtScreenCenter = map->MapCoordToProjectedCoord(scroll);
-  float scalingX = zoom * 2.f / widgetWidth;
-  float scalingY = zoom * -2.f / widgetHeight;
+  QPointF projectedCoordAtScreenCenter = map->MapCoordToProjectedCoord(scroll) + scrollProjectedCoordOffset;
+  float scalingX = effectiveZoom * 2.f / widgetWidth;
+  float scalingY = effectiveZoom * -2.f / widgetHeight;
   
   viewMatrix[0] = scalingX;
   viewMatrix[1] = scalingY;
   viewMatrix[2] = -scalingX * projectedCoordAtScreenCenter.x();
   viewMatrix[3] = -scalingY * projectedCoordAtScreenCenter.y();
+}
+
+float RenderWindow::ComputeEffectiveZoom() {
+  if (smoothZooming) {
+    double scaleFactor = std::pow(std::sqrt(2.0), remainingZoomStepOffset);
+    return zoom * scaleFactor;
+  } else {
+    return zoom;
+  }
 }
 
 void RenderWindow::UpdateView(const TimePoint& now, QOpenGLFunctions_3_2_Core* f) {
@@ -1050,6 +1062,8 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
   std::vector<Texture*> textures;
   textures.reserve(64);
   
+  float effectiveZoom = ComputeEffectiveZoom();
+  
   for (auto& object : map->GetObjects()) {
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
@@ -1075,7 +1089,7 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
             qRgb(255, 255, 255),
             shadowShader.get(),
             viewMatrix,
-            zoom,
+            effectiveZoom,
             widgetWidth,
             widgetHeight,
             displayedServerTime,
@@ -1104,7 +1118,7 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
             qRgb(255, 255, 255),
             shadowShader.get(),
             viewMatrix,
-            zoom,
+            effectiveZoom,
             widgetWidth,
             widgetHeight,
             displayedServerTime,
@@ -1124,6 +1138,8 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
   
   std::vector<Texture*> textures;
   textures.reserve(64);
+  
+  float effectiveZoom = ComputeEffectiveZoom();
   
   for (auto& object : map->GetObjects()) {
     if (!object.second->isBuilding()) {
@@ -1151,7 +1167,7 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
           qRgb(255, 255, 255),
           spriteShader.get(),
           viewMatrix,
-          zoom,
+          effectiveZoom,
           widgetWidth,
           widgetHeight,
           displayedServerTime,
@@ -1174,6 +1190,8 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLF
   QPoint foundationBaseTile(-1, -1);
   bool canBePlacedHere = CanBuildingFoundationBePlacedHere(constructBuildingType, lastCursorPos, &foundationBaseTile);
   
+  float effectiveZoom = ComputeEffectiveZoom();
+  
   if (foundationBaseTile.x() >= 0 && foundationBaseTile.y() >= 0) {
     // Render the building foundation, colored either in gray if it can be placed at this location,
     // or in red if it cannot be placed there.
@@ -1189,7 +1207,7 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLF
         modulationColor,
         spriteShader.get(),
         viewMatrix,
-        zoom,
+        effectiveZoom,
         widgetWidth,
         widgetHeight,
         displayedServerTime,
@@ -1222,6 +1240,8 @@ void RenderWindow::RenderSelectionGroundOutlines(QOpenGLFunctions_3_2_Core* f) {
 }
 
 void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object, QOpenGLFunctions_3_2_Core* f) {
+  float effectiveZoom = ComputeEffectiveZoom();
+  
   if (object->isBuilding()) {
     ClientBuilding& building = *static_cast<ClientBuilding*>(object);
     
@@ -1249,8 +1269,8 @@ void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object
                   ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
     }
     
-    RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2), f);
-    RenderClosedPath(zoom * 1.1f, color, outlineVertices, QPointF(0, 0), f);
+    RenderClosedPath(effectiveZoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, effectiveZoom * 2), f);
+    RenderClosedPath(effectiveZoom * 1.1f, color, outlineVertices, QPointF(0, 0), f);
   } else if (object->isUnit()) {
     ClientUnit& unit = *static_cast<ClientUnit*>(object);
     
@@ -1266,8 +1286,8 @@ void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object
                   ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
     }
     
-    RenderClosedPath(zoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, zoom * 2), f);
-    RenderClosedPath(zoom * 1.1f, color, outlineVertices, QPointF(0, 0), f);
+    RenderClosedPath(effectiveZoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, effectiveZoom * 2), f);
+    RenderClosedPath(effectiveZoom * 1.1f, color, outlineVertices, QPointF(0, 0), f);
   }
 }
 
@@ -1278,6 +1298,8 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
   
   std::vector<Texture*> textures;
   textures.reserve(64);
+  
+  float effectiveZoom = ComputeEffectiveZoom();
   
   for (auto& object : map->GetObjects()) {
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
@@ -1319,7 +1341,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
             outlineColor,
             outlineShader.get(),
             viewMatrix,
-            zoom,
+            effectiveZoom,
             widgetWidth,
             widgetHeight,
             displayedServerTime,
@@ -1348,7 +1370,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
             outlineColor,
             outlineShader.get(),
             viewMatrix,
-            zoom,
+            effectiveZoom,
             widgetWidth,
             widgetHeight,
             displayedServerTime,
@@ -1366,6 +1388,8 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
   
   std::vector<Texture*> textures;
   textures.reserve(64);
+  
+  float effectiveZoom = ComputeEffectiveZoom();
   
   for (auto& object : map->GetObjects()) {
     if (!object.second->isUnit()) {
@@ -1389,7 +1413,7 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
           qRgb(255, 255, 255),
           spriteShader.get(),
           viewMatrix,
-          zoom,
+          effectiveZoom,
           widgetWidth,
           widgetHeight,
           displayedServerTime,
@@ -1403,6 +1427,8 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
 
 void RenderWindow::RenderMoveToMarker(const TimePoint& now, QOpenGLFunctions_3_2_Core* f) {
   spriteShader->UseProgram(f);
+  
+  float effectiveZoom = ComputeEffectiveZoom();
   
   // Update move-to sprite.
   int moveToFrameIndex = -1;
@@ -1424,7 +1450,7 @@ void RenderWindow::RenderMoveToMarker(const TimePoint& now, QOpenGLFunctions_3_2
         spriteShader.get(),
         projectedCoord,
         viewMatrix,
-        zoom,
+        effectiveZoom,
         widgetWidth,
         widgetHeight,
         moveToFrameIndex,
@@ -1444,6 +1470,8 @@ void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   QRgb gaiaColor = qRgb(255, 255, 255);
+  
+  float effectiveZoom = ComputeEffectiveZoom();
   
   for (auto& object : map->GetObjects()) {
     if (!object.second->IsSelected()) {
@@ -1476,7 +1504,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions
             (building.GetPlayerIndex() == kGaiaPlayerIndex) ? gaiaColor : playerColors[building.GetPlayerIndex()],
             healthBarShader.get(),
             viewMatrix,
-            zoom,
+            effectiveZoom,
             widgetWidth,
             widgetHeight,
             f);
@@ -1505,7 +1533,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions
             (unit.GetPlayerIndex() == kGaiaPlayerIndex) ? gaiaColor : playerColors[unit.GetPlayerIndex()],
             healthBarShader.get(),
             viewMatrix,
-            zoom,
+            effectiveZoom,
             widgetWidth,
             widgetHeight,
             f);
@@ -1528,6 +1556,8 @@ void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_
   std::vector<Texture*> textures;
   textures.reserve(64);
   
+  float effectiveZoom = ComputeEffectiveZoom();
+  
   for (auto& decal : decals) {
     QRectF projectedCoordsRect = decal->GetRectInProjectedCoords(
         false,
@@ -1538,7 +1568,7 @@ void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_
           qRgb(255, 255, 255),
           spriteShader.get(),
           viewMatrix,
-          zoom,
+          effectiveZoom,
           widgetWidth,
           widgetHeight,
           false,
@@ -1559,6 +1589,8 @@ void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
   std::vector<Texture*> textures;
   textures.reserve(64);
   
+  float effectiveZoom = ComputeEffectiveZoom();
+  
   for (auto& decal : occludingDecals) {
     QRectF projectedCoordsRect = decal->GetRectInProjectedCoords(
         true,
@@ -1569,7 +1601,7 @@ void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
           qRgb(255, 255, 255),
           shadowShader.get(),
           viewMatrix,
-          zoom,
+          effectiveZoom,
           widgetWidth,
           widgetHeight,
           true,
@@ -1590,6 +1622,8 @@ void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
   std::vector<Texture*> textures;
   textures.reserve(64);
   
+  float effectiveZoom = ComputeEffectiveZoom();
+  
   for (auto& decal : occludingDecals) {
     QRgb outlineColor = qRgb(255, 255, 255);
     if (decal->GetPlayerIndex() < playerColors.size()) {
@@ -1605,7 +1639,7 @@ void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
           outlineColor,
           outlineShader.get(),
           viewMatrix,
-          zoom,
+          effectiveZoom,
           widgetWidth,
           widgetHeight,
           false,
@@ -2830,11 +2864,13 @@ void RenderWindow::JumpToObject(u32 objectId, ClientObject* object) {
   if (object->isBuilding()) {
     ClientBuilding* building = static_cast<ClientBuilding*>(object);
     scroll = building->GetCenterMapCoord();
+    scrollProjectedCoordOffset = QPointF(0, 0);
     UpdateViewMatrix();
     UpdateCursor();
   } else if (object->isUnit()) {
     ClientUnit* unit = static_cast<ClientUnit*>(object);
     scroll = unit->GetMapCoord();
+    scrollProjectedCoordOffset = QPointF(0, 0);
     UpdateViewMatrix();
     UpdateCursor();
   }
@@ -3012,8 +3048,9 @@ void RenderWindow::paintGL() {
   // Get the time for which to render the game state.
   // TODO: Predict the time at which the rendered frame will be displayed rather than taking the current time.
   TimePoint now = Clock::now();
-  // TODO: Using elapsedSeconds for animation has been replaced with using displayedServerTime.
-  // double elapsedSeconds = std::chrono::duration<double>(now - renderStartTime).count();
+  double secondsSinceLastFrame = haveLastFrameTime ? SecondsDuration(now - lastFrameTime).count() : 0;
+  lastFrameTime = now;
+  haveLastFrameTime = true;
   
   // Update the game state to the server time that should be displayed.
   double displayedServerTime = connection->ConnectionToServerLost() ? lastDisplayedServerTime : connection->GetServerTimeToDisplayNow();
@@ -3055,6 +3092,29 @@ void RenderWindow::paintGL() {
   }
   if (haveBuildingSelected) {
     ShowDefaultCommandButtonsForSelection();
+  }
+  
+  // Update smooth zooming.
+  if (smoothZooming) {
+    constexpr float zoomUpdateRate = 0.003f;
+    constexpr float projectedCoordUpdateRate = 0.003f;
+    
+    remainingZoomStepOffset = remainingZoomStepOffset * std::pow(zoomUpdateRate, secondsSinceLastFrame);
+    if (fabs(remainingZoomStepOffset) < 0.001f) {
+      remainingZoomStepOffset = 0;
+    }
+    
+    float effectiveZoom = ComputeEffectiveZoom();
+    
+    float projectedCoordFactor = std::pow(projectedCoordUpdateRate, secondsSinceLastFrame);
+    scrollProjectedCoordOffset.setX(scrollProjectedCoordOffset.x() * projectedCoordFactor);
+    if (fabs(effectiveZoom * scrollProjectedCoordOffset.x()) < 0.1f) {
+      scrollProjectedCoordOffset.setX(0);
+    }
+    scrollProjectedCoordOffset.setY(scrollProjectedCoordOffset.y() * projectedCoordFactor);
+    if (fabs(effectiveZoom * scrollProjectedCoordOffset.y()) < 0.1f) {
+      scrollProjectedCoordOffset.setY(0);
+    }
   }
   
   gameStateUpdateTimer.Stop();
@@ -3543,10 +3603,9 @@ void RenderWindow::wheelEvent(QWheelEvent* event) {
   // Compute new scroll value to keep the map coord under the cursor fixed (if possible)
   QPointF cursorProjectedCoord = ScreenCoordToProjectedCoord(lastCursorPos.x(), lastCursorPos.y());
   
-  // Instant application.
-  // TODO: Smooth application
   zoom = newZoom;
   UpdateViewMatrix();
+  
   QPointF screenCoordDifference = lastCursorPos - ProjectedCoordToScreenCoord(cursorProjectedCoord);
   QPointF requiredProjectedCoordDifference(
        2.f / (widgetWidth * viewMatrix[0]) * screenCoordDifference.x(),
@@ -3554,6 +3613,11 @@ void RenderWindow::wheelEvent(QWheelEvent* event) {
   
   QPointF newScreenCenterProjectedCoords = map->MapCoordToProjectedCoord(scroll) - requiredProjectedCoordDifference;
   map->ProjectedCoordToMapCoord(newScreenCenterProjectedCoords, &scroll);
+  
+  if (smoothZooming) {
+    scrollProjectedCoordOffset += requiredProjectedCoordDifference;
+    remainingZoomStepOffset += -numSteps;
+  }
   UpdateViewMatrix();
 }
 
@@ -3613,32 +3677,34 @@ void RenderWindow::keyReleaseEvent(QKeyEvent* event) {
     return;
   }
   
+  float effectiveZoom = ComputeEffectiveZoom();
+  
   if (event->key() == Qt::Key_Right) {
     scrollRightPressed = false;
     TimePoint now = Clock::now();
     double seconds = std::chrono::duration<double>(now - scrollRightPressTime).count();
-    Scroll(scrollDistancePerSecond / zoom * seconds, 0, &scroll);
+    Scroll(scrollDistancePerSecond / effectiveZoom * seconds, 0, &scroll);
     UpdateViewMatrix();
     UpdateCursor();
   } else if (event->key() == Qt::Key_Left) {
     scrollLeftPressed = false;
     TimePoint now = Clock::now();
     double seconds = std::chrono::duration<double>(now - scrollLeftPressTime).count();
-    Scroll(-scrollDistancePerSecond / zoom * seconds, 0, &scroll);
+    Scroll(-scrollDistancePerSecond / effectiveZoom * seconds, 0, &scroll);
     UpdateViewMatrix();
     UpdateCursor();
   } else if (event->key() == Qt::Key_Up) {
     scrollUpPressed = false;
     TimePoint now = Clock::now();
     double seconds = std::chrono::duration<double>(now - scrollUpPressTime).count();
-    Scroll(0, -scrollDistancePerSecond / zoom * seconds, &scroll);
+    Scroll(0, -scrollDistancePerSecond / effectiveZoom * seconds, &scroll);
     UpdateViewMatrix();
     UpdateCursor();
   } else if (event->key() == Qt::Key_Down) {
     scrollDownPressed = false;
     TimePoint now = Clock::now();
     double seconds = std::chrono::duration<double>(now - scrollDownPressTime).count();
-    Scroll(0, scrollDistancePerSecond / zoom * seconds, &scroll);
+    Scroll(0, scrollDistancePerSecond / effectiveZoom * seconds, &scroll);
     UpdateViewMatrix();
     UpdateCursor();
   } else if (match->IsPlayerStillInGame()) {
