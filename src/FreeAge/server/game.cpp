@@ -397,7 +397,7 @@ void Game::HandleDeleteObjectMessage(const QByteArray& msg, PlayerInGame* player
     return;
   }
   
-  DeleteObject(objectId);
+  DeleteObject(objectId, true);
 }
 
 Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players) {
@@ -1662,7 +1662,7 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
       }
     } else {
       // Remove the target.
-      DeleteObject(targetId);
+      DeleteObject(targetId, false);
     }
   }
   
@@ -1789,7 +1789,7 @@ void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 
   }
 }
 
-void Game::DeleteObject(u32 objectId) {
+void Game::DeleteObject(u32 objectId, bool deletedManually) {
   // TODO: Convert the object into some other form to remember
   //       the potential destroy / death animation and rubble / decay sprite.
   //       We need to store this so we can tell other clients about its existence
@@ -1801,12 +1801,22 @@ void Game::DeleteObject(u32 objectId) {
   
   objectDeleteList.push_back(objectId);
   
-  // For buildings, remove their map occupancy
+  // For buildings:
+  // * Remove their map occupancy
+  // * If not completed and deleted manually, refund some resources
   auto it = map->GetObjects().find(objectId);
   if (it != map->GetObjects().end() &&
       it->second->isBuilding()) {
     ServerBuilding* building = static_cast<ServerBuilding*>(it->second);
-    map->RemoveBuildingOccupancy(building);
+    if (building->GetBuildPercentage() > 0) {
+      map->RemoveBuildingOccupancy(building);
+    }
+    if (deletedManually && building->GetBuildPercentage() < 100) {
+      float remainingResourceAmount = 1 - building->GetBuildPercentage() / 100.f;
+      
+      ResourceAmount cost = GetBuildingCost(building->GetBuildingType());
+      playersInGame->at(building->GetPlayerIndex())->resources.Add(remainingResourceAmount * cost);
+    }
   }
   
   // If all objects of a player are gone, the player gets defeated.

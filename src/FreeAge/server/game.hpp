@@ -103,7 +103,7 @@ class Game {
   
   void SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject);
   
-  void DeleteObject(u32 objectId);
+  void DeleteObject(u32 objectId, bool deletedManually);
   
   void RemovePlayer(int playerIndex, PlayerExitReason reason);
   

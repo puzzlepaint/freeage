@@ -93,3 +93,11 @@ struct ResourceAmount {
   
   u32 resources[static_cast<int>(ResourceType::NumTypes)];
 };
+
+inline ResourceAmount operator * (float factor, const ResourceAmount& value) {
+  return ResourceAmount(
+      factor * value.wood() + 0.5f,
+      factor * value.food() + 0.5f,
+      factor * value.gold() + 0.5f,
+      factor * value.stone() + 0.5f);
+}
