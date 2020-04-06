@@ -143,7 +143,7 @@ retryForest:  // TODO: Ugly implementation, improve this
           int diffY = y - tileY;
           float radius = sqrtf(diffX * diffX + diffY * diffY);
           if (radius <= forestRadius && !occupiedForBuildingsAt(x, y)) {
-            AddBuilding(-1, BuildingType::TreeOak, QPoint(x, y), /*buildPercentage*/ 100);
+            AddBuilding(kGaiaPlayerIndex, BuildingType::TreeOak, QPoint(x, y), /*buildPercentage*/ 100);
           }
         }
       }
@@ -185,7 +185,7 @@ retryForest:  // TODO: Ugly implementation, improve this
         }
         
         for (int t = 0; t < count; ++ t) {
-          AddBuilding(-1, type, spawnLoc, /*buildPercentage*/ 100);
+          AddBuilding(kGaiaPlayerIndex, type, spawnLoc, /*buildPercentage*/ 100);
           if (t == count - 1) {
             break;
           }

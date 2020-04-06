@@ -372,3 +372,9 @@ QByteArray CreateRemoveFromProductionQueueMessage(u32 buildingId) {
   mango::ustore32(data + 3, buildingId);
   return msg;
 }
+
+QByteArray CreateSetHousedMessage(bool housed) {
+  QByteArray msg = CreateServerToClientMessageHeader(1, ServerToClientMessage::SetHoused);
+  msg.data()[3] = housed ? 1 : 0;
+  return msg;
+}

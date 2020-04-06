@@ -573,15 +573,26 @@ void Game::StartGame() {
     player->socket->write(mapUncoverMsg);
   }
   
-  // Send creation messages for the initial map objects
-  const std::unordered_map<u32, ServerObject*>& objects = map->GetObjects();
-  for (auto& player : *playersInGame) {
-    for (const auto& item : objects) {
-      ServerObject* object = item.second;
-      QByteArray addObjectMsg = CreateAddObjectMessage(item.first, object);
+  // Send creation messages for the initial map objects and count initial population
+  const auto& objects = map->GetObjects();
+  for (const auto& item : objects) {
+    ServerObject* object = item.second;
+    
+    QByteArray addObjectMsg = CreateAddObjectMessage(item.first, object);
+    for (auto& player : *playersInGame) {
       player->socket->write(addObjectMsg);
     }
     
+    if (object->isBuilding()) {
+      ServerBuilding* building = static_cast<ServerBuilding*>(object);
+      if (building->GetPlayerIndex() != kGaiaPlayerIndex) {
+        playersInGame->at(building->GetPlayerIndex())->availablePopulationSpace += GetBuildingProvidedPopulationSpace(building->GetBuildingType());
+      }
+    } else if (object->isUnit()) {
+      playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction += 1;
+    }
+  }
+  for (auto& player : *playersInGame) {
     player->socket->flush();
   }
   
@@ -589,6 +600,11 @@ void Game::StartGame() {
 }
 
 void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds) {
+  // Reset all players to "not housed".
+  for (auto& player : *playersInGame) {
+    player->isHoused = false;
+  }
+  
   // Iterate over all game objects to update their state.
   auto end = map->GetObjects().end();
   for (auto it = map->GetObjects().begin(); it != end; ++ it) {
@@ -613,6 +629,20 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
     }
   }
   objectDeleteList.clear();
+  
+  // Check whether we need to send "housed" messages to clients.
+  for (usize playerIndex = 0; playerIndex < playersInGame->size(); ++ playerIndex) {
+    auto& player = (*playersInGame)[playerIndex];
+    if (!player->isConnected) {
+      continue;
+    }
+    
+    if (player->isHoused != player->wasHousedBefore) {
+      accumulatedMessages[playerIndex] += CreateSetHousedMessage(player->isHoused);
+      
+      player->wasHousedBefore = player->isHoused;
+    }
+  }
   
   // Send out the accumulated messages for each player. The advantage of the accumulation is that
   // the TCP header only has to be sent once for each player, rather than for each message.
@@ -1442,6 +1472,12 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
     double constructionStepAmount = stepLengthInSeconds / constructionTime;
     
     double newPercentage = std::min<double>(100, targetBuilding->GetBuildPercentage() + 100 * constructionStepAmount);
+    if (newPercentage == 100 && targetBuilding->GetBuildPercentage() != 100) {
+      // Building completed.
+      if (targetBuilding->GetPlayerIndex() != kGaiaPlayerIndex) {
+        playersInGame->at(targetBuilding->GetPlayerIndex())->availablePopulationSpace += GetBuildingProvidedPopulationSpace(targetBuilding->GetBuildingType());
+      }
+    }
     targetBuilding->SetBuildPercentage(newPercentage);
     
     // Tell all clients that see the building about the new build percentage.
@@ -1586,31 +1622,50 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
   // If the building's production queue is non-empty, add progress on the item that is currently being produced / researched.
   UnitType unitInProduction;
   if (building->IsUnitQueued(&unitInProduction)) {
-    float previousPercentage = building->GetProductionPercentage();
-    float productionTime = GetUnitProductionTime(unitInProduction);
-    float timeStepPercentage = 100 * stepLengthInSeconds / productionTime;
-    float newPercentage = building->GetProductionPercentage() + timeStepPercentage;
+    auto& player = *playersInGame->at(building->GetPlayerIndex());
     
-    bool completed = false;
-    if (newPercentage >= 100) {
-      // Special case for UnitType::MaleVillager: Randomly decide whether to produce a male or female.
-      if (unitInProduction == UnitType::MaleVillager) {
-        unitInProduction = (rand() % 2 == 0) ? UnitType::MaleVillager : UnitType::FemaleVillager;
+    bool canProduce = true;
+    float previousPercentage = building->GetProductionPercentage();
+    if (previousPercentage == 0) {
+      // Only start producing the unit if population space is available.
+      canProduce = player.populationIncludingInProduction < player.availablePopulationSpace;
+      if (!canProduce) {
+        player.isHoused = true;
       }
-      
-      // Create the unit.
-      ProduceUnit(building, unitInProduction);
-      building->RemoveCurrentItemFromQueue();
-      
-      newPercentage = 0;
-      completed = true;
-      accumulatedMessages[building->GetPlayerIndex()] += CreateRemoveFromProductionQueueMessage(buildingId);
     }
     
-    building->SetProductionPercentage(newPercentage);
-    if (!completed && previousPercentage == 0) {
-      // If the production just starts, notify the client about it.
-      accumulatedMessages[building->GetPlayerIndex()] += CreateUpdateProductionMessage(buildingId, building->GetProductionPercentage(), 100.f / productionTime);
+    if (canProduce) {
+      float productionTime = GetUnitProductionTime(unitInProduction);
+      float timeStepPercentage = 100 * stepLengthInSeconds / productionTime;
+      float newPercentage = building->GetProductionPercentage() + timeStepPercentage;
+      
+      bool completed = false;
+      if (newPercentage >= 100) {
+        // Remove the population count for the unit in production.
+        player.populationIncludingInProduction -= 1;
+        
+        // Special case for UnitType::MaleVillager: Randomly decide whether to produce a male or female.
+        if (unitInProduction == UnitType::MaleVillager) {
+          unitInProduction = (rand() % 2 == 0) ? UnitType::MaleVillager : UnitType::FemaleVillager;
+        }
+        
+        // Create the unit.
+        ProduceUnit(building, unitInProduction);
+        building->RemoveCurrentItemFromQueue();
+        
+        newPercentage = 0;
+        completed = true;
+        accumulatedMessages[building->GetPlayerIndex()] += CreateRemoveFromProductionQueueMessage(buildingId);
+      }
+      
+      building->SetProductionPercentage(newPercentage);
+      if (!completed && previousPercentage == 0) {
+        // If the production just starts, notify the client about it.
+        accumulatedMessages[building->GetPlayerIndex()] += CreateUpdateProductionMessage(buildingId, building->GetProductionPercentage(), 100.f / productionTime);
+        
+        // Add the population count for the unit in production.
+        player.populationIncludingInProduction += 1;
+      }
     }
   }
 }
@@ -1762,6 +1817,9 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   for (auto& player : *playersInGame) {
     accumulatedMessages[player->index] += addObjectMsg;
   }
+  
+  // Handle population counting
+  playersInGame->at(newUnit->GetPlayerIndex())->populationIncludingInProduction += 1;
 }
 
 void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject) {
@@ -1799,15 +1857,20 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
     accumulatedMessages[player->index] += msg;
   }
   
+  auto it = map->GetObjects().find(objectId);
+  if (it == map->GetObjects().end()) {
+    LOG(ERROR) << "Did not find the object to delete in the object map.";
+    return;
+  }
+  ServerObject* object = it->second;
+  
   objectDeleteList.push_back(objectId);
   
   // For buildings:
   // * Remove their map occupancy
   // * If not completed and deleted manually, refund some resources
-  auto it = map->GetObjects().find(objectId);
-  if (it != map->GetObjects().end() &&
-      it->second->isBuilding()) {
-    ServerBuilding* building = static_cast<ServerBuilding*>(it->second);
+  if (object->isBuilding()) {
+    ServerBuilding* building = static_cast<ServerBuilding*>(object);
     if (building->GetBuildPercentage() > 0) {
       map->RemoveBuildingOccupancy(building);
     }
@@ -1819,12 +1882,21 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
     }
   }
   
+  // Handle population counting.
+  if (object->isBuilding()) {
+    ServerBuilding* building = static_cast<ServerBuilding*>(object);
+    if (building->GetPlayerIndex() != kGaiaPlayerIndex) {
+      playersInGame->at(building->GetPlayerIndex())->availablePopulationSpace -= GetBuildingProvidedPopulationSpace(building->GetBuildingType());
+    }
+  } else if (object->isUnit()) {
+    playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction -= 1;
+  }
+  
   // If all objects of a player are gone, the player gets defeated.
-  if (it != map->GetObjects().end() &&
-      it->second->GetPlayerIndex() != kGaiaPlayerIndex) {
+  if (object->GetPlayerIndex() != kGaiaPlayerIndex) {
     bool playerHasRemainingObject = false;
     for (const auto& item : map->GetObjects()) {
-      if (item.second->GetPlayerIndex() == it->second->GetPlayerIndex() &&
+      if (item.second->GetPlayerIndex() == object->GetPlayerIndex() &&
           item.first != it->first) {
         playerHasRemainingObject = true;
         break;
@@ -1832,7 +1904,7 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
     }
     
     if (!playerHasRemainingObject) {
-      RemovePlayer(it->second->GetPlayerIndex(), PlayerExitReason::Defeat);
+      RemovePlayer(object->GetPlayerIndex(), PlayerExitReason::Defeat);
     }
   }
 }

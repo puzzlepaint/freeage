@@ -37,6 +37,8 @@ class GameController : public QObject {
   inline int GetPopulationCount() const { return populationCount; }
   inline int GetAvailablePopulationSpace() const { return availablePopulationSpace; }
   
+  inline bool IsPlayerHoused() const { return isHoused; }
+  
   inline double GetGameStartServerTimeSeconds() const { return gameStartServerTimeSeconds; }
   
   inline void SetLastDisplayedServerTime(double serverTime) { lastDisplayedServerTime = serverTime; }
@@ -61,6 +63,7 @@ class GameController : public QObject {
   void HandleQueueUnitMessage(const QByteArray& data);
   void HandleUpdateProductionMessage(const QByteArray& data);
   void HandleRemoveFromProductionQueueMessage(const QByteArray& data);
+  void HandleSetHousedMessage(const QByteArray& data);
   
   
   std::shared_ptr<ServerConnection> connection;
@@ -85,9 +88,8 @@ class GameController : public QObject {
   /// The available population space.
   int availablePopulationSpace = 0;
   
-  /// The most up-to-date known resources of the player (possibly for a server time in the future).
-  // TODO: Remove? Does not seem really useful and we cannot get this unless we peek into messages just for it.
-  // ResourceAmount latestKnownPlayerResources;
+  /// Whether the player is currenly housed.
+  bool isHoused = false;
   
   /// The last server time that has been used to display the game state in the render window.
   /// - All network packets for server times *before* this should be applied immediately.

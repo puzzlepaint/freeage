@@ -205,6 +205,13 @@ enum class ServerToClientMessage {
   /// Tells the client to remove the first item of a building's production queue,
   /// and reset the current production progress of that building to zero.
   RemoveFromProductionQueue,
+  
+  /// Tells the client whether it is housed or not.
+  /// NOTE: The client could in principle figure this out itself, but it seemed easier and
+  ///       less error-prone to introduce this message instead. At least this ensures that the
+  ///       client behaves the same way as the server in this regard. And the amount of additional
+  ///       transmitted data should be completely irrelevant.
+  SetHoused,
 };
 
 QByteArray CreateWelcomeMessage();
@@ -262,3 +269,5 @@ QByteArray CreateQueueUnitMessage(u32 buildingId, u16 unitType);
 QByteArray CreateUpdateProductionMessage(u32 buildingId, float progressValue, float progressPerSecond);
 
 QByteArray CreateRemoveFromProductionQueueMessage(u32 buildingId);
+
+QByteArray CreateSetHousedMessage(bool housed);

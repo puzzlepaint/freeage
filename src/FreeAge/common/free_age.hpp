@@ -28,7 +28,7 @@ typedef std::chrono::duration<double> SecondsDuration;
 static constexpr u16 serverPort = 49100;  // TODO: Make configurable
 
 /// Player index for "gaia" objects (resources, animals, etc.)
-static constexpr int kGaiaPlayerIndex = -1;
+static constexpr int kGaiaPlayerIndex = 255;
 
 /// The maximum capacity of production queues in buildings.
 static constexpr int kMaxProductionQueueSize = 11;

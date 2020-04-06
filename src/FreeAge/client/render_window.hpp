@@ -384,6 +384,8 @@ class RenderWindow : public QOpenGLWindow {
   TextDisplayAndPointBuffer stoneTextDisplay;
   TextureAndPointBuffer pop;
   TextDisplayAndPointBuffer popTextDisplay;
+  double housedStartTime = -1;
+  PointBuffer popWhiteBackgroundPointBuffer;
   TextureAndPointBuffer idleVillagerDisabled;
   TextureAndPointBuffer currentAgeShield;
   TextDisplayAndPointBuffer currentAgeTextDisplay;

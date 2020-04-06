@@ -53,6 +53,23 @@ struct PlayerInGame {
   /// Only if this differs from the current resource amount, then an update message
   /// needs to be sent to the client.
   ResourceAmount lastResources;
+  
+  /// The current available population space of this player.
+  int availablePopulationSpace = 0;
+  
+  /// The current population count of this player,
+  /// *including units being produced*. This is required for "housed" checking,
+  /// and it is different from the population count shown to the client.
+  int populationIncludingInProduction = 0;
+  
+  /// Whether the player is currently housed.
+  /// This is reset to false at the beginning of each game step and set to true
+  /// if any of the player's buildings cannot produce something due to lack of population space.
+  bool isHoused = false;
+  
+  /// Whether the player was housed in the last game step.
+  /// Used to determine whether an update of the housed state needs to be sent to the client.
+  bool wasHousedBefore = false;
 };
 
 class Game {

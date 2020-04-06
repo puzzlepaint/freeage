@@ -150,6 +150,9 @@ void GameController::ParseMessage(const QByteArray& data, ServerToClientMessage 
   case ServerToClientMessage::RemoveFromProductionQueue:
     HandleRemoveFromProductionQueueMessage(data);
     break;
+  case ServerToClientMessage::SetHoused:
+    HandleSetHousedMessage(data);
+    break;
   case ServerToClientMessage::ChatBroadcast:
     // TODO
     break;
@@ -498,4 +501,8 @@ void GameController::HandleRemoveFromProductionQueueMessage(const QByteArray& da
   
   ClientBuilding* building = static_cast<ClientBuilding*>(it->second);
   building->DequeueFirstUnit();
+}
+
+void GameController::HandleSetHousedMessage(const QByteArray& data) {
+  isHoused = data.data()[0] != 0;
 }

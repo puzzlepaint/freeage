@@ -163,6 +163,7 @@ RenderWindow::~RenderWindow() {
   stoneTextDisplay.Destroy();
   pop.Unload();
   popTextDisplay.Destroy();
+  popWhiteBackgroundPointBuffer.Destroy();
   idleVillagerDisabled.Unload();
   currentAgeShield.Unload();
   currentAgeTextDisplay.Destroy();
@@ -297,6 +298,7 @@ void RenderWindow::LoadResources() {
   goldTextDisplay.Initialize();
   stoneTextDisplay.Initialize();
   popTextDisplay.Initialize();
+  popWhiteBackgroundPointBuffer.Initialize();
   currentAgeTextDisplay.Initialize();
   gameTimeDisplay.Initialize();
   gameTimeDisplayShadowPointBuffer.Initialize();
@@ -1704,7 +1706,7 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
   connection->EstimateCurrentPingAndOffset(&filteredPing, &filteredOffset);
   QString fpsAndPingString;
   if (roundedFPS >= 0) {
-    fpsAndPingString = QObject::tr("%1 FPS | %2 ms").arg(roundedFPS).arg(static_cast<int>(1000 * filteredPing + 0.5f));
+    fpsAndPingString = QObject::tr("%1 FPS | ping: %2 ms").arg(roundedFPS).arg(static_cast<int>(1000 * filteredPing + 0.5f));
   } else {
     fpsAndPingString = QObject::tr("%1 ms").arg(static_cast<int>(1000 * filteredPing + 0.5f));
   }
@@ -1934,9 +1936,60 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       qRgba(255, 255, 255, 255), pop.pointBuffer,
       *pop.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
+  bool populationBlinking = false;
+  if (gameController->IsPlayerHoused()) {
+    if (housedStartTime < 0) {
+      housedStartTime = lastDisplayedServerTime;
+    }
+    
+    constexpr float kHousedBlinkInterval = 0.6f;
+    if (fmod(lastDisplayedServerTime - housedStartTime, 2 * kHousedBlinkInterval) <= kHousedBlinkInterval) {
+      populationBlinking = true;
+      
+      // Draw a white background for the population display.
+      QRectF rect(
+          topLeft.x() + uiScale * (17 + 4 * 200 + 83 + 16),
+          topLeft.y() + uiScale * 2*18,
+          uiScale * 2*60,
+          uiScale * 2*22);
+      
+      f->glBindBuffer(GL_ARRAY_BUFFER, popWhiteBackgroundPointBuffer.buffer);
+      f->glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(float), nullptr, GL_STREAM_DRAW);
+      
+      uiSingleColorShader->GetProgram()->UseProgram(f);
+      f->glUniform4f(uiSingleColorShader->GetColorLocation(), 1.f, 1.f, 1.f, 1.f);
+      
+      float* data = static_cast<float*>(f->glMapBufferRange(GL_ARRAY_BUFFER, 0, 12 * sizeof(float), GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT));
+      data[0] = rect.x();
+      data[1] = rect.y();
+      data[2] = 0;
+      data[3] = rect.right();
+      data[4] = rect.y();
+      data[5] = 0;
+      data[6] = rect.x();
+      data[7] = rect.bottom();
+      data[8] = 0;
+      data[9] = rect.right();
+      data[10] = rect.bottom();
+      data[11] = 0;
+      f->glUnmapBuffer(GL_ARRAY_BUFFER);
+      CHECK_OPENGL_NO_ERROR();
+      uiSingleColorShader->GetProgram()->SetPositionAttribute(
+          3,
+          GetGLType<float>::value,
+          3 * sizeof(float),
+          0,
+          f);
+      
+      f->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+      CHECK_OPENGL_NO_ERROR();
+    }
+  } else {
+    housedStartTime = -1;
+  }
   popTextDisplay.textDisplay->Render(
       georgiaFontSmaller,
-      qRgba(255, 255, 255, 255),
+      populationBlinking ? qRgba(0, 0, 0, 255) : qRgba(255, 255, 255, 255),
       tr("%1 / %2").arg(gameController->GetPopulationCount()).arg(gameController->GetAvailablePopulationSpace()),
       QRect(topLeft.x() + uiScale * (17 + 4 * 200 + 83 + 16),
             topLeft.y() + uiScale * 16,
