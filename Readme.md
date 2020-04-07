@@ -65,10 +65,13 @@ start a game with only a single player for testing purposes.
 Hotkeys are currently hard-coded to the following:
 
 * Arrow keys: Scrolling
-* H: Jump to town center
-* A: Build villager / Build militia / Economy buildings
-* S: Military buildings
-* Q - R, A: Grid mapping for constructing the corresponding buildings
+* H:          Jump to town center
+* A:          Build villager / Build militia / Economy buildings
+* S:          Military buildings
+* Q - R, A:   Grid mapping for constructing the corresponding buildings
+* Del:        Delete building or unit
+* 1 - 0:      Control groups (define by holding Ctrl)
+* Space:      Jump to selected object(s)
 
 ### Playing over the Internet ###
 
@@ -122,7 +125,7 @@ for building CMake-based projects, for example as follows:
 ```bash
 mkdir build
 cd build
-cmake -CMAKE_BUILD_TYPE=RelWithDebInfo -GNinja ..
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja ..
 ninja
 ```
 

@@ -192,6 +192,7 @@ class RenderWindow : public QOpenGLWindow {
   
   void ClearSelection();
   void AddToSelection(u32 objectId);
+  void AddToSelectionIfExists(u32 objectId);
   /// This must be called after making changes to the selection.
   void SelectionChanged();
   /// Performs box selection. This already calls SelectionChanged() internally.
@@ -219,8 +220,12 @@ class RenderWindow : public QOpenGLWindow {
   void JumpToNextTownCenter();
   /// Selects the object and centers the view on it.
   void JumpToObject(u32 objectId, ClientObject* object);
+  void JumpToSelectedObjects();
   
   void DeleteSelectedObjects();
+  
+  void DefineControlGroup(int controlGroupIndex);
+  void SelectControlGroup(int controlGroupIndex);
   
   virtual void initializeGL() override;
   virtual void paintGL() override;
@@ -434,6 +439,12 @@ class RenderWindow : public QOpenGLWindow {
   /// The type of building that the user is about to place a foundation for.
   /// If not constructing a building, this is set to BuildingType::NumBuildings.
   BuildingType constructBuildingType = BuildingType::NumBuildings;
+  
+  // Control groups.
+  static constexpr int kNumControlGroups = 10;
+  std::vector<u32> controlGroups[kNumControlGroups];
+  
+  bool spaceHeld = false;
   
   // Resources.
   bool haveSyncObject = false;

@@ -1710,7 +1710,7 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
   connection->EstimateCurrentPingAndOffset(&filteredPing, &filteredOffset);
   QString fpsAndPingString;
   if (roundedFPS >= 0) {
-    fpsAndPingString = QObject::tr("%1 FPS | ping: %2 ms").arg(roundedFPS).arg(static_cast<int>(1000 * filteredPing + 0.5f));
+    fpsAndPingString = QObject::tr("%1 FPS | Ping: %2 ms").arg(roundedFPS).arg(static_cast<int>(1000 * filteredPing + 0.5f));
   } else {
     fpsAndPingString = QObject::tr("%1 ms").arg(static_cast<int>(1000 * filteredPing + 0.5f));
   }
@@ -2635,6 +2635,14 @@ void RenderWindow::AddToSelection(u32 objectId) {
   }
 }
 
+void RenderWindow::AddToSelectionIfExists(u32 objectId) {
+  auto objectIt = map->GetObjects().find(objectId);
+  if (objectIt != map->GetObjects().end()) {
+    selection.push_back(objectId);
+    objectIt->second->SetIsSelected(true);
+  }
+}
+
 void RenderWindow::SelectionChanged() {
   ShowDefaultCommandButtonsForSelection();
 }
@@ -3035,6 +3043,35 @@ void RenderWindow::JumpToObject(u32 objectId, ClientObject* object) {
   }
 }
 
+void RenderWindow::JumpToSelectedObjects() {
+  QPointF projectedCoordSum(0, 0);
+  int count = 0;
+  
+  for (u32 id : selection) {
+    auto it = map->GetObjects().find(id);
+    if (it != map->GetObjects().end()) {
+      if (it->second->isBuilding()) {
+        ClientBuilding* building = AsBuilding(it->second);
+        projectedCoordSum += map->MapCoordToProjectedCoord(building->GetCenterMapCoord());
+        ++ count;
+      } else if (it->second->isUnit()) {
+        ClientUnit* unit = AsUnit(it->second);
+        projectedCoordSum += map->MapCoordToProjectedCoord(unit->GetMapCoord());
+        ++ count;
+      }
+    }
+  }
+  
+  if (count > 0) {
+    QPointF projectedCoord = projectedCoordSum / count;
+    
+    map->ProjectedCoordToMapCoord(projectedCoord, &scroll);
+    scrollProjectedCoordOffset = QPointF(0, 0);
+    UpdateViewMatrix();
+    UpdateCursor();
+  }
+}
+
 void RenderWindow::DeleteSelectedObjects() {
   if (selection.empty()) {
     return;
@@ -3054,6 +3091,18 @@ void RenderWindow::DeleteSelectedObjects() {
   ClearSelection();
   for (u32 id : remainingObjects) {
     AddToSelection(id);
+  }
+  SelectionChanged();
+}
+
+void RenderWindow::DefineControlGroup(int controlGroupIndex) {
+  controlGroups[controlGroupIndex] = selection;
+}
+
+void RenderWindow::SelectControlGroup(int controlGroupIndex) {
+  ClearSelection();
+  for (u32 id : controlGroups[controlGroupIndex]) {
+    AddToSelectionIfExists(id);
   }
   SelectionChanged();
 }
@@ -3274,6 +3323,11 @@ void RenderWindow::paintGL() {
     if (fabs(effectiveZoom * scrollProjectedCoordOffset.y()) < 0.1f) {
       scrollProjectedCoordOffset.setY(0);
     }
+  }
+  
+  // Center the view on the selection if the space key is held.
+  if (spaceHeld) {
+    JumpToSelectedObjects();
   }
   
   gameStateUpdateTimer.Stop();
@@ -3811,6 +3865,15 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
     }
   } else if (event->key() == Qt::Key_H) {
     JumpToNextTownCenter();
+  } else if (event->key() == Qt::Key_Space) {
+    spaceHeld = true;
+  } else if (event->key() >= Qt::Key_0 && event->key() <= Qt::Key_9) {
+    int controlGroupIndex = static_cast<int>(event->key()) - static_cast<int>(Qt::Key_0);
+    if (event->modifiers() & Qt::ControlModifier) {
+      DefineControlGroup(controlGroupIndex);
+    } else {
+      SelectControlGroup(controlGroupIndex);
+    }
   } else if (match->IsPlayerStillInGame()) {
     // Check whether a hotkey for a command button was pressed.
     for (int row = 0; row < kCommandButtonRows; ++ row) {
@@ -3866,6 +3929,9 @@ void RenderWindow::keyReleaseEvent(QKeyEvent* event) {
     Scroll(0, scrollDistancePerSecond / effectiveZoom * seconds, &scroll);
     UpdateViewMatrix();
     UpdateCursor();
+  } else if (event->key() == Qt::Key_Space) {
+    spaceHeld = false;
+    JumpToSelectedObjects();
   } else if (match->IsPlayerStillInGame()) {
     // Check whether a hotkey for a command button was released.
     for (int row = 0; row < kCommandButtonRows; ++ row) {
