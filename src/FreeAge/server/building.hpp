@@ -64,3 +64,12 @@ class ServerBuilding : public ServerObject {
   /// * Exactly   0 means that this is a building foundation (i.e., it does not affect map occupancy (yet)).
   float buildPercentage;
 };
+
+/// Convenience function to cast a ServerBuilding to a ServerObject.
+/// Before using this, you must ensure that object->isBuilding().
+inline ServerBuilding* AsBuilding(ServerObject* object) {
+  return static_cast<ServerBuilding*>(object);
+}
+inline const ServerBuilding* AsBuilding(const ServerObject* object) {
+  return static_cast<const ServerBuilding*>(object);
+}

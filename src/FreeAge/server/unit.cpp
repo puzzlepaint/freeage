@@ -73,11 +73,11 @@ void ServerUnit::SetTargetInternal(u32 targetObjectId, ServerObject* targetObjec
   // TODO: In addition, if the target is a unit, the commanded unit needs to update its path
   //       if the target unit moves.
   if (targetObject->isBuilding()) {
-    ServerBuilding* targetBuilding = static_cast<ServerBuilding*>(targetObject);
+    ServerBuilding* targetBuilding = AsBuilding(targetObject);
     QSize buildingSize = GetBuildingSize(targetBuilding->GetBuildingType());
     moveToTarget = targetBuilding->GetBaseTile() + 0.5f * QPointF(buildingSize.width(), buildingSize.height());
   } else if (targetObject->isUnit()) {
-    ServerUnit* targetUnit = static_cast<ServerUnit*>(targetObject);
+    ServerUnit* targetUnit = AsUnit(targetObject);
     moveToTarget = targetUnit->GetMapCoord();
   }
   hasMoveToTarget = true;

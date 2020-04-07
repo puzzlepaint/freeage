@@ -105,3 +105,12 @@ class ServerUnit : public ServerObject {
   // Type of resources carried (for villagers).
   ResourceType carriedResourceType = ResourceType::NumTypes;
 };
+
+/// Convenience function to cast a ServerUnit to a ServerObject.
+/// Before using this, you must ensure that object->isUnit().
+inline ServerUnit* AsUnit(ServerObject* object) {
+  return static_cast<ServerUnit*>(object);
+}
+inline const ServerUnit* AsUnit(const ServerObject* object) {
+  return static_cast<const ServerUnit*>(object);
+}

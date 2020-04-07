@@ -1089,7 +1089,7 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
     if (object.second->isBuilding()) {
-      ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
+      ClientBuilding& building = *AsBuilding(object.second);
       if (!building.GetSprite().HasShadow()) {
         continue;
       }
@@ -1118,7 +1118,7 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
             false);
       }
     } else {  // if (object.second->isUnit()) {
-      ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
+      ClientUnit& unit = *AsUnit(object.second);
       if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front()->sprite.HasShadow()) {
         continue;
       }
@@ -1166,7 +1166,7 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
     if (!object.second->isBuilding()) {
       continue;
     }
-    ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
+    ClientBuilding& building = *AsBuilding(object.second);
     if (buildingsThatCauseOutlines != ClientBuildingType::GetBuildingTypes()[static_cast<int>(building.GetType())].DoesCauseOutlines()) {
       continue;
     }
@@ -1264,7 +1264,7 @@ void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object
   float effectiveZoom = ComputeEffectiveZoom();
   
   if (object->isBuilding()) {
-    ClientBuilding& building = *static_cast<ClientBuilding*>(object);
+    ClientBuilding& building = *AsBuilding(object);
     
     QSize size = GetBuildingSize(building.GetType());
     std::vector<QPointF> outlineVertices(4 + 2 * (size.width() - 1) + 2 * (size.height() - 1));
@@ -1293,7 +1293,7 @@ void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object
     RenderClosedPath(effectiveZoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, effectiveZoom * 2), f);
     RenderClosedPath(effectiveZoom * 1.1f, color, outlineVertices, QPointF(0, 0), f);
   } else if (object->isUnit()) {
-    ClientUnit& unit = *static_cast<ClientUnit*>(object);
+    ClientUnit& unit = *AsUnit(object);
     
     float radius = GetUnitRadius(unit.GetType());
     
@@ -1341,7 +1341,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
     }
     
     if (object.second->isBuilding()) {
-      ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
+      ClientBuilding& building = *AsBuilding(object.second);
       if (!building.GetSprite().HasOutline()) {
         continue;
       }
@@ -1370,7 +1370,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
             true);
       }
     } else {  // if (object.second->isUnit()) {
-      ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
+      ClientUnit& unit = *AsUnit(object.second);
       if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front()->sprite.HasOutline()) {
         continue;
       }
@@ -1416,7 +1416,7 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
     if (!object.second->isUnit()) {
       continue;
     }
-    ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
+    ClientUnit& unit = *AsUnit(object.second);
     
     QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
         map.get(),
@@ -1502,7 +1502,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
     if (object.second->isBuilding()) {
-      ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
+      ClientBuilding& building = *AsBuilding(object.second);
       const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
       
       QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(building.GetCenterMapCoord());
@@ -1531,7 +1531,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions
             f);
       }
     } else {  // if (object.second->isUnit()) {
-      ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
+      ClientUnit& unit = *AsUnit(object.second);
       const ClientUnitType& unitType = unitTypes[static_cast<int>(unit.GetType())];
       
       QPointF centerProjectedCoord = unit.GetCenterProjectedCoord(map.get());
@@ -2094,10 +2094,10 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
     if (singleSelectedObject->GetHP() > 0) {
       u32 maxHP;
       if (singleSelectedObject->isUnit()) {
-        maxHP = GetUnitMaxHP(static_cast<ClientUnit*>(singleSelectedObject)->GetType());
+        maxHP = GetUnitMaxHP(AsUnit(singleSelectedObject)->GetType());
       } else {
         CHECK(singleSelectedObject->isBuilding());
-        maxHP = GetBuildingMaxHP(static_cast<ClientBuilding*>(singleSelectedObject)->GetType());
+        maxHP = GetBuildingMaxHP(AsBuilding(singleSelectedObject)->GetType());
       }
       
       hpDisplay.textDisplay->Render(
@@ -2115,7 +2115,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
     
     // Display unit / building details?
     if (singleSelectedObject->isUnit()) {
-      ClientUnit* singleSelectedUnit = static_cast<ClientUnit*>(singleSelectedObject);
+      ClientUnit* singleSelectedUnit = AsUnit(singleSelectedObject);
       
       if (IsVillager(singleSelectedUnit->GetType())) {
         // Display the villager's carried resources?
@@ -2136,7 +2136,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
         }
       }
     } else if (singleSelectedObject->isBuilding()) {
-      ClientBuilding* singleSelectedBuilding = static_cast<ClientBuilding*>(singleSelectedObject);
+      ClientBuilding* singleSelectedBuilding = AsBuilding(singleSelectedObject);
       
       if (!singleSelectedBuilding->GetProductionQueue().empty()) {
         // Render the unit that is currently being produced.
@@ -2462,7 +2462,7 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
     QRectF projectedCoordsRect;
     
     if (object.second->isBuilding()) {
-      ClientBuilding& building = *static_cast<ClientBuilding*>(object.second);
+      ClientBuilding& building = *AsBuilding(object.second);
       const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
       
       // Is the position within the tiles which the building stands on?
@@ -2496,7 +2496,7 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
         }
       }
     } else if (object.second->isUnit()) {
-      ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
+      ClientUnit& unit = *AsUnit(object.second);
       
       // Is the position close to the unit sprite?
       constexpr float kExtendSize = 8;
@@ -2567,7 +2567,7 @@ void RenderWindow::BoxSelection(const QPoint& p0, const QPoint& p1) {
   
   for (auto& object : map->GetObjects()) {
     if (object.second->isUnit()) {
-      ClientUnit& unit = *static_cast<ClientUnit*>(object.second);
+      ClientUnit& unit = *AsUnit(object.second);
       
       QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
           map.get(),
@@ -2722,11 +2722,11 @@ void RenderWindow::UpdateGameState(double displayedServerTime) {
   // Iterate over all map objects and predict their state at the given server time.
   for (const auto& item : map->GetObjects()) {
     if (item.second->isUnit()) {
-      ClientUnit* unit = static_cast<ClientUnit*>(item.second);
+      ClientUnit* unit = AsUnit(item.second);
       unit->UpdateGameState(displayedServerTime);
     } else if (item.second->isBuilding()) {
       // TODO: Is this needed?
-      // ClientBuilding* building = static_cast<ClientBuilding*>(item.second);
+      // ClientBuilding* building = AsBuilding(item.second);
       // building->UpdateGameState(displayedServerTime);
     }
   }
@@ -2811,7 +2811,7 @@ QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y(
   QRect foundationRect(foundationBaseTile, foundationSize);
   for (const auto& item : map->GetObjects()) {
     if (item.second->isBuilding()) {
-      ClientBuilding* building = static_cast<ClientBuilding*>(item.second);
+      ClientBuilding* building = AsBuilding(item.second);
       QRect occupiedRect(building->GetBaseTile(), GetBuildingSize(building->GetType()));
       if (foundationRect.intersects(occupiedRect)) {
         return false;
@@ -2901,7 +2901,7 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
       singleOwnBuildingTypeSelected = false;
       break;
     } else if (object->isBuilding()) {
-      ClientBuilding* building = static_cast<ClientBuilding*>(object);
+      ClientBuilding* building = AsBuilding(object);
       
       if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
         if (building->GetBuildPercentage() == 100) {
@@ -2931,7 +2931,7 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
     ClientObject* object = map->GetObjects().at(objectId);
     
     if (object->isUnit()) {
-      ClientUnit* unit = static_cast<ClientUnit*>(object);
+      ClientUnit* unit = AsUnit(object);
       if (unit->GetPlayerIndex() == match->GetPlayerIndex() &&
           IsVillager(unit->GetType())) {
         atLeastOneOwnVillagerSelected = true;
@@ -2990,7 +2990,7 @@ void RenderWindow::JumpToNextTownCenter() {
   for (const auto& item : map->GetObjects()) {
     if (item.second->GetPlayerIndex() == match->GetPlayerIndex() &&
         item.second->isBuilding()) {
-      ClientBuilding* building = static_cast<ClientBuilding*>(item.second);
+      ClientBuilding* building = AsBuilding(item.second);
       if (building->GetType() == BuildingType::TownCenter) {
         townCenters.push_back(std::make_pair(item.first, building));
       }
@@ -3021,13 +3021,13 @@ void RenderWindow::JumpToObject(u32 objectId, ClientObject* object) {
   SelectionChanged();
   
   if (object->isBuilding()) {
-    ClientBuilding* building = static_cast<ClientBuilding*>(object);
+    ClientBuilding* building = AsBuilding(object);
     scroll = building->GetCenterMapCoord();
     scrollProjectedCoordOffset = QPointF(0, 0);
     UpdateViewMatrix();
     UpdateCursor();
   } else if (object->isUnit()) {
-    ClientUnit* unit = static_cast<ClientUnit*>(object);
+    ClientUnit* unit = AsUnit(object);
     scroll = unit->GetMapCoord();
     scrollProjectedCoordOffset = QPointF(0, 0);
     UpdateViewMatrix();
@@ -3499,7 +3499,7 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
           auto it = map->GetObjects().find(id);
           if (it != map->GetObjects().end()) {
             if (it->second->isUnit()) {
-              ClientUnit* unit = static_cast<ClientUnit*>(it->second);
+              ClientUnit* unit = AsUnit(it->second);
               if (IsVillager(unit->GetType())) {
                 selectedVillagerIds.push_back(it->first);
               }

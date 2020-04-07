@@ -310,7 +310,7 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
   //
   // In addition, handle population count / space changes.
   if (object->isBuilding()) {
-    ClientBuilding* building = static_cast<ClientBuilding*>(object);
+    ClientBuilding* building = AsBuilding(object);
     if (building->GetBuildPercentage() == 100) {
       Decal* newDecal = new Decal(building, map.get(), currentGameStepServerTime);
       renderWindow->AddDecal(newDecal);
@@ -321,7 +321,7 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
       // TODO: Destruction animations for foundations
     }
   } else if (object->isUnit()) {
-    Decal* newDecal = new Decal(static_cast<ClientUnit*>(object), map.get(), currentGameStepServerTime);
+    Decal* newDecal = new Decal(AsUnit(object), map.get(), currentGameStepServerTime);
     renderWindow->AddDecal(newDecal);
     
     populationCount -= 1;
@@ -361,7 +361,7 @@ void GameController::HandleUnitMovementMessage(const QByteArray& data) {
     return;
   }
   
-  ClientUnit* unit = static_cast<ClientUnit*>(it->second);
+  ClientUnit* unit = AsUnit(it->second);
   unit->SetMovementSegment(currentGameStepServerTime, startPoint, speed, action);
 }
 
@@ -409,7 +409,7 @@ void GameController::HandleBuildPercentageUpdate(const QByteArray& data) {
   float percentage;
   memcpy(&percentage, buffer + 4, 4);
   
-  ClientBuilding* building = static_cast<ClientBuilding*>(it->second);
+  ClientBuilding* building = AsBuilding(it->second);
   if (building->GetBuildPercentage() != 100 && percentage == 100) {
     // The building has been completed.
     availablePopulationSpace += GetBuildingProvidedPopulationSpace(building->GetType());
@@ -441,7 +441,7 @@ void GameController::HandleChangeUnitTypeMessage(const QByteArray& data) {
     return;
   }
   
-  ClientUnit* unit = static_cast<ClientUnit*>(it->second);
+  ClientUnit* unit = AsUnit(it->second);
   unit->SetType(newType);
 }
 
@@ -462,7 +462,7 @@ void GameController::HandleSetCarriedResourcesMessage(const QByteArray& data) {
     LOG(ERROR) << "Received a SetCarriedResources message for an object ID that is a different type than a unit.";
     return;
   }
-  ClientUnit* villager = static_cast<ClientUnit*>(it->second);
+  ClientUnit* villager = AsUnit(it->second);
   if (!IsVillager(villager->GetType())) {
     LOG(ERROR) << "Received a SetCarriedResources message for a unit that is not a villager.";
     return;
@@ -568,7 +568,7 @@ void GameController::HandleQueueUnitMessage(const QByteArray& data) {
     return;
   }
   
-  ClientBuilding* building = static_cast<ClientBuilding*>(it->second);
+  ClientBuilding* building = AsBuilding(it->second);
   building->QueueUnit(unitType);
 }
 
@@ -593,7 +593,7 @@ void GameController::HandleUpdateProductionMessage(const QByteArray& data) {
   float percentage = *reinterpret_cast<const float*>(buffer + 4);
   float progressPerSecond = *reinterpret_cast<const float*>(buffer + 8);
   
-  ClientBuilding* building = static_cast<ClientBuilding*>(it->second);
+  ClientBuilding* building = AsBuilding(it->second);
   building->SetProductionState(currentGameStepServerTime, percentage, progressPerSecond);
 }
 
@@ -615,7 +615,7 @@ void GameController::HandleRemoveFromProductionQueueMessage(const QByteArray& da
     return;
   }
   
-  ClientBuilding* building = static_cast<ClientBuilding*>(it->second);
+  ClientBuilding* building = AsBuilding(it->second);
   // This handles the case of the queue being empty.
   building->DequeueFirstUnit();
 }

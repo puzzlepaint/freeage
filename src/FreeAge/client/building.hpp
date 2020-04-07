@@ -174,3 +174,12 @@ class ClientBuilding : public ClientObject {
   /// * Exactly   0 means that this is a building foundation (i.e., it does not affect map occupancy (yet)).
   float buildPercentage;
 };
+
+/// Convenience function to cast a ClientBuilding to a ClientObject.
+/// Before using this, you must ensure that object->isBuilding().
+inline ClientBuilding* AsBuilding(ClientObject* object) {
+  return static_cast<ClientBuilding*>(object);
+}
+inline const ClientBuilding* AsBuilding(const ClientObject* object) {
+  return static_cast<const ClientBuilding*>(object);
+}

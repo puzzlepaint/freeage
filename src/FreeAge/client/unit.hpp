@@ -190,3 +190,12 @@ class ClientUnit : public ClientObject {
   // For villagers: carried resource amount.
   u8 carriedResourceAmount = 0;
 };
+
+/// Convenience function to cast a ClientUnit to a ClientObject.
+/// Before using this, you must ensure that object->isUnit().
+inline ClientUnit* AsUnit(ClientObject* object) {
+  return static_cast<ClientUnit*>(object);
+}
+inline const ClientUnit* AsUnit(const ClientObject* object) {
+  return static_cast<const ClientUnit*>(object);
+}

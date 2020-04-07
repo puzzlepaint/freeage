@@ -33,10 +33,10 @@ InteractionType GetInteractionType(ClientObject* actor, ClientObject* target) {
   // TODO: There is a copy of this function in the server code. Can we merge these copies?
   
   if (actor->isUnit()) {
-    ClientUnit* actorUnit = static_cast<ClientUnit*>(actor);
+    ClientUnit* actorUnit = AsUnit(actor);
     
     if (target->isBuilding()) {
-      ClientBuilding* targetBuilding = static_cast<ClientBuilding*>(target);
+      ClientBuilding* targetBuilding = AsBuilding(target);
       
       if (IsVillager(actorUnit->GetType())) {
         if (targetBuilding->GetPlayerIndex() == actorUnit->GetPlayerIndex() &&

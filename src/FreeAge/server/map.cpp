@@ -382,7 +382,7 @@ bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord, Serve
   for (const auto& item : objects) {
     ServerObject* object = item.second;
     if (object->isUnit() && object != unit) {
-      ServerUnit* otherUnit = static_cast<ServerUnit*>(object);
+      ServerUnit* otherUnit = AsUnit(object);
       
       float otherRadius = GetUnitRadius(otherUnit->GetUnitType());
       QPointF offset = otherUnit->GetMapCoord() - mapCoord;

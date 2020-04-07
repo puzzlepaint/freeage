@@ -228,7 +228,7 @@ void Game::HandleMoveToMapCoordMessage(const QByteArray& msg, PlayerInGame* play
       continue;
     }
     
-    ServerUnit* unit = static_cast<ServerUnit*>(it->second);
+    ServerUnit* unit = AsUnit(it->second);
     unit->SetMoveToTarget(targetMapCoord);
   }
 }
@@ -285,7 +285,7 @@ void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player)
     LOG(WARNING) << "Received a ProduceUnit message for a production building object ID that is not a building";
     return;
   }
-  ServerBuilding* productionBuilding = static_cast<ServerBuilding*>(buildingObject);
+  ServerBuilding* productionBuilding = AsBuilding(buildingObject);
   
   if (productionBuilding->GetPlayerIndex() != player->index) {
     LOG(ERROR) << "Received a ProduceUnit message for a building that is not owned by the player";
@@ -530,13 +530,13 @@ QByteArray Game::CreateAddObjectMessage(u32 objectId, ServerObject* object) {
   mango::ustore32(data + 9, object->GetHP());
   
   if (object->isBuilding()) {
-    ServerBuilding* building = static_cast<ServerBuilding*>(object);
+    ServerBuilding* building = AsBuilding(object);
     mango::ustore16(data + 13, static_cast<u16>(building->GetBuildingType()));  // TODO: Would 8 bits be sufficient here?
     mango::ustore16(data + 15, building->GetBaseTile().x());
     mango::ustore16(data + 17, building->GetBaseTile().y());
     *reinterpret_cast<float*>(data + 19) = building->GetBuildPercentage();
   } else {
-    ServerUnit* unit = static_cast<ServerUnit*>(object);
+    ServerUnit* unit = AsUnit(object);
     mango::ustore16(data + 13, static_cast<u16>(unit->GetUnitType()));  // TODO: Would 8 bits be sufficient here?
     *reinterpret_cast<float*>(data + 15) = unit->GetMapCoord().x();
     *reinterpret_cast<float*>(data + 19) = unit->GetMapCoord().y();
@@ -573,15 +573,16 @@ void Game::StartGame() {
       }
       
       if (item.second->isBuilding()) {
-        ServerBuilding* building = static_cast<ServerBuilding*>(item.second);
+        ServerBuilding* building = AsBuilding(item.second);
         if (building->GetBuildingType() == BuildingType::TownCenter) {
+          QSize buildingSize = GetBuildingSize(building->GetBuildingType());
           initialViewCenter =
-              QPointF(building->GetBaseTile().x() + 0.5f * GetBuildingSize(building->GetBuildingType()).width(),
-                      building->GetBaseTile().y() + 0.5f * GetBuildingSize(building->GetBuildingType()).height());
+              QPointF(building->GetBaseTile().x() + 0.5f * buildingSize.width(),
+                      building->GetBaseTile().y() + 0.5f * buildingSize.height());
           break;
         }
       } else {  // if (item.second->isUnit()) {
-        ServerUnit* unit = static_cast<ServerUnit*>(item.second);
+        ServerUnit* unit = AsUnit(item.second);
         if (IsVillager(unit->GetUnitType())) {
           initialViewCenter = unit->GetMapCoord();
         }
@@ -618,7 +619,7 @@ void Game::StartGame() {
     }
     
     if (object->isBuilding()) {
-      ServerBuilding* building = static_cast<ServerBuilding*>(object);
+      ServerBuilding* building = AsBuilding(object);
       if (building->GetPlayerIndex() != kGaiaPlayerIndex) {
         playersInGame->at(building->GetPlayerIndex())->availablePopulationSpace += GetBuildingProvidedPopulationSpace(building->GetBuildingType());
       }
@@ -646,10 +647,10 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
     ServerObject* object = it->second;
     
     if (object->isUnit()) {
-      ServerUnit* unit = static_cast<ServerUnit*>(object);
+      ServerUnit* unit = AsUnit(object);
       SimulateGameStepForUnit(objectId, unit, gameStepServerTime, stepLengthInSeconds);
     } else if (object->isBuilding()) {
-      ServerBuilding* building = static_cast<ServerBuilding*>(object);
+      ServerBuilding* building = AsBuilding(object);
       SimulateGameStepForBuilding(objectId, building, stepLengthInSeconds);
     }
   }
@@ -743,7 +744,7 @@ static bool IsFoundationFree(ServerBuilding* foundation, ServerMap* map) {
   // Check whether units are on top of the foundation
   for (const auto& item : map->GetObjects()) {
     if (item.second->isUnit()) {
-      ServerUnit* unit = static_cast<ServerUnit*>(item.second);
+      ServerUnit* unit = AsUnit(item.second);
       if (DoesUnitTouchBuildingArea(unit, unit->GetMapCoord(), foundation, 0.01f)) {
         return false;
       }
@@ -829,7 +830,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
     if (targetIt == map->GetObjects().end()) {
       unit->RemoveTarget();
     } else if (targetIt->second->isUnit()) {
-      ServerUnit* targetUnit = static_cast<ServerUnit*>(targetIt->second);
+      ServerUnit* targetUnit = AsUnit(targetIt->second);
       
       constexpr float kReplanThresholdDistance = 0.1f * 0.1f;
       if (SquaredDistance(targetUnit->GetMapCoord(), unit->GetMoveToTargetMapCoord()) > kReplanThresholdDistance) {
@@ -855,7 +856,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
       } else {
         ServerObject* targetObject = targetIt->second;
         if (targetObject->isBuilding()) {
-          ServerBuilding* targetBuilding = static_cast<ServerBuilding*>(targetObject);
+          ServerBuilding* targetBuilding = AsBuilding(targetObject);
           if (DoesUnitTouchBuildingArea(unit, newMapCoord, targetBuilding, 0)) {
             InteractionType interaction = GetInteractionType(unit, targetBuilding);
             
@@ -873,7 +874,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
             }
           }
         } else if (targetObject->isUnit()) {
-          ServerUnit* targetUnit = static_cast<ServerUnit*>(targetObject);
+          ServerUnit* targetUnit = AsUnit(targetObject);
           if (DoUnitsTouch(unit, newMapCoord, targetUnit, 0)) {
             InteractionType interaction = GetInteractionType(unit, targetUnit);
             
@@ -1149,7 +1150,7 @@ void Game::PlanUnitPath(ServerUnit* unit) {
     if (targetIt != map->GetObjects().end()) {
       ServerObject* targetObject = targetIt->second;
       if (targetObject->isBuilding()) {
-        ServerBuilding* targetBuilding = static_cast<ServerBuilding*>(targetObject);
+        ServerBuilding* targetBuilding = AsBuilding(targetObject);
         
         const QPoint& baseTile = targetBuilding->GetBaseTile();
         QSize buildingSize = GetBuildingSize(targetBuilding->GetBuildingType());
@@ -1595,7 +1596,7 @@ void Game::SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, 
     for (auto& item : map->GetObjects()) {
       if (item.second->GetPlayerIndex() == villager->GetPlayerIndex() &&
           item.second->isBuilding()) {
-        ServerBuilding* candidateDropOffPoint = static_cast<ServerBuilding*>(item.second);
+        ServerBuilding* candidateDropOffPoint = AsBuilding(item.second);
         if (IsDropOffPointForResource(candidateDropOffPoint->GetBuildingType(), villager->GetCarriedResourceType())) {
           // TODO: Improve the distance computation. Ideally we would use the distance that the
           //       villager has to walk to the edge of the building, not the straight-line distance to its center.
@@ -1725,10 +1726,10 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
     // Compute the attack damage.
     int meleeArmor;
     if (target->isUnit()) {
-      meleeArmor = GetUnitMeleeArmor(static_cast<ServerUnit*>(target)->GetUnitType());
+      meleeArmor = GetUnitMeleeArmor(AsUnit(target)->GetUnitType());
     } else {
       CHECK(target->isBuilding());
-      meleeArmor = GetBuildingMeleeArmor(static_cast<ServerBuilding*>(target)->GetBuildingType());
+      meleeArmor = GetBuildingMeleeArmor(AsBuilding(target)->GetBuildingType());
     }
     int meleeDamage = std::max(0, static_cast<int>(GetUnitMeleeAttack(unit->GetUnitType())) - meleeArmor);
     
@@ -1866,7 +1867,7 @@ void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 
       continue;
     }
     
-    ServerUnit* unit = static_cast<ServerUnit*>(it->second);
+    ServerUnit* unit = AsUnit(it->second);
     UnitType oldUnitType = unit->GetUnitType();
     
     unit->SetTarget(targetId, targetObject, /*isManualTargeting*/ true);
@@ -1904,7 +1905,7 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   // * Remove their map occupancy
   // * If not completed and deleted manually, refund some resources
   if (object->isBuilding()) {
-    ServerBuilding* building = static_cast<ServerBuilding*>(object);
+    ServerBuilding* building = AsBuilding(object);
     if (building->GetBuildPercentage() > 0) {
       map->RemoveBuildingOccupancy(building);
     }
@@ -1918,7 +1919,7 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   
   // Handle population counting.
   if (object->isBuilding()) {
-    ServerBuilding* building = static_cast<ServerBuilding*>(object);
+    ServerBuilding* building = AsBuilding(object);
     if (building->GetPlayerIndex() != kGaiaPlayerIndex) {
       playersInGame->at(building->GetPlayerIndex())->availablePopulationSpace -= GetBuildingProvidedPopulationSpace(building->GetBuildingType());
     }
