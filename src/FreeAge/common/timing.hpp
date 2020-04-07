@@ -1,4 +1,4 @@
-// Copyright 2011-2013 Paul Furgale and others, 2017, 2019 ETH Zürich, Thomas Schöps
+// Copyright 2011-2013 Paul Furgale and others, 2020 The FreeAge authors
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
