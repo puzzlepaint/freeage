@@ -174,6 +174,12 @@ offset measurements (done via regularly sent ping messages). This means that the
 displayed time on the client can run a little bit slower or faster than the actual
 time when the estimated time offset to the server changes.
 
+Fortunately, most of the time it is not required to keep all of the above in mind
+when implementing new message types. The client stores all messages until the
+displayed server time is at least the game step time that the server preceded the
+message with, and parses them only at this point. This means that any actions
+caused by parsing a message can be applied directly by the parsing code.
+
 Notice that the client does not attempt to simulate the execution of actions that
 were performed on the client, but not acknowledged by the server yet. While this
 might be able to reduce the perceived lag somewhat, there are cases where a
