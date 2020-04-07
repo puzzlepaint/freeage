@@ -143,4 +143,45 @@ game start will be somewhat slow.
 Contributions are welcome. Please follow the existing coding style to keep it
 consistent.
 
+Source files that are used by both the client and the server application go into
+src/FreeAge/common. Otherwise they belong into src/FreeAge/client or src/FreeAge/server.
+Unit test may be added to src/FreeAge/test.
+
+Since it may perhaps be hard to read into, here is a brief overview of the main
+(client-server) architecture:
+
+All game-relevant actions on the client are sent to the server for execution via
+network messages. All messages are defined in src/FreeAge/common/messages.hpp,
+and most of the functions to create these messages can also be found there.
+
+The server code for running the main part of the game, including handling incoming
+messages, is in src/FreeAge/server/game.cpp. The server simulates the game with
+a fixed frame rate. Every time something happens that needs to be sent to a client,
+it is sent out within a large accumulated packet at the end of a simulation time
+step, prefixed with the server time of this time step.
+
+The clients attempt to keep track of when they expect to receive packets from the
+server (relative to their own time measuring). Based on this, the ServerConnection
+(src/FreeAge/client/server_connection.hpp) estimates what a good server time is
+to be displayed each time the game state needs to be rendered, attempting to
+display an as-recent-as-possible game state while (hopefully) not lacking the
+reception of any incoming server messages that are needed to render it.
+(This means that depending on the ping of each client, it may lag more or less
+beind the actual server time in its display of the game. This is by design.
+This way, clients with a good ping are not affected by clients with a bad ping.)
+The ServerConnection smoothly adjusts the displayed server time based on new time
+offset measurements (done via regularly sent ping messages). This means that the
+displayed time on the client can run a little bit slower or faster than the actual
+time when the estimated time offset to the server changes.
+
+Notice that the client does not attempt to simulate the execution of actions that
+were performed on the client, but not acknowledged by the server yet. While this
+might be able to reduce the perceived lag somewhat, there are cases where a
+proper simulation is not possible. For example, consider sending a scout into
+terrain covered by the fog of war. To prevent cheating, the clients do not know
+what lies within the fog of war. There might be a large forest, forcing the scout
+to run around either to the left or the right of it. The client thus cannot know
+the direction in which the scout would start to run, so it cannot simulate it
+properly before it is told about it by the server.
+
 14!
