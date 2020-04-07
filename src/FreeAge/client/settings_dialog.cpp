@@ -19,6 +19,7 @@
 #include <QTabWidget>
 #include <QTimer>
 
+#include "FreeAge/client/about_dialog.hpp"
 #include "FreeAge/common/logging.hpp"
 
 
@@ -276,12 +277,14 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   debugNetworkingCheck->setChecked(settings->debugNetworking);
   
   QPushButton* exitButton = new QPushButton(tr("Exit"));
+  QPushButton* aboutButton = new QPushButton(tr("About"));
   QPushButton* hostButton = new QPushButton(tr("Create new lobby"));
   QPushButton* hostOnServerButton = new QPushButton(tr("Create lobby on existing server"));
   QPushButton* joinButton = new QPushButton(tr("Join existing lobby"));
   
   QHBoxLayout* buttonsLayout = new QHBoxLayout();
   buttonsLayout->addWidget(exitButton);
+  buttonsLayout->addWidget(aboutButton);
   buttonsLayout->addStretch(1);
   buttonsLayout->addWidget(hostButton);
   buttonsLayout->addWidget(hostOnServerButton);
@@ -300,6 +303,7 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   connect(hostButton, &QPushButton::clicked, this, &SettingsDialog::HostGame);
   connect(hostOnServerButton, &QPushButton::clicked, this, &SettingsDialog::HostGameOnServer);
   connect(joinButton, &QPushButton::clicked, this, &SettingsDialog::JoinGame);
+  connect(aboutButton, &QPushButton::clicked, this, &SettingsDialog::ShowAboutDialog);
   connect(exitButton, &QPushButton::clicked, this, &QDialog::reject);
   
   connect(dataFolderButton, &QPushButton::clicked, [&]() {
@@ -365,6 +369,11 @@ void SettingsDialog::JoinGame() {
     hostGameChosen = false;
     accept();
   }
+}
+
+void SettingsDialog::ShowAboutDialog() {
+  AboutDialog aboutDialog(this);
+  aboutDialog.exec();
 }
 
 bool SettingsDialog::CheckSettings() {

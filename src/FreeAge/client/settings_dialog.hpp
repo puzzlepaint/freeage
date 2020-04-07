@@ -44,6 +44,7 @@ class SettingsDialog : public QDialog {
   void HostGame();
   void HostGameOnServer();
   void JoinGame();
+  void ShowAboutDialog();
   
  private:
   bool CheckSettings();

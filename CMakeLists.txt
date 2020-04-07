@@ -123,6 +123,7 @@ target_link_libraries(FreeAgeServer
 # FreeAge application
 set(FREEAGE_SRCS
   resources/resources.qrc
+  src/FreeAge/client/about_dialog.cpp
   src/FreeAge/client/building.cpp
   src/FreeAge/client/command_button.cpp
   src/FreeAge/client/decal.cpp
