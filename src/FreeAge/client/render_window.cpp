@@ -2678,7 +2678,7 @@ void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
   f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   
   // Clear background.
-  f->glClearColor(0.2f, 0.2f, 0.2f, 0.0f);
+  f->glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   CHECK_OPENGL_NO_ERROR();
   
@@ -2698,14 +2698,20 @@ void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
         .arg(players[i].name)
         .arg(loadingPercentage, 3, 10, QChar(' '));
     
-    playerNames[i].textDisplay->Render(
-        georgiaFont,
-        playerColors[i],
-        text,
-        QRect(0, 0.5f * widgetHeight - 0.5f * totalHeight + i * lineHeight + 0.5f * lineHeight, widgetWidth, lineHeight),
-        Qt::AlignHCenter | Qt::AlignVCenter,
-        playerNames[i].pointBuffer,
-        uiShader.get(), widgetWidth, widgetHeight, f);
+    QRgb shadowColor = ((qRed(playerColors[i]) + qGreen(playerColors[i]) + qBlue(playerColors[i])) / 3.f > 127) ? qRgb(0, 0, 0) : qRgb(255, 255, 255);
+    for (int shadow = 0; shadow < 2; ++ shadow) {
+      playerNames[i].textDisplay->Render(
+          georgiaFont,
+          (shadow == 0) ? shadowColor : playerColors[i],
+          text,
+          QRect((shadow == 0) ? (uiScale * 2) : 0,
+                0.5f * widgetHeight - 0.5f * totalHeight + i * lineHeight + 0.5f * lineHeight + ((shadow == 0) ? (uiScale * 2) : 0),
+                widgetWidth,
+                lineHeight),
+          Qt::AlignHCenter | Qt::AlignVCenter,
+          (shadow == 0) ? playerNameShadowPointBuffers[i].buffer : playerNames[i].pointBuffer,
+          uiShader.get(), widgetWidth, widgetHeight, f);
+    }
   }
   
   // Render the loading icon.
