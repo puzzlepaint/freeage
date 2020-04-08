@@ -95,6 +95,9 @@ int main(int argc, char** argv) {
   Settings settings;
   if (!settings.TryLoad()) {
     settings.InitializeWithDefaults();
+    if (settings.dataPath.empty() || settings.modsPath.empty()) {
+      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("The data or mods path of the original game could not be determined automatically. Please specify these paths manually."));
+    }
   }
   if (!initialPlayerName.isEmpty()) {
     settings.playerName = initialPlayerName;

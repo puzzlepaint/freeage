@@ -146,6 +146,7 @@ set(FREEAGE_SRCS
   src/FreeAge/client/shader_terrain.cpp
   src/FreeAge/client/shader_ui.cpp
   src/FreeAge/client/shader_ui_single_color.cpp
+  src/FreeAge/client/shader_ui_single_color_fullscreen.cpp
   src/FreeAge/client/sprite.cpp
   src/FreeAge/client/sprite_atlas.cpp
   src/FreeAge/client/text_display.cpp

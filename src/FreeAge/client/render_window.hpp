@@ -20,6 +20,7 @@
 #include "FreeAge/client/shader_sprite.hpp"
 #include "FreeAge/client/shader_ui.hpp"
 #include "FreeAge/client/shader_ui_single_color.hpp"
+#include "FreeAge/client/shader_ui_single_color_fullscreen.hpp"
 #include "FreeAge/client/server_connection.hpp"
 #include "FreeAge/client/sprite.hpp"
 #include "FreeAge/client/text_display.hpp"
@@ -328,6 +329,7 @@ class RenderWindow : public QOpenGLWindow {
   std::shared_ptr<ColorDilationShader> colorDilationShader;
   std::shared_ptr<UIShader> uiShader;
   std::shared_ptr<UISingleColorShader> uiSingleColorShader;
+  std::shared_ptr<UISingleColorFullscreenShader> uiSingleColorFullscreenShader;
   std::shared_ptr<SpriteShader> spriteShader;
   std::shared_ptr<SpriteShader> shadowShader;
   std::shared_ptr<SpriteShader> outlineShader;
@@ -351,6 +353,8 @@ class RenderWindow : public QOpenGLWindow {
   TextureAndPointBuffer loadingIcon;
   std::vector<TextDisplayAndPointBuffer> playerNames;
   std::vector<PointBuffer> playerNameShadowPointBuffers;
+  
+  float gameStartBlendToBlackTime = 0.2f;
   
   // Menu.
   bool menuShown = false;

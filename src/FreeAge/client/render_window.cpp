@@ -204,6 +204,7 @@ RenderWindow::~RenderWindow() {
   
   uiShader.reset();
   uiSingleColorShader.reset();
+  uiSingleColorFullscreenShader.reset();
   spriteShader.reset();
   shadowShader.reset();
   outlineShader.reset();
@@ -2723,7 +2724,18 @@ void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
       qRgba(255, 255, 255, 255), loadingIcon.pointBuffer,
       *loadingIcon.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
-
+  
+  // Blend towards black before the game start.
+  if (gameController->GetGameStartServerTimeSeconds() - connection->GetServerTimeToDisplayNow() < gameStartBlendToBlackTime) {
+    float factor = 1.f - (gameController->GetGameStartServerTimeSeconds() - connection->GetServerTimeToDisplayNow()) / gameStartBlendToBlackTime;
+    
+    uiSingleColorFullscreenShader->GetProgram()->UseProgram(f);
+    f->glUniform4f(uiSingleColorFullscreenShader->GetColorLocation(), 0, 0, 0, factor);
+    
+    f->glDrawArrays(GL_TRIANGLES, 0, 3);
+    CHECK_OPENGL_NO_ERROR();
+  }
+  
   // Set the alpha to 255 everywhere to prevent parts of the window from being
   // transparent on window managers which use that in their compositing (e.g., on Windows).
   f->glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
@@ -3145,6 +3157,9 @@ void RenderWindow::initializeGL() {
     // TODO: Exit gracefully
   }
   
+  // Define the player colors.
+  CreatePlayerColorPaletteTexture();
+  
   // Create the resource loading thread.
   loadingThread = new LoadingThread(this, loadingContext, loadingSurface);
   loadingContext->moveToThread(loadingThread);
@@ -3160,6 +3175,7 @@ void RenderWindow::initializeGL() {
   // Load the UI shaders.
   uiShader.reset(new UIShader());
   uiSingleColorShader.reset(new UISingleColorShader());
+  uiSingleColorFullscreenShader.reset(new UISingleColorFullscreenShader());
   
   // Create a buffer containing a single point for sprite rendering. TODO: Remove this
   f->glGenBuffers(1, &pointBuffer);
@@ -3180,9 +3196,6 @@ void RenderWindow::initializeGL() {
     playerNames[i].Initialize();
     playerNameShadowPointBuffers[i].Initialize();
   }
-  
-  // Define the player colors.
-  CreatePlayerColorPaletteTexture();
   
   // Remember the render start time.
   renderStartTime = Clock::now();
@@ -3492,7 +3505,21 @@ void RenderWindow::paintGL() {
   CHECK_OPENGL_NO_ERROR();
   
   uiTimer.Stop();
-
+  
+  // Blend from black after the game start.
+  if (connection->GetServerTimeToDisplayNow() - gameController->GetGameStartServerTimeSeconds() < gameStartBlendToBlackTime) {
+    f->glEnable(GL_BLEND);
+    f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    float factor = 1.f - (connection->GetServerTimeToDisplayNow() - gameController->GetGameStartServerTimeSeconds()) / gameStartBlendToBlackTime;
+    
+    uiSingleColorFullscreenShader->GetProgram()->UseProgram(f);
+    f->glUniform4f(uiSingleColorFullscreenShader->GetColorLocation(), 0, 0, 0, factor);
+    
+    f->glDrawArrays(GL_TRIANGLES, 0, 3);
+    CHECK_OPENGL_NO_ERROR();
+  }
+  
   // Set the alpha to 255 everywhere to prevent parts of the window from being
   // transparent on window managers which use that in their compositing (e.g., on Windows).
   f->glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
