@@ -192,6 +192,14 @@ QByteArray CreateDeleteObjectMessage(u32 objectId) {
   return msg;
 }
 
+QByteArray CreateDequeueProductionQueueItemMessage(u32 productionBuildingId, u8 queueIndexFromBack) {
+  QByteArray msg = CreateClientToServerMessageHeader(5, ClientToServerMessage::DequeueProductionQueueItem);
+  char* data = msg.data();
+  mango::ustore32(data + 3, productionBuildingId);
+  data[7] = queueIndexFromBack;
+  return msg;
+}
+
 
 static inline QByteArray CreateServerToClientMessageHeader(int dataSize, ServerToClientMessage type) {
   // Create buffer
@@ -370,10 +378,11 @@ QByteArray CreateUpdateProductionMessage(u32 buildingId, float progressValue, fl
   return msg;
 }
 
-QByteArray CreateRemoveFromProductionQueueMessage(u32 buildingId) {
-  QByteArray msg = CreateServerToClientMessageHeader(4, ServerToClientMessage::RemoveFromProductionQueue);
+QByteArray CreateRemoveFromProductionQueueMessage(u32 buildingId, u8 queueIndex) {
+  QByteArray msg = CreateServerToClientMessageHeader(5, ServerToClientMessage::RemoveFromProductionQueue);
   char* data = msg.data();
   mango::ustore32(data + 3, buildingId);
+  data[7] = queueIndex;
   return msg;
 }
 

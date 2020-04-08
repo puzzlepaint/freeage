@@ -430,6 +430,55 @@ void Game::HandleDeleteObjectMessage(const QByteArray& msg, PlayerInGame* player
   DeleteObject(objectId, true);
 }
 
+void Game::HandleDequeueProductionQueueItemMessage(const QByteArray& msg, PlayerInGame* player) {
+  if (msg.size() < 3 + 4 + 1) {
+    LOG(ERROR) << "Received a too short DequeueProductionQueueItem message";
+    return;
+  }
+  const char* data = msg.data();
+  
+  u32 objectId = mango::uload32(data + 3);
+  
+  // Safely get the production building.
+  auto buildingIt = map->GetObjects().find(objectId);
+  if (buildingIt == map->GetObjects().end()) {
+    LOG(WARNING) << "Received a DequeueProductionQueueItem message for an ID that does not exist";
+    return;
+  }
+  ServerObject* object = buildingIt->second;
+  if (object->GetPlayerIndex() != player->index) {
+    LOG(ERROR) << "Received a DequeueProductionQueueItem message for an object that the player does not own";
+    return;
+  }
+  if (!object->isBuilding()) {
+    LOG(ERROR) << "Received a DequeueProductionQueueItem message for an object that is not a building";
+    return;
+  }
+  ServerBuilding* building = AsBuilding(object);
+  
+  // Safely get the queue index.
+  u8 queueIndexFromBack = data[7];
+  if (queueIndexFromBack >= building->GetProductionQueue().size()) {
+    LOG(WARNING) << "queueIndexFromBack (" << queueIndexFromBack << ") >= building->GetProductionQueue().size() (" << building->GetProductionQueue().size() << ")";
+    return;
+  }
+  u8 queueIndex = building->GetProductionQueue().size() - 1 - queueIndexFromBack;
+  
+  // Adjust population count (if relevant).
+  if (queueIndex == 0 && building->GetProductionPercentage() > 0) {
+    playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction -= 1;
+  }
+  
+  // Remove the item from the queue.
+  UnitType removedType = building->RemoveItemFromQueue(queueIndex);
+  
+  // Refund the resources for the item.
+  player->resources.Add(GetUnitCost(removedType));
+  
+  // Tell the client about the successful removal.
+  accumulatedMessages[player->index] += CreateRemoveFromProductionQueueMessage(objectId, queueIndex);
+}
+
 Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players) {
   while (true) {
     if (player->unparsedBuffer.size() < 3) {
@@ -460,6 +509,9 @@ Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, con
         break;
       case ClientToServerMessage::PlaceBuildingFoundation:
         HandlePlaceBuildingFoundationMessage(player->unparsedBuffer, player);
+        break;
+      case ClientToServerMessage::DequeueProductionQueueItem:
+        HandleDequeueProductionQueueItemMessage(player->unparsedBuffer, player);
         break;
       case ClientToServerMessage::DeleteObject:
         HandleDeleteObjectMessage(player->unparsedBuffer, player);
@@ -1689,7 +1741,7 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
         
         newPercentage = 0;
         completed = true;
-        accumulatedMessages[building->GetPlayerIndex()] += CreateRemoveFromProductionQueueMessage(buildingId);
+        accumulatedMessages[building->GetPlayerIndex()] += CreateRemoveFromProductionQueueMessage(buildingId, 0);
       }
       
       building->SetProductionPercentage(newPercentage);

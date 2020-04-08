@@ -35,6 +35,9 @@ class ServerBuilding : public ServerObject {
   /// Removes the currenly produced unit / the currently researched technology from the queue.
   void RemoveCurrentItemFromQueue();
   
+  /// Removes the item with the given index from the queue. Returns the type of the queued item that was removed.
+  UnitType RemoveItemFromQueue(int index);
+  
   inline const std::vector<UnitType>& GetProductionQueue() const { return productionQueue; }
   
   inline float GetProductionPercentage() const { return productionPercentage; }

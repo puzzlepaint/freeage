@@ -78,6 +78,15 @@ enum class ClientToServerMessage {
   
   /// Sent to delete an own object.
   DeleteObject,
+  
+  /// De-queues a production queue item, refunding the resources for that item.
+  /// Note that the item is specified by giving its index *from the back*, so
+  /// the last item would have index 0, for example. This is because the server
+  /// might finish producing the first item (or theoretically even more than one)
+  /// in the queue after this message is sent and before it is received. If we
+  /// used the index from the front, this would change the item that this message
+  /// refers to. Using the index from the back does not change it.
+  DequeueProductionQueueItem,
 };
 
 QByteArray CreateHostConnectMessage(const QByteArray& hostToken, const QString& playerName);
@@ -119,6 +128,10 @@ QByteArray CreatePlaceBuildingFoundationMessage(
 
 QByteArray CreateDeleteObjectMessage(
     u32 objectId);
+
+QByteArray CreateDequeueProductionQueueItemMessage(
+    u32 productionBuildingId,
+    u8 queueIndexFromBack);
 
 
 /// Types of messages sent by the server to clients.
@@ -272,6 +285,6 @@ QByteArray CreateQueueUnitMessage(u32 buildingId, u16 unitType);
 
 QByteArray CreateUpdateProductionMessage(u32 buildingId, float progressValue, float progressPerSecond);
 
-QByteArray CreateRemoveFromProductionQueueMessage(u32 buildingId);
+QByteArray CreateRemoveFromProductionQueueMessage(u32 buildingId, u8 queueIndex);
 
 QByteArray CreateSetHousedMessage(bool housed);

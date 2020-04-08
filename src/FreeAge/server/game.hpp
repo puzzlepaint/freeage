@@ -98,6 +98,7 @@ class Game {
   void HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player);
   void HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInGame* player);
   void HandleDeleteObjectMessage(const QByteArray& msg, PlayerInGame* player);
+  void HandleDequeueProductionQueueItemMessage(const QByteArray& msg, PlayerInGame* player);
   ParseMessagesResult TryParseClientMessages(PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players);
   
   // TODO: Right now, this creates a message containing the whole map content.

@@ -438,13 +438,15 @@ int ClientBuilding::GetFrameIndex(double elapsedSeconds) {
   }
 }
 
-void ClientBuilding::DequeueFirstUnit() {
-  if (productionQueue.empty()) {
-    LOG(ERROR) << "Cannot dequeue a unit since this building's production queue is empty.";
+void ClientBuilding::DequeueUnit(int index) {
+  if (index >= static_cast<int>(productionQueue.size())) {
+    LOG(ERROR) << "Invalid production queue index given.";
     return;
   }
   
-  productionQueue.erase(productionQueue.begin());
-  productionPercentage = 0;
-  productionProgressPerSecond = 0;
+  productionQueue.erase(productionQueue.begin() + index);
+  if (index == 0) {
+    productionPercentage = 0;
+    productionProgressPerSecond = 0;
+  }
 }

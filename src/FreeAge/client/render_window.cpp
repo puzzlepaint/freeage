@@ -2040,7 +2040,7 @@ QPointF RenderWindow::GetSelectionPanelTopLeft() {
       widgetHeight - uiScale * selectionPanel.texture->GetHeight());
 }
 
-void RenderWindow::RenderObjectIcon(const Texture* iconTexture, float x, float y, float size, GLuint iconPointBuffer, GLuint overlayPointBuffer, QOpenGLFunctions_3_2_Core* f) {
+void RenderWindow::RenderObjectIcon(const Texture* iconTexture, float x, float y, float size, int state, GLuint iconPointBuffer, GLuint overlayPointBuffer, QOpenGLFunctions_3_2_Core* f) {
   float iconInset = uiScale * 4;
   RenderUIGraphic(
       x + iconInset,
@@ -2058,12 +2058,16 @@ void RenderWindow::RenderObjectIcon(const Texture* iconTexture, float x, float y
       size,
       qRgba(255, 255, 255, 255),
       overlayPointBuffer,
-      *iconOverlayNormalTexture,
+      (state == 2) ? *iconOverlayActiveTexture : ((state == 1) ? *iconOverlayHoverTexture : *iconOverlayNormalTexture),
       uiShader.get(), widgetWidth, widgetHeight, f);
 }
 
 void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
   QPointF topLeft = GetSelectionPanelTopLeft();
+  
+  for (int i = 0; i < kMaxProductionQueueSize; ++ i) {
+    productionQueueIconsSize[i] = -1;
+  }
   
   RenderUIGraphic(
       topLeft.x(),
@@ -2144,11 +2148,23 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
         UnitType type = singleSelectedBuilding->GetProductionQueue().front();
         const Texture* iconTexture = ClientUnitType::GetUnitTypes()[static_cast<int>(type)].GetIconTexture();
         if (iconTexture) {
+          productionQueueIconsTopLeft[0] = QPointF(
+              topLeft.x() + uiScale * (2*32 + 2*155),
+              topLeft.y() + uiScale * (50 + 2*46));
+          productionQueueIconsSize[0] = uiScale * 2*35;
+          int state = 0;
+          if (lastMouseMoveEventPos.x() >= productionQueueIconsTopLeft[0].x() &&
+              lastMouseMoveEventPos.y() >= productionQueueIconsTopLeft[0].y() &&
+              lastMouseMoveEventPos.x() < productionQueueIconsTopLeft[0].x() + productionQueueIconsSize[0]  &&
+              lastMouseMoveEventPos.y() < productionQueueIconsTopLeft[0].y() + productionQueueIconsSize[0]) {
+            state = 1;
+          }
           RenderObjectIcon(
               iconTexture,
-              topLeft.x() + uiScale * (2*32 + 2*155),
-              topLeft.y() + uiScale * (50 + 2*46),
-              uiScale * 2*35,
+              productionQueueIconsTopLeft[0].x(),
+              productionQueueIconsTopLeft[0].y(),
+              productionQueueIconsSize[0],
+              (pressedProductionQueueItem == 0) ? 2 : state,
               productionQueuePointBuffers[0].buffer,
               productionQueueOverlayPointBuffers[0].buffer,
               f);
@@ -2197,11 +2213,23 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
         UnitType type = singleSelectedBuilding->GetProductionQueue()[queueIndex];
         const Texture* iconTexture = ClientUnitType::GetUnitTypes()[static_cast<int>(type)].GetIconTexture();
         if (iconTexture) {
+          productionQueueIconsTopLeft[queueIndex] = QPointF(
+              topLeft.x() + uiScale * (2*32 + 2*155 + 2*(queueIndex - 1)*35),
+              topLeft.y() + uiScale * (50 + 2*46 + 2*49));
+          productionQueueIconsSize[queueIndex] = uiScale * 2*35;
+          int state = 0;
+          if (lastMouseMoveEventPos.x() >= productionQueueIconsTopLeft[queueIndex].x() &&
+              lastMouseMoveEventPos.y() >= productionQueueIconsTopLeft[queueIndex].y() &&
+              lastMouseMoveEventPos.x() < productionQueueIconsTopLeft[queueIndex].x() + productionQueueIconsSize[queueIndex]  &&
+              lastMouseMoveEventPos.y() < productionQueueIconsTopLeft[queueIndex].y() + productionQueueIconsSize[queueIndex]) {
+            state = 1;
+          }
           RenderObjectIcon(
               iconTexture,
-              topLeft.x() + uiScale * (2*32 + 2*155 + 2*(queueIndex - 1)*35),
-              topLeft.y() + uiScale * (50 + 2*46 + 2*49),
-              uiScale * 2*35,
+              productionQueueIconsTopLeft[queueIndex].x(),
+              productionQueueIconsTopLeft[queueIndex].y(),
+              productionQueueIconsSize[queueIndex],
+              (pressedProductionQueueItem == static_cast<int>(queueIndex)) ? 2 : state,
               productionQueuePointBuffers[queueIndex].buffer,
               productionQueueOverlayPointBuffers[queueIndex].buffer,
               f);
@@ -2217,6 +2245,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
           topLeft.x() + uiScale * (2*32),
           topLeft.y() + uiScale * (50 + 2*46),
           uiScale * 2*60,
+          0,
           selectionPanelIconPointBuffer.buffer,
           selectionPanelIconOverlayPointBuffer.buffer,
           f);
@@ -3010,6 +3039,27 @@ void RenderWindow::ShowMilitaryBuildingCommandButtons() {
   commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quit.texture.get(), Qt::Key_Escape);
 }
 
+void RenderWindow::DequeueProductionQueueItem(int queueIndex) {
+  if (selection.size() != 1) {
+    LOG(ERROR) << "Can only dequeue production queue items if only a single building is selected.";
+    return;
+  }
+  
+  int queueIndexFromBack = -1;
+  for (int index = kMaxProductionQueueSize - 1; index >= 0; -- index) {
+    if (productionQueueIconsSize[index] >= 0) {
+      queueIndexFromBack = index - queueIndex;
+      break;
+    }
+  }
+  if (queueIndexFromBack < 0) {
+    LOG(ERROR) << "Failed to determine the queue index from the back.";
+    return;
+  }
+  
+  connection->Write(CreateDequeueProductionQueueItemMessage(selection.front(), queueIndexFromBack));
+}
+
 void RenderWindow::JumpToNextTownCenter() {
   std::vector<std::pair<u32, ClientBuilding*>> townCenters;
   
@@ -3566,6 +3616,20 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
       }
     }
     
+    // Has a production queue item been pressed?
+    for (int i = 0; i < kMaxProductionQueueSize; ++ i) {
+      if (productionQueueIconsSize[i] <= 0) {
+        continue;
+      }
+      if (event->pos().x() >= productionQueueIconsTopLeft[i].x() &&
+          event->pos().y() >= productionQueueIconsTopLeft[i].y() &&
+          event->pos().x() < productionQueueIconsTopLeft[i].x() + productionQueueIconsSize[i]  &&
+          event->pos().y() < productionQueueIconsTopLeft[i].y() + productionQueueIconsSize[i]) {
+        pressedProductionQueueItem = i;
+        return;
+      }
+    }
+    
     if (isUIClick) {
       menuButton.MousePress(event->pos());
       
@@ -3729,6 +3793,15 @@ void RenderWindow::HandleMouseMoveEvent() {
     pressedCommandButtonCol = -1;
   }
   
+  // Same for production queue icons.
+  if (pressedProductionQueueItem >= 0 &&
+      !(lastMouseMoveEventPos.x() >= productionQueueIconsTopLeft[pressedProductionQueueItem].x() &&
+        lastMouseMoveEventPos.y() >= productionQueueIconsTopLeft[pressedProductionQueueItem].y() &&
+        lastMouseMoveEventPos.x() < productionQueueIconsTopLeft[pressedProductionQueueItem].x() + productionQueueIconsSize[pressedProductionQueueItem]  &&
+        lastMouseMoveEventPos.y() < productionQueueIconsTopLeft[pressedProductionQueueItem].y() + productionQueueIconsSize[pressedProductionQueueItem])) {
+    pressedProductionQueueItem = -1;
+  }
+  
   // If hovering over the game area, possibly change the cursor to indicate possible interactions.
   UpdateCursor();
 }
@@ -3807,6 +3880,12 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
       pressedCommandButtonRow = -1;
       pressedCommandButtonCol = -1;
       return;
+    }
+    
+    if (pressedProductionQueueItem >= 0 &&
+        match->IsPlayerStillInGame()) {
+      DequeueProductionQueueItem(pressedProductionQueueItem);
+      pressedProductionQueueItem = -1;
     }
     
     if (isUIClick) {

@@ -49,4 +49,20 @@ void ServerBuilding::RemoveCurrentItemFromQueue() {
     return;
   }
   productionQueue.erase(productionQueue.begin());
+  
+  productionPercentage = 0;
+}
+
+UnitType ServerBuilding::RemoveItemFromQueue(int index) {
+  if (static_cast<int>(productionQueue.size()) <= index) {
+    LOG(ERROR) << "RemoveItemFromQueue() called with invalid queue index";
+    return UnitType::NumUnits;
+  }
+  
+  UnitType type = productionQueue[index];
+  productionQueue.erase(productionQueue.begin() + index);
+  if (index == 0) {
+    productionPercentage = 0;
+  }
+  return type;
 }

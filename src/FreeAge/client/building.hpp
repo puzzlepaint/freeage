@@ -129,7 +129,7 @@ class ClientBuilding : public ClientObject {
   
   /// Adds a unit to the end of the production queue.
   inline void QueueUnit(UnitType type) { productionQueue.push_back(type); }
-  void DequeueFirstUnit();
+  void DequeueUnit(int index);
   inline const std::vector<UnitType>& GetProductionQueue() const { return productionQueue; }
   
   inline void SetProductionState(double serverTime, float percentage, float progressPerSecond) {

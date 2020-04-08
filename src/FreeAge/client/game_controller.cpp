@@ -598,7 +598,7 @@ void GameController::HandleUpdateProductionMessage(const QByteArray& data) {
 }
 
 void GameController::HandleRemoveFromProductionQueueMessage(const QByteArray& data) {
-  if (data.size() < 4) {
+  if (data.size() < 5) {
     LOG(ERROR) << "Received a too short RemoveFromProductionQueue message";
     return;
   }
@@ -615,9 +615,11 @@ void GameController::HandleRemoveFromProductionQueueMessage(const QByteArray& da
     return;
   }
   
+  u8 queueIndex = buffer[4];
+  
   ClientBuilding* building = AsBuilding(it->second);
   // This handles the case of the queue being empty.
-  building->DequeueFirstUnit();
+  building->DequeueUnit(queueIndex);
 }
 
 void GameController::HandleSetHousedMessage(const QByteArray& data) {
