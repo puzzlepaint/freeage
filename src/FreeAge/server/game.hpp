@@ -111,7 +111,7 @@ class Game {
   void StartGame();
   void SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds);
   void SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStepServerTime, float stepLengthInSeconds);
-  bool IsPathFree(float unitRadius, const QPointF& p0, const QPointF& p1);
+  bool IsPathFree(float unitRadius, const QPointF& p0, const QPointF& p1, const QRect& openRect);
   void PlanUnitPath(ServerUnit* unit);
   void SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* villager, u32 targetObjectId, ServerBuilding* targetBuilding, bool* unitMovementChanged, bool* stayInPlace);
   void SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, ServerUnit* villager, ServerBuilding* targetBuilding, bool* unitMovementChanged, bool* stayInPlace);

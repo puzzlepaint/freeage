@@ -980,7 +980,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
 /// Tests whether the unit could walk from p0 to p1 (or vice versa) without colliding
 /// with a building. Notice that this function does not check whether the start and
 /// end points themselves are (fully) free, it only checks the space between them.
-bool Game::IsPathFree(float unitRadius, const QPointF& p0, const QPointF& p1) {
+bool Game::IsPathFree(float unitRadius, const QPointF& p0, const QPointF& p1, const QRect& openRect) {
   // Obtain the points to the right and left of p0 and p1.
   constexpr float kErrorEpsilon = 1e-3f;
   
@@ -1096,7 +1096,7 @@ bool Game::IsPathFree(float unitRadius, const QPointF& p0, const QPointF& p1) {
     for (int row = minRow; row <= maxRow; ++ row) {
       auto& rowRange = rowRanges[row];
       for (int col = rowRange.first; col <= rowRange.second; ++ col) {
-        if (map->occupiedForUnitsAt(col, row)) {
+        if (map->occupiedForUnitsAt(col, row) && !openRect.contains(col, row, false)) {
           debugImage.setPixelColor(col, row, qRgb(255, 0, 0));
         } else {
           debugImage.setPixelColor(col, row, qRgb(0, 255, 0));
@@ -1114,7 +1114,7 @@ bool Game::IsPathFree(float unitRadius, const QPointF& p0, const QPointF& p1) {
   for (int row = minRow; row <= maxRow; ++ row) {
     auto& rowRange = rowRanges[row];
     for (int col = rowRange.first; col <= rowRange.second; ++ col) {
-      if (map->occupiedForUnitsAt(col, row)) {
+      if (map->occupiedForUnitsAt(col, row) && !openRect.contains(col, row, false)) {
         return false;
       }
     }
@@ -1136,15 +1136,10 @@ void Game::PlanUnitPath(ServerUnit* unit) {
       std::max(0, std::min(mapWidth - 1, static_cast<int>(unit->GetMapCoord().x()))),
       std::max(0, std::min(mapHeight - 1, static_cast<int>(unit->GetMapCoord().y()))));
   
-  // Determine the goal tile.
-  QPoint goal(
-      std::max(0, std::min(mapWidth - 1, static_cast<int>(unit->GetMoveToTargetMapCoord().x()))),
-      std::max(0, std::min(mapHeight - 1, static_cast<int>(unit->GetMoveToTargetMapCoord().y()))));
-  
-  // Determine the tiles to treat as open despite being occupied.
+  // Determine the goal tiles and treat them as open even if they are occupied.
   // This is done for the tiles taken up by the unit's target.
   // This allows us to plan a path "into" the target.
-  QRect openRect;
+  QRect goalRect;
   if (unit->GetTargetObjectId() != kInvalidObjectId) {
     auto targetIt = map->GetObjects().find(unit->GetTargetObjectId());
     if (targetIt != map->GetObjects().end()) {
@@ -1154,9 +1149,16 @@ void Game::PlanUnitPath(ServerUnit* unit) {
         
         const QPoint& baseTile = targetBuilding->GetBaseTile();
         QSize buildingSize = GetBuildingSize(targetBuilding->GetBuildingType());
-        openRect = QRect(baseTile, buildingSize);
+        goalRect = QRect(baseTile, buildingSize);
       }
     }
+  }
+  if (goalRect.isNull()) {
+    goalRect = QRect(
+        std::max(0, std::min(mapWidth - 1, static_cast<int>(unit->GetMoveToTargetMapCoord().x()))),
+        std::max(0, std::min(mapHeight - 1, static_cast<int>(unit->GetMoveToTargetMapCoord().y()))),
+        1,
+        1);
   }
   
   // Use A* to plan a path from the start to the goal tile.
@@ -1183,9 +1185,9 @@ void Game::PlanUnitPath(ServerUnit* unit) {
   priorityQueue.emplace(start, 0.f);
   
   std::vector<CostT> costSoFar(mapWidth * mapHeight);
-  for (int i = 0, end = mapWidth * mapHeight; i < end; ++ i) {
-    costSoFar[i] = std::numeric_limits<float>::infinity();
-  }
+  // TODO: Perhaps some potential overhead of this may be reduced by doing a memset() to zero instead,
+  //       using "negative zero" for the start node, and later comparing to "positive zero" as a special case using std::signbit()?
+  std::fill(std::begin(costSoFar), std::end(costSoFar), std::numeric_limits<float>::infinity());
   costSoFar[start.x() + mapWidth * start.y()] = 0;
   
   // Directions are encoded as row-major indices of grid cells in a 4x4 grid,
@@ -1267,13 +1269,14 @@ void Game::PlanUnitPath(ServerUnit* unit) {
         }
       }
     }
-    for (int y = openRect.y(); y < openRect.bottom(); ++ y) {
-      for (int x = openRect.x(); x < openRect.right(); ++ x) {
+    for (int y = goalRect.y(); y < goalRect.bottom(); ++ y) {
+      for (int x = goalRect.x(); x < goalRect.right(); ++ x) {
         debugImage.setPixel(x, y, qRgb(0, 100, 0));
       }
     }
   }
   
+  QPoint reachedGoalTile(-1, -1);
   while (!priorityQueue.empty()) {
     Location current = priorityQueue.top();
     priorityQueue.pop();
@@ -1283,7 +1286,8 @@ void Game::PlanUnitPath(ServerUnit* unit) {
       debugImage.setPixel(current.loc.x(), current.loc.y(), qRgb(255, 127, 127));
     }
     
-    if (current.loc == goal) {
+    if (goalRect.contains(current.loc, false)) {
+      reachedGoalTile = current.loc;
       break;
     }
     
@@ -1325,7 +1329,7 @@ void Game::PlanUnitPath(ServerUnit* unit) {
         continue;
       }
       // Skip neighbor if it is occupied.
-      if (map->occupiedForUnitsAt(nextTile.x(), nextTile.y()) && !openRect.contains(nextTile, false)) {
+      if (map->occupiedForUnitsAt(nextTile.x(), nextTile.y()) && !goalRect.contains(nextTile, false)) {
         // Continue while not skipping over possible neighbors depending on this as an occupancy check (since the check returned true).
         continue;
       }
@@ -1350,8 +1354,10 @@ void Game::PlanUnitPath(ServerUnit* unit) {
         
         // Compute the "diagonal distance" as a heuristic for the remaining path length to the goal.
         // This is a distance metric on the grid while allowing diagonal movements.
-        int xDiff = std::abs(nextTile.x() - goal.x());
-        int yDiff = std::abs(nextTile.y() - goal.y());
+        int goalX = std::max(goalRect.x(), std::min(goalRect.x() + goalRect.width() - 1, nextTile.x()));
+        int goalY = std::max(goalRect.y(), std::min(goalRect.y() + goalRect.height() - 1, nextTile.y()));
+        int xDiff = std::abs(nextTile.x() - goalX);
+        int yDiff = std::abs(nextTile.y() - goalY);
         int minDiff = std::min(xDiff, yDiff);
         int maxDiff = std::max(xDiff, yDiff);
         CostT heuristic = minDiff * sqrt2 + (maxDiff - minDiff) * 1;
@@ -1377,26 +1383,18 @@ void Game::PlanUnitPath(ServerUnit* unit) {
   
   // Did we find a path to the goal or only to some other tile that is close to the goal?
   QPoint targetTile;
-  if (cameFrom[goal.x() + mapWidth * goal.y()] == cameFromUninitializedValue) {
+  if (reachedGoalTile.x() < 0) {
     // No path to the goal was found. Go to the reachable node that is closest to the goal.
     if (smallestReachedHeuristicTile.x() >= 0) {
       LOG(1) << "Pathfinding: Goal not reached; going as close as possible";
       targetTile = smallestReachedHeuristicTile;
     } else {
-      // Goal not reached and we do not have an optimum tile. This happens if the unit is on a single
-      // tile surrounded by obstacles, or if start == goal.
-      if (start == goal) {
-        LOG(1) << "Pathfinding: start == goal";
-        targetTile = goal;
-      } else {
-        LOG(1) << "Pathfinding: Goal not reached and there is no better tile than the initial one. Stopping.";
-        unit->StopMovement();
-        return;
-      }
+      LOG(1) << "Pathfinding: Goal not reached and there is no better tile than the initial one. Stopping.";
+      unit->StopMovement();
     }
   } else {
     LOG(1) << "Pathfinding: Goal reached";
-    targetTile = goal;
+    targetTile = reachedGoalTile;
   }
   
   // Reconstruct the path, tracking back from "targetTile" using "cameFrom".
@@ -1430,10 +1428,11 @@ void Game::PlanUnitPath(ServerUnit* unit) {
   }
   
   // Replace the last point with the exact goal location (if we can reach the goal)
-  if (targetTile == goal) {
+  // TODO: If we can't reach the goal, maybe append a point here that makes the unit walk into the obstacle?
+  if (reachedGoalTile.x() >= 0) {
     if (reversePath.empty()) {
       reversePath.push_back(unit->GetMoveToTargetMapCoord());
-    } else {
+    } else if (goalRect.width() == 1 && goalRect.height() == 1) {
       reversePath[0] = unit->GetMoveToTargetMapCoord();
     }
   }
@@ -1446,7 +1445,7 @@ void Game::PlanUnitPath(ServerUnit* unit) {
     const QPointF& p0 = (i == reversePath.size() - 1) ? unit->GetMapCoord() : reversePath[i + 1];
     const QPointF& p1 = reversePath[i - 1];
     
-    if (IsPathFree(unitRadius, p0, p1)) {
+    if (IsPathFree(unitRadius, p0, p1, goalRect)) {
       reversePath.erase(reversePath.begin() + i);
       -- i;
     }
