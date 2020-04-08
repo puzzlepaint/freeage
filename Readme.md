@@ -32,7 +32,7 @@ pathfinding, gathering resources, constructing
 buildings, and fighting with militia, villagers, and the starting scout.
 The game is however already fully playable over the Internet and thus offers a
 good foundation to incrementally add the missing functionalities.
-Contributions are welcome.
+Contributions are welcome!
 
 The game has been tested on Windows and Linux.
 
@@ -47,8 +47,10 @@ Run `FreeAge.exe` (Windows) / `FreeAge` (Linux) to start the game.
 
 A settings dialog will show where you may enter your player name and adjust
 some preferences. In addition, the paths to the asset files from the original
-game can be configured there. Normally, the game should automatically detect
-those, but they may be set manually in case this fails.
+game can be configured there. If you have the original game installed on Steam,
+the game should automatically detect those. They may be set manually in case
+this fails or if the game is installed via the Microsoft Store (for which no
+automatic detection was implemented yet).
 
 There are three options to create or join a game lobby:
 
