@@ -105,6 +105,10 @@ int main(int argc, char** argv) {
   
   // Settings loop.
   while (true) {
+    if (serverProcess.state() != QProcess::NotRunning) {
+      serverProcess.terminate();
+    }
+    
     // Show the settings dialog.
     SettingsDialog settingsDialog(&settings);
     if (settingsDialog.exec() == QDialog::Rejected) {

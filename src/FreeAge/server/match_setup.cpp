@@ -407,24 +407,21 @@ static ParseMessagesResult TryParseClientMessages(PlayerInMatch* player, const s
 bool RunMatchSetupLoop(QTcpServer* server, std::vector<std::shared_ptr<PlayerInMatch>>* playersInMatch, ServerSettings* settings) {
   while (true) {
     // Check for new connections
-    bool timedOut = false;
-    if (server->waitForNewConnection(/*msec*/ 0, &timedOut) && !timedOut) {
-      // A new connection is available, get a pointer to it (does not need to be freed).
-      while (QTcpSocket* socket = server->nextPendingConnection()) {
-        LOG(INFO) << "Server: Got new connection";
-        
-        socket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
-        
-        std::shared_ptr<PlayerInMatch> newPlayer(new PlayerInMatch());
-        newPlayer->socket = socket;
-        newPlayer->isHost = false;
-        newPlayer->playerColorIndex = -1;
-        newPlayer->isReady = false;
-        newPlayer->connectionTime = Clock::now();
-        newPlayer->state = PlayerInMatch::State::Connected;
-        newPlayer->lastPingTime = Clock::now();
-        playersInMatch->push_back(newPlayer);
-      }
+    while (QTcpSocket* socket = server->nextPendingConnection()) {
+      // A new connection is available. The pointer to it does not need to be freed.
+      LOG(INFO) << "Server: Got new connection";
+      
+      socket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
+      
+      std::shared_ptr<PlayerInMatch> newPlayer(new PlayerInMatch());
+      newPlayer->socket = socket;
+      newPlayer->isHost = false;
+      newPlayer->playerColorIndex = -1;
+      newPlayer->isReady = false;
+      newPlayer->connectionTime = Clock::now();
+      newPlayer->state = PlayerInMatch::State::Connected;
+      newPlayer->lastPingTime = Clock::now();
+      playersInMatch->push_back(newPlayer);
     }
     
     // Communicate with existing connections.

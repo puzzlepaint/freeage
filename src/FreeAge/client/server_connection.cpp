@@ -122,6 +122,8 @@ class ServerConnectionThread : public QThread {
         TryParseMessages();
       });
       TryParseMessages();
+    } else {
+      LOG(WARNING) << "Connection to server failed. Socket state is: " << socket->state();
     }
     
     return socket->state() == QAbstractSocket::ConnectedState;
