@@ -63,7 +63,7 @@ GameDialog::GameDialog(
   
   // Settings
   QLabel* mapSizeLabel = new QLabel(tr("Map size: "));
-  mapSizeEdit = new QLineEdit("50");
+  mapSizeEdit = new QLineEdit("75");  // TODO: Make sure that this is the same default as on the server (settings.hpp); or make the host send a settings update right at the start.
   if (isHost) {
     mapSizeEdit->setValidator(new QIntValidator(10, 99999, mapSizeEdit));
     

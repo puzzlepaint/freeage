@@ -45,6 +45,8 @@ ServerMap::~ServerMap() {
   delete[] occupiedForBuildings;
 }
 
+
+
 void ServerMap::GenerateRandomMap(int playerCount, int seed) {
   srand(seed);
   
@@ -114,7 +116,7 @@ void ServerMap::GenerateRandomMap(int playerCount, int seed) {
   // Generate forests
   constexpr int kForestMinDistanceFromTCs = 10;  // TODO: Make configurable
   constexpr float kForestMinDistanceFromOtherForests = 10;
-  const int kNumForests = 11 * (width * height) / (50.f * 50.f) + 0.5f;  // TODO: Make configurable
+  const int kNumForests = 10 * (width * height) / (50.f * 50.f) + 0.5f;  // TODO: Make configurable
   std::vector<QPointF> forestCenters(kNumForests);
   for (int forest = 0; forest < kNumForests; ++ forest) {
     int tileX;
@@ -134,7 +136,7 @@ retryForest:  // TODO: Ugly implementation, improve this
       
       // Place the forest.
       // TODO: For now, we just place very simple circles.
-      int forestRadius = 4 + rand() % 3;
+      int forestRadius = 4 + rand() % 2;
       
       int minX = std::max(0, tileX - forestRadius);
       int maxX = std::min(width - 1, tileX + forestRadius);
@@ -151,6 +153,82 @@ retryForest:  // TODO: Ugly implementation, improve this
           }
         }
       }
+    }
+  }
+  
+  // Generate neutral forage bushes
+  constexpr int kNeutralForageBushesMinDistanceFromTCs = 18;  // TODO: Make configurable
+  constexpr float kNeutralForageBushesMinDistanceFromOthers = 10;
+  const int kNumNeutralForageBushes = 3 * (width * height) / (50.f * 50.f) + 0.5f;  // TODO: Make configurable
+  std::vector<QPointF> neutralForageBushCenters(kNumNeutralForageBushes);
+  for (int bushIndex = 0; bushIndex < kNumNeutralForageBushes; ++ bushIndex) {
+    int tileX;
+    int tileY;
+retryBush:  // TODO: Ugly implementation, improve this
+    if (getRandomLocation(kNeutralForageBushesMinDistanceFromTCs, &tileX, &tileY)) {
+      for (int otherNeutralForageBush = 0; otherNeutralForageBush < bushIndex; ++ otherNeutralForageBush) {
+        float distanceX = neutralForageBushCenters[otherNeutralForageBush].x() - tileX;
+        float distanceY = neutralForageBushCenters[otherNeutralForageBush].y() - tileY;
+        float distance = sqrtf(distanceX * distanceX + distanceY * distanceY);
+        if (distance < kNeutralForageBushesMinDistanceFromOthers) {
+          goto retryBush;
+        }
+      }
+      
+      neutralForageBushCenters[bushIndex] = QPointF(tileX + 0.5f, tileY + 0.5f);
+      
+      // Place the bushes.
+      QPoint spawnLoc(tileX, tileY);
+      if (spawnLoc.x() < 1 || spawnLoc.y() < 1 ||
+          spawnLoc.x() >= width - 1 || spawnLoc.y() >= height - 1 ||
+          occupiedForBuildingsAt(spawnLoc.x(), spawnLoc.y()) ||
+          occupiedForBuildingsAt(spawnLoc.x(), spawnLoc.y() + 1) ||
+          occupiedForBuildingsAt(spawnLoc.x(), spawnLoc.y() - 1) ||
+          occupiedForBuildingsAt(spawnLoc.x() + 1, spawnLoc.y()) ||
+          occupiedForBuildingsAt(spawnLoc.x() - 1, spawnLoc.y())) {
+        -- bushIndex;
+        continue;
+      }
+      
+      SpawnBuildingClump(spawnLoc, 4, BuildingType::ForageBush);
+    }
+  }
+  
+  // Generate neutral golds
+  constexpr int kNeutralGoldsMinDistanceFromTCs = 20;  // TODO: Make configurable
+  constexpr float kNeutralGoldsMinDistanceFromOthers = 15;
+  const int kNumNeutralGolds = 1 * (width * height) / (50.f * 50.f) + 0.5f;  // TODO: Make configurable
+  std::vector<QPointF> neutralGoldCenters(kNumNeutralGolds);
+  for (int goldIndex = 0; goldIndex < kNumNeutralGolds; ++ goldIndex) {
+    int tileX;
+    int tileY;
+retryGold:  // TODO: Ugly implementation, improve this
+    if (getRandomLocation(kNeutralGoldsMinDistanceFromTCs, &tileX, &tileY)) {
+      for (int otherNeutralGold = 0; otherNeutralGold < goldIndex; ++ otherNeutralGold) {
+        float distanceX = neutralGoldCenters[otherNeutralGold].x() - tileX;
+        float distanceY = neutralGoldCenters[otherNeutralGold].y() - tileY;
+        float distance = sqrtf(distanceX * distanceX + distanceY * distanceY);
+        if (distance < kNeutralGoldsMinDistanceFromOthers) {
+          goto retryGold;
+        }
+      }
+      
+      neutralGoldCenters[goldIndex] = QPointF(tileX + 0.5f, tileY + 0.5f);
+      
+      // Place the gold mines.
+      QPoint spawnLoc(tileX, tileY);
+      if (spawnLoc.x() < 1 || spawnLoc.y() < 1 ||
+          spawnLoc.x() >= width - 1 || spawnLoc.y() >= height - 1 ||
+          occupiedForBuildingsAt(spawnLoc.x(), spawnLoc.y()) ||
+          occupiedForBuildingsAt(spawnLoc.x(), spawnLoc.y() + 1) ||
+          occupiedForBuildingsAt(spawnLoc.x(), spawnLoc.y() - 1) ||
+          occupiedForBuildingsAt(spawnLoc.x() + 1, spawnLoc.y()) ||
+          occupiedForBuildingsAt(spawnLoc.x() - 1, spawnLoc.y())) {
+        -- goldIndex;
+        continue;
+      }
+      
+      SpawnBuildingClump(spawnLoc, 3, BuildingType::GoldMine);
     }
   }
   
@@ -182,40 +260,17 @@ retryForest:  // TODO: Ugly implementation, improve this
         QPoint spawnLoc(
             townCenterCenters[player].x() + radius * sin(angle),
             townCenterCenters[player].y() + radius * cos(angle));
-        if (spawnLoc.x() < 0 || spawnLoc.y() < 0 ||
-            spawnLoc.x() >= width || spawnLoc.y() >= height ||
-            occupiedForBuildingsAt(spawnLoc.x(), spawnLoc.y())) {
+        if (spawnLoc.x() < 1 || spawnLoc.y() < 1 ||
+            spawnLoc.x() >= width - 1 || spawnLoc.y() >= height - 1 ||
+            occupiedForBuildingsAt(spawnLoc.x(), spawnLoc.y()) ||
+            occupiedForBuildingsAt(spawnLoc.x(), spawnLoc.y() + 1) ||
+            occupiedForBuildingsAt(spawnLoc.x(), spawnLoc.y() - 1) ||
+            occupiedForBuildingsAt(spawnLoc.x() + 1, spawnLoc.y()) ||
+            occupiedForBuildingsAt(spawnLoc.x() - 1, spawnLoc.y())) {
           continue;
         }
         
-        for (int t = 0; t < count; ++ t) {
-          AddBuilding(kGaiaPlayerIndex, type, spawnLoc, /*buildPercentage*/ 100);
-          if (t == count - 1) {
-            break;
-          }
-          
-          // Proceed to a random neighboring tile that is not occupied.
-          bool foundFreeSpace = false;
-          int startDirection = rand() % 4;
-          for (int dirOffset = 0; dirOffset < 4; ++ dirOffset) {
-            int testDirection = (startDirection + dirOffset) % 4;
-            QPoint testLoc(
-                spawnLoc.x() + ((testDirection == 0) ? 1 : ((testDirection == 1) ? -1 : 0)),
-                spawnLoc.y() + ((testDirection == 2) ? 1 : ((testDirection == 3) ? -1 : 0)));
-            if (!(testLoc.x() < 0 || testLoc.y() < 0 ||
-                  testLoc.x() >= width || testLoc.y() >= height) &&
-                !occupiedForBuildingsAt(testLoc.x(), testLoc.y())) {
-              spawnLoc = testLoc;
-              foundFreeSpace = true;
-              break;
-            }
-          }
-          
-          if (!foundFreeSpace) {
-            // TODO: Prevent this from happening / retry in another place.
-            break;
-          }
-        }
+        SpawnBuildingClump(spawnLoc, count, type);
         break;
       }
     }
@@ -459,4 +514,39 @@ void ServerMap::SetBuildingOccupancy(ServerBuilding* building, bool occupied) {
       occupiedForBuildingsAt(x, y) = occupied;
     }
   }
+}
+
+bool ServerMap::SpawnBuildingClump(const QPoint& spawnLoc, int count, BuildingType type) {
+  QPoint curLoc = spawnLoc;
+  
+  for (int t = 0; t < count; ++ t) {
+    AddBuilding(kGaiaPlayerIndex, type, curLoc, /*buildPercentage*/ 100);
+    if (t == count - 1) {
+      break;
+    }
+    
+    // Proceed to a random neighboring tile that is not occupied.
+    bool foundFreeSpace = false;
+    int startDirection = rand() % 4;
+    for (int dirOffset = 0; dirOffset < 4; ++ dirOffset) {
+      int testDirection = (startDirection + dirOffset) % 4;
+      QPoint testLoc(
+          curLoc.x() + ((testDirection == 0) ? 1 : ((testDirection == 1) ? -1 : 0)),
+          curLoc.y() + ((testDirection == 2) ? 1 : ((testDirection == 3) ? -1 : 0)));
+      if (!(testLoc.x() < 0 || testLoc.y() < 0 ||
+            testLoc.x() >= width || testLoc.y() >= height) &&
+          !occupiedForBuildingsAt(testLoc.x(), testLoc.y())) {
+        curLoc = testLoc;
+        foundFreeSpace = true;
+        break;
+      }
+    }
+    
+    if (!foundFreeSpace) {
+      // TODO: Prevent this from happening / retry in another place.
+      return false;
+    }
+  }
+  
+  return true;
 }

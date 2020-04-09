@@ -46,6 +46,8 @@ void Settings::InitializeWithDefaults() {
 
 void Settings::Save() {
   QSettings settings;
+  LOG(INFO) << "Saving settings to: " << settings.fileName().toStdString();
+  
   settings.setValue("dataPath", QString::fromStdString(dataPath.string()));
   settings.setValue("modsPath", QString::fromStdString(modsPath.string()));
   settings.setValue("playerName", playerName);
@@ -56,6 +58,11 @@ void Settings::Save() {
 
 bool Settings::TryLoad() {
   QSettings settings;
+  LOG(INFO) << "Trying to load settings from: " << settings.fileName().toStdString();
+  // TODO: Potentially check the file permissions of the file we load this from.
+  //       It happended on Linux that only the root could write to this file,
+  //       thus any attempts to change settings silently failed.
+  
   dataPath = settings.value("dataPath").toString().toStdString();
   modsPath = settings.value("modsPath").toString().toStdString();
   playerName = settings.value("playerName").toString();

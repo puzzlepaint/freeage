@@ -72,6 +72,8 @@ class ServerMap {
  private:
   void SetBuildingOccupancy(ServerBuilding* building, bool occupied);
   
+  bool SpawnBuildingClump(const QPoint& spawnLoc, int count, BuildingType type);
+  
   
   /// The maximum possible elevation level (the lowest is zero).
   /// This may be higher than the maximum actually existing

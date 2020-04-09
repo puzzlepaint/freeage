@@ -1622,7 +1622,7 @@ void Game::SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, 
   
   // Determine the number of resource units collected.
   // TODO: The gather rate should vary per resource type and depend on the player's civilization and technologies
-  constexpr double gatherRate = 2.0;
+  constexpr double gatherRate = 1.3;
   double resourcesGathered = gatherRate * stepLengthInSeconds;
   
   constexpr int carryCapacity = 10;  // TODO: Should depend on technologies etc.

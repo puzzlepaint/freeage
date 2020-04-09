@@ -85,12 +85,12 @@ float GetUnitProductionTime(UnitType type) {
   // TODO: Load this from some data file
   
   if (IsVillager(type)) {
-    return 3;  // TODO: Set too short on purpose for testing
+    return 10;  // TODO: Set too short on purpose for testing
   }
   
   switch (type) {
   case UnitType::Militia:
-    return 4;  // TODO: Set too short on purpose for testing
+    return 8;  // TODO: Set too short on purpose for testing
   case UnitType::Scout:
     return 4;  // TODO: Set too short on purpose for testing
   default:
