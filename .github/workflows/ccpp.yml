@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: setup
+      run: apt-get install ninja-build
     - uses: actions/checkout@v2
     - name: make
       run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja .. && ninja
