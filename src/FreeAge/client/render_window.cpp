@@ -3023,8 +3023,8 @@ QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y(
   int minElevation = std::numeric_limits<int>::max();
   int maxElevation = std::numeric_limits<int>::min();
   int minViewCount = std::numeric_limits<int>::max();
-  for (int y = foundationBaseTile.y(); y <= foundationBaseTile.y() + foundationSize.height(); ++ y) {
-    for (int x = foundationBaseTile.x(); x <= foundationBaseTile.x() + foundationSize.width(); ++ x) {
+  for (int y = foundationBaseTile.y(); y < foundationBaseTile.y() + foundationSize.height(); ++ y) {
+    for (int x = foundationBaseTile.x(); x < foundationBaseTile.x() + foundationSize.width(); ++ x) {
       int elevation = map->elevationAt(x, y);
       minElevation = std::min(minElevation, elevation);
       maxElevation = std::max(maxElevation, elevation);

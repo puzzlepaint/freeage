@@ -466,7 +466,8 @@ void Game::HandleDequeueProductionQueueItemMessage(const QByteArray& msg, Player
   
   // Adjust population count (if relevant).
   if (queueIndex == 0 && building->GetProductionPercentage() > 0) {
-    playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction -= 1;
+    playersInGame->at(building->GetPlayerIndex())->populationIncludingInProduction -= 1;
+    LOG(WARNING) << "DEBUG: removed population (dequeued first prod. item) for player " << object->GetPlayerIndex() << " --> " << playersInGame->at(building->GetPlayerIndex())->populationIncludingInProduction;
   }
   
   // Remove the item from the queue.
@@ -677,6 +678,7 @@ void Game::StartGame() {
       }
     } else if (object->isUnit()) {
       playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction += 1;
+      LOG(WARNING) << "DEBUG: added population (game start) for player " << object->GetPlayerIndex() << " --> " << playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction;
     }
   }
   for (auto& player : *playersInGame) {
@@ -1730,7 +1732,6 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
       // Only start producing the unit if population space is available.
       canProduce = player.populationIncludingInProduction < player.availablePopulationSpace;
       if (!canProduce) {
-        LOG(1) << "Player " << player.index << " housed: " << player.populationIncludingInProduction << " / " << player.availablePopulationSpace;
         player.isHoused = true;
       }
     }
@@ -1744,6 +1745,7 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
       if (newPercentage >= 100) {
         // Remove the population count for the unit in production.
         player.populationIncludingInProduction -= 1;
+        LOG(WARNING) << "DEBUG: removed population (in production) for player " << player.index << " --> " << player.populationIncludingInProduction;
         
         // Special case for UnitType::MaleVillager: Randomly decide whether to produce a male or female.
         if (unitInProduction == UnitType::MaleVillager) {
@@ -1766,6 +1768,7 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
         
         // Add the population count for the unit in production.
         player.populationIncludingInProduction += 1;
+        LOG(WARNING) << "DEBUG: added population (in production) for player " << player.index << " --> " << player.populationIncludingInProduction;
       }
     }
   }
@@ -1921,8 +1924,7 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   
   // Handle population counting
   playersInGame->at(newUnit->GetPlayerIndex())->populationIncludingInProduction += 1;
-  
-  LOG(1) << "Player " << newUnit->GetPlayerIndex() << " produced new unit: " << playersInGame->at(newUnit->GetPlayerIndex())->populationIncludingInProduction << " / " << playersInGame->at(newUnit->GetPlayerIndex())->availablePopulationSpace;
+  LOG(WARNING) << "DEBUG: added population (produced unit) for player " << newUnit->GetPlayerIndex() << " --> " << playersInGame->at(newUnit->GetPlayerIndex())->populationIncludingInProduction;
 }
 
 void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject) {
@@ -1972,6 +1974,8 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   // For buildings:
   // * Remove their map occupancy
   // * If not completed and deleted manually, refund some resources
+  // * Refund resources for any items in the production queue,
+  //   and "refund" the population space for any unit currently being produced
   if (object->isBuilding()) {
     ServerBuilding* building = AsBuilding(object);
     if (building->GetBuildPercentage() > 0) {
@@ -1982,6 +1986,13 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
       
       ResourceAmount cost = GetBuildingCost(building->GetBuildingType());
       playersInGame->at(building->GetPlayerIndex())->resources.Add(remainingResourceAmount * cost);
+    }
+    for (usize queueIndex = 0; queueIndex < building->GetProductionQueue().size(); ++ queueIndex) {
+      playersInGame->at(building->GetPlayerIndex())->resources.Add(GetUnitCost(building->GetProductionQueue()[queueIndex]));
+    }
+    if (building->GetProductionPercentage() > 0) {
+      playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction -= 1;
+      LOG(WARNING) << "DEBUG: removed population (lost a building that was producing a unit) for player " << object->GetPlayerIndex() << " --> " << playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction;
     }
   }
   
@@ -1994,8 +2005,8 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
     }
   } else if (object->isUnit()) {
     playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction -= 1;
+    LOG(WARNING) << "DEBUG: removed population (lost unit) for player " << object->GetPlayerIndex() << " --> " << playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction;
   }
-  LOG(1) << "Player " << object->GetPlayerIndex() << " lost an object: " << playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction << " / " << playersInGame->at(object->GetPlayerIndex())->availablePopulationSpace;
   
   // If all objects of a player are gone, the player gets defeated.
   if (object->GetPlayerIndex() != kGaiaPlayerIndex) {
