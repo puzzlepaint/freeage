@@ -14,7 +14,7 @@ bool ModManager::LoadModStatus(const std::filesystem::path& modStatusJsonPath, c
   std::filesystem::path modsBasePath = modStatusJsonPath.parent_path();
   this->dataDirPath = dataDirPath;
   
-  YAML::Node fileNode = YAML::LoadFile(modStatusJsonPath);
+  YAML::Node fileNode = YAML::LoadFile(modStatusJsonPath.string());
   if (fileNode.IsNull()) {
     LOG(ERROR) << "Cannot read file: " << modStatusJsonPath;
     return false;

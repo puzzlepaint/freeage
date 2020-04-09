@@ -518,8 +518,8 @@ void Map::UpdateViewCountTexture(QOpenGLFunctions_3_2_Core* f) {
   
   delete[] textureData;
   
-  viewCountChangeMinX = std::numeric_limits<typeof(viewCountChangeMinX)>::max();
-  viewCountChangeMinY = std::numeric_limits<typeof(viewCountChangeMinY)>::max();
+  viewCountChangeMinX = std::numeric_limits<int>::max();
+  viewCountChangeMinY = std::numeric_limits<int>::max();
   viewCountChangeMaxX = -1;
   viewCountChangeMaxY = -1;
 }
