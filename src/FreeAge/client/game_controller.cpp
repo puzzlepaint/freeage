@@ -70,7 +70,7 @@ void GameController::ParseMessagesUntil(double displayedServerTime) {
         }
         
         ++ statisticsDebugOutputCounter;
-        if (statisticsDebugOutputCounter % 20 == 0) {
+        if (statisticsDebugOutputCounter % 100 == 0) {
           LOG(INFO) << "--- Networking debug statistics ---";
           
           double filteredPing;
@@ -268,12 +268,10 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
     
     ClientBuilding* newBuilding = new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y(), buildPercentage, initialHP);
     map->AddObject(objectId, newBuilding);
-    if (playerIndex == match->GetPlayerIndex() && newBuilding->GetBuildPercentage() == 100) {
-      newBuilding->UpdateFieldOfView(map.get(), 1);
-    }
-    
-    if (buildPercentage == 100) {
+    if (playerIndex == match->GetPlayerIndex() && buildPercentage == 100) {
       availablePopulationSpace += GetBuildingProvidedPopulationSpace(buildingType);
+      
+      newBuilding->UpdateFieldOfView(map.get(), 1);
     }
   } else if (objectType == ObjectType::Unit) {
     UnitType unitType = static_cast<UnitType>(mango::uload16(buffer + 10));
@@ -288,10 +286,10 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
     ClientUnit* newUnit = new ClientUnit(playerIndex, unitType, mapCoord, initialHP);
     map->AddObject(objectId, newUnit);
     if (playerIndex == match->GetPlayerIndex()) {
+      populationCount += 1;
+      
       newUnit->UpdateFieldOfView(map.get(), 1);
     }
-    
-    populationCount += 1;
   } else {
     LOG(ERROR) << "Received AddObject message with invalid ObjectType";
   }
@@ -323,8 +321,12 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
       Decal* newDecal = new Decal(building, map.get(), currentGameStepServerTime);
       renderWindow->AddDecal(newDecal);
       
-      // Subtract the population space that this building gave.
-      availablePopulationSpace -= GetBuildingProvidedPopulationSpace(building->GetType());
+      if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
+        // Subtract the population space that this building gave.
+        availablePopulationSpace -= GetBuildingProvidedPopulationSpace(building->GetType());
+        
+        object->UpdateFieldOfView(map.get(), -1);
+      }
     } else {
       // TODO: Destruction animations for foundations
     }
@@ -332,12 +334,11 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
     Decal* newDecal = new Decal(AsUnit(object), map.get(), currentGameStepServerTime);
     renderWindow->AddDecal(newDecal);
     
-    populationCount -= 1;
-  }
-  
-  // Remove the object's line of sight.
-  if (object->GetPlayerIndex() == match->GetPlayerIndex()) {
-    object->UpdateFieldOfView(map.get(), -1);
+    if (object->GetPlayerIndex() == match->GetPlayerIndex()) {
+      populationCount -= 1;
+      
+      object->UpdateFieldOfView(map.get(), -1);
+    }
   }
   
   delete object;
@@ -375,7 +376,7 @@ void GameController::HandleUnitMovementMessage(const QByteArray& data) {
   }
   
   ClientUnit* unit = AsUnit(it->second);
-  unit->SetMovementSegment(currentGameStepServerTime, startPoint, speed, action, map.get());
+  unit->SetMovementSegment(currentGameStepServerTime, startPoint, speed, action, map.get(), match.get());
 }
 
 void GameController::HandleGameStepTimeMessage(const QByteArray& data) {
@@ -425,9 +426,11 @@ void GameController::HandleBuildPercentageUpdate(const QByteArray& data) {
   ClientBuilding* building = AsBuilding(it->second);
   if (building->GetBuildPercentage() != 100 && percentage == 100) {
     // The building has been completed.
-    availablePopulationSpace += GetBuildingProvidedPopulationSpace(building->GetType());
-    
-    building->UpdateFieldOfView(map.get(), 1);
+    if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
+      availablePopulationSpace += GetBuildingProvidedPopulationSpace(building->GetType());
+      
+      building->UpdateFieldOfView(map.get(), 1);
+    }
   }
   building->SetBuildPercentage(percentage);
 }

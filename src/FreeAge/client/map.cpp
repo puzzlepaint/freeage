@@ -32,7 +32,7 @@ Map::Map(int width, int height)
     for (int x = 0; x <= width; ++ x) {
       elevationAt(x, y) = -1;
       if (x < width && y < height) {
-        viewCountAt(x, y) = 0; // -1;
+        viewCountAt(x, y) = -1;  // NOTE: Set this to 0 to make the map explored at the start
       }
     }
   }

@@ -1176,6 +1176,8 @@ bool Game::IsPathFree(float unitRadius, const QPointF& p0, const QPointF& p1, co
 }
 
 void Game::PlanUnitPath(ServerUnit* unit) {
+  constexpr bool kOutputPathfindingDebugMessages = false;
+  
   Timer pathPlanningTimer;
   
   typedef float CostT;
@@ -1431,21 +1433,29 @@ void Game::PlanUnitPath(ServerUnit* unit) {
     }
   }
   
-  LOG(1) << "Pathfinding: considered " << debugConsideredNodesCount << " nodes (max possible: " << (mapWidth * mapHeight) << ")";
+  if (kOutputPathfindingDebugMessages) {
+    LOG(1) << "Pathfinding: considered " << debugConsideredNodesCount << " nodes (max possible: " << (mapWidth * mapHeight) << ")";
+  }
   
   // Did we find a path to the goal or only to some other tile that is close to the goal?
   QPoint targetTile;
   if (reachedGoalTile.x() < 0) {
     // No path to the goal was found. Go to the reachable node that is closest to the goal.
     if (smallestReachedHeuristicTile.x() >= 0) {
-      LOG(1) << "Pathfinding: Goal not reached; going as close as possible";
+      if (kOutputPathfindingDebugMessages) {
+        LOG(1) << "Pathfinding: Goal not reached; going as close as possible";
+      }
       targetTile = smallestReachedHeuristicTile;
     } else {
-      LOG(1) << "Pathfinding: Goal not reached and there is no better tile than the initial one. Stopping.";
+      if (kOutputPathfindingDebugMessages) {
+        LOG(1) << "Pathfinding: Goal not reached and there is no better tile than the initial one. Stopping.";
+      }
       unit->StopMovement();
     }
   } else {
-    LOG(1) << "Pathfinding: Goal reached";
+    if (kOutputPathfindingDebugMessages) {
+      LOG(1) << "Pathfinding: Goal reached";
+    }
     targetTile = reachedGoalTile;
   }
   
@@ -1489,7 +1499,9 @@ void Game::PlanUnitPath(ServerUnit* unit) {
     }
   }
   
-  LOG(1) << "Pathfinding: Non-smoothed path length is " << reversePath.size();
+  if (kOutputPathfindingDebugMessages) {
+    LOG(1) << "Pathfinding: Non-smoothed path length is " << reversePath.size();
+  }
   
   // Smooth the planned path by attempting to drop corners.
   float unitRadius = GetUnitRadius(unit->GetUnitType());
@@ -1503,8 +1515,10 @@ void Game::PlanUnitPath(ServerUnit* unit) {
     }
   }
   
-  LOG(1) << "Pathfinding: Smoothed path length is " << reversePath.size();
-  LOG(1) << "Pathfinding: Took " << pathPlanningTimer.Stop(false) << " s" << (kOutputDebugImage ? " (not accurate since kOutputDebugImage is true!)" : "");
+  if (kOutputPathfindingDebugMessages) {
+    LOG(1) << "Pathfinding: Smoothed path length is " << reversePath.size();
+    LOG(1) << "Pathfinding: Took " << pathPlanningTimer.Stop(false) << " s" << (kOutputDebugImage ? " (not accurate since kOutputDebugImage is true!)" : "");
+  }
   
   // Assign the path to the unit.
   unit->SetPath(reversePath);
@@ -1716,6 +1730,7 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
       // Only start producing the unit if population space is available.
       canProduce = player.populationIncludingInProduction < player.availablePopulationSpace;
       if (!canProduce) {
+        LOG(1) << "Player " << player.index << " housed: " << player.populationIncludingInProduction << " / " << player.availablePopulationSpace;
         player.isHoused = true;
       }
     }
@@ -1906,6 +1921,8 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   
   // Handle population counting
   playersInGame->at(newUnit->GetPlayerIndex())->populationIncludingInProduction += 1;
+  
+  LOG(1) << "Player " << newUnit->GetPlayerIndex() << " produced new unit: " << playersInGame->at(newUnit->GetPlayerIndex())->populationIncludingInProduction << " / " << playersInGame->at(newUnit->GetPlayerIndex())->availablePopulationSpace;
 }
 
 void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject) {
@@ -1971,12 +1988,14 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   // Handle population counting.
   if (object->isBuilding()) {
     ServerBuilding* building = AsBuilding(object);
-    if (building->GetPlayerIndex() != kGaiaPlayerIndex) {
+    if (building->GetPlayerIndex() != kGaiaPlayerIndex &&
+        building->GetBuildPercentage() == 100) {
       playersInGame->at(building->GetPlayerIndex())->availablePopulationSpace -= GetBuildingProvidedPopulationSpace(building->GetBuildingType());
     }
   } else if (object->isUnit()) {
     playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction -= 1;
   }
+  LOG(1) << "Player " << object->GetPlayerIndex() << " lost an object: " << playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction << " / " << playersInGame->at(object->GetPlayerIndex())->availablePopulationSpace;
   
   // If all objects of a player are gone, the player gets defeated.
   if (object->GetPlayerIndex() != kGaiaPlayerIndex) {

@@ -8,6 +8,7 @@
 
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/client/map.hpp"
+#include "FreeAge/client/match.hpp"
 #include "FreeAge/client/mod_manager.hpp"
 
 ClientUnitType::~ClientUnitType() {
@@ -341,14 +342,14 @@ static int ComputeFacingDirection(const QPointF& movement) {
   return direction;
 }
 
-void ClientUnit::SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action, Map* map) {
+void ClientUnit::SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action, Map* map, Match* match) {
   // Check whether the unit moved differently than we expected.
   // In this case, for a short time, we change the facing direction to the direction
   // in which the unit actually moved.
   constexpr float kChangeDurationThreshold = 0.15f;
   constexpr float kOverrideDirectionDuration = 0.1f;
   
-  UpdateMapCoord(serverTime, map);
+  UpdateMapCoord(serverTime, map, match);
   
   if (serverTime - movementSegment.serverTime < kChangeDurationThreshold) {
     overrideDirection = ComputeFacingDirection(startPoint - movementSegment.startPoint);
@@ -370,9 +371,9 @@ void ClientUnit::SetMovementSegment(double serverTime, const QPointF& startPoint
   movementSegment = MovementSegment(serverTime, startPoint, speed, action);
 }
 
-void ClientUnit::UpdateGameState(double serverTime, Map* map) {
+void ClientUnit::UpdateGameState(double serverTime, Map* map, Match* match) {
   // Update the unit's movment according to the movement segment.
-  UpdateMapCoord(serverTime, map);
+  UpdateMapCoord(serverTime, map, match);
   
   // Update facing direction.
   if (movementSegment.speed != QPointF(0, 0)) {
@@ -409,7 +410,7 @@ void ClientUnit::UpdateGameState(double serverTime, Map* map) {
   }
 }
 
-void ClientUnit::UpdateMapCoord(double serverTime, Map* map) {
+void ClientUnit::UpdateMapCoord(double serverTime, Map* map, Match* match) {
   int oldTileX = static_cast<int>(mapCoord.x());
   int oldTileY = static_cast<int>(mapCoord.y());
   
@@ -426,8 +427,9 @@ void ClientUnit::UpdateMapCoord(double serverTime, Map* map) {
   int newTileX = static_cast<int>(mapCoord.x());
   int newTileY = static_cast<int>(mapCoord.y());
   
-  if (oldTileX != newTileX ||
-      oldTileY != newTileY) {
+  if (match->GetPlayerIndex() == playerIndex &&
+      (oldTileX != newTileX ||
+       oldTileY != newTileY)) {
     // TODO: This could be sped up by pre-computing only the *difference* that needs to be applied
     //       for a unit's line-of-sight when moving from one tile to an adjacent tile.
     //       Even without this pre-computation, iterating over the viewCount values only once

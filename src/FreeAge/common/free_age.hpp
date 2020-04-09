@@ -31,6 +31,9 @@ typedef std::chrono::duration<double> SecondsDuration;
 /// Port used on the server.
 static constexpr u16 serverPort = 49100;  // TODO: Make configurable
 
+/// Default map size for newly created server instances.
+static constexpr int kDefaultMapSize = 75;
+
 /// Player index for "gaia" objects (resources, animals, etc.)
 static constexpr int kGaiaPlayerIndex = 255;
 

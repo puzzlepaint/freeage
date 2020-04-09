@@ -13,6 +13,7 @@
 #include "FreeAge/client/texture.hpp"
 
 class Map;
+class Match;
 
 
 constexpr int kNumFacingDirections = 16;
@@ -118,7 +119,7 @@ class ClientUnit : public ClientObject {
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   inline int GetDirection() const { return direction; }
   
-  void SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action, Map* map);
+  void SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action, Map* map, Match* match);
   
   inline void SetCarriedResources(ResourceType type, u8 amount) {
     carriedResourceType = type;
@@ -128,10 +129,10 @@ class ClientUnit : public ClientObject {
   inline int GetCarriedResourceAmount() const { return carriedResourceAmount; }
   
   /// Updates the unit's state to the given server time.
-  void UpdateGameState(double serverTime, Map* map);
+  void UpdateGameState(double serverTime, Map* map, Match* match);
   
  private:
-  void UpdateMapCoord(double serverTime, Map* map);
+  void UpdateMapCoord(double serverTime, Map* map, Match* match);
   int GetDirection(double serverTime);
   
   

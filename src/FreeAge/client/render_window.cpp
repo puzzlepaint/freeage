@@ -2910,7 +2910,7 @@ void RenderWindow::UpdateGameState(double displayedServerTime) {
   for (const auto& item : map->GetObjects()) {
     if (item.second->isUnit()) {
       ClientUnit* unit = AsUnit(item.second);
-      unit->UpdateGameState(displayedServerTime, map.get());
+      unit->UpdateGameState(displayedServerTime, map.get(), match.get());
     } else if (item.second->isBuilding()) {
       // TODO: Is this needed?
       // ClientBuilding* building = AsBuilding(item.second);

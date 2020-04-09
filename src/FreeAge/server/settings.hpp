@@ -26,5 +26,5 @@ struct ServerSettings {
   bool acceptingConnectionsPaused = false;
   
   /// The map size chosen by the host.
-  u16 mapSize = 75;  // TODO: Make sure that this is the same default as on the client (game_dialog.cpp); or make the host send a settings update right at the start.
+  u16 mapSize = kDefaultMapSize;
 };
