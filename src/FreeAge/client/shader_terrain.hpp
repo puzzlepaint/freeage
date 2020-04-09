@@ -20,9 +20,13 @@ class TerrainShader {
   
   inline GLint GetViewMatrixLocation() const { return viewMatrix_location; }
   inline GLint GetTextureLocation() const { return texture_location; }
+  inline GLint GetViewTextureLocation() const { return viewTexture_location; }
+  inline GLint GetTexcoordToMapScalingLocation() const { return texcoordToMapScaling_location; }
   
  private:
   std::shared_ptr<ShaderProgram> program;
   GLint viewMatrix_location;
   GLint texture_location;
+  GLint viewTexture_location;
+  GLint texcoordToMapScaling_location;
 };

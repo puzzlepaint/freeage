@@ -69,6 +69,21 @@ class Map {
   inline int& elevationAt(int cornerX, int cornerY) { return elevation[cornerY * (width + 1) + cornerX]; }
   inline const int& elevationAt(int cornerX, int cornerY) const { return elevation[cornerY * (width + 1) + cornerX]; }
   
+  /// Returns the view count at the given tile.
+  /// After you make changes, you must call ViewCountChanged().
+  inline int& viewCountAt(int tileX, int tileY) { return viewCount[tileY * width + tileX]; }
+  inline const int& viewCountAt(int tileX, int tileY) const { return viewCount[tileY * width + tileX]; }
+  inline void ViewCountChanged(int minX, int minY, int maxX, int maxY) {
+    viewCountChangeMinX = std::min(viewCountChangeMinX, minX);
+    viewCountChangeMinY = std::min(viewCountChangeMinY, minY);
+    viewCountChangeMaxX = std::max(viewCountChangeMaxX, maxX);
+    viewCountChangeMaxY = std::max(viewCountChangeMaxY, maxY);
+  }
+  
+  /// Writes the field-of-view of a unit or building into the viewCount.
+  /// If change is 1, adds a view count, if it is -1, removes one.
+  void UpdateFieldOfView(float centerMapCoordX, float centerMapCoordY, float radius, int change);
+  
   
   // TODO: Should this functionality be moved into its own class?
   inline void SetNeedsRenderResourcesUpdate(bool needsUpdate) { needsRenderResourcesUpdate = needsUpdate; }
@@ -79,7 +94,7 @@ class Map {
   inline std::unordered_map<u32, ClientObject*>& GetObjects() { return objects; }
   inline const std::unordered_map<u32, ClientObject*>& GetObjects() const { return objects; }
   
-  inline void AddObject(u32 objectId, ClientObject* object) { objects.insert(std::make_pair(objectId, object)); }
+  void AddObject(u32 objectId, ClientObject* object);
   
   inline int GetWidth() const { return width; }
   inline int GetHeight() const { return height; }
@@ -88,6 +103,7 @@ class Map {
   
  private:
   void UpdateRenderResources(const std::filesystem::path& graphicsSubPath, QOpenGLFunctions_3_2_Core* f);
+  void UpdateViewCountTexture(QOpenGLFunctions_3_2_Core* f);
   
   /// The maximum possible elevation level (the lowest is zero).
   /// This may be higher than the maximum actually existing
@@ -109,6 +125,23 @@ class Map {
   
   /// Map of object ID -> ClientObject.
   std::unordered_map<u32, ClientObject*> objects;
+  
+  /// Stores how many units or buildings view each map tile.
+  /// As a special case, map tiles that have not been uncovered yet have the value -1.
+  /// The array size is thus: width times height.
+  /// An element (x, y) has index: [y * width + x].
+  int* viewCount;
+  
+  /// The area where the view counts changed since the last rendering call
+  /// (and thus must be updated before the next rendering call).
+  /// If set to an invalid area, no update has been done.
+  int viewCountChangeMinX;
+  int viewCountChangeMinY;
+  int viewCountChangeMaxX;
+  int viewCountChangeMaxY;
+  
+  bool haveViewTexture = false;
+  GLuint viewTextureId;
   
   // TODO: Should this functionality be moved into its own class?
   // --- Rendering attributes ---

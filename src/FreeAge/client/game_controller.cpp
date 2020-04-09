@@ -266,7 +266,11 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
     }
     float buildPercentage = *reinterpret_cast<const float*>(buffer + 16);
     
-    map->AddObject(objectId, new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y(), buildPercentage, initialHP));
+    ClientBuilding* newBuilding = new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y(), buildPercentage, initialHP);
+    map->AddObject(objectId, newBuilding);
+    if (playerIndex == match->GetPlayerIndex() && newBuilding->GetBuildPercentage() == 100) {
+      newBuilding->UpdateFieldOfView(map.get(), 1);
+    }
     
     if (buildPercentage == 100) {
       availablePopulationSpace += GetBuildingProvidedPopulationSpace(buildingType);
@@ -281,7 +285,11 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
     QPointF mapCoord(*reinterpret_cast<const float*>(buffer + 12),
                      *reinterpret_cast<const float*>(buffer + 16));
     
-    map->AddObject(objectId, new ClientUnit(playerIndex, unitType, mapCoord, initialHP));
+    ClientUnit* newUnit = new ClientUnit(playerIndex, unitType, mapCoord, initialHP);
+    map->AddObject(objectId, newUnit);
+    if (playerIndex == match->GetPlayerIndex()) {
+      newUnit->UpdateFieldOfView(map.get(), 1);
+    }
     
     populationCount += 1;
   } else {
@@ -327,6 +335,11 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
     populationCount -= 1;
   }
   
+  // Remove the object's line of sight.
+  if (object->GetPlayerIndex() == match->GetPlayerIndex()) {
+    object->UpdateFieldOfView(map.get(), -1);
+  }
+  
   delete object;
   map->GetObjects().erase(it);
 }
@@ -362,7 +375,7 @@ void GameController::HandleUnitMovementMessage(const QByteArray& data) {
   }
   
   ClientUnit* unit = AsUnit(it->second);
-  unit->SetMovementSegment(currentGameStepServerTime, startPoint, speed, action);
+  unit->SetMovementSegment(currentGameStepServerTime, startPoint, speed, action, map.get());
 }
 
 void GameController::HandleGameStepTimeMessage(const QByteArray& data) {
@@ -413,6 +426,8 @@ void GameController::HandleBuildPercentageUpdate(const QByteArray& data) {
   if (building->GetBuildPercentage() != 100 && percentage == 100) {
     // The building has been completed.
     availablePopulationSpace += GetBuildingProvidedPopulationSpace(building->GetType());
+    
+    building->UpdateFieldOfView(map.get(), 1);
   }
   building->SetBuildPercentage(percentage);
 }

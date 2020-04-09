@@ -292,7 +292,7 @@ ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX
       baseTileY(baseTileY),
       buildPercentage(buildPercentage) {}
 
-QPointF ClientBuilding::GetCenterMapCoord() {
+QPointF ClientBuilding::GetCenterMapCoord() const {
   QSize size = GetBuildingSize(type);
   return QPointF(baseTileX + 0.5f * size.width(), baseTileY + 0.5f * size.height());
 }

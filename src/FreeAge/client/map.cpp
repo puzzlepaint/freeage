@@ -25,19 +25,29 @@ Map::Map(int width, int height)
       height(height) {
   maxElevation = 7;  // TODO: Make configurable
   elevation = new int[(width + 1) * (height + 1)];
+  viewCount = new int[width * height];
   
-  // Initialize the elevation to "unknown" everywhere.
+  // Initialize the elevation to "unknown" everywhere and the view count to zero.
   for (int y = 0; y <= height; ++ y) {
     for (int x = 0; x <= width; ++ x) {
       elevationAt(x, y) = -1;
+      if (x < width && y < height) {
+        viewCountAt(x, y) = -1;
+      }
     }
   }
+  
+  viewCountChangeMinX = 0;
+  viewCountChangeMinY = 0;
+  viewCountChangeMaxX = width - 1;
+  viewCountChangeMaxY = height - 1;
 }
 
 Map::~Map() {
   UnloadRenderResources();
   
   delete[] elevation;
+  delete[] viewCount;
 }
 
 QPointF Map::TileCornerToProjectedCoord(int cornerX, int cornerY) const {
@@ -229,10 +239,49 @@ bool Map::ProjectedCoordToMapCoord(const QPointF& projectedCoord, QPointF* mapCo
   return converged;
 }
 
+void Map::UpdateFieldOfView(float centerMapCoordX, float centerMapCoordY, float radius, int change) {
+  // TODO: We could cache the patterns for small discrete radius values to potentially speed this up.
+  
+  float effectiveRadius = radius + 0.7f;  // TODO: Find out what gives equal results as in the original game
+  float effectiveRadiusSquared = effectiveRadius * effectiveRadius;
+  
+  int minX = std::max<int>(0, centerMapCoordX - effectiveRadius);
+  int minY = std::max<int>(0, centerMapCoordY - effectiveRadius);
+  int maxX = std::min<int>(width - 1, centerMapCoordX + effectiveRadius);
+  int maxY = std::min<int>(height - 1, centerMapCoordY + effectiveRadius);
+  
+  float centerMapCoordXMinusHalf = centerMapCoordX - 0.5f;
+  float centerMapCoordYMinusHalf = centerMapCoordY - 0.5f;
+  
+  for (int y = minY; y <= maxY; ++ y) {
+    int* row = viewCount + width * y;
+    for (int x = minX; x <= maxX; ++ x) {
+      float dx = x - centerMapCoordXMinusHalf;
+      float dy = y - centerMapCoordYMinusHalf;
+      
+      float squaredDistance = dx * dx + dy * dy;
+      if (squaredDistance <= effectiveRadiusSquared) {
+        if (row[x] == -1) {
+          // Uncover a newly seen map tile
+          row[x] = 0;
+        }
+        
+        row[x] += change;
+      }
+    }
+  }
+  
+  ViewCountChanged(minX, minY, maxX, maxY);
+}
+
 void Map::Render(float* viewMatrix, const std::filesystem::path& graphicsSubPath, QOpenGLFunctions_3_2_Core* f) {
   if (needsRenderResourcesUpdate) {
     UpdateRenderResources(graphicsSubPath, f);
     needsRenderResourcesUpdate = false;
+  }
+  if (viewCountChangeMaxX >= viewCountChangeMinX &&
+      viewCountChangeMaxY >= viewCountChangeMinY) {
+    UpdateViewCountTexture(f);
   }
   
   ShaderProgram* terrainProgram = terrainShader->GetProgram();
@@ -241,7 +290,12 @@ void Map::Render(float* viewMatrix, const std::filesystem::path& graphicsSubPath
   f->glUniform1i(terrainShader->GetTextureLocation(), 0);  // use GL_TEXTURE0
   f->glBindTexture(GL_TEXTURE_2D, textureId);
   
+  f->glUniform1i(terrainShader->GetViewTextureLocation(), 1);  // use GL_TEXTURE1
+  f->glActiveTexture(GL_TEXTURE0 + 1);
+  f->glBindTexture(GL_TEXTURE_2D, viewTextureId);
+  
   terrainProgram->SetUniformMatrix2fv(terrainShader->GetViewMatrixLocation(), viewMatrix, true, f);
+  f->glUniform2f(terrainShader->GetTexcoordToMapScalingLocation(), 10.f / width, 10.f / height);
   
   f->glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
   f->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -275,6 +329,10 @@ void Map::UnloadRenderResources() {
     f->glDeleteBuffers(1, &indexBuffer);
     haveGeometryBuffersBeenInitialized = false;
   }
+}
+
+void Map::AddObject(u32 objectId, ClientObject* object) {
+  objects.insert(std::make_pair(objectId, object));
 }
 
 void Map::UpdateRenderResources(const std::filesystem::path& graphicsSubPath, QOpenGLFunctions_3_2_Core* f) {
@@ -407,4 +465,61 @@ void Map::UpdateRenderResources(const std::filesystem::path& graphicsSubPath, QO
   terrainShader.reset(new TerrainShader());
   
   // TODO: Un-load the render resources again on destruction
+}
+
+void Map::UpdateViewCountTexture(QOpenGLFunctions_3_2_Core* f) {
+  if (!haveViewTexture) {
+    f->glGenTextures(1, &viewTextureId);
+    f->glBindTexture(GL_TEXTURE_2D, viewTextureId);
+    
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    
+    f->glTexImage2D(
+        GL_TEXTURE_2D,
+        0, GL_RED,
+        width, height,
+        0, GL_RED, GL_UNSIGNED_BYTE,
+        nullptr);
+    
+    CHECK_OPENGL_NO_ERROR();
+    haveViewTexture = true;
+  }
+  
+  int changeWidth = viewCountChangeMaxX - viewCountChangeMinX + 1;
+  int changeHeight = viewCountChangeMaxY - viewCountChangeMinY + 1;
+  
+  u8* textureData = new u8[changeWidth * changeHeight];
+  for (int y = 0; y < changeHeight; ++ y) {
+    const int* viewCountRow = viewCount + (viewCountChangeMinY + y) * width;
+    u8* textureDataRow = textureData + y * changeWidth;
+    for (int x = 0; x < changeWidth; ++ x) {
+      int viewCountValue = viewCountRow[viewCountChangeMinX + x];
+      
+      textureDataRow[x] = (viewCountValue == 0) ? 168 : ((viewCountValue > 0) ? 255 : 0);
+    }
+  }
+  
+  f->glBindTexture(GL_TEXTURE_2D, viewTextureId);
+  f->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  f->glTexSubImage2D(
+      GL_TEXTURE_2D,
+    	0,
+    	viewCountChangeMinX,
+    	viewCountChangeMinY,
+    	changeWidth,
+    	changeHeight,
+    	GL_RED,
+    	GL_UNSIGNED_BYTE,
+    	textureData);
+  CHECK_OPENGL_NO_ERROR();
+  
+  delete[] textureData;
+  
+  viewCountChangeMinX = std::numeric_limits<typeof(viewCountChangeMinX)>::max();
+  viewCountChangeMinY = std::numeric_limits<typeof(viewCountChangeMinY)>::max();
+  viewCountChangeMaxX = -1;
+  viewCountChangeMaxY = -1;
 }

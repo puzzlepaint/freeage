@@ -1095,6 +1095,18 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
         continue;
       }
       
+      int maxViewCount = -1;
+      const QPoint& baseTile = building.GetBaseTile();
+      QSize size = GetBuildingSize(building.GetType());
+      for (int y = 0; y < size.height(); ++ y) {
+        for (int x = 0; x < size.width(); ++ x) {
+          maxViewCount = std::max(maxViewCount, map->viewCountAt(baseTile.x() + x, baseTile.y() + y));
+        }
+      }
+      if (maxViewCount < 0) {
+        continue;
+      }
+      
       QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
           map.get(),
           displayedServerTime,
@@ -1121,6 +1133,12 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
     } else {  // if (object.second->isUnit()) {
       ClientUnit& unit = *AsUnit(object.second);
       if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front()->sprite.HasShadow()) {
+        continue;
+      }
+      
+      int tileX = std::max<int>(0, std::min<int>(map->GetWidth() - 1, unit.GetMapCoord().x()));
+      int tileY = std::max<int>(0, std::min<int>(map->GetHeight() - 1, unit.GetMapCoord().y()));
+      if (map->viewCountAt(tileX, tileY) <= 0) {
         continue;
       }
       
@@ -1172,6 +1190,19 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
       continue;
     }
     
+    int maxViewCount = -1;
+    const QPoint& baseTile = building.GetBaseTile();
+    QSize size = GetBuildingSize(building.GetType());
+    for (int y = 0; y < size.height(); ++ y) {
+      for (int x = 0; x < size.width(); ++ x) {
+        maxViewCount = std::max(maxViewCount, map->viewCountAt(baseTile.x() + x, baseTile.y() + y));
+      }
+    }
+    if (maxViewCount < 0) {
+      continue;
+    }
+    u8 intensity = (maxViewCount > 0) ? 255 : 168;
+    
     QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
         map.get(),
         displayedServerTime,
@@ -1186,7 +1217,7 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
       // TODO: Multiple sprites may have nearly the same y-coordinate, as a result there can be flickering currently. Avoid this.
       building.Render(
           map.get(),
-          qRgb(255, 255, 255),
+          qRgb(intensity, intensity, intensity),
           spriteShader.get(),
           viewMatrix,
           effectiveZoom,
@@ -1215,32 +1246,44 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLF
   float effectiveZoom = ComputeEffectiveZoom();
   
   if (foundationBaseTile.x() >= 0 && foundationBaseTile.y() >= 0) {
-    // Render the building foundation, colored either in gray if it can be placed at this location,
-    // or in red if it cannot be placed there.
-    ClientBuilding* tempBuilding = new ClientBuilding(match->GetPlayerIndex(), constructBuildingType, foundationBaseTile.x(), foundationBaseTile.y(), 100, /*hp*/ 0);
-    tempBuilding->SetFixedFrameIndex(0);
+    // Check whether any tile below the foundation is not in the black fog-of-war.
+    // Only display the foundation in this case.
+    QSize foundationSize = GetBuildingSize(constructBuildingType);
+    int maxViewCount = -1;
+    for (int y = foundationBaseTile.y(); y < foundationBaseTile.y() + foundationSize.width(); ++ y) {
+      for (int x = foundationBaseTile.x(); x < foundationBaseTile.x() + foundationSize.height(); ++ x) {
+        maxViewCount = std::max(maxViewCount, map->viewCountAt(x, y));
+      }
+    }
     
-    QRgb modulationColor =
-        canBePlacedHere ?
-        qRgb(0.8 * 255, 0.8 * 255, 0.8 * 255) :
-        qRgb(255, 0.4 * 255, 0.4 * 255);
-    tempBuilding->Render(
-        map.get(),
-        modulationColor,
-        spriteShader.get(),
-        viewMatrix,
-        effectiveZoom,
-        widgetWidth,
-        widgetHeight,
-        displayedServerTime,
-        false,
-        false);
-    
-    std::vector<Texture*> textures(1);
-    textures[0] = &tempBuilding->GetTexture(/*shadow*/ false);
-    RenderSprites(&textures, spriteShader, f);
-    
-    delete tempBuilding;
+    if (maxViewCount >= 0) {
+      // Render the building foundation, colored either in gray if it can be placed at this location,
+      // or in red if it cannot be placed there.
+      ClientBuilding* tempBuilding = new ClientBuilding(match->GetPlayerIndex(), constructBuildingType, foundationBaseTile.x(), foundationBaseTile.y(), 100, /*hp*/ 0);
+      tempBuilding->SetFixedFrameIndex(0);
+      
+      QRgb modulationColor =
+          canBePlacedHere ?
+          qRgb(0.8 * 255, 0.8 * 255, 0.8 * 255) :
+          qRgb(255, 0.4 * 255, 0.4 * 255);
+      tempBuilding->Render(
+          map.get(),
+          modulationColor,
+          spriteShader.get(),
+          viewMatrix,
+          effectiveZoom,
+          widgetWidth,
+          widgetHeight,
+          displayedServerTime,
+          false,
+          false);
+      
+      std::vector<Texture*> textures(1);
+      textures[0] = &tempBuilding->GetTexture(/*shadow*/ false);
+      RenderSprites(&textures, spriteShader, f);
+      
+      delete tempBuilding;
+    }
   }
 }
 
@@ -1347,6 +1390,23 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
         continue;
       }
       
+      int maxViewCount = -1;
+      const QPoint& baseTile = building.GetBaseTile();
+      QSize size = GetBuildingSize(building.GetType());
+      for (int y = 0; y < size.height(); ++ y) {
+        for (int x = 0; x < size.width(); ++ x) {
+          maxViewCount = std::max(maxViewCount, map->viewCountAt(baseTile.x() + x, baseTile.y() + y));
+        }
+      }
+      if (maxViewCount < 0) {
+        continue;
+      } else if (maxViewCount == 0) {
+        float intensity = 168 / 255.f;
+        outlineColor = qRgb(intensity * qRed(outlineColor),
+                            intensity * qGreen(outlineColor),
+                            intensity * qBlue(outlineColor));
+      }
+      
       QRectF projectedCoordsRect = building.GetRectInProjectedCoords(
           map.get(),
           displayedServerTime,
@@ -1373,6 +1433,12 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
     } else {  // if (object.second->isUnit()) {
       ClientUnit& unit = *AsUnit(object.second);
       if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front()->sprite.HasOutline()) {
+        continue;
+      }
+      
+      int tileX = std::max<int>(0, std::min<int>(map->GetWidth() - 1, unit.GetMapCoord().x()));
+      int tileY = std::max<int>(0, std::min<int>(map->GetHeight() - 1, unit.GetMapCoord().y()));
+      if (map->viewCountAt(tileX, tileY) <= 0) {
         continue;
       }
       
@@ -1418,6 +1484,12 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
       continue;
     }
     ClientUnit& unit = *AsUnit(object.second);
+    
+    int tileX = std::max<int>(0, std::min<int>(map->GetWidth() - 1, unit.GetMapCoord().x()));
+    int tileY = std::max<int>(0, std::min<int>(map->GetHeight() - 1, unit.GetMapCoord().y()));
+    if (map->viewCountAt(tileX, tileY) <= 0) {
+      continue;
+    }
     
     QRectF projectedCoordsRect = unit.GetRectInProjectedCoords(
         map.get(),
@@ -1581,6 +1653,20 @@ void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_
   float effectiveZoom = ComputeEffectiveZoom();
   
   for (auto& decal : decals) {
+    int maxViewCount = -1;
+    for (int y = decal->GetMinTileY(); y <= decal->GetMaxTileY(); ++ y) {
+      for (int x = decal->GetMinTileX(); x <= decal->GetMaxTileX(); ++ x) {
+        maxViewCount = std::max(maxViewCount, map->viewCountAt(x, y));
+      }
+    }
+    if (maxViewCount <= 0) {
+      // TODO: Decals in semi-black areas should be visible!
+      //       They are currently not shown since the fog-of-war implementation
+      //       is purely on the client side at the moment, so showing them would
+      //       reveal information that the player should not know.
+      continue;
+    }
+    
     QRectF projectedCoordsRect = decal->GetRectInProjectedCoords(
         false,
         false);
@@ -1614,6 +1700,20 @@ void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
   float effectiveZoom = ComputeEffectiveZoom();
   
   for (auto& decal : occludingDecals) {
+    int maxViewCount = -1;
+    for (int y = decal->GetMinTileY(); y <= decal->GetMaxTileY(); ++ y) {
+      for (int x = decal->GetMinTileX(); x <= decal->GetMaxTileX(); ++ x) {
+        maxViewCount = std::max(maxViewCount, map->viewCountAt(x, y));
+      }
+    }
+    if (maxViewCount <= 0) {
+      // TODO: Decals in semi-black areas should be visible!
+      //       They are currently not shown since the fog-of-war implementation
+      //       is purely on the client side at the moment, so showing them would
+      //       reveal information that the player should not know.
+      continue;
+    }
+    
     QRectF projectedCoordsRect = decal->GetRectInProjectedCoords(
         true,
         false);
@@ -1647,6 +1747,20 @@ void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
   float effectiveZoom = ComputeEffectiveZoom();
   
   for (auto& decal : occludingDecals) {
+    int maxViewCount = -1;
+    for (int y = decal->GetMinTileY(); y <= decal->GetMaxTileY(); ++ y) {
+      for (int x = decal->GetMinTileX(); x <= decal->GetMaxTileX(); ++ x) {
+        maxViewCount = std::max(maxViewCount, map->viewCountAt(x, y));
+      }
+    }
+    if (maxViewCount <= 0) {
+      // TODO: Decals in semi-black areas should be visible!
+      //       They are currently not shown since the fog-of-war implementation
+      //       is purely on the client side at the moment, so showing them would
+      //       reveal information that the player should not know.
+      continue;
+    }
+    
     QRgb outlineColor = qRgb(255, 255, 255);
     if (decal->GetPlayerIndex() < playerColors.size()) {
       outlineColor = playerColors[decal->GetPlayerIndex()];
@@ -2495,6 +2609,18 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
       ClientBuilding& building = *AsBuilding(object.second);
       const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
       
+      int maxViewCount = -1;
+      const QPoint& baseTile = building.GetBaseTile();
+      QSize size = GetBuildingSize(building.GetType());
+      for (int y = 0; y < size.height(); ++ y) {
+        for (int x = 0; x < size.width(); ++ x) {
+          maxViewCount = std::max(maxViewCount, map->viewCountAt(baseTile.x() + x, baseTile.y() + y));
+        }
+      }
+      if (maxViewCount < 0) {
+        continue;
+      }
+      
       // Is the position within the tiles which the building stands on?
       if (haveMapCoord) {
         QSize size = buildingType.GetSize();
@@ -2527,6 +2653,12 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
       }
     } else if (object.second->isUnit()) {
       ClientUnit& unit = *AsUnit(object.second);
+      
+      int tileX = std::max<int>(0, std::min<int>(map->GetWidth() - 1, unit.GetMapCoord().x()));
+      int tileY = std::max<int>(0, std::min<int>(map->GetHeight() - 1, unit.GetMapCoord().y()));
+      if (map->viewCountAt(tileX, tileY) <= 0) {
+        continue;
+      }
       
       // Is the position close to the unit sprite?
       constexpr float kExtendSize = 8;
@@ -2708,7 +2840,7 @@ void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
   f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   
   // Clear background.
-  f->glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+  f->glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
   f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   CHECK_OPENGL_NO_ERROR();
   
@@ -2778,7 +2910,7 @@ void RenderWindow::UpdateGameState(double displayedServerTime) {
   for (const auto& item : map->GetObjects()) {
     if (item.second->isUnit()) {
       ClientUnit* unit = AsUnit(item.second);
-      unit->UpdateGameState(displayedServerTime);
+      unit->UpdateGameState(displayedServerTime, map.get());
     } else if (item.second->isBuilding()) {
       // TODO: Is this needed?
       // ClientBuilding* building = AsBuilding(item.second);
@@ -2863,6 +2995,7 @@ QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y(
   // TODO: Docks need a special case
   
   // 1) Check whether any map tile at this location is occupied.
+  // TODO: Prevent "foundation scanning" in the semi-black fog of war.
   QRect foundationRect(foundationBaseTile, foundationSize);
   for (const auto& item : map->GetObjects()) {
     if (item.second->isBuilding()) {
@@ -2883,20 +3016,24 @@ QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y(
   //   }
   // }
   
-  // 2) Check whether the maximum elevation difference within the building space does not exceed 2.
-  //    TODO: I made this criterion up without testing it; is that actually how the original game works?
-  // TODO: This criterion must not apply to farms.
+  // 2) Check whether the maximum elevation difference within the building space does not exceed 2,
+  //    and whether any building tile is in the black fog of war.
+  //    TODO: I made the first part of this criterion up; is that actually how the original game works?
+  //    TODO: This part of the criterion must not apply to farms.
   int minElevation = std::numeric_limits<int>::max();
   int maxElevation = std::numeric_limits<int>::min();
+  int minViewCount = std::numeric_limits<int>::max();
   for (int y = foundationBaseTile.y(); y <= foundationBaseTile.y() + foundationSize.height(); ++ y) {
     for (int x = foundationBaseTile.x(); x <= foundationBaseTile.x() + foundationSize.width(); ++ x) {
       int elevation = map->elevationAt(x, y);
       minElevation = std::min(minElevation, elevation);
       maxElevation = std::max(maxElevation, elevation);
+      minViewCount = std::min(minViewCount, map->viewCountAt(x, y));
     }
   }
   
-  if (maxElevation - minElevation > 2) {
+  if (maxElevation - minElevation > 2 ||
+      minViewCount < 0) {
     return false;
   }
   
@@ -3409,10 +3546,6 @@ void RenderWindow::paintGL() {
   // Set states for rendering.
   f->glDisable(GL_CULL_FACE);
   
-  f->glActiveTexture(GL_TEXTURE0 + 1);
-  f->glBindTexture(GL_TEXTURE_2D, playerColorsTexture->GetId());
-  f->glActiveTexture(GL_TEXTURE0);
-  
   // Clear background.
   f->glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -3436,7 +3569,7 @@ void RenderWindow::paintGL() {
   shadowTimer.Stop();
   Timer mapTimer("paintGL() - map rendering");
   
-  // Render the map terrain.
+  // Render the map terrain and ground decals.
   f->glBlendFuncSeparate(
       GL_ONE_MINUS_DST_ALPHA, GL_ZERO,  // blend with the shadows
       GL_ZERO, GL_ONE);  // keep the existing alpha (such that more objects can be rendered while applying the shadows)
@@ -3445,7 +3578,13 @@ void RenderWindow::paintGL() {
   CHECK_OPENGL_NO_ERROR();
   map->Render(viewMatrix, graphicsSubPath, f);
   mapTimer.Stop();
+  
   Timer groundDecalTimer("paintGL() - ground decal rendering");
+  // Set texture 1 for the sprite shader, which will remain there for the rest of the frame
+  f->glActiveTexture(GL_TEXTURE0 + 1);
+  f->glBindTexture(GL_TEXTURE_2D, playerColorsTexture->GetId());
+  f->glActiveTexture(GL_TEXTURE0);
+  
   RenderGroundDecals(f);
   CHECK_OPENGL_NO_ERROR();
   
@@ -3952,7 +4091,15 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
   }
   
   if (event->key() == Qt::Key_Escape) {
+    if (!menuShown &&
+        constructBuildingType != BuildingType::NumBuildings) {
+      ShowDefaultCommandButtonsForSelection();
+      constructBuildingType = BuildingType::NumBuildings;
+      return;
+    }
+    
     ShowMenu(!menuShown);
+    return;
   }
   
   if (menuShown) {

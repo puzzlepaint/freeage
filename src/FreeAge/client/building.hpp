@@ -89,7 +89,7 @@ class ClientBuilding : public ClientObject {
   ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY, float buildPercentage, u32 hp);
   
   /// Returns the projected coordinates of this building's center point.
-  QPointF GetCenterMapCoord();
+  QPointF GetCenterMapCoord() const;
   
   /// Computes the sprite rectangle for this building in projected coordinates.
   /// If shadow is true, returns the rectangle for the shadow sprite.

@@ -85,3 +85,5 @@ int GetUnitAttackFrames(UnitType type);
 u32 GetUnitMaxHP(UnitType type);
 u32 GetUnitMeleeAttack(UnitType type);
 u32 GetUnitMeleeArmor(UnitType type);
+
+float GetUnitLineOfSight(UnitType type);

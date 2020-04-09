@@ -10,6 +10,8 @@
 #include "FreeAge/common/object_types.hpp"
 #include "FreeAge/client/texture.hpp"
 
+class Map;
+
 /// Base class for buildings and units on the client.
 class ClientObject {
  public:
@@ -18,6 +20,8 @@ class ClientObject {
         hp(hp),
         objectType(static_cast<int>(objectType)),
         isSelected(false) {}
+  
+  void UpdateFieldOfView(Map* map, int change);
   
   inline bool isBuilding() const { return objectType == 0; }
   inline bool isUnit() const { return objectType == 1; }

@@ -21,6 +21,11 @@ Decal::Decal(ClientUnit* unit, Map* map, double serverTime) {
       !GetCurrentSpriteAndFrame(serverTime, &currentSprite, &currentFrame, &frameWasClamped)) {
     type = DecalType::UnitDeath;
   }
+  
+  minTileX = std::max<int>(0, std::min<int>(map->GetWidth() - 1, unit->GetMapCoord().x()));
+  minTileY = std::max<int>(0, std::min<int>(map->GetHeight() - 1, unit->GetMapCoord().y()));
+  maxTileX = minTileX;
+  maxTileY = minTileY;
 }
 
 Decal::Decal(ClientBuilding* building, Map* map, double serverTime) {
@@ -30,6 +35,13 @@ Decal::Decal(ClientBuilding* building, Map* map, double serverTime) {
   buildingOriginalFrameIndex = building->GetFrameIndex(serverTime);
   playerIndex = building->GetPlayerIndex();
   creationTime = serverTime;
+  
+  const QPoint& baseTile = building->GetBaseTile();
+  minTileX = baseTile.x();
+  minTileY = baseTile.y();
+  QSize size = GetBuildingSize(building->GetType());
+  maxTileX = minTileX + size.width() - 1;
+  maxTileY = minTileY + size.height() - 1;
 }
 
 bool Decal::Update(double serverTime) {

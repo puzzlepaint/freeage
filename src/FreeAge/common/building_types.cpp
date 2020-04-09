@@ -224,3 +224,31 @@ int GetBuildingProvidedPopulationSpace(BuildingType type) {
   }
   return 0;
 }
+
+float GetBuildingLineOfSight(BuildingType type) {
+  switch (type) {
+  case BuildingType::TownCenter: return 8;
+  case BuildingType::TownCenterBack: LOG(ERROR) << "GetBuildingLineOfSight() called on BuildingType::TownCenterBack"; return 0;
+  case BuildingType::TownCenterCenter: LOG(ERROR) << "GetBuildingLineOfSight() called on BuildingType::TownCenterCenter"; return 0;
+  case BuildingType::TownCenterFront: LOG(ERROR) << "GetBuildingLineOfSight() called on BuildingType::TownCenterFront"; return 0;
+  case BuildingType::TownCenterMain: LOG(ERROR) << "GetBuildingLineOfSight() called on BuildingType::TownCenterMain"; return 0;
+  case BuildingType::House: return 2;
+  
+  case BuildingType::Mill: return 6;
+  case BuildingType::MiningCamp: return 6;
+  case BuildingType::LumberCamp: return 6;
+  case BuildingType::Dock: return 6;
+  
+  case BuildingType::Barracks: return 6;
+  case BuildingType::Outpost: return 6;
+  case BuildingType::PalisadeWall: return 2;
+  case BuildingType::PalisadeGate: return 6;
+  
+  case BuildingType::TreeOak: LOG(ERROR) << "GetBuildingLineOfSight() called on BuildingType::TreeOak"; return 0;
+  case BuildingType::ForageBush: LOG(ERROR) << "GetBuildingLineOfSight() called on BuildingType::ForageBush"; return 0;
+  case BuildingType::GoldMine: LOG(ERROR) << "GetBuildingLineOfSight() called on BuildingType::GoldMine"; return 0;
+  case BuildingType::StoneMine: LOG(ERROR) << "GetBuildingLineOfSight() called on BuildingType::StoneMine"; return 0;
+  case BuildingType::NumBuildings: LOG(ERROR) << "GetBuildingLineOfSight() called on BuildingType::NumBuildings"; return 0;
+  }
+  return 0;
+}

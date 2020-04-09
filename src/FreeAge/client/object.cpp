@@ -5,7 +5,21 @@
 #include "FreeAge/client/object.hpp"
 
 #include "FreeAge/client/building.hpp"
+#include "FreeAge/client/map.hpp"
 #include "FreeAge/client/unit.hpp"
+
+void ClientObject::UpdateFieldOfView(Map* map, int change) {
+  if (isBuilding()) {
+    const ClientBuilding* building = static_cast<const ClientBuilding*>(this);
+    QPointF center = building->GetCenterMapCoord();
+    map->UpdateFieldOfView(center.x(), center.y(), GetBuildingLineOfSight(building->GetType()), change);
+  } else if (isUnit()) {
+    const ClientUnit* unit = static_cast<const ClientUnit*>(this);
+    int tileX = static_cast<int>(unit->GetMapCoord().x());
+    int tileY = static_cast<int>(unit->GetMapCoord().y());
+    map->UpdateFieldOfView(tileX + 0.5f, tileY + 0.5f, GetUnitLineOfSight(unit->GetType()), change);
+  }
+}
 
 QString ClientObject::GetObjectName() const {
   if (isBuilding()) {

@@ -341,14 +341,14 @@ static int ComputeFacingDirection(const QPointF& movement) {
   return direction;
 }
 
-void ClientUnit::SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action) {
+void ClientUnit::SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action, Map* map) {
   // Check whether the unit moved differently than we expected.
   // In this case, for a short time, we change the facing direction to the direction
   // in which the unit actually moved.
   constexpr float kChangeDurationThreshold = 0.15f;
   constexpr float kOverrideDirectionDuration = 0.1f;
   
-  UpdateMapCoord(serverTime);
+  UpdateMapCoord(serverTime, map);
   
   if (serverTime - movementSegment.serverTime < kChangeDurationThreshold) {
     overrideDirection = ComputeFacingDirection(startPoint - movementSegment.startPoint);
@@ -370,9 +370,9 @@ void ClientUnit::SetMovementSegment(double serverTime, const QPointF& startPoint
   movementSegment = MovementSegment(serverTime, startPoint, speed, action);
 }
 
-void ClientUnit::UpdateGameState(double serverTime) {
+void ClientUnit::UpdateGameState(double serverTime, Map* map) {
   // Update the unit's movment according to the movement segment.
-  UpdateMapCoord(serverTime);
+  UpdateMapCoord(serverTime, map);
   
   // Update facing direction.
   if (movementSegment.speed != QPointF(0, 0)) {
@@ -407,19 +407,35 @@ void ClientUnit::UpdateGameState(double serverTime) {
   if (movementSegment.action != UnitAction::Idle) {
     idleBlockedStartTime = -1;
   }
+}
+
+void ClientUnit::UpdateMapCoord(double serverTime, Map* map) {
+  int oldTileX = static_cast<int>(mapCoord.x());
+  int oldTileY = static_cast<int>(mapCoord.y());
   
   if (movementSegment.speed == QPointF(0, 0)) {
     mapCoord = movementSegment.startPoint;
-  }
-}
-
-void ClientUnit::UpdateMapCoord(double serverTime) {
-  if (movementSegment.action == UnitAction::Idle ||
-      movementSegment.action == UnitAction::Task ||
-      movementSegment.action == UnitAction::Attack) {
+  } else if (movementSegment.action == UnitAction::Idle ||
+             movementSegment.action == UnitAction::Task ||
+             movementSegment.action == UnitAction::Attack) {
     mapCoord = movementSegment.startPoint;
   } else {
     mapCoord = movementSegment.startPoint + (serverTime - movementSegment.serverTime) * movementSegment.speed;
+  }
+  
+  int newTileX = static_cast<int>(mapCoord.x());
+  int newTileY = static_cast<int>(mapCoord.y());
+  
+  if (oldTileX != newTileX ||
+      oldTileY != newTileY) {
+    // TODO: This could be sped up by pre-computing only the *difference* that needs to be applied
+    //       for a unit's line-of-sight when moving from one tile to an adjacent tile.
+    //       Even without this pre-computation, iterating over the viewCount values only once
+    //       should be faster (i.e., combine the two map->UpdateFieldOfView() calls below into
+    //       one that takes both the old and the new coordinates).
+    float lineOfSight = GetUnitLineOfSight(type);
+    map->UpdateFieldOfView(oldTileX + 0.5f, oldTileY + 0.5f, lineOfSight, -1);
+    map->UpdateFieldOfView(newTileX + 0.5f, newTileY + 0.5f, lineOfSight, 1);
   }
 }
 

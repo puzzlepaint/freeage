@@ -183,3 +183,23 @@ u32 GetUnitMeleeArmor(UnitType type) {
   
   return 0;
 }
+
+float GetUnitLineOfSight(UnitType type) {
+  // TODO: Load this from some data file
+  
+  if (IsVillager(type)) {
+    return 4;
+  }
+  
+  switch (type) {
+  case UnitType::Militia:
+    return 4;
+  case UnitType::Scout:
+    return 4;
+  default:
+    LOG(ERROR) << "Function called on unsupported type: " << static_cast<int>(type);
+    break;
+  }
+  
+  return 0;
+}

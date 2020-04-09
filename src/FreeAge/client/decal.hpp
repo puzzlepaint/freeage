@@ -53,6 +53,11 @@ class Decal {
   
   inline u8 GetPlayerIndex() const { return playerIndex; }
   
+  inline int GetMinTileX() const { return minTileX; }
+  inline int GetMinTileY() const { return minTileY; }
+  inline int GetMaxTileX() const { return maxTileX; }
+  inline int GetMaxTileY() const { return maxTileY; }
+  
  private:
   int GetFPS();
   bool GetCurrentSpriteAndFrame(double serverTime, SpriteAndTextures** sprite, int* frame, bool* frameWasClamped);
@@ -61,6 +66,13 @@ class Decal {
   /// Projected coordinate of the sprite center.
   /// Note that we do not store the map coordinate since decals never move on the map.
   QPointF projectedCoord;
+  
+  /// Extent of the decal on the map, in map tiles.
+  /// This is used to determine the view state of the decal (visible / in fog of war) for correct rendering.
+  int minTileX;
+  int minTileY;
+  int maxTileX;
+  int maxTileY;
   
   /// Type of the decal.
   DecalType type;

@@ -64,3 +64,5 @@ u32 GetBuildingMaxHP(BuildingType type);
 u32 GetBuildingMeleeArmor(BuildingType type);
 
 int GetBuildingProvidedPopulationSpace(BuildingType type);
+
+float GetBuildingLineOfSight(BuildingType type);

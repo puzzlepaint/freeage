@@ -5,6 +5,7 @@
 #include "FreeAge/client/shader_terrain.hpp"
 
 #include "FreeAge/common/logging.hpp"
+#include "FreeAge/client/opengl.hpp"
 
 TerrainShader::TerrainShader() {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
@@ -31,9 +32,13 @@ TerrainShader::TerrainShader() {
       "in vec3 var_texcoord;\n"
       "\n"
       "uniform sampler2D u_texture;\n"
+      "uniform sampler2D u_viewTexture;\n"
+      "\n"
+      "uniform vec2 u_texcoordToMapScaling;\n"
       "\n"
       "void main() {\n"
-      "  out_color = vec4(var_texcoord.z * texture(u_texture, var_texcoord.xy).rgb, 1);\n"
+      "  float viewFactor = texture(u_viewTexture, u_texcoordToMapScaling * var_texcoord.xy).r;"
+      "  out_color = vec4(viewFactor * var_texcoord.z * texture(u_texture, var_texcoord.xy).rgb, 1);\n"
       "}\n",
       ShaderProgram::ShaderType::kFragmentShader, f));
   
@@ -42,7 +47,10 @@ TerrainShader::TerrainShader() {
   program->UseProgram(f);
   
   texture_location = program->GetUniformLocationOrAbort("u_texture", f);
+  viewTexture_location = program->GetUniformLocationOrAbort("u_viewTexture", f);
   viewMatrix_location = program->GetUniformLocationOrAbort("u_viewMatrix", f);
+  texcoordToMapScaling_location = program->GetUniformLocationOrAbort("u_texcoordToMapScaling", f);
+  CHECK_OPENGL_NO_ERROR();
 }
 
 TerrainShader::~TerrainShader() {

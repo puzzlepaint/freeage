@@ -118,7 +118,7 @@ class ClientUnit : public ClientObject {
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   inline int GetDirection() const { return direction; }
   
-  void SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action);
+  void SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action, Map* map);
   
   inline void SetCarriedResources(ResourceType type, u8 amount) {
     carriedResourceType = type;
@@ -128,10 +128,10 @@ class ClientUnit : public ClientObject {
   inline int GetCarriedResourceAmount() const { return carriedResourceAmount; }
   
   /// Updates the unit's state to the given server time.
-  void UpdateGameState(double serverTime);
+  void UpdateGameState(double serverTime, Map* map);
   
  private:
-  void UpdateMapCoord(double serverTime);
+  void UpdateMapCoord(double serverTime, Map* map);
   int GetDirection(double serverTime);
   
   
