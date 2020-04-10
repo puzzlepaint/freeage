@@ -335,6 +335,28 @@ void Map::AddObject(u32 objectId, ClientObject* object) {
   objects.insert(std::make_pair(objectId, object));
 }
 
+bool Map::IsUnitInFogOfWar(ClientUnit* unit) {
+  int tileX = std::max<int>(0, std::min<int>(width - 1, unit->GetMapCoord().x()));
+  int tileY = std::max<int>(0, std::min<int>(height - 1, unit->GetMapCoord().y()));
+  return viewCountAt(tileX, tileY) <= 0;
+}
+
+bool Map::IsBuildingInFogOfWar(ClientBuilding* building) {
+  return ComputeMaxViewCountForBuilding(building) <= 0;
+}
+
+int Map::ComputeMaxViewCountForBuilding(ClientBuilding* building) {
+  int maxViewCount = -1;
+  const QPoint& baseTile = building->GetBaseTile();
+  QSize size = GetBuildingSize(building->GetType());
+  for (int y = 0; y < size.height(); ++ y) {
+    for (int x = 0; x < size.width(); ++ x) {
+      maxViewCount = std::max(maxViewCount, viewCountAt(baseTile.x() + x, baseTile.y() + y));
+    }
+  }
+  return maxViewCount;
+}
+
 void Map::UpdateRenderResources(const std::filesystem::path& graphicsSubPath, QOpenGLFunctions_3_2_Core* f) {
   // Load texture
   if (!hasTextureBeenLoaded) {

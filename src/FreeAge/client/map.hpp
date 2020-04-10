@@ -96,6 +96,10 @@ class Map {
   
   void AddObject(u32 objectId, ClientObject* object);
   
+  bool IsUnitInFogOfWar(ClientUnit* unit);
+  bool IsBuildingInFogOfWar(ClientBuilding* building);
+  int ComputeMaxViewCountForBuilding(ClientBuilding* building);
+  
   inline int GetWidth() const { return width; }
   inline int GetHeight() const { return height; }
   

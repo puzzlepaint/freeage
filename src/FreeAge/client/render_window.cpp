@@ -1094,15 +1094,7 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
       if (!building.GetSprite().HasShadow()) {
         continue;
       }
-      
-      int maxViewCount = -1;
-      const QPoint& baseTile = building.GetBaseTile();
-      QSize size = GetBuildingSize(building.GetType());
-      for (int y = 0; y < size.height(); ++ y) {
-        for (int x = 0; x < size.width(); ++ x) {
-          maxViewCount = std::max(maxViewCount, map->viewCountAt(baseTile.x() + x, baseTile.y() + y));
-        }
-      }
+      int maxViewCount = map->ComputeMaxViewCountForBuilding(&building);
       if (maxViewCount < 0) {
         continue;
       }
@@ -1135,10 +1127,7 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
       if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front()->sprite.HasShadow()) {
         continue;
       }
-      
-      int tileX = std::max<int>(0, std::min<int>(map->GetWidth() - 1, unit.GetMapCoord().x()));
-      int tileY = std::max<int>(0, std::min<int>(map->GetHeight() - 1, unit.GetMapCoord().y()));
-      if (map->viewCountAt(tileX, tileY) <= 0) {
+      if (map->IsUnitInFogOfWar(&unit)) {
         continue;
       }
       
@@ -1190,14 +1179,7 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
       continue;
     }
     
-    int maxViewCount = -1;
-    const QPoint& baseTile = building.GetBaseTile();
-    QSize size = GetBuildingSize(building.GetType());
-    for (int y = 0; y < size.height(); ++ y) {
-      for (int x = 0; x < size.width(); ++ x) {
-        maxViewCount = std::max(maxViewCount, map->viewCountAt(baseTile.x() + x, baseTile.y() + y));
-      }
-    }
+    int maxViewCount = map->ComputeMaxViewCountForBuilding(&building);
     if (maxViewCount < 0) {
       continue;
     }
@@ -1390,14 +1372,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
         continue;
       }
       
-      int maxViewCount = -1;
-      const QPoint& baseTile = building.GetBaseTile();
-      QSize size = GetBuildingSize(building.GetType());
-      for (int y = 0; y < size.height(); ++ y) {
-        for (int x = 0; x < size.width(); ++ x) {
-          maxViewCount = std::max(maxViewCount, map->viewCountAt(baseTile.x() + x, baseTile.y() + y));
-        }
-      }
+      int maxViewCount = map->ComputeMaxViewCountForBuilding(&building);
       if (maxViewCount < 0) {
         continue;
       } else if (maxViewCount == 0) {
@@ -1435,10 +1410,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
       if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front()->sprite.HasOutline()) {
         continue;
       }
-      
-      int tileX = std::max<int>(0, std::min<int>(map->GetWidth() - 1, unit.GetMapCoord().x()));
-      int tileY = std::max<int>(0, std::min<int>(map->GetHeight() - 1, unit.GetMapCoord().y()));
-      if (map->viewCountAt(tileX, tileY) <= 0) {
+      if (map->IsUnitInFogOfWar(&unit)) {
         continue;
       }
       
@@ -1484,10 +1456,7 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
       continue;
     }
     ClientUnit& unit = *AsUnit(object.second);
-    
-    int tileX = std::max<int>(0, std::min<int>(map->GetWidth() - 1, unit.GetMapCoord().x()));
-    int tileY = std::max<int>(0, std::min<int>(map->GetHeight() - 1, unit.GetMapCoord().y()));
-    if (map->viewCountAt(tileX, tileY) <= 0) {
+    if (map->IsUnitInFogOfWar(&unit)) {
       continue;
     }
     
@@ -2609,14 +2578,7 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
       ClientBuilding& building = *AsBuilding(object.second);
       const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
       
-      int maxViewCount = -1;
-      const QPoint& baseTile = building.GetBaseTile();
-      QSize size = GetBuildingSize(building.GetType());
-      for (int y = 0; y < size.height(); ++ y) {
-        for (int x = 0; x < size.width(); ++ x) {
-          maxViewCount = std::max(maxViewCount, map->viewCountAt(baseTile.x() + x, baseTile.y() + y));
-        }
-      }
+      int maxViewCount = map->ComputeMaxViewCountForBuilding(&building);
       if (maxViewCount < 0) {
         continue;
       }
@@ -2653,10 +2615,7 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
       }
     } else if (object.second->isUnit()) {
       ClientUnit& unit = *AsUnit(object.second);
-      
-      int tileX = std::max<int>(0, std::min<int>(map->GetWidth() - 1, unit.GetMapCoord().x()));
-      int tileY = std::max<int>(0, std::min<int>(map->GetHeight() - 1, unit.GetMapCoord().y()));
-      if (map->viewCountAt(tileX, tileY) <= 0) {
+      if (map->IsUnitInFogOfWar(&unit)) {
         continue;
       }
       
@@ -3478,12 +3437,26 @@ void RenderWindow::paintGL() {
     lastDisplayedServerTime = displayedServerTime;
     gameController->SetLastDisplayedServerTime(displayedServerTime);
     
-    // Remove any objects that have been deleted from the selection.
+    // Remove any objects that have been deleted from the selection or
+    // that are fully within the fog of war.
     usize outputIndex = 0;
     for (usize i = 0; i < selection.size(); ++ i) {
-      if (map->GetObjects().find(selection[i]) == map->GetObjects().end()) {
+      auto it = map->GetObjects().find(selection[i]);
+      
+      // Drop if the object does not exist anymore.
+      if (it == map->GetObjects().end()) {
         continue;
       }
+      
+      // Drop if it is an enemy object that is fully in the fog of war.
+      if (it->second->GetPlayerIndex() != match->GetPlayerIndex()) {
+        if (it->second->isUnit() && map->IsUnitInFogOfWar(AsUnit(it->second))) {
+          continue;
+        } else if (it->second->isBuilding() && map->IsBuildingInFogOfWar(AsBuilding(it->second))) {
+          continue;
+        }
+      }
+      
       if (outputIndex != i) {
         selection[outputIndex] = selection[i];
       }
