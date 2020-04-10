@@ -467,7 +467,6 @@ void Game::HandleDequeueProductionQueueItemMessage(const QByteArray& msg, Player
   // Adjust population count (if relevant).
   if (queueIndex == 0 && building->GetProductionPercentage() > 0) {
     playersInGame->at(building->GetPlayerIndex())->populationIncludingInProduction -= 1;
-    LOG(WARNING) << "DEBUG: removed population (dequeued first prod. item) for player " << object->GetPlayerIndex() << " --> " << playersInGame->at(building->GetPlayerIndex())->populationIncludingInProduction;
   }
   
   // Remove the item from the queue.
@@ -678,7 +677,6 @@ void Game::StartGame() {
       }
     } else if (object->isUnit()) {
       playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction += 1;
-      LOG(WARNING) << "DEBUG: added population (game start) for player " << object->GetPlayerIndex() << " --> " << playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction;
     }
   }
   for (auto& player : *playersInGame) {
@@ -1746,7 +1744,6 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
       if (newPercentage >= 100) {
         // Remove the population count for the unit in production.
         player.populationIncludingInProduction -= 1;
-        LOG(WARNING) << "DEBUG: removed population (in production) for player " << player.index << " --> " << player.populationIncludingInProduction;
         
         // Special case for UnitType::MaleVillager: Randomly decide whether to produce a male or female.
         if (unitInProduction == UnitType::MaleVillager) {
@@ -1769,7 +1766,6 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
         
         // Add the population count for the unit in production.
         player.populationIncludingInProduction += 1;
-        LOG(WARNING) << "DEBUG: added population (in production) for player " << player.index << " --> " << player.populationIncludingInProduction;
       }
     }
   }
@@ -1810,6 +1806,7 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
     int totalDamage = std::max(1, meleeDamage);
     
     // Do the attack damage.
+    float oldHP = target->GetHPInternalFloat();
     float hp = target->GetHPInternalFloat() - totalDamage;
     if (hp > 0.5f) {
       target->SetHP(hp);
@@ -1820,7 +1817,7 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
       for (auto& player : *playersInGame) {
         accumulatedMessages[player->index] += msg;
       }
-    } else {
+    } else if (oldHP > 0.5f) {
       // Remove the target.
       DeleteObject(targetId, false);
     }
@@ -1925,7 +1922,6 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   
   // Handle population counting
   playersInGame->at(newUnit->GetPlayerIndex())->populationIncludingInProduction += 1;
-  LOG(WARNING) << "DEBUG: added population (produced unit) for player " << newUnit->GetPlayerIndex() << " --> " << playersInGame->at(newUnit->GetPlayerIndex())->populationIncludingInProduction;
 }
 
 void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting) {
@@ -1954,6 +1950,15 @@ void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 
 }
 
 void Game::DeleteObject(u32 objectId, bool deletedManually) {
+  // Objects are deleted lazily. This means that for example if multiple
+  // militia hit a 1-HP house in the same time step, it could be deleted twice.
+  // This e.g., causes inconsitencies regarding population count. Prevent this.
+  for (u32 id : objectDeleteList) {
+    if (id == objectId) {
+      return;
+    }
+  }
+  
   // TODO: Convert the object into some other form to remember
   //       the potential destroy / death animation and rubble / decay sprite.
   //       We need to store this so we can tell other clients about its existence
@@ -2008,7 +2013,6 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
     }
     if (building->GetProductionPercentage() > 0) {
       playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction -= 1;
-      LOG(WARNING) << "DEBUG: removed population (lost a building that was producing a unit) for player " << object->GetPlayerIndex() << " --> " << playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction;
     }
   }
   
@@ -2021,7 +2025,6 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
     }
   } else if (object->isUnit()) {
     playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction -= 1;
-    LOG(WARNING) << "DEBUG: removed population (lost unit) for player " << object->GetPlayerIndex() << " --> " << playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction;
   }
   
   // If all objects of a player are gone, the player gets defeated.
