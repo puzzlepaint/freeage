@@ -67,11 +67,6 @@ void ServerUnit::SetTargetInternal(u32 targetObjectId, ServerObject* targetObjec
   // The path will be computed on the next game state update.
   hasPath = false;
   
-  // TODO: For now, we simply make the unit move to the center of the target object.
-  //       Actually, it should only move such as to touch the target object in any way (for melee interactions),
-  //       or move to a location from where it can reach it (for ranged attacks).
-  // TODO: In addition, if the target is a unit, the commanded unit needs to update its path
-  //       if the target unit moves.
   if (targetObject->isBuilding()) {
     ServerBuilding* targetBuilding = AsBuilding(targetObject);
     QSize buildingSize = GetBuildingSize(targetBuilding->GetBuildingType());

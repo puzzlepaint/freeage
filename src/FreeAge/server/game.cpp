@@ -261,7 +261,7 @@ void Game::HandleSetTargetMessage(const QByteArray& msg, PlayerInGame* player, u
   }
   
   // Handle command (for all suitable IDs which are actually units of the sending client)
-  SetUnitTargets(unitIds, player->index, targetId, targetIt->second);
+  SetUnitTargets(unitIds, player->index, targetId, targetIt->second, true);
 }
 
 void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player) {
@@ -403,7 +403,7 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
   accumulatedMessages[player->index] += addObjectMsg;
   
   // For all given villagers, set the target to the new foundation.
-  SetUnitTargets(villagerIds, player->index, newBuildingId, newBuildingFoundation);
+  SetUnitTargets(villagerIds, player->index, newBuildingId, newBuildingFoundation, true);
 }
 
 void Game::HandleDeleteObjectMessage(const QByteArray& msg, PlayerInGame* player) {
@@ -869,7 +869,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
     // If any other command has been given to the unit in the meantime, follow the other command.
     auto manualTargetIt = map->GetObjects().find(unit->GetManuallyTargetedObjectId());
     if (manualTargetIt != map->GetObjects().end()) {
-      unit->SetTarget(manualTargetIt->first, manualTargetIt->second, false);
+      SetUnitTargets({unitId}, unit->GetPlayerIndex(), manualTargetIt->first, manualTargetIt->second, false);
     }
   }
   
@@ -888,6 +888,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
       
       constexpr float kReplanThresholdDistance = 0.1f * 0.1f;
       if (SquaredDistance(targetUnit->GetMapCoord(), unit->GetMoveToTargetMapCoord()) > kReplanThresholdDistance) {
+        // Since we keep the target here, there is no need to use SetUnitTargets() since the unit's type will never change.
         unit->SetTarget(unit->GetTargetObjectId(), targetUnit, false);
         PlanUnitPath(unit);
         unitMovementChanged = true;
@@ -1682,7 +1683,7 @@ void Game::SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, 
     }
     
     if (bestDropOffPoint) {
-      villager->SetTarget(bestDropOffPointId, bestDropOffPoint, /*isManualTargeting*/ false);
+      SetUnitTargets({villagerId}, villager->GetPlayerIndex(), bestDropOffPointId, bestDropOffPoint, false);
     } else {
       // TODO: Should we explicitly stop the gathering action here?
     }
@@ -1707,7 +1708,7 @@ void Game::SimulateResourceDropOff(u32 villagerId, ServerUnit* villager, bool* u
   if (villager->GetManuallyTargetedObjectId() != villager->GetTargetObjectId()) {
     auto it = map->GetObjects().find(villager->GetManuallyTargetedObjectId());
     if (it != map->GetObjects().end()) {
-      villager->SetTarget(villager->GetManuallyTargetedObjectId(), it->second, /*isManualTargeting*/ false);
+      SetUnitTargets({villagerId}, villager->GetPlayerIndex(), it->first, it->second, /*isManualTargeting*/ false);
     } else {
       // The manually targeted object does not exist anymore, stop.
       // TODO: This happens when a resource is depleted. In this case, make the villager move on to a nearby resource of the same type.
@@ -1927,20 +1928,20 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   LOG(WARNING) << "DEBUG: added population (produced unit) for player " << newUnit->GetPlayerIndex() << " --> " << playersInGame->at(newUnit->GetPlayerIndex())->populationIncludingInProduction;
 }
 
-void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject) {
+void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting) {
   for (u32 id : unitIds) {
     auto it = map->GetObjects().find(id);
     if (it == map->GetObjects().end() ||
         !it->second->isUnit() ||
         it->second->GetPlayerIndex() != playerIndex) {
-      LOG(WARNING) << "Got SetTarget message for invalid unit ID: " << id;
+      LOG(WARNING) << "SetUnitTargets() for invalid unit ID, may for example be caused by incorrect messages from a client: " << id;
       continue;
     }
     
     ServerUnit* unit = AsUnit(it->second);
     UnitType oldUnitType = unit->GetUnitType();
     
-    unit->SetTarget(targetId, targetObject, /*isManualTargeting*/ true);
+    unit->SetTarget(targetId, targetObject, isManualTargeting);
     
     if (oldUnitType != unit->GetUnitType()) {
       // Notify all clients that see the unit about its change of type.

@@ -123,7 +123,7 @@ class Game {
   
   void ProduceUnit(ServerBuilding* building, UnitType unitInProduction);
   
-  void SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject);
+  void SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting);
   
   void DeleteObject(u32 objectId, bool deletedManually);
   
