@@ -425,6 +425,38 @@ class ServerConnectionThread : public QThread {
 };
 
 
+struct ThreadWorker : public QObject {
+ Q_OBJECT
+ public:
+  ThreadWorker(ServerConnectionThread* thread)
+      : thread(thread) {}
+  
+ public slots:
+  void ExitThread() {
+    // exit() makes the thread exit its Qt event loop (i.e., the call to exec()).
+    thread->exit();
+  }
+  
+  void SetDebugNetworking(bool enable) {
+    thread->SetDebugNetworking(enable);
+  }
+  
+  bool ConnectToServer(const QString& serverAddress, int timeout, bool retryUntilTimeout) {
+    return thread->ConnectToServer(serverAddress, timeout, retryUntilTimeout);
+  }
+  
+  void Shutdown() {
+    thread->Shutdown();
+  }
+  
+  void Write(QByteArray data) {
+    thread->Write(data);
+  }
+  
+ private:
+  ServerConnectionThread* thread;
+};
+
 ServerConnection::ServerConnection() {
   // Start the connection thread.
   thread = new ServerConnectionThread();
@@ -435,17 +467,13 @@ ServerConnection::ServerConnection() {
   
   // Create a dummy QObject living in the thread. This allows to run code in the
   // thread by calling QMetaObject::invokeMethod() with the dummyWorker as context object.
-  dummyWorker = new QObject();
+  dummyWorker = new ThreadWorker(thread);
   dummyWorker->moveToThread(thread);
 }
 
 ServerConnection::~ServerConnection() {
   // Issue thread exit and wait for it to happen
-  QMetaObject::invokeMethod(dummyWorker, [=]() {
-    // This runs in the ServerConnectionThread.
-    // exit() makes the thread exit its Qt event loop (i.e., the call to exec()).
-    thread->exit();
-  }, Qt::BlockingQueuedConnection);
+  QMetaObject::invokeMethod(dummyWorker, "ExitThread", Qt::BlockingQueuedConnection);
   
   thread->wait();
   
@@ -454,28 +482,19 @@ ServerConnection::~ServerConnection() {
 
 void ServerConnection::SetDebugNetworking(bool enable) {
   // Issue thread exit and wait for it to happen
-  QMetaObject::invokeMethod(dummyWorker, [=]() {
-    // This runs in the ServerConnectionThread.
-    thread->SetDebugNetworking(enable);
-  }, Qt::BlockingQueuedConnection);
+  QMetaObject::invokeMethod(dummyWorker, "SetDebugNetworking", Qt::BlockingQueuedConnection, Q_ARG(bool, enable));
 }
 
 bool ServerConnection::ConnectToServer(const QString& serverAddress, int timeout, bool retryUntilTimeout) {
   connectionToServerLost = false;
   
   bool result;
-  QMetaObject::invokeMethod(dummyWorker, [=, &result]() {
-    // This runs in the ServerConnectionThread.
-    result = thread->ConnectToServer(serverAddress, timeout, retryUntilTimeout);
-  }, Qt::BlockingQueuedConnection);
+  QMetaObject::invokeMethod(dummyWorker, "ConnectToServer", Qt::BlockingQueuedConnection, Q_RETURN_ARG(bool, result), Q_ARG(QString, serverAddress), Q_ARG(int, timeout), Q_ARG(bool, retryUntilTimeout));
   return result;
 }
 
 void ServerConnection::Shutdown() {
-  QMetaObject::invokeMethod(dummyWorker, [=]() {
-    // This runs in the ServerConnectionThread.
-    thread->Shutdown();
-  }, Qt::BlockingQueuedConnection);
+  QMetaObject::invokeMethod(dummyWorker, "Shutdown", Qt::BlockingQueuedConnection);
 }
 
 bool ServerConnection::WaitForWelcomeMessage(int timeout) {
@@ -504,17 +523,11 @@ bool ServerConnection::WaitForWelcomeMessage(int timeout) {
 
 void ServerConnection::Write(const QByteArray& message) {
   QByteArray persistentReference = message;
-  QMetaObject::invokeMethod(dummyWorker, [=]() {
-    // This runs in the ServerConnectionThread.
-    thread->Write(persistentReference);
-  }, Qt::QueuedConnection);
+  QMetaObject::invokeMethod(dummyWorker, "Write", Qt::QueuedConnection, Q_ARG(QByteArray, persistentReference));
 }
 
 void ServerConnection::WriteBlocking(const QByteArray& message) {
-  QMetaObject::invokeMethod(dummyWorker, [=]() {
-    // This runs in the ServerConnectionThread.
-    thread->Write(message);
-  }, Qt::BlockingQueuedConnection);
+  QMetaObject::invokeMethod(dummyWorker, "Write", Qt::BlockingQueuedConnection, Q_ARG(QByteArray, message));
 }
 
 void ServerConnection::Lock() {

@@ -3892,7 +3892,7 @@ void RenderWindow::mouseMoveEvent(QMouseEvent* event) {
   // time window in cases where the event loop was somewhat busy.
   if (!haveMouseMoveEvent) {
     // Queue handling the event at the back of the event queue.
-    QMetaObject::invokeMethod(this, &RenderWindow::HandleMouseMoveEvent, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(this, "HandleMouseMoveEvent", Qt::QueuedConnection);
     haveMouseMoveEvent = true;
   }
   lastMouseMoveEventPos = event->pos();

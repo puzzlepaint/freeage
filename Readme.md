@@ -45,6 +45,7 @@ To know what to expect, here are some examples of known limitations:
   if there are too many villagers tasked to a single tile.
 * The up-to-date state of enemy buildings is visible through the fog of war after the
   terrain has been explored once.
+* Berries are the only source of food.
 * Villagers do not fell trees, instead they direcly harvest from the original trees.
 * Resources never deplete.
 
