@@ -1957,10 +1957,6 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   //       the potential destroy / death animation and rubble / decay sprite.
   //       We need to store this so we can tell other clients about its existence
   //       which currently do not see the object but may explore its location later.
-  QByteArray msg = CreateObjectDeathMessage(objectId);
-  for (auto& player : *playersInGame) {
-    accumulatedMessages[player->index] += msg;
-  }
   
   auto it = map->GetObjects().find(objectId);
   if (it == map->GetObjects().end()) {
@@ -1968,6 +1964,25 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
     return;
   }
   ServerObject* object = it->second;
+  
+  bool sendObjectDeathToOwningPlayerOnly = false;
+  if (object->isBuilding()) {
+    ServerBuilding* building = AsBuilding(object);
+    if (building->GetBuildPercentage() == 0) {
+      // For building foundations, only the player that owns them knows about the object.
+      // So we only need to send the object death message to this player.
+      sendObjectDeathToOwningPlayerOnly = true;
+    }
+  }
+  
+  QByteArray msg = CreateObjectDeathMessage(objectId);
+  for (auto& player : *playersInGame) {
+    if (sendObjectDeathToOwningPlayerOnly && player->index != object->GetPlayerIndex()) {
+      continue;
+    }
+    
+    accumulatedMessages[player->index] += msg;
+  }
   
   objectDeleteList.push_back(objectId);
   
