@@ -45,9 +45,11 @@ To know what to expect, here are some examples of known limitations:
   if there are too many villagers tasked to a single tile.
 * The up-to-date state of enemy buildings is visible through the fog of war after the
   terrain has been explored once.
+* It is not possible to set gather points for production buildings.
 * Berries are the only source of food.
-* Villagers do not fell trees, instead they direcly harvest from the original trees.
+* Villagers do not fell trees, instead they directly harvest from the original trees.
 * Resources never deplete.
+* There is no sound or music yet.
 
 ### Download & Running ###
 
@@ -147,7 +149,7 @@ the server process will exit.
 ### Building ###
 
 If you want to build the application yourself, you need Qt5 as a single
-external dependency. Version 5.12.0 is known to work, although similar versions
+external dependency. Versions 5.9.5 and 5.12.0 are known to work, although similar versions
 would also be expected to work with few or no changes required.
 
 The project uses C++17, so a relatively recent compiler may be required.
@@ -159,6 +161,19 @@ for building CMake-based projects, for example as follows:
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja ..
+ninja
+```
+
+In case you use **Ubuntu 18.04**, you need to use a newer GCC version than the default.
+This may for example be done by installing the `gcc-8` package and prepending the CMake call
+with `CXX=/usr/bin/g++-8`. The complete build instructions are then:
+
+```bash
+sudo apt-get update
+sudo apt-get install ninja-build gcc-8 qtbase5-dev
+mkdir build
+cd build
+CXX=/usr/bin/g++-8 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja ..
 ninja
 ```
 
@@ -181,7 +196,7 @@ consistent.
 
 Source files that are used by both the client and the server application go into
 src/FreeAge/common. Otherwise they belong into src/FreeAge/client or src/FreeAge/server.
-Unit test may be added to src/FreeAge/test.
+Unit tests may be added to src/FreeAge/test.
 
 Since it may perhaps be hard to read into, here is a brief overview of the main
 (client-server) architecture:
@@ -193,7 +208,7 @@ and most of the functions to create these messages can also be found there.
 The server code for running the main part of the game, including handling incoming
 messages, is in src/FreeAge/server/game.cpp. The server simulates the game with
 a fixed frame rate. Every time something happens that needs to be sent to a client,
-it is sent out within a large accumulated packet at the end of a simulation time
+it is sent out within a large accumulated network packet at the end of a simulation time
 step, prefixed with the server time of this time step.
 
 The clients attempt to keep track of when they expect to receive packets from the
