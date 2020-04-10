@@ -16,4 +16,4 @@ jobs:
       run: sudo apt-get update && sudo apt-get install ninja-build gcc-8 qtbase5-dev
     - uses: actions/checkout@v2
     - name: make
-      run: mkdir build && cd build && CXX=/usr/bin/gcc-8 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja .. && ninja
+      run: mkdir build && cd build && CXX=/usr/bin/g++-8 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja .. && ninja
