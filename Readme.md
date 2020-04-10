@@ -66,12 +66,12 @@ game can be configured there. If you have the original game installed on Steam,
 the game should automatically detect those. They may be set manually in case
 this fails or if the game is installed via the Microsoft Store (for which no
 automatic detection was implemented yet). Here are some examples of how these
-paths should be set:
+paths could look like:
 
 **Windows (Steam):**
 ```
-AoE2DE folder path: TODO
-Mods folder path: TODO
+AoE2DE folder path: D:/SteamLibrary/steamapps/common/AoE2DE
+Mods folder path: C:/Users/<username>/Games/Age of Empires 2 DE/<some_large_number>/mods
 ```
 
 **Linux (Steam):**
