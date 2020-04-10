@@ -69,6 +69,9 @@ void TextDisplay::Render(const QFont& font, const QRgb& color, const QString& te
     topY = rect.y();
   }
   
+  leftX = std::round(leftX);
+  topY = std::round(topY);
+  
   bounds = QRect(leftX, topY, textureWidth, textureHeight);
   
   int elementSizeInBytes = 3 * sizeof(float);
@@ -102,8 +105,8 @@ void TextDisplay::UpdateTexture(QOpenGLFunctions_3_2_Core* f) {
   QFontMetrics fontMetrics = dummyPainter.fontMetrics();
   QRect constrainRect(0, 0, 0, 0);
   QRect boundingRect = fontMetrics.boundingRect(constrainRect, alignmentFlags, text);
-  textureWidth = std::ceil(boundingRect.width());
-  textureHeight = std::ceil(boundingRect.height());
+  textureWidth = boundingRect.width();
+  textureHeight = boundingRect.height();
   dummyPainter.end();
   
   // Render the text into an image with that size.
@@ -112,7 +115,6 @@ void TextDisplay::UpdateTexture(QOpenGLFunctions_3_2_Core* f) {
   QPainter painter(&textImage);
   painter.setPen(qRgba(255, 255, 255, 255));
   painter.setFont(font);
-  painter.fontMetrics();
   painter.drawText(textImage.rect(), alignmentFlags, text);
   painter.end();
   
