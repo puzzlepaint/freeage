@@ -3954,6 +3954,10 @@ void RenderWindow::UpdateCursor() {
       for (u32 id : selection) {
         auto it = map->GetObjects().find(id);
         if (it != map->GetObjects().end()) {
+          if (it->second->GetPlayerIndex() != match->GetPlayerIndex()) {
+            continue;
+          }
+          
           switch (GetInteractionType(it->second, targetObject)) {
           case InteractionType::Construct: cursor = &buildCursor; break;
           case InteractionType::Attack: cursor = &attackCursor; break;
