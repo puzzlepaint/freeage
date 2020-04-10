@@ -318,13 +318,13 @@ void Map::Render(float* viewMatrix, const std::filesystem::path& graphicsSubPath
 }
 
 void Map::UnloadRenderResources() {
-  QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
-  
   if (hasTextureBeenLoaded) {
+    QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
     f->glDeleteTextures(1, &textureId);
     hasTextureBeenLoaded = false;
   }
   if (haveGeometryBuffersBeenInitialized) {
+    QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
     f->glDeleteBuffers(1, &vertexBuffer);
     f->glDeleteBuffers(1, &indexBuffer);
     haveGeometryBuffersBeenInitialized = false;

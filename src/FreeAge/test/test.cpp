@@ -5,8 +5,8 @@
 #include <gtest/gtest.h>
 #include <QApplication>
 
-#include "FreeAge/logging.h"
-#include "FreeAge/map.h"
+#include "FreeAge/common/logging.hpp"
+#include "FreeAge/client/map.hpp"
 
 int main(int argc, char** argv) {
   // Initialize loguru
@@ -70,7 +70,12 @@ TEST(Map, CoordinateConversion_HillyMap) {
   constexpr int kMapWidth = 15;
   constexpr int kMapHeight = 15;
   Map testMap(kMapWidth, kMapHeight);
-  testMap.GenerateRandomMap();
+  
+  for (int y = 0; y < testMap.GetHeight(); ++ y) {
+    for (int x = 0; x < testMap.GetWidth(); ++ x) {
+      testMap.elevationAt(x, y) = rand() % 2;
+    }
+  }
   
   TestProjectedCoordToMapCoord(testMap);
 }

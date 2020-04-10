@@ -178,6 +178,12 @@ add_dependencies(FreeAge
 # FreeAge test
 add_executable(FreeAgeTest
   src/FreeAge/test/test.cpp
+  
+  src/FreeAge/client/map.cpp
+  src/FreeAge/client/mod_manager.cpp
+  src/FreeAge/client/opengl.cpp
+  src/FreeAge/client/shader_program.cpp
+  src/FreeAge/client/shader_terrain.cpp
 )
 target_link_libraries(FreeAgeTest
   FreeAgeLib
