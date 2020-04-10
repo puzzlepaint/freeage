@@ -1536,15 +1536,17 @@ void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions
   
   float effectiveZoom = ComputeEffectiveZoom();
   
-  for (auto& object : map->GetObjects()) {
-    if (!object.second->IsSelected()) {
+  for (u32 id : selection) {
+    auto it = map->GetObjects().find(id);
+    if (it == map->GetObjects().end()) {
       continue;
     }
+    ClientObject* object = it->second;
     
     // TODO: Use virtual functions here to reduce duplicated code among buildings and units?
     
-    if (object.second->isBuilding()) {
-      ClientBuilding& building = *AsBuilding(object.second);
+    if (object->isBuilding()) {
+      ClientBuilding& building = *AsBuilding(object);
       const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
       
       QPointF centerProjectedCoord = map->MapCoordToProjectedCoord(building.GetCenterMapCoord());
@@ -1572,8 +1574,8 @@ void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions
             widgetHeight,
             f);
       }
-    } else {  // if (object.second->isUnit()) {
-      ClientUnit& unit = *AsUnit(object.second);
+    } else if (object->isUnit()) {
+      ClientUnit& unit = *AsUnit(object);
       const ClientUnitType& unitType = unitTypes[static_cast<int>(unit.GetType())];
       
       QPointF centerProjectedCoord = unit.GetCenterProjectedCoord(map.get());
@@ -2733,34 +2735,17 @@ QPointF RenderWindow::ProjectedCoordToScreenCoord(float x, float y) {
 }
 
 void RenderWindow::ClearSelection() {
-  for (u32 objectId : selection) {
-    auto objectIt = map->GetObjects().find(objectId);
-    if (objectIt == map->GetObjects().end()) {
-      LOG(ERROR) << "Selected object ID not found in map->GetObjects().";
-    } else {
-      objectIt->second->SetIsSelected(false);
-    }
-  }
-  
   selection.clear();
 }
 
 void RenderWindow::AddToSelection(u32 objectId) {
   selection.push_back(objectId);
-  
-  auto objectIt = map->GetObjects().find(objectId);
-  if (objectIt == map->GetObjects().end()) {
-    LOG(ERROR) << "Selected object ID not found in map->GetObjects().";
-  } else {
-    objectIt->second->SetIsSelected(true);
-  }
 }
 
 void RenderWindow::AddToSelectionIfExists(u32 objectId) {
   auto objectIt = map->GetObjects().find(objectId);
   if (objectIt != map->GetObjects().end()) {
     selection.push_back(objectId);
-    objectIt->second->SetIsSelected(true);
   }
 }
 

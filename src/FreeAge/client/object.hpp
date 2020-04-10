@@ -18,8 +18,7 @@ class ClientObject {
   inline ClientObject(ObjectType objectType, int playerIndex, u32 hp)
       : playerIndex(playerIndex),
         hp(hp),
-        objectType(static_cast<int>(objectType)),
-        isSelected(false) {}
+        objectType(static_cast<int>(objectType)) {}
   
   void UpdateFieldOfView(Map* map, int change);
   
@@ -35,9 +34,6 @@ class ClientObject {
   inline u32 GetHP() const { return hp; }
   inline void SetHP(u32 newHP) { hp = newHP; }
   
-  inline bool IsSelected() const { return isSelected; }
-  inline void SetIsSelected(bool selected) { isSelected = selected; }
-  
  protected:
   /// Index of the player which this object belongs to.
   int playerIndex;
@@ -47,9 +43,6 @@ class ClientObject {
   
   /// 0 for buildings, 1 for units.
   u8 objectType;
-  
-  /// Helper variable saying whether this object is currently selected.
-  bool isSelected;
 };
 
 /// Returns how the actor can interact with the target.
