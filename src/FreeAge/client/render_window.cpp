@@ -583,7 +583,17 @@ void RenderWindow::SendLoadingProgress(int progress) {
 }
 
 void RenderWindow::LoadingFinished() {
+  // TODO: In fullscreen mode on Windows, the deletion below causes the screen to flash black and
+  //       also seemingly at least one old frame to be rendered. (In windowed mode, all is well.)
+  //       The flashing also seems to happen on creation of the QOffscreenSurface, although it is not
+  //       as noticeable at this point in time since this happens right after the render window
+  //       is created.
+  //       The current workaround is to never delete this QOffscreenSurface and let it leak.
+  //       Try to find a better solution (or maybe try updating Qt and see whether it disappears.)
+#ifndef WIN32
   delete loadingSurface;
+#endif
+
   delete loadingThread;
   
   // Notify the server about the loading being finished
@@ -2832,7 +2842,7 @@ void RenderWindow::RenderLoadingScreen(QOpenGLFunctions_3_2_Core* f) {
   
   // Blend towards black before the game start.
   if (gameController->GetGameStartServerTimeSeconds() - connection->GetServerTimeToDisplayNow() < gameStartBlendToBlackTime) {
-    float factor = 1.f - (gameController->GetGameStartServerTimeSeconds() - connection->GetServerTimeToDisplayNow()) / gameStartBlendToBlackTime;
+    float factor = std::max<float>(0, std::min<float>(1, 1.f - (gameController->GetGameStartServerTimeSeconds() - connection->GetServerTimeToDisplayNow()) / gameStartBlendToBlackTime));
     
     uiSingleColorFullscreenShader->GetProgram()->UseProgram(f);
     f->glUniform4f(uiSingleColorFullscreenShader->GetColorLocation(), 0, 0, 0, factor);
@@ -3658,7 +3668,7 @@ void RenderWindow::paintGL() {
     f->glEnable(GL_BLEND);
     f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
-    float factor = 1.f - (connection->GetServerTimeToDisplayNow() - gameController->GetGameStartServerTimeSeconds()) / gameStartBlendToBlackTime;
+    float factor = std::max<float>(0, std::min<float>(1, 1.f - (connection->GetServerTimeToDisplayNow() - gameController->GetGameStartServerTimeSeconds()) / gameStartBlendToBlackTime));
     
     uiSingleColorFullscreenShader->GetProgram()->UseProgram(f);
     f->glUniform4f(uiSingleColorFullscreenShader->GetColorLocation(), 0, 0, 0, factor);
