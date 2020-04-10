@@ -10,6 +10,7 @@ for example:
 * Enabling games with more than 8 players in total, for example 5 vs 5 matches.
 * Allowing to re-connect to multiplayer matches after a connection drop.
 
+The game has been tested on Windows and Linux.
 To play FreeAge, you must own an officially purchased copy of Age of Empires 2:
 Definitive Edition, since FreeAge uses the original game assets.
 
@@ -34,7 +35,18 @@ The game is however already fully playable over the Internet and thus offers a
 good foundation to incrementally add the missing functionalities.
 Contributions are welcome!
 
-The game has been tested on Windows and Linux.
+To know what to expect, here are some examples of known limitations:
+
+* Units cannot be garrisoned into buildings.
+* Units do not auto-attack enemy units; they all have to be microed manually.
+  Think of them as all being villagers, or being in no-attack stance.
+* Units often get stuck when moving in groups.
+* Villagers do not automatically re-task to another nearby tile of e.g., berries, gold, or stone,
+  if there are too many villagers tasked to a single tile.
+* The up-to-date state of enemy buildings is visible through the fog of war after the
+  terrain has been explored once.
+* Villagers do not fell trees, instead they direcly harvest from the original trees.
+* Resources never deplete.
 
 ### Download & Running ###
 
@@ -50,7 +62,23 @@ some preferences. In addition, the paths to the asset files from the original
 game can be configured there. If you have the original game installed on Steam,
 the game should automatically detect those. They may be set manually in case
 this fails or if the game is installed via the Microsoft Store (for which no
-automatic detection was implemented yet).
+automatic detection was implemented yet). Here are some examples of how these
+paths should be set:
+
+**Windows (Steam):**
+```
+AoE2DE folder path: TODO
+Mods folder path: TODO
+```
+
+**Linux (Steam):**
+```
+AoE2DE folder path: /home/<username>/.local/share/Steam/steamapps/common/AoE2DE
+Mods folder path: /home/<username>/.local/share/Steam/steamapps/compatdata/813780/pfx/drive_c/users/steamuser/Games/Age of Empires 2 DE/<some_large_number>/mods
+```
+
+*If you have the game installed via the Microsoft Store, let us know the paths on your system
+and we can add it as an example here.*
 
 There are three options to create or join a game lobby:
 
@@ -79,7 +107,9 @@ Hotkeys are currently hard-coded to the following:
 
 For playing online, all participants of a match must connect to the same game server.
 In principle, this game server may run either on a PC of one of the players, or
-on an external server PC.
+on an external server PC. Please notice that if the game server runs on a player PC,
+it will exit once this player exits the game. So, in case other players in the match
+want to play on after this player resigns, the game must be left running on this PC.
 
 In practice, direct connections without an external server PC may unfortunately
 be difficult to achieve (unless all players are within the same local network)
