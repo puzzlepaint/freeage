@@ -211,13 +211,29 @@ int main(int argc, char** argv) {
     
     // Wait for the server's welcome message.
     constexpr int kWelcomeWaitTimeout = 2500;
-    if (!connection->WaitForWelcomeMessage(kWelcomeWaitTimeout)) {
+    u32 serverNetworkProtocolVersion;
+    if (!connection->WaitForWelcomeMessage(kWelcomeWaitTimeout, &serverNetworkProtocolVersion)) {
       QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Did not receive a welcome message from the server."));
       QFontDatabase::removeApplicationFont(georgiaFontID);
       if (isHost) {
         serverProcess.terminate();
       }
       continue;
+    }
+    
+    if (serverNetworkProtocolVersion != networkProtocolVersion) {
+      if (QMessageBox::question(
+          nullptr,
+          QObject::tr("Version inconsistency detected"),
+          QObject::tr("Your game version (network protocol version %1) differs"
+                      " from that of the server (network protocol version %2)."
+                      " There will probably be errors if playing on this server."
+                      " Would you like to continue at your own risk?").arg(networkProtocolVersion).arg(serverNetworkProtocolVersion),
+          QMessageBox::Yes | QMessageBox::No) == QMessageBox::No) {
+        connection->Write(CreateLeaveMessage());
+        connection->Shutdown();
+        continue;
+      }
     }
     
     // Show the game dialog.

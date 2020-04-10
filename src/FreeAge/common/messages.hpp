@@ -16,6 +16,16 @@
 
 struct ResourceAmount;
 
+// #############################################
+// # Please update this every time you make a  #
+// # change to the network messages!           #
+// #                                           #
+// # This will make the client issue a warning #
+// # when connecting to a server with a        #
+// # different version.                        #
+// #############################################
+static constexpr u32 networkProtocolVersion = 1;
+
 static constexpr int hostTokenLength = 6;
 
 

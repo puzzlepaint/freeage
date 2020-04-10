@@ -48,7 +48,7 @@ class ServerConnection : public QObject {
   
   void Shutdown();
   
-  bool WaitForWelcomeMessage(int timeout);
+  bool WaitForWelcomeMessage(int timeout, u32* serverNetworkProtocolVersion);
   
   /// Sends the given message to the server. The connection object does not need to be locked when calling this.
   void Write(const QByteArray& message);

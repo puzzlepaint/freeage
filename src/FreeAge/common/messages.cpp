@@ -214,7 +214,10 @@ static inline QByteArray CreateServerToClientMessageHeader(int dataSize, ServerT
 }
 
 QByteArray CreateWelcomeMessage() {
-  return CreateServerToClientMessageHeader(0, ServerToClientMessage::Welcome);
+  QByteArray msg = CreateServerToClientMessageHeader(4, ServerToClientMessage::Welcome);
+  char* data = msg.data();
+  mango::ustore32(data + 3, networkProtocolVersion);
+  return msg;
 }
 
 QByteArray CreateGameAbortedMessage() {

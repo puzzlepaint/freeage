@@ -74,12 +74,31 @@ class ServerConnectionThread : public QThread {
   
  public slots:
   bool ConnectToServer(const QString& serverAddress, int timeout, bool retryUntilTimeout) {
+    // Clear old data.
+    receivedMessagesMutex.lock();
+    unparsedReceivedBuffer.clear();
+    receivedMessages.clear();
+    receivedMessagesMutex.unlock();
+    
+    pingAndOffsetsMutex.lock();
+    lastTimeOffsets.clear();
+    lastPings.clear();
+    pingAndOffsetsMutex.unlock();
+    
+    lastSmoothedTimeOffset = -1;
+    lastSmoothedPing = -1;
+    robustOffsetAverage = -1;
+    robustPingAverage = -1;
+    
+    sentPings.clear();
+    nextPingNumber = 0;
+    
     // Issue the connection request
     socket->connectToHost(serverAddress, serverPort, QIODevice::ReadWrite);
     // socket.setLocalPort(TODO?);
     
     // Wait for the connection to be made, and retry on failure if requested
-    TimePoint connectionStartTime = Clock::now();
+    connectionStartTime = Clock::now();
     while (socket->state() != QAbstractSocket::ConnectedState &&
           MillisecondsDuration(Clock::now() - connectionStartTime).count() <= timeout) {
       qApp->processEvents(QEventLoop::AllEvents);
@@ -98,12 +117,6 @@ class ServerConnectionThread : public QThread {
       
       // Define the client time.
       connectionStartTime = Clock::now();
-      
-      // Clear ping / offset filter state.
-      lastSmoothedTimeOffset = -1;
-      lastSmoothedPing = -1;
-      robustOffsetAverage = -1;
-      robustPingAverage = -1;
       
       // Set up connection monitoring.
       // NOTE: In Qt, a QThread object belongs to the thread >> that created this QThread <<, not to the thread that this QThread is running!
@@ -497,7 +510,7 @@ void ServerConnection::Shutdown() {
   QMetaObject::invokeMethod(dummyWorker, "Shutdown", Qt::BlockingQueuedConnection);
 }
 
-bool ServerConnection::WaitForWelcomeMessage(int timeout) {
+bool ServerConnection::WaitForWelcomeMessage(int timeout, u32* serverNetworkProtocolVersion) {
   TimePoint welcomeWaitStartTime = Clock::now();
   
   while (MillisecondsDuration(Clock::now() - welcomeWaitStartTime).count() <= timeout) {
@@ -508,6 +521,12 @@ bool ServerConnection::WaitForWelcomeMessage(int timeout) {
     for (usize i = 0; i < messages->size(); ++ i) {
       const ReceivedMessage& msg  = messages->at(i);
       if (msg.type == ServerToClientMessage::Welcome) {
+        if (msg.data.size() == 4) {
+          *serverNetworkProtocolVersion = mango::uload32(msg.data);
+        } else {
+          *serverNetworkProtocolVersion = 0;
+        }
+        
         messages->erase(messages->begin() + i);
         Unlock();
         return true;
