@@ -93,11 +93,9 @@ int main(int argc, char** argv) {
   
   // Load settings.
   Settings settings;
-  if (!settings.TryLoad()) {
-    settings.InitializeWithDefaults();
-    if (settings.dataPath.empty() || settings.modsPath.empty()) {
-      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("The data or mods path of the original game could not be determined automatically. Please specify these paths manually."));
-    }
+  settings.TryLoad();
+  if (settings.dataPath.empty() || settings.modsPath.empty()) {
+    QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("The data or mods path of the original game could not be determined automatically. Please specify these paths manually."));
   }
   if (!initialPlayerName.isEmpty()) {
     settings.playerName = initialPlayerName;
@@ -290,13 +288,15 @@ int main(int argc, char** argv) {
   }
   
   // Create an OpenGL render window using Qt.
-  std::shared_ptr<RenderWindow> renderWindow(new RenderWindow(match, gameController, connection, settings.uiScale, georgiaFontID, palettes, graphicsSubPath, cachePath));
+  std::shared_ptr<RenderWindow> renderWindow(new RenderWindow(match, gameController, connection, settings.uiScale, settings.grabMouse, georgiaFontID, palettes, graphicsSubPath, cachePath));
   gameController->SetRenderWindow(renderWindow);
   if (settings.fullscreen) {
     renderWindow->showFullScreen();
-    renderWindow->EnableBorderScrolling(true);
   } else {
     renderWindow->show();
+  }
+  if (settings.fullscreen || settings.grabMouse) {
+    renderWindow->EnableBorderScrolling(true);
   }
   
   // Run the Qt event loop.

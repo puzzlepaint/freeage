@@ -22,6 +22,9 @@ set(CMAKE_AUTOMOC ON)
 # Instruct CMake to run rcc (resource compiler) automatically when needed.
 set(CMAKE_AUTORCC ON)
 find_package(Qt5 REQUIRED COMPONENTS Widgets Network)
+if (UNIX)
+  find_package(Qt5 REQUIRED COMPONENTS X11Extras)
+endif()
 
 
 # Packaged dependency: mango (for image loading, especially for the DDS format)
@@ -166,9 +169,18 @@ endif()
 add_executable(FreeAge WIN32
   ${FREEAGE_SRCS}
 )
-target_link_libraries(FreeAge
+target_link_libraries(FreeAge PUBLIC
   FreeAgeLib
 )
+if (UNIX)
+  target_link_libraries(FreeAge PUBLIC
+    Qt5::X11Extras
+    X11
+  )
+  target_compile_options(FreeAge PUBLIC
+    ";$<$<COMPILE_LANGUAGE:CXX>:-DHAVE_X11_EXTRAS>"
+  )
+endif()
 # There is a runtime dependency on FreeAgeServer.
 add_dependencies(FreeAge
   FreeAgeServer

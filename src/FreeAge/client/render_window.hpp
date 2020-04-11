@@ -38,6 +38,7 @@ class RenderWindow : public QOpenGLWindow {
       const std::shared_ptr<GameController>& gameController,
       const std::shared_ptr<ServerConnection>& connection,
       float uiScale,
+      bool grabMouse,
       int georgiaFontID,
       const Palettes& palettes,
       const std::filesystem::path& graphicsSubPath,
@@ -130,6 +131,9 @@ class RenderWindow : public QOpenGLWindow {
     
     int state = 0;  // 0: default, 1: hover, 2: active, 3: disabled
   };
+  
+  void GrabMouse();
+  void UngrabMouse();
   
   void CreatePlayerColorPaletteTexture();
   usize PrepareBufferObject(usize size, QOpenGLFunctions_3_2_Core* f);
@@ -239,9 +243,13 @@ class RenderWindow : public QOpenGLWindow {
   virtual void wheelEvent(QWheelEvent* event) override;
   virtual void keyPressEvent(QKeyEvent* event) override;
   virtual void keyReleaseEvent(QKeyEvent* event) override;
+  virtual void focusInEvent(QFocusEvent *event) override;
+  virtual void focusOutEvent(QFocusEvent *event) override;
   
   
   /// Cursor handling.
+  bool grabMouse;
+  
   bool haveMouseMoveEvent = false;
   QPoint lastMouseMoveEventPos;
   Qt::MouseButtons lastMouseMoveEventButtons;

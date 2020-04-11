@@ -17,6 +17,11 @@
 #include <QThread>
 #include <QTimer>
 
+#ifdef HAVE_X11_EXTRAS
+  #include <QX11Info>
+  #include <X11/Xlib.h>
+#endif
+
 #include "FreeAge/client/game_controller.hpp"
 #include "FreeAge/client/health_bar.hpp"
 #include "FreeAge/common/logging.hpp"
@@ -55,12 +60,14 @@ RenderWindow::RenderWindow(
       const std::shared_ptr<GameController>& gameController,
       const std::shared_ptr<ServerConnection>& connection,
       float uiScale,
+      bool grabMouse,
       int georgiaFontID,
       const Palettes& palettes,
       const std::filesystem::path& graphicsSubPath,
       const std::filesystem::path& cachePath,
       QWindow* parent)
     : QOpenGLWindow(QOpenGLWindow::NoPartialUpdate, parent),
+      grabMouse(grabMouse),
       uiScale(uiScale),
       match(match),
       gameController(gameController),
@@ -109,6 +116,13 @@ RenderWindow::RenderWindow(
   map = nullptr;
   
   resize(std::max(800, width()), std::max(600, height()));
+  
+  // Clip the cursor to the window, if requested.
+  if (grabMouse) {
+    QTimer::singleShot(0, [&]() {
+      GrabMouse();
+    });
+  }
 }
 
 RenderWindow::~RenderWindow() {
@@ -826,6 +840,40 @@ void RenderWindow::Button::Destroy() {
   disabledTexture.reset();
 }
 
+
+void RenderWindow::GrabMouse() {
+  // Unfortunately, Qt does not seem to offer functionality for that, so we do it in platform-specific ways.
+  #ifdef HAVE_X11_EXTRAS
+    if (QX11Info::isPlatformX11()) {
+      int result = -1;
+      for (int attempt = 0; attempt < 20; ++ attempt) {
+        result = ::XGrabPointer(
+            QX11Info::display(),
+            winId(),
+            False,
+            ButtonPressMask | ButtonReleaseMask | PointerMotionMask | FocusChangeMask | EnterWindowMask | LeaveWindowMask,
+            GrabModeAsync,
+            GrabModeAsync,
+            winId(),
+            None,
+            CurrentTime);
+        if (result == GrabSuccess) {
+          break;
+        }
+        QThread::msleep(1);
+      }
+    }
+  #endif
+}
+
+void RenderWindow::UngrabMouse() {
+  // Unfortunately, Qt does not seem to offer functionality for that, so we do it in platform-specific ways.
+  #ifdef HAVE_X11_EXTRAS
+    if (QX11Info::isPlatformX11()) {
+      XUngrabPointer(QX11Info::display(), CurrentTime);
+    }
+  #endif
+}
 
 void RenderWindow::CreatePlayerColorPaletteTexture() {
   constexpr int maxNumPlayers = 8;
@@ -4178,6 +4226,18 @@ void RenderWindow::keyReleaseEvent(QKeyEvent* event) {
         }
       }
     }
+  }
+}
+
+void RenderWindow::focusInEvent(QFocusEvent* /*event*/) {
+  if (grabMouse) {
+    GrabMouse();
+  }
+}
+
+void RenderWindow::focusOutEvent(QFocusEvent* /*event*/) {
+  if (grabMouse) {
+    UngrabMouse();
   }
 }
 

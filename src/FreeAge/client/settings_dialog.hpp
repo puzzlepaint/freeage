@@ -11,15 +11,15 @@
 #include <QLineEdit>
 
 struct Settings {
-  void InitializeWithDefaults();
   void Save();
-  bool TryLoad();
+  void TryLoad();
   
   std::filesystem::path dataPath;
   std::filesystem::path modsPath;
   QString playerName;
   float uiScale;
   bool fullscreen;
+  bool grabMouse;
   bool debugNetworking;
   
  private:
@@ -54,6 +54,7 @@ class SettingsDialog : public QDialog {
   QLineEdit* modsFolderEdit;
   QLineEdit* playerNameEdit;
   QCheckBox* fullscreenCheck;
+  QCheckBox* grabMouseCheck;
   QLineEdit* uiScaleEdit;
   QCheckBox* debugNetworkingCheck;
   bool hostGameChosen;

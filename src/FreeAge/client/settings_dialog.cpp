@@ -23,53 +23,53 @@
 #include "FreeAge/common/logging.hpp"
 
 
-void Settings::InitializeWithDefaults() {
-#ifdef WIN32
-  TryToFindPathsOnWindows();
-#else
-  TryToFindPathsOnLinux();
-#endif
-  
-  // Choose a random player name
-  QString randomNames[5] = {
-      "Alfred the Alpaca",
-      "Bleda the Hun",
-      "William Wallace",
-      "Tamerlane",
-      "Joan of Arc"};
-  playerName = randomNames[rand() % 5];
-  
-  fullscreen = true;
-  uiScale = 0.5f;
-  debugNetworking = false;
-}
-
 void Settings::Save() {
   QSettings settings;
+  
+  // TODO: Potentially check the file permissions of the file we save this to.
+  //       It happended on Linux that only the root could write to this file,
+  //       thus any attempts to change settings silently failed.
   LOG(INFO) << "Saving settings to: " << settings.fileName().toStdString();
   
   settings.setValue("dataPath", QString::fromStdString(dataPath.string()));
   settings.setValue("modsPath", QString::fromStdString(modsPath.string()));
   settings.setValue("playerName", playerName);
   settings.setValue("fullscreen", fullscreen);
+  settings.setValue("grabMouse", grabMouse);
   settings.setValue("uiScale", uiScale);
   settings.setValue("debugNetworking", debugNetworking);
 }
 
-bool Settings::TryLoad() {
+void Settings::TryLoad() {
   QSettings settings;
   LOG(INFO) << "Trying to load settings from: " << settings.fileName().toStdString();
-  // TODO: Potentially check the file permissions of the file we load this from.
-  //       It happended on Linux that only the root could write to this file,
-  //       thus any attempts to change settings silently failed.
   
-  dataPath = settings.value("dataPath").toString().toStdString();
-  modsPath = settings.value("modsPath").toString().toStdString();
-  playerName = settings.value("playerName").toString();
-  fullscreen = settings.value("fullscreen").toBool();
-  uiScale = settings.value("uiScale").toFloat();
-  debugNetworking = settings.value("debugNetworking").toBool();
-  return !dataPath.empty() || !modsPath.empty() || !playerName.isEmpty();
+  dataPath = settings.value("dataPath", "").toString().toStdString();
+  modsPath = settings.value("modsPath", "").toString().toStdString();
+  if (dataPath.empty() && modsPath.empty()) {
+    #ifdef WIN32
+      TryToFindPathsOnWindows();
+    #else
+      TryToFindPathsOnLinux();
+    #endif
+  }
+  
+  playerName = settings.value("playerName", "").toString();
+  if (playerName.isEmpty()) {
+    // Choose a random player name
+    QString randomNames[5] = {
+        "Alfred the Alpaca",
+        "Bleda the Hun",
+        "William Wallace",
+        "Tamerlane",
+        "Joan of Arc"};
+    playerName = randomNames[rand() % 5];
+  }
+  
+  fullscreen = settings.value("fullscreen", true).toBool();
+  grabMouse = settings.value("grabMouse", true).toBool();
+  uiScale = settings.value("uiScale", 0.5f).toFloat();
+  debugNetworking = settings.value("debugNetworking", false).toBool();
 }
 
 void Settings::TryToFindPathsOnWindows() {
@@ -264,6 +264,9 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   fullscreenCheck = new QCheckBox(tr("Fullscreen"));
   fullscreenCheck->setChecked(settings->fullscreen);
   
+  grabMouseCheck = new QCheckBox(tr("Clamp cursor to game window area"));
+  grabMouseCheck->setChecked(settings->grabMouse);
+  
   QGridLayout* preferencesLayout = new QGridLayout();
   row = 0;
   preferencesLayout->addWidget(playerNameLabel, row, 0);
@@ -273,6 +276,8 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   preferencesLayout->addWidget(uiScaleEdit, row, 1);
   ++ row;
   preferencesLayout->addWidget(fullscreenCheck, row, 0, 1, 2);
+  ++ row;
+  preferencesLayout->addWidget(grabMouseCheck, row, 0, 1, 2);
   preferencesGroup->setLayout(preferencesLayout);
   
   
@@ -411,6 +416,7 @@ void SettingsDialog::SaveSettings() {
   settings->modsPath = modsFolderEdit->text().toUtf8().data();
   settings->playerName = playerNameEdit->text();
   settings->fullscreen = fullscreenCheck->isChecked();
+  settings->grabMouse = grabMouseCheck->isChecked();
   settings->uiScale = uiScaleEdit->text().toDouble();
   settings->debugNetworking = debugNetworkingCheck->isChecked();
 }
