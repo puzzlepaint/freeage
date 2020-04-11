@@ -82,9 +82,12 @@ static void SendChatBroadcast(u16 sendingPlayerIndex, const QString& text, const
   }
 }
 
-void SendWelcomeAndJoinMessage(PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
+void SendWelcomeAndJoinMessage(PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch, const ServerSettings& settings) {
   // Send the new player the welcome message.
   player->socket->write(CreateWelcomeMessage());
+  
+  // Send the current lobby settings to the new player.
+  player->socket->write(CreateSettingsUpdateMessage(settings.allowNewConnections, settings.mapSize, true));
   
   // Notify all players about the new player list.
   QByteArray playerListMsg = CreatePlayerListMessage(playersInMatch, nullptr, player);
@@ -148,11 +151,11 @@ bool HandleHostConnect(const QByteArray& msg, int len, PlayerInMatch* player, co
   player->playerColorIndex = 0;
   player->state = PlayerInMatch::State::Joined;
   
-  SendWelcomeAndJoinMessage(player, playersInMatch);
+  SendWelcomeAndJoinMessage(player, playersInMatch, settings);
   return true;
 }
 
-bool HandleConnect(const QByteArray& msg, int len, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch) {
+bool HandleConnect(const QByteArray& msg, int len, PlayerInMatch* player, const std::vector<std::shared_ptr<PlayerInMatch>>& playersInMatch, const ServerSettings& settings) {
   LOG(INFO) << "Server: Received Connect";
   
   bool thereIsAHost = false;
@@ -186,7 +189,7 @@ bool HandleConnect(const QByteArray& msg, int len, PlayerInMatch* player, const 
   player->playerColorIndex = playerColorToTest;
   player->state = PlayerInMatch::State::Joined;
   
-  SendWelcomeAndJoinMessage(player, playersInMatch);
+  SendWelcomeAndJoinMessage(player, playersInMatch, settings);
   return true;
 }
 
@@ -371,7 +374,7 @@ static ParseMessagesResult TryParseClientMessages(PlayerInMatch* player, const s
         }
         break;
       case ClientToServerMessage::Connect:
-        if (!HandleConnect(player->unparsedBuffer, msgLength, player, playersInMatch)) {
+        if (!HandleConnect(player->unparsedBuffer, msgLength, player, playersInMatch, *settings)) {
           return ParseMessagesResult::PlayerLeftOrShouldBeDisconnected;
         }
         break;
