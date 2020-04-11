@@ -77,6 +77,9 @@ int main(int argc, char** argv) {
   // Communication with the server.
   std::shared_ptr<ServerConnection> connection(new ServerConnection());
   
+  // The screen on which the game shall be shown.
+  QScreen* gameScreen = nullptr;
+  
   // Parse command line options.
   QCommandLineParser parser;
   
@@ -236,7 +239,7 @@ int main(int argc, char** argv) {
     
     // Show the game dialog.
     // Note that the GameDialog object will parse ServerConnection messages as long as it exists.
-    GameDialog gameDialog(isHost, connection.get(), georgiaFont, playerColors);
+    GameDialog gameDialog(isHost, connection.get(), georgiaFont, playerColors, &gameScreen);
     if (gameDialog.exec() == QDialog::Accepted) {
       // The game has been started.
       gameDialog.GetPlayerList(match.get());
@@ -290,6 +293,7 @@ int main(int argc, char** argv) {
   // Create an OpenGL render window using Qt.
   std::shared_ptr<RenderWindow> renderWindow(new RenderWindow(match, gameController, connection, settings.uiScale, settings.grabMouse, georgiaFontID, palettes, graphicsSubPath, cachePath));
   gameController->SetRenderWindow(renderWindow);
+  renderWindow->setScreen(gameScreen);
   if (settings.fullscreen) {
     renderWindow->showFullScreen();
   } else {

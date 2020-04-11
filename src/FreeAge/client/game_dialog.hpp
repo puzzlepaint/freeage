@@ -38,6 +38,7 @@ class GameDialog : public QDialog {
       ServerConnection* connection,
       QFont georgiaFont,
       const std::vector<QRgb>& playerColors,
+      QScreen** outScreen,
       QWidget* parent = nullptr);
   
   void GetPlayerList(Match* match);
@@ -87,4 +88,5 @@ class GameDialog : public QDialog {
   std::vector<QRgb> playerColors;
   
   ServerConnection* connection;  // not owned
+  QScreen** outScreen;  // not owned
 };

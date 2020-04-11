@@ -14,6 +14,7 @@
 #include <QPushButton>
 #include <QTcpSocket>
 #include <QTextEdit>
+#include <QWindow>
 
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/logging.hpp"
@@ -24,11 +25,13 @@ GameDialog::GameDialog(
     ServerConnection* connection,
     QFont georgiaFont,
     const std::vector<QRgb>& playerColors,
+    QScreen** outScreen,
     QWidget* parent)
     : QDialog(parent),
       georgiaFont(georgiaFont),
       playerColors(playerColors),
-      connection(connection) {
+      connection(connection),
+      outScreen(outScreen) {
   setWindowIcon(QIcon(":/free_age/free_age.png"));
   setWindowTitle(tr("FreeAge"));
   
@@ -193,6 +196,7 @@ void GameDialog::TryParseServerMessages() {
       HandleChatBroadcastMessage(msg.data);
       break;
     case ServerToClientMessage::StartGameBroadcast:
+      *outScreen = windowHandle()->screen();
       accept();
       break;
     default:;
