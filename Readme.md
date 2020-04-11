@@ -110,11 +110,11 @@ Hotkeys are currently hard-coded to the following:
 
 For playing online, all participants of a match must connect to the same game server.
 In principle, this game server may run either on a PC of one of the players, or
-on an external server PC. Please notice that if the game server runs on a player PC,
+on an external server computer. Please notice that if the game server runs on a player PC,
 it will exit once this player exits the game. So, in case other players in the match
 want to play on after this player resigns, the game must be left running on this PC.
 
-In practice, direct connections without an external server PC may unfortunately
+In practice, direct connections without an external server computer may unfortunately
 be difficult to achieve (unless all players are within the same local network)
 due to the way Internet connections work. The following conditions must be met:
 
@@ -130,9 +130,9 @@ the PC that runs the game server.
 In practice, techniques used by ISPs such as "DS (DualStack) Lite" that assign one IPv4
 address to many clients, and others not having IPv6 connectivity, may make it
 very hard to impossible to establish direct connections. An alternative is to
-run the game server on an external server PC having a unique IPv4 address. Virtual
+run the game server on an external server computer having a unique IPv4 address. Virtual
 servers are very cheap to rent and should be suitable, since the game server
-does not require many hardware resources. (However, you will need some expertise to
+does not require many hardware resources. (However, you will need some Linux expertise to
 set the server up correctly.)
 
 To run the game server on its own, start it from the terminal as follows (assuming a
@@ -170,7 +170,7 @@ with `CXX=/usr/bin/g++-8`. The complete build instructions are then:
 
 ```bash
 sudo apt-get update
-sudo apt-get install ninja-build gcc-8 qtbase5-dev
+sudo apt-get install ninja-build gcc-8 qtbase5-dev libqt5x11extras5-dev
 mkdir build
 cd build
 CXX=/usr/bin/g++-8 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja ..
