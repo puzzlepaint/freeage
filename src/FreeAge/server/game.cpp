@@ -107,6 +107,14 @@ void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame
     
     firstLoopIteration = false;
   }
+  
+  // Before exiting, continue processing events for a bit.
+  // This is an attempt to ensure that all of the messages that were sent do actually get sent.
+  // TODO: Is this really necessary, and if yes, is there a better way to do it?
+  for (int i = 0; i < 200; ++ i) {
+    qApp->processEvents(QEventLoop::AllEvents);
+    QThread::msleep(1);
+  }
 }
 
 void Game::HandleLoadingProgress(const QByteArray& msg, PlayerInGame* player, const std::vector<std::shared_ptr<PlayerInGame>>& players) {
