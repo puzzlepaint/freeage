@@ -4,6 +4,8 @@ cmake_policy(SET CMP0054 NEW)
 
 project(FreeAge)
 
+include(CTest)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
