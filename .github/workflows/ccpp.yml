@@ -4,27 +4,25 @@ on: push
 
 jobs:
   build-linux:
-
     runs-on: ubuntu-latest
-
     steps:
     - name: setup
       run: sudo apt-get update && sudo apt-get install ninja-build gcc-8 qtbase5-dev libqt5x11extras5-dev
     - uses: actions/checkout@v2
     - name: make
-      run: mkdir build && cd build && CXX=/usr/bin/g++-8 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja .. && ninja
+      run: mkdir build && cd build && CXX=/usr/bin/g++-8 cmake -DCMAKE_BUILD_TYPE=Release -GNinja .. && ninja
   
   build-windows:
     runs-on: windows-latest
-    
     steps:
     - uses: actions/checkout@v2
-    - name: Install Qt
+    - name: install Qt
       uses: jurplel/install-qt-action@v2
     - name: configure
       run: mkdir build && cd build && cmake ..
     - name: build
-      run: cmake --build build --config Debug
+      run: cmake --build build --config Release
+    - name: deploy Qt
+      run: windeployqt build\Release\FreeAgeTest.exe
     - name: test
       run: cd build && ctest
-
