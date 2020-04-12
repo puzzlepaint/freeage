@@ -20,6 +20,8 @@
 #ifdef HAVE_X11_EXTRAS
   #include <QX11Info>
   #include <X11/Xlib.h>
+#elif WIN32
+  #include <Windows.h>
 #endif
 
 #include "FreeAge/client/game_controller.hpp"
@@ -557,19 +559,19 @@ QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime, bool* scrollAppl
   if (borderScrollingEnabled) {
     double mouseImpactSeconds = SecondsDuration(atTime - lastScrollGetTime).count();
     
-    if (lastCursorPos.x() == widgetWidth - 1) {
+    if (lastCursorPos.x() >= widgetWidth - 1) {
       projectedCoord += QPointF(scrollDistancePerSecond / effectiveZoom * mouseImpactSeconds, 0);
       *scrollApplied = true;
     }
-    if (lastCursorPos.x() == 0) {
+    if (lastCursorPos.x() <= 0) {
       projectedCoord += QPointF(-scrollDistancePerSecond / effectiveZoom * mouseImpactSeconds, 0);
       *scrollApplied = true;
     }
-    if (lastCursorPos.y() == widgetHeight - 1) {
+    if (lastCursorPos.y() >= widgetHeight - 1) {
       projectedCoord += QPointF(0, scrollDistancePerSecond / effectiveZoom * mouseImpactSeconds);
       *scrollApplied = true;
     }
-    if (lastCursorPos.y() == 0) {
+    if (lastCursorPos.y() <= 0) {
       projectedCoord += QPointF(0, -scrollDistancePerSecond / effectiveZoom * mouseImpactSeconds);
       *scrollApplied = true;
     }
@@ -603,7 +605,7 @@ void RenderWindow::LoadingFinished() {
   //       as noticeable at this point in time since this happens right after the render window
   //       is created.
   //       The current workaround is to never delete this QOffscreenSurface and let it leak.
-  //       Try to find a better solution (or maybe try updating Qt and see whether it disappears.)
+  //       Try to find a better solution.
 #ifndef WIN32
   delete loadingSurface;
 #endif
@@ -863,6 +865,28 @@ void RenderWindow::GrabMouse() {
         QThread::msleep(1);
       }
     }
+  #elif WIN32
+    RECT windowRect;
+    if (GetClientRect(reinterpret_cast<HWND>(winId()), &windowRect)) {
+      POINT ul;
+      ul.x = windowRect.left;
+      ul.y = windowRect.top;
+
+      POINT lr;
+      lr.x = windowRect.right;
+      lr.y = windowRect.bottom;
+
+      MapWindowPoints(reinterpret_cast<HWND>(winId()), nullptr, &ul, 1);
+      MapWindowPoints(reinterpret_cast<HWND>(winId()), nullptr, &lr, 1);
+
+      windowRect.left = ul.x;
+      windowRect.top = ul.y;
+
+      windowRect.right = lr.x;
+      windowRect.bottom = lr.y;
+
+      ClipCursor(&windowRect);
+    }
   #endif
 }
 
@@ -872,6 +896,8 @@ void RenderWindow::UngrabMouse() {
     if (QX11Info::isPlatformX11()) {
       XUngrabPointer(QX11Info::display(), CurrentTime);
     }
+  #elif WIN32
+    ClipCursor(nullptr);
   #endif
 }
 
@@ -4238,6 +4264,13 @@ void RenderWindow::focusInEvent(QFocusEvent* /*event*/) {
 void RenderWindow::focusOutEvent(QFocusEvent* /*event*/) {
   if (grabMouse) {
     UngrabMouse();
+  }
+}
+
+void RenderWindow::resizeEvent(QResizeEvent* event) {
+  QOpenGLWindow::resizeEvent(event);
+  if (grabMouse) {
+    GrabMouse();
   }
 }
 

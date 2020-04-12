@@ -64,6 +64,9 @@ class RenderWindow : public QOpenGLWindow {
   inline void EnableBorderScrolling(bool enable) { borderScrollingEnabled = enable; }
   
   void AddDecal(Decal* decal);
+
+  void GrabMouse();
+  void UngrabMouse();
   
  signals:
   void LoadingProgressUpdated(int progress);
@@ -131,9 +134,6 @@ class RenderWindow : public QOpenGLWindow {
     
     int state = 0;  // 0: default, 1: hover, 2: active, 3: disabled
   };
-  
-  void GrabMouse();
-  void UngrabMouse();
   
   void CreatePlayerColorPaletteTexture();
   usize PrepareBufferObject(usize size, QOpenGLFunctions_3_2_Core* f);
@@ -243,8 +243,9 @@ class RenderWindow : public QOpenGLWindow {
   virtual void wheelEvent(QWheelEvent* event) override;
   virtual void keyPressEvent(QKeyEvent* event) override;
   virtual void keyReleaseEvent(QKeyEvent* event) override;
-  virtual void focusInEvent(QFocusEvent *event) override;
-  virtual void focusOutEvent(QFocusEvent *event) override;
+  virtual void focusInEvent(QFocusEvent* event) override;
+  virtual void focusOutEvent(QFocusEvent* event) override;
+  virtual void resizeEvent(QResizeEvent* event) override;
   
   
   /// Cursor handling.

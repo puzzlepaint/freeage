@@ -305,6 +305,11 @@ int main(int argc, char** argv) {
   
   // Run the Qt event loop.
   qapp.exec();
+
+  // On Windows, we should explicitly disable mouse grabbing.
+  if (settings.grabMouse) {
+    renderWindow->UngrabMouse();
+  }
   
   // Disconnect from the server.
   connection->WriteBlocking(CreateLeaveMessage());
