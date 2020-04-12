@@ -1,7 +1,8 @@
 ## FreeAge ##
 
 FreeAge aims to be an open-source re-implementation of the game engine used by
-Age of Empires 2: Definitive Edition (similar to [OpenAge](https://github.com/SFTtech/openage/)).
+Age of Empires 2: Definitive Edition (similar to [OpenAge](https://github.com/SFTtech/openage),
+[freeaoe](https://github.com/sandsmark/freeaoe), and [Open Empires](https://github.com/glouw/openempires)).
 Its goal is to improve upon some aspects of the original that go along with its
 dated engine (stemming from the original version of the game from 20 years ago),
 for example:
@@ -11,19 +12,6 @@ for example:
 * Allowing to re-connect to multiplayer matches after a connection drop.
 
 The game has been tested on Windows and Linux.
-To play FreeAge, you must own an officially purchased copy of Age of Empires 2:
-Definitive Edition, since FreeAge uses the original game assets.
-
-FreeAge is a fan project and is not endorsed by or affiliated with Microsoft,
-Forgotten Empires, Tantalus Games, Wicked Witch or any other company related to
-the original game in any way. The project is one among similar efforts such as
-for example [OpenAge](https://github.com/SFTtech/openage/) for the same game, or
-[OpenRA](http://openra.net/) and [OpenSAGE](https://github.com/OpenSAGE/OpenSAGE/) for others.
-
-If we by mistake violate any trademarks / copyright / etc., please
-tell us and we will aim to correct it as soon as possible. Our goal is to improve
-the game (and therefore eventually increase its popularity), not to cause any
-harm to the owners of the franchise.
 
 ### State ###
 
@@ -31,7 +19,7 @@ The project is currently in an early state. Many but not all parts of the gamepl
 within the Dark Age are implemented, for example, commanding units with simple
 pathfinding, gathering resources, constructing
 buildings, and fighting with militia, villagers, and the starting scout.
-The game is however already fully playable over the Internet and thus offers a
+The game is however already **fully playable over the Internet** and thus offers a
 good foundation to incrementally add the missing functionalities.
 Contributions are welcome!
 
@@ -51,12 +39,30 @@ To know what to expect, here are some examples of known limitations:
 * Resources never deplete.
 * There is no sound or music yet.
 
+### Legal ###
+
+To play FreeAge, you must own an officially purchased copy of Age of Empires 2:
+Definitive Edition, since FreeAge uses the original game assets.
+FreeAge will never ship any of these assets.
+
+FreeAge is a fan project and is not endorsed by or affiliated with Microsoft,
+Forgotten Empires, Tantalus Games, Wicked Witch or any other company related to
+the original game in any way. The project is one among similar efforts such as
+for example [OpenAge](https://github.com/SFTtech/openage/), [freeaoe](https://github.com/sandsmark/freeaoe),
+and [Open Empires](https://github.com/glouw/openempires) for the same game, or
+[OpenRA](http://openra.net/) and [OpenSAGE](https://github.com/OpenSAGE/OpenSAGE/) for others.
+
+No decompiling / reverse engineering is used in the process of developing FreeAge.
+
+If we by mistake violate any trademarks / copyright / etc., please
+tell us and we will aim to correct it as soon as possible. Our goal is to improve
+the game (and therefore eventually increase its popularity), not to cause any
+harm to the owners of the franchise.
+
 ### Download & Running ###
 
-Binary downloads for Windows are provided via GitHub Releases.
+Binary downloads for Windows are provided via [GitHub Releases](https://github.com/puzzlepaint/freeage/releases).
 On Linux, see below for how to build the project yourself.
-
-TODO
 
 Run `FreeAge.exe` (Windows) / `FreeAge` (Linux) to start the game.
 
