@@ -133,7 +133,7 @@ set(FREEAGE_SRCS
   src/FreeAge/client/command_button.cpp
   src/FreeAge/client/decal.cpp
   src/FreeAge/client/game_controller.cpp
-  src/FreeAge/client/game_dialog.cpp
+  src/FreeAge/client/lobby_dialog.cpp
   src/FreeAge/client/health_bar.cpp
   src/FreeAge/client/main.cpp
   src/FreeAge/client/map.cpp

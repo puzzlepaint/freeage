@@ -23,7 +23,7 @@
 #include <QThread>
 
 #include "FreeAge/common/free_age.hpp"
-#include "FreeAge/client/game_dialog.hpp"
+#include "FreeAge/client/lobby_dialog.hpp"
 #include "FreeAge/client/game_controller.hpp"
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/client/map.hpp"
@@ -237,17 +237,17 @@ int main(int argc, char** argv) {
       }
     }
     
-    // Show the game dialog.
-    // Note that the GameDialog object will parse ServerConnection messages as long as it exists.
-    GameDialog gameDialog(isHost, connection.get(), georgiaFont, playerColors, &gameScreen);
-    if (gameDialog.exec() == QDialog::Accepted) {
+    // Show the lobby dialog.
+    // Note that the LobbyDialog object will parse ServerConnection messages as long as it exists.
+    LobbyDialog lobbyDialog(isHost, connection.get(), georgiaFont, playerColors, &gameScreen);
+    if (lobbyDialog.exec() == QDialog::Accepted) {
       // The game has been started.
-      gameDialog.GetPlayerList(match.get());
+      lobbyDialog.GetPlayerList(match.get());
       break;
     }
     
-    // The game dialog was canceled.
-    if (!gameDialog.GameWasAborted()) {
+    // The lobby dialog was canceled.
+    if (!lobbyDialog.GameWasAborted()) {
       connection->Write(CreateLeaveMessage());
     }
     connection->Shutdown();
@@ -269,7 +269,7 @@ int main(int argc, char** argv) {
       if (serverProcess.state() != QProcess::NotRunning) {
         serverProcess.terminate();
       }
-    } else if (gameDialog.GameWasAborted()) {
+    } else if (lobbyDialog.GameWasAborted()) {
       QMessageBox::information(nullptr, QObject::tr("Game cancelled"), QObject::tr("The game was cancelled by the host."));
     }
     

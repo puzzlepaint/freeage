@@ -2,7 +2,7 @@
 // This file is part of FreeAge, licensed under the new BSD license.
 // See the COPYING file in the project root for the license text.
 
-#include "FreeAge/client/game_dialog.hpp"
+#include "FreeAge/client/lobby_dialog.hpp"
 
 #include <mango/core/endian.hpp>
 #include <QBoxLayout>
@@ -20,7 +20,7 @@
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/common/messages.hpp"
 
-GameDialog::GameDialog(
+LobbyDialog::LobbyDialog(
     bool isHost,
     ServerConnection* connection,
     QFont georgiaFont,
@@ -57,7 +57,7 @@ GameDialog::GameDialog(
   
   if (isHost) {
     // --- Connections ---
-    connect(allowJoinCheck, &QCheckBox::stateChanged, this, &GameDialog::SendSettingsUpdate);
+    connect(allowJoinCheck, &QCheckBox::stateChanged, this, &LobbyDialog::SendSettingsUpdate);
   }
   
   QVBoxLayout* playersLayout = new QVBoxLayout();
@@ -71,7 +71,7 @@ GameDialog::GameDialog(
     mapSizeEdit->setValidator(new QIntValidator(10, 99999, mapSizeEdit));
     
     // --- Connections ---
-    connect(mapSizeEdit, &QLineEdit::textChanged, this, &GameDialog::SendSettingsUpdate);
+    connect(mapSizeEdit, &QLineEdit::textChanged, this, &LobbyDialog::SendSettingsUpdate);
   } else {
     mapSizeEdit->setEnabled(false);
   }
@@ -134,24 +134,24 @@ GameDialog::GameDialog(
   resize(std::max(800, width()), std::max(600, height()));
   
   // --- Connections ---
-  connect(connection, &ServerConnection::NewPingMeasurement, this, &GameDialog::NewPingMeasurement);
-  connect(connection, &ServerConnection::NewMessage, this, &GameDialog::TryParseServerMessages);
+  connect(connection, &ServerConnection::NewPingMeasurement, this, &LobbyDialog::NewPingMeasurement);
+  connect(connection, &ServerConnection::NewMessage, this, &LobbyDialog::TryParseServerMessages);
   TryParseServerMessages();
   
   connect(chatEdit, &QLineEdit::textChanged, [&]() {
     chatButton->setEnabled(!chatEdit->text().isEmpty());
   });
-  connect(chatEdit, &QLineEdit::returnPressed, this, &GameDialog::SendChat);
-  connect(chatButton, &QPushButton::clicked, this, &GameDialog::SendChat);
+  connect(chatEdit, &QLineEdit::returnPressed, this, &LobbyDialog::SendChat);
+  connect(chatButton, &QPushButton::clicked, this, &LobbyDialog::SendChat);
   
   connect(exitButton, &QPushButton::clicked, this, &QDialog::reject);
-  connect(readyCheck, &QCheckBox::stateChanged, this, &GameDialog::ReadyCheckChanged);
+  connect(readyCheck, &QCheckBox::stateChanged, this, &LobbyDialog::ReadyCheckChanged);
   if (isHost) {
-    connect(startButton, &QPushButton::clicked, this, &GameDialog::StartGame);
+    connect(startButton, &QPushButton::clicked, this, &LobbyDialog::StartGame);
   }
 }
 
-void GameDialog::GetPlayerList(Match* match) {
+void LobbyDialog::GetPlayerList(Match* match) {
   std::vector<Match::Player> players;
   for (const auto& player : playersInMatch) {
     players.emplace_back();
@@ -169,7 +169,7 @@ QString ColorToHTML(const QRgb& color) {
       .arg(static_cast<uint>(qBlue(color)), 2, 16, QLatin1Char('0'));
 }
 
-void GameDialog::TryParseServerMessages() {
+void LobbyDialog::TryParseServerMessages() {
   connection->Lock();
   
   auto* messages = connection->GetReceivedMessages();
@@ -207,19 +207,19 @@ void GameDialog::TryParseServerMessages() {
   connection->Unlock();
 }
 
-void GameDialog::NewPingMeasurement(int milliseconds) {
+void LobbyDialog::NewPingMeasurement(int milliseconds) {
   pingLabel->setText(tr("Ping to server: %1").arg(milliseconds));
 }
 
-void GameDialog::SendPing(u64 number) {
+void LobbyDialog::SendPing(u64 number) {
   connection->Write(CreatePingMessage(number));
 }
 
-void GameDialog::SendSettingsUpdate() {
+void LobbyDialog::SendSettingsUpdate() {
   connection->Write(CreateSettingsUpdateMessage(allowJoinCheck->isChecked(), mapSizeEdit->text().toInt(), false));
 }
 
-void GameDialog::SendChat() {
+void LobbyDialog::SendChat() {
   if (chatEdit->text().isEmpty()) {
     return;
   }
@@ -229,15 +229,15 @@ void GameDialog::SendChat() {
   chatButton->setEnabled(false);
 }
 
-void GameDialog::ReadyCheckChanged() {
+void LobbyDialog::ReadyCheckChanged() {
   connection->Write(CreateReadyUpMessage(readyCheck->isChecked()));
 }
 
-void GameDialog::StartGame() {
+void LobbyDialog::StartGame() {
   connection->Write(CreateStartGameMessage());
 }
 
-void GameDialog::AddPlayerWidget(const PlayerInMatch& player) {
+void LobbyDialog::AddPlayerWidget(const PlayerInMatch& player) {
   QWidget* playerWidget = new QWidget();
   QPalette palette = playerWidget->palette();
   palette.setColor(QPalette::Background, qRgb(127, 127, 127));
@@ -266,7 +266,7 @@ void GameDialog::AddPlayerWidget(const PlayerInMatch& player) {
   playerListLayout->addWidget(playerWidget);
 }
 
-void GameDialog::HandleSettingsUpdateBroadcast(const QByteArray& msg) {
+void LobbyDialog::HandleSettingsUpdateBroadcast(const QByteArray& msg) {
   if (msg.size() < 3) {
     LOG(ERROR) << "Received a too short SettingsUpdateBroadcast message";
     return;
@@ -279,7 +279,7 @@ void GameDialog::HandleSettingsUpdateBroadcast(const QByteArray& msg) {
   mapSizeEdit->setText(QString::number(mapSize));
 }
 
-void GameDialog::HandlePlayerListMessage(const QByteArray& msg) {
+void LobbyDialog::HandlePlayerListMessage(const QByteArray& msg) {
   LOG(INFO) << "Got player list message";
   
   // Parse the message to update playersInMatch
@@ -349,7 +349,7 @@ void GameDialog::HandlePlayerListMessage(const QByteArray& msg) {
   }
 }
 
-void GameDialog::HandleChatBroadcastMessage(const QByteArray& msg) {
+void LobbyDialog::HandleChatBroadcastMessage(const QByteArray& msg) {
   if (msg.size() < 2) {
     LOG(ERROR) << "Received a too short ChatBroadcast message";
     return;

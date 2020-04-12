@@ -31,9 +31,9 @@ struct PlayerInMatch {
 
 /// Dialog showing the players that joined the match, the map type, etc.,
 /// allowing to start the game once all players are ready.
-class GameDialog : public QDialog {
+class LobbyDialog : public QDialog {
  public:
-  GameDialog(
+  LobbyDialog(
       bool isHost,
       ServerConnection* connection,
       QFont georgiaFont,
