@@ -204,21 +204,24 @@ QImage LoadSMXShadowLayer(
   return graphic;
 }
 
-QImage LoadSMXOutlineLayer(
+bool LoadSMXOutlineLayer(
     const SMXLayerHeader& layerHeader,
     const std::vector<SMPLayerRowEdge>& rowEdges,
-    FILE* file) {
+    FILE* file,
+    QImage* result) {
   // Read the combined command and data array
   u32 dataLen;
   if (fread(&dataLen, sizeof(u32), 1, file) != 1) {
     LOG(ERROR) << "Unexpected EOF while trying to read dataLen";
-    return QImage();
+    *result = QImage();
+    return false;
   }
   
   std::vector<u8> data(dataLen);
   if (fread(data.data(), sizeof(u8), dataLen, file) != dataLen) {
     LOG(ERROR) << "Unexpected EOF while trying to read data";
-    return QImage();
+    *result = QImage();
+    return false;
   }
   
   // Build the image.
@@ -276,12 +279,14 @@ QImage LoadSMXOutlineLayer(
         break;
       } else {
         LOG(ERROR) << "Unexpected drawing code 0b10";
-        return QImage();
+        *result = QImage();
+        return false;
       }
     }
   }
   
-  return graphic;
+  *result = graphic;
+  return true;
 }
 
 bool LoadSMXLayer(
@@ -338,19 +343,25 @@ bool LoadSMXLayer(
         pixelBorder,
         standardPalette,
         file);
+    if (layer->image.isNull()) {
+      return false;
+    }
   } else if (layerType == SMXLayerType::Shadow) {
     layer->image = LoadSMXShadowLayer(
         layerHeader,
         *rowEdges,
         file);
+    if (layer->image.isNull()) {
+      return false;
+    }
   } else if (layerType == SMXLayerType::Outline) {
-    layer->image = LoadSMXOutlineLayer(
+    if (!LoadSMXOutlineLayer(
         layerHeader,
         *rowEdges,
-        file);
-  }
-  if (layer->image.isNull()) {
-    return false;
+        file,
+        &layer->image)) {
+      return false;
+    }
   }
   
   // Store the image dimensions for the time when the image got unloaded
@@ -698,6 +709,7 @@ bool Sprite::LoadFromSMXFile(FILE* file, const Palettes& palettes) {
           &frame.graphic,
           &frame.rowEdges,
           file)) {
+        LOG(ERROR) << "Reading the graphic layer of frame " << frameIdx << " failed";
         return false;
       }
     }
@@ -712,6 +724,7 @@ bool Sprite::LoadFromSMXFile(FILE* file, const Palettes& palettes) {
           &frame.shadow,
           &rowEdges,
           file)) {
+        LOG(ERROR) << "Reading the shadow layer of frame " << frameIdx << " failed";
         return false;
       }
       
@@ -728,6 +741,7 @@ bool Sprite::LoadFromSMXFile(FILE* file, const Palettes& palettes) {
           &frame.outline,
           &rowEdges,
           file)) {
+        LOG(ERROR) << "Reading the outline layer of frame " << frameIdx << " failed";
         return false;
       }
       
