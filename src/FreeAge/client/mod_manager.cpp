@@ -46,6 +46,11 @@ bool ModManager::LoadModStatus(const std::filesystem::path& modStatusJsonPath, c
   for (usize i = 0; i < fileNode.size(); ++ i) {
     YAML::Node modNode = fileNode[i];
     
+    YAML::Node enabledNode = modNode["Enabled"];
+    if (enabledNode.IsDefined() && enabledNode.as<bool>() == false) {
+      continue;
+    }
+    
     if (!modNode["Priority"].IsDefined() ||
         !modNode["Path"].IsDefined()) {
       LOG(ERROR) << "Encountered a mod entry that lacks the 'Priority' or 'Path' attribute. Skipping. Node:\n" << modNode;
