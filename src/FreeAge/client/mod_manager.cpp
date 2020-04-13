@@ -14,9 +14,19 @@ bool ModManager::LoadModStatus(const std::filesystem::path& modStatusJsonPath, c
   std::filesystem::path modsBasePath = modStatusJsonPath.parent_path();
   this->dataDirPath = dataDirPath;
   
-  YAML::Node fileNode = YAML::LoadFile(modStatusJsonPath.string());
+  YAML::Node fileNode;
+  try {
+    fileNode = YAML::LoadFile(modStatusJsonPath.string());
+  } catch (const YAML::BadFile& badFileException) {
+    LOG(ERROR) << "Cannot read file: " << modStatusJsonPath << " (YAML::BadFile exception)";
+    return false;
+  } catch (const YAML::ParserException& parserException) {
+    LOG(ERROR) << "Cannot read file: " << modStatusJsonPath << " (YAML::ParserException exception)";
+    return false;
+  }
+  
   if (fileNode.IsNull()) {
-    LOG(ERROR) << "Cannot read file: " << modStatusJsonPath;
+    LOG(ERROR) << "Cannot read file: " << modStatusJsonPath << ": The file node is null.";
     return false;
   }
   if (!fileNode.IsSequence()) {
