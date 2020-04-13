@@ -145,7 +145,7 @@ To run the game server on its own, start it from the terminal as follows (assumi
 Linux environment):
 
 ```
-./FreeAgeServer <6-character-host-password>
+QT_QPA_PLATFORM=offscreen ./FreeAgeServer <6-character-host-password>
 ```
 
 The server will then listen for incoming host connections (where the given password
@@ -246,5 +246,8 @@ what lies within the fog of war. There might be a large forest, forcing the scou
 to run around either to the left or the right of it. The client thus cannot know
 the direction in which the scout would start to run, so it cannot simulate it
 properly before it is told about it by the server.
+
+If you are interested in contributing, the [good first issues](https://github.com/puzzlepaint/freeage/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+might be a good place to start.
 
 14!
