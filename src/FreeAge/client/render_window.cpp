@@ -261,6 +261,19 @@ void RenderWindow::LoadResources() {
   };
   
   LOG(1) << "LoadResource() start";
+
+  const GLubyte* glVendor = f->glGetString(GL_VENDOR);
+  if (glVendor) {
+    LOG(1) << "GL_VENDOR: " << glVendor;
+  }
+  const GLubyte* glRenderer = f->glGetString(GL_RENDERER);
+  if (glRenderer) {
+    LOG(1) << "GL_RENDERER: " << glRenderer;
+  }
+  const GLubyte* glVersion = f->glGetString(GL_VERSION);
+  if (glVersion) {
+    LOG(1) << "GL_VERSION: " << glVersion;
+  }
   
   // Load cursors.
   std::filesystem::path cursorsSubPath = std::filesystem::path("widgetui") / "textures" / "ingame" / "cursor";
