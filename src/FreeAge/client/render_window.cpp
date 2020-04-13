@@ -580,19 +580,19 @@ QPointF RenderWindow::GetCurrentScroll(const TimePoint& atTime, bool* scrollAppl
   if (borderScrollingEnabled) {
     double mouseImpactSeconds = SecondsDuration(atTime - lastScrollGetTime).count();
     
-    if (lastCursorPos.x() >= widgetWidth - 1) {
+    if (lastCursorPos.x() == widgetWidth - 1) {
       projectedCoord += QPointF(scrollDistancePerSecond / effectiveZoom * mouseImpactSeconds, 0);
       *scrollApplied = true;
     }
-    if (lastCursorPos.x() <= 0) {
+    if (lastCursorPos.x() == 0) {
       projectedCoord += QPointF(-scrollDistancePerSecond / effectiveZoom * mouseImpactSeconds, 0);
       *scrollApplied = true;
     }
-    if (lastCursorPos.y() >= widgetHeight - 1) {
+    if (lastCursorPos.y() == widgetHeight - 1) {
       projectedCoord += QPointF(0, scrollDistancePerSecond / effectiveZoom * mouseImpactSeconds);
       *scrollApplied = true;
     }
-    if (lastCursorPos.y() <= 0) {
+    if (lastCursorPos.y() == 0) {
       projectedCoord += QPointF(0, -scrollDistancePerSecond / effectiveZoom * mouseImpactSeconds);
       *scrollApplied = true;
     }
