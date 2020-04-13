@@ -38,6 +38,7 @@ void Settings::Save() {
   settings.setValue("grabMouse", grabMouse);
   settings.setValue("uiScale", uiScale);
   settings.setValue("debugNetworking", debugNetworking);
+  settings.setValue("debugLogToFile", debugLogToFile);
 }
 
 void Settings::TryLoad() {
@@ -70,6 +71,7 @@ void Settings::TryLoad() {
   grabMouse = settings.value("grabMouse", true).toBool();
   uiScale = settings.value("uiScale", 0.5f).toFloat();
   debugNetworking = settings.value("debugNetworking", false).toBool();
+  debugLogToFile = settings.value("debugLogToFile", false).toBool();
 }
 
 void Settings::TryToFindPathsOnWindows() {
@@ -288,6 +290,9 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   debugNetworkingCheck = new QCheckBox(tr("Enable debug logging for networking"));
   debugNetworkingCheck->setChecked(settings->debugNetworking);
   
+  debugLogToFileCheck = new QCheckBox(tr("Debug logging to debug_log.txt"));
+  debugLogToFileCheck->setChecked(settings->debugLogToFile);
+  
   QPushButton* exitButton = new QPushButton(tr("Exit"));
   QPushButton* aboutButton = new QPushButton(tr("About"));
   QPushButton* hostButton = new QPushButton(tr("Create new lobby"));
@@ -306,6 +311,7 @@ SettingsDialog::SettingsDialog(Settings* settings, QWidget* parent)
   QVBoxLayout* layout = new QVBoxLayout();
   layout->addWidget(tabWidget);
   layout->addWidget(debugNetworkingCheck);
+  layout->addWidget(debugLogToFileCheck);
   layout->addLayout(buttonsLayout);
   setLayout(layout);
   
@@ -419,4 +425,5 @@ void SettingsDialog::SaveSettings() {
   settings->grabMouse = grabMouseCheck->isChecked();
   settings->uiScale = uiScaleEdit->text().toDouble();
   settings->debugNetworking = debugNetworkingCheck->isChecked();
+  settings->debugLogToFile = debugLogToFileCheck->isChecked();
 }

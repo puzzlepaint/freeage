@@ -118,6 +118,10 @@ int main(int argc, char** argv) {
     if (settingsDialog.exec() == QDialog::Rejected) {
       return 0;
     }
+    loguru::remove_all_callbacks();
+    if (settings.debugLogToFile) {
+      loguru::add_file("debug_log.txt", loguru::Truncate, loguru::Verbosity_MAX);
+    }
     settings.Save();
     bool isHost = settingsDialog.HostGameChosen();
     

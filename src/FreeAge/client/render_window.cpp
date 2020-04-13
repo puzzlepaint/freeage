@@ -253,6 +253,8 @@ void RenderWindow::LoadResources() {
   
   auto didLoadingStep = [&]() {
     ++ loadingStep;
+    LOG(1) << "loadingStep: " << loadingStep;
+    
     // We cannot directly send the loading progress message here, since a QTcpSocket can only be accessed from
     // one thread. So, we notify the main thread via a queued signal/slot connection.
     emit LoadingProgressUpdated(static_cast<int>(100 * loadingStep / static_cast<float>(maxLoadingStep) + 0.5f));
@@ -330,6 +332,8 @@ void RenderWindow::LoadResources() {
   carriedResourcesDisplay.Initialize();
   
   // Load unit resources.
+  LOG(1) << "LoadResource(): Starting to load units";
+  
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   unitTypes.resize(static_cast<int>(UnitType::NumUnits));
   for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
@@ -342,6 +346,8 @@ void RenderWindow::LoadResources() {
   }
   
   // Load building resources.
+  LOG(1) << "LoadResource(): Starting to load buildings";
+  
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   buildingTypes.resize(static_cast<int>(BuildingType::NumBuildings));
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
@@ -354,6 +360,8 @@ void RenderWindow::LoadResources() {
   }
   
   // Load "move to" sprite.
+  LOG(1) << "LoadResource(): Loading the 'move-to' sprite";
+  
   moveToSprite.reset(new SpriteAndTextures());
   LoadSpriteAndTexture(
       GetModdedPath(graphicsSubPath.parent_path().parent_path() / "particles" / "textures" / "test_move" / "p_all_move_%04i.png").string().c_str(),

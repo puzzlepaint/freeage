@@ -21,6 +21,7 @@ struct Settings {
   bool fullscreen;
   bool grabMouse;
   bool debugNetworking;
+  bool debugLogToFile;
   
  private:
   void TryToFindPathsOnWindows();
@@ -57,6 +58,7 @@ class SettingsDialog : public QDialog {
   QCheckBox* grabMouseCheck;
   QLineEdit* uiScaleEdit;
   QCheckBox* debugNetworkingCheck;
+  QCheckBox* debugLogToFileCheck;
   bool hostGameChosen;
   QString serverAddressText;
   QString hostPassword;

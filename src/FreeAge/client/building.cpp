@@ -33,7 +33,7 @@ bool ClientBuildingType::Load(BuildingType type, const std::filesystem::path& gr
           (cachePath / filename.toStdString()).string().c_str(),
           colorDilationShader,
           palettes);
-      if (!sprites[spriteInt] ) {
+      if (!sprites[spriteInt]) {
         return false;
       }
     }

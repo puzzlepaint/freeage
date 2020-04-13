@@ -977,6 +977,9 @@ bool Sprite::LoadFromPNGFiles(const char* path) {
     ++ frameIdx;
   }
   
+  if (frames.empty()) {
+    LOG(ERROR) << "Got zero frames while trying to load: " << path;
+  }
   return !frames.empty();
 }
 
