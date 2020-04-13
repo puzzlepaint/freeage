@@ -19,6 +19,9 @@ class ModManager {
     return instance;
   }
   
+  /// Clears information about all loaded mods.
+  void Clear(const std::filesystem::path& dataDirPath);
+  
   /// Tries to load the file mod-status.json at the given path.
   /// Returns true if successful.
   bool LoadModStatus(const std::filesystem::path& modStatusJsonPath, const std::filesystem::path& dataDirPath);

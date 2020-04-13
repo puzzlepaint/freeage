@@ -136,8 +136,12 @@ int main(int argc, char** argv) {
     
     // Load the mod info
     std::filesystem::path modStatusJsonPath = QDir(settingsDialog.GetModsPath()).filePath("mod-status.json").toStdString();
-    if (!ModManager::Instance().LoadModStatus(modStatusJsonPath, settingsDialog.GetDataPath().toStdString())) {
-      QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to load mod-status.json (full path: %1). No mods will be used.").arg(QString::fromStdString(modStatusJsonPath.string())));
+    if (std::filesystem::exists(modStatusJsonPath)) {
+      if (!ModManager::Instance().LoadModStatus(modStatusJsonPath, settingsDialog.GetDataPath().toStdString())) {
+        QMessageBox::warning(nullptr, QObject::tr("Error"), QObject::tr("Failed to load mod-status.json (full path: %1). No mods will be used.").arg(QString::fromStdString(modStatusJsonPath.string())));
+      }
+    } else {
+      ModManager::Instance().Clear(settingsDialog.GetDataPath().toStdString());
     }
     
     // Load some initial basic game resources that are required for the game dialog.

@@ -9,10 +9,16 @@
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/logging.hpp"
 
-bool ModManager::LoadModStatus(const std::filesystem::path& modStatusJsonPath, const std::filesystem::path& dataDirPath) {
+void ModManager::Clear(const std::filesystem::path& dataDirPath) {
   mods.clear();
-  std::filesystem::path modsBasePath = modStatusJsonPath.parent_path();
+  
   this->dataDirPath = dataDirPath;
+}
+
+bool ModManager::LoadModStatus(const std::filesystem::path& modStatusJsonPath, const std::filesystem::path& dataDirPath) {
+  Clear(dataDirPath);
+  
+  std::filesystem::path modsBasePath = modStatusJsonPath.parent_path();
   
   YAML::Node fileNode;
   try {

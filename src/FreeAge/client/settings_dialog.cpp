@@ -402,8 +402,8 @@ bool SettingsDialog::CheckSettings() {
   }
   
   QDir modsDir(modsFolderEdit->text());
-  if (!QFile(modsDir.filePath("mod-status.json")).exists()) {
-    if (QMessageBox::question(this, tr("Setup"), tr("Warning: mod-status.json was not found in the given mods directory (%1). No mods will be used. Continue?").arg(modsFolderEdit->text()), QMessageBox::Yes | QMessageBox::No) == QMessageBox::No) {
+  if (!modsDir.exists()) {
+    if (QMessageBox::question(this, tr("Setup"), tr("Warning: The given mods directory (%1) does not exist. No mods will be used. Continue?").arg(modsFolderEdit->text()), QMessageBox::Yes | QMessageBox::No) == QMessageBox::No) {
       return false;
     }
   }
