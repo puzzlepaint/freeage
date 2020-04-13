@@ -50,7 +50,7 @@ class RenderWindow : public QOpenGLWindow {
   ~RenderWindow();
   
   /// Called from the loading thread to load the game resources in the background.
-  void LoadResources();
+  bool LoadResources();
   
   /// Scrolls the given map coordinates by the given amount in projected coordinates.
   void Scroll(float x, float y, QPointF* mapCoord);
@@ -73,9 +73,11 @@ class RenderWindow : public QOpenGLWindow {
   
  signals:
   void LoadingProgressUpdated(int progress);
+  void LoadingError(QString message);
   
  private slots:
   void SendLoadingProgress(int progress);
+  void LoadingErrorHandler(QString message);
   void LoadingFinished();
   
   void HandleMouseMoveEvent();

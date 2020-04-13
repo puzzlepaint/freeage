@@ -1018,6 +1018,11 @@ SpriteAndTextures* SpriteManager::GetOrLoad(const char* path, const char* cacheP
 }
 
 void SpriteManager::Dereference(SpriteAndTextures* sprite) {
+  if (sprite == nullptr) {
+    LOG(WARNING) << "SpriteManager::Dereference() called on a null sprite";
+    return;
+  }
+  
   -- sprite->referenceCount;
   if (sprite->referenceCount > 0) {
     return;

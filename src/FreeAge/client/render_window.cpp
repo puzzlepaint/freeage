@@ -10,6 +10,7 @@
 #include <QFontDatabase>
 #include <QIcon>
 #include <QKeyEvent>
+#include <QMessageBox>
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
 #include <QOpenGLFunctions_3_2_Core>
@@ -45,15 +46,18 @@ class LoadingThread : public QThread {
   
   void run() override {
     loadingContext->makeCurrent(loadingSurface);
-    window->LoadResources();
+    succeeded = window->LoadResources();
     loadingContext->doneCurrent();
     delete loadingContext;
   }
+  
+  inline bool Succeeded() const { return succeeded; }
   
  private:
   RenderWindow* window;
   QOpenGLContext* loadingContext;
   QOffscreenSurface* loadingSurface;
+  bool succeeded = false;
 };
 
 
@@ -96,6 +100,7 @@ RenderWindow::RenderWindow(
   georgiaFontHuge.setBold(true);
   
   connect(this, &RenderWindow::LoadingProgressUpdated, this, &RenderWindow::SendLoadingProgress, Qt::QueuedConnection);
+  connect(this, &RenderWindow::LoadingError, this, &RenderWindow::LoadingErrorHandler, Qt::QueuedConnection);
   
   // Set the default cursor
   defaultCursor = QCursor(QPixmap::fromImage(QImage(
@@ -248,7 +253,7 @@ RenderWindow::~RenderWindow() {
   doneCurrent();
 }
 
-void RenderWindow::LoadResources() {
+bool RenderWindow::LoadResources() {
   QOpenGLFunctions_3_2_Core* f = QOpenGLContext::currentContext()->versionFunctions<QOpenGLFunctions_3_2_Core>();
   
   auto didLoadingStep = [&]() {
@@ -352,7 +357,8 @@ void RenderWindow::LoadResources() {
   for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
     if (!unitTypes[unitType].Load(static_cast<UnitType>(unitType), graphicsSubPath, cachePath, colorDilationShader.get(), palettes)) {
       LOG(ERROR) << "Exiting because of a resource load error for unit " << unitType << ".";
-      exit(1);  // TODO: Exit gracefully
+      emit LoadingError(tr("Failed to load unit type: %1. Aborting.").arg(unitType));
+      return false;
     }
     
     didLoadingStep();
@@ -366,7 +372,8 @@ void RenderWindow::LoadResources() {
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
     if (!buildingTypes[buildingType].Load(static_cast<BuildingType>(buildingType), graphicsSubPath, cachePath, colorDilationShader.get(), palettes)) {
       LOG(ERROR) << "Exiting because of a resource load error for building " << buildingType << ".";
-      exit(1);  // TODO: Exit gracefully
+      emit LoadingError(tr("Failed to load building type: %1. Aborting.").arg(buildingType));
+      return false;
     }
     
     didLoadingStep();
@@ -543,6 +550,8 @@ void RenderWindow::LoadResources() {
   if (loadingStep != maxLoadingStep) {
     LOG(ERROR) << "DEBUG: After loading, loadingStep (" << loadingStep << ") != maxLoadingStep (" << maxLoadingStep << "). Please set the value of maxLoadingStep to " << loadingStep << " in render_window.cpp.";
   }
+  
+  return true;
 }
 
 void RenderWindow::Scroll(float x, float y, QPointF* mapCoord) {
@@ -619,6 +628,11 @@ void RenderWindow::SendLoadingProgress(int progress) {
   connection->Write(CreateLoadingProgressMessage(progress));
 }
 
+void RenderWindow::LoadingErrorHandler(QString message) {
+  QMessageBox::warning(nullptr, tr("Error while loading"), message);
+  close();
+}
+
 void RenderWindow::LoadingFinished() {
   // TODO: In fullscreen mode on Windows, the deletion below causes the screen to flash black and
   //       also seemingly at least one old frame to be rendered. (In windowed mode, all is well.)
@@ -631,10 +645,14 @@ void RenderWindow::LoadingFinished() {
   delete loadingSurface;
 #endif
 
-  delete loadingThread;
+  if (loadingThread->Succeeded()) {
+    // Notify the server about the loading being finished
+    connection->Write(CreateLoadingFinishedMessage());
+  } else {
+    // TODO: Notify the server about the loading failure
+  }
   
-  // Notify the server about the loading being finished
-  connection->Write(CreateLoadingFinishedMessage());
+  delete loadingThread;
   
   LOG(INFO) << "DEBUG: Loading finished.";
 }

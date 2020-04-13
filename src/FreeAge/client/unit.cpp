@@ -155,6 +155,9 @@ bool ClientUnitType::Load(UnitType type, const std::filesystem::path& graphicsSu
     animations[animationTypeInt].resize(animationVariants.size());
     for (usize variant = 0; variant < animationVariants.size(); ++ variant) {
       ok = ok && LoadAnimation(variant, animationVariants[variant].c_str(), graphicsSubPath, cachePath, colorDilationShader, palettes, animationType);
+      if (!ok) {
+        return false;
+      }
       
       // For extracting attack durations.
       // TODO: Remove this once we get those in a better way.
