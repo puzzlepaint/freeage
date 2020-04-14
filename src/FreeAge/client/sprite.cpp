@@ -17,37 +17,42 @@
 #include "FreeAge/client/sprite_atlas.hpp"
 #include "FreeAge/client/texture.hpp"
 
-QImage LoadSMXGraphicLayer(
+bool LoadSMXGraphicLayer(
     const SMXLayerHeader& layerHeader,
     const std::vector<SMPLayerRowEdge>& rowEdges,
     bool usesEightToFiveCompression,
     int pixelBorder,
     const Palette& standardPalette,
-    FILE* file) {
+    FILE* file,
+    QImage* result) {
   // Read the command and pixel array length
   u32 commandArrayLen;
   if (fread(&commandArrayLen, sizeof(u32), 1, file) != 1) {
     LOG(ERROR) << "Unexpected EOF while trying to read commandArrayLen";
-    return QImage();
+    *result = QImage();
+    return false;
   }
   
   u32 pixelArrayLen;
   if (fread(&pixelArrayLen, sizeof(u32), 1, file) != 1) {
     LOG(ERROR) << "Unexpected EOF while trying to read pixelArrayLen";
-    return QImage();
+    *result = QImage();
+    return false;
   }
   
   // Read the command and pixel array data
   std::vector<u8> commandArray(commandArrayLen);
   if (fread(commandArray.data(), sizeof(u8), commandArrayLen, file) != commandArrayLen) {
     LOG(ERROR) << "Unexpected EOF while trying to read commandArray";
-    return QImage();
+    *result = QImage();
+    return false;
   }
   
   std::vector<u8> pixelArray(pixelArrayLen);
   if (fread(pixelArray.data(), sizeof(u8), pixelArrayLen, file) != pixelArrayLen) {
     LOG(ERROR) << "Unexpected EOF while trying to read pixelArray";
-    return QImage();
+    *result = QImage();
+    return false;
   }
   
   // Build the image.
@@ -119,24 +124,28 @@ QImage LoadSMXGraphicLayer(
     }
   }
   
-  return graphic;
+  *result = graphic;
+  return true;
 }
 
-QImage LoadSMXShadowLayer(
+bool LoadSMXShadowLayer(
     const SMXLayerHeader& layerHeader,
     const std::vector<SMPLayerRowEdge>& rowEdges,
-    FILE* file) {
+    FILE* file,
+    QImage* result) {
   // Read the combined command and data array
   u32 dataLen;
   if (fread(&dataLen, sizeof(u32), 1, file) != 1) {
     LOG(ERROR) << "Unexpected EOF while trying to read dataLen";
-    return QImage();
+    *result = QImage();
+    return false;
   }
   
   std::vector<u8> data(dataLen);
   if (fread(data.data(), sizeof(u8), dataLen, file) != dataLen) {
     LOG(ERROR) << "Unexpected EOF while trying to read data";
-    return QImage();
+    *result = QImage();
+    return false;
   }
   
   // Build the image.
@@ -196,12 +205,14 @@ QImage LoadSMXShadowLayer(
         break;
       } else {
         LOG(ERROR) << "Unexpected drawing code 0b10";
-        return QImage();
+        *result = QImage();
+        return false;
       }
     }
   }
   
-  return graphic;
+  *result = graphic;
+  return true;
 }
 
 bool LoadSMXOutlineLayer(
@@ -336,22 +347,22 @@ bool LoadSMXLayer(
   }
   
   if (layerType == SMXLayerType::Graphic) {
-    layer->image = LoadSMXGraphicLayer(
+    if (!LoadSMXGraphicLayer(
         layerHeader,
         *rowEdges,
         usesEightToFiveCompression,
         pixelBorder,
         standardPalette,
-        file);
-    if (layer->image.isNull()) {
+        file,
+        &layer->image)) {
       return false;
     }
   } else if (layerType == SMXLayerType::Shadow) {
-    layer->image = LoadSMXShadowLayer(
+    if (!LoadSMXShadowLayer(
         layerHeader,
         *rowEdges,
-        file);
-    if (layer->image.isNull()) {
+        file,
+        &layer->image)) {
       return false;
     }
   } else if (layerType == SMXLayerType::Outline) {
