@@ -433,8 +433,7 @@ int ClientBuilding::GetFrameIndex(double elapsedSeconds) {
     }
     return fixedFrameIndex;
   } else {
-    float framesPerSecond = 30.f;
-    return static_cast<int>(framesPerSecond * elapsedSeconds + 0.5f) % buildingSprite.NumFrames();
+    return static_cast<int>(animationFramesPerSecond * elapsedSeconds + 0.5f) % buildingSprite.NumFrames();
   }
 }
 

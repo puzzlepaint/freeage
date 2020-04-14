@@ -31,6 +31,12 @@ typedef std::chrono::duration<double> SecondsDuration;
 /// Port used on the server.
 static constexpr u16 serverPort = 49100;  // TODO: Make configurable
 
+/// Factor on the game speed. 1.7 is the default for competitive games, 1.5 was used in the HD edition, 2.0 is used for Deathmatch.
+static constexpr float gameSpeedFactor = 1.7f;
+
+/// Frames per second for playing back sprite animations.
+static constexpr float animationFramesPerSecond = gameSpeedFactor * 30;
+
 /// Default map size for newly created server instances.
 static constexpr int kDefaultMapSize = 75;
 

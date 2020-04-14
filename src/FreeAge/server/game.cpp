@@ -1788,8 +1788,7 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
   *stayInPlace = true;
   
   int numAttackFrames = GetUnitAttackFrames(unit->GetUnitType());
-  constexpr int kFramesPerSecond = 30;
-  double fullAttackTime = numAttackFrames / (1.f * kFramesPerSecond);
+  double fullAttackTime = numAttackFrames / (1.f * animationFramesPerSecond);
   double attackDamageTime = 0.5 * fullAttackTime;  // TODO: Does this differ among units? Is this available in some data file?
   
   double timeSinceActionStart = gameStepServerTime - unit->GetCurrentActionStartTime();

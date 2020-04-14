@@ -225,10 +225,9 @@ QRectF ClientUnit::GetRectInProjectedCoords(Map* map, double serverTime, bool sh
   
   QPointF centerProjectedCoord = GetCenterProjectedCoord(map);
   
-  float framesPerSecond = 30.f;
   int framesPerDirection = sprite.NumFrames() / kNumFacingDirections;
   double animationTime = (idleBlockedStartTime > 0) ? idleBlockedStartTime : serverTime;
-  int frameIndex = GetDirection(serverTime) * framesPerDirection + static_cast<int>(framesPerSecond * animationTime + 0.5f) % framesPerDirection;
+  int frameIndex = GetDirection(serverTime) * framesPerDirection + static_cast<int>(animationFramesPerSecond * animationTime + 0.5f) % framesPerDirection;
   
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameIndex).shadow : sprite.frame(frameIndex).graphic;
   bool isGraphic = !shadow && !outline;
@@ -258,7 +257,6 @@ void ClientUnit::Render(
   QPointF centerProjectedCoord = GetCenterProjectedCoord(map);
   
   // Update the animation.
-  float framesPerSecond = 30.f;
   int framesPerDirection = sprite.NumFrames() / kNumFacingDirections;
   
   if (lastAnimationStartTime < 0) {
@@ -268,13 +266,13 @@ void ClientUnit::Render(
   int frame;
   while (true) {
     double animationTime = (idleBlockedStartTime > 0) ? idleBlockedStartTime : serverTime;
-    frame = std::max(0, static_cast<int>(framesPerSecond * (animationTime - lastAnimationStartTime) + 0.5f));
+    frame = std::max(0, static_cast<int>(animationFramesPerSecond * (animationTime - lastAnimationStartTime) + 0.5f));
     if (frame < framesPerDirection) {
       break;
     }
     
     // A new animation starts. Choose a random animation variant.
-    lastAnimationStartTime = std::min(serverTime, lastAnimationStartTime + framesPerDirection / framesPerSecond);
+    lastAnimationStartTime = std::min(serverTime, lastAnimationStartTime + framesPerDirection / animationFramesPerSecond);
     // TODO: The "currentAnimationVariant == 1" condition is special-case handling to make the scout unit look nicer. Check how this should be handled in general in other cases.
     if (currentAnimationVariant == 1) {
       currentAnimationVariant = 0;
