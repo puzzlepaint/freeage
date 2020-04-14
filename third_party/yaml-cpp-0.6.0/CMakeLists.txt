@@ -187,7 +187,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR
 		set(GCC_EXTRA_OPTIONS "${GCC_EXTRA_OPTIONS} ${FLAG_TESTED}")
 	endif()
 	#
-	set(yaml_cxx_flags "-Wall ${GCC_EXTRA_OPTIONS} -pedantic -Wno-long-long -std=c++11 ${yaml_cxx_flags}")
+	set(yaml_cxx_flags "-Wall ${GCC_EXTRA_OPTIONS} -Wno-long-long ${yaml_cxx_flags}")
+	if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+	 set(yaml_cxx_flags "${yaml_cxx_flags} /MD")
+	endif()
 
 	### Make specific
 	if(${CMAKE_BUILD_TOOL} MATCHES make OR ${CMAKE_BUILD_TOOL} MATCHES gmake)
