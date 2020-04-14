@@ -240,7 +240,7 @@ void LobbyDialog::StartGame() {
 void LobbyDialog::AddPlayerWidget(const PlayerInMatch& player) {
   QWidget* playerWidget = new QWidget();
   QPalette palette = playerWidget->palette();
-  palette.setColor(QPalette::Background, qRgb(127, 127, 127));
+  palette.setColor(QPalette::Window, qRgb(127, 127, 127));
   playerWidget->setPalette(palette);
   
   QLabel* playerColorLabel = new QLabel(QString::number(player.playerColorIndex + 1));
