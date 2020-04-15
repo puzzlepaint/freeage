@@ -204,6 +204,9 @@ RenderWindow::~RenderWindow() {
   toggleBuildingsCategory.Unload();
   quit.Unload();
   
+  minimapPanel.Unload();
+  minimap.reset();
+  
   selectionPanel.Unload();
   singleObjectNameDisplay.Destroy();
   hpDisplay.Destroy();
@@ -230,6 +233,7 @@ RenderWindow::~RenderWindow() {
   shadowShader.reset();
   outlineShader.reset();
   healthBarShader.reset();
+  minimapShader.reset();
   colorDilationShader.reset();
   
   if (map) {
@@ -314,6 +318,7 @@ bool RenderWindow::LoadResources() {
   LOG(1) << "LoadResource(): SpriteShader(false, true) loaded";
   
   healthBarShader.reset(new HealthBarShader());
+  
   didLoadingStep();
   LOG(1) << "LoadResource(): Shaders loaded";
   
@@ -508,6 +513,13 @@ bool RenderWindow::LoadResources() {
   didLoadingStep();
   
   quit.Load(GetModdedPath(ingameActionsSubPath / "000_.png"), nullptr, TextureManager::Loader::Mango);
+  didLoadingStep();
+  
+  QImage minimapPanelImage;
+  minimapPanel.Load(GetModdedPath(architecturePanelsSubPath / "map-panel.png"), &minimapPanelImage);
+  minimapPanelOpaquenessMap.Create(minimapPanelImage);
+  
+  minimap.reset(new Minimap());
   didLoadingStep();
   
   QImage selectionPanelImage;
@@ -791,6 +803,9 @@ void RenderWindow::ComputePixelToOpenGLMatrix(QOpenGLFunctions_3_2_Core* f) {
   
   uiSingleColorShader->GetProgram()->UseProgram(f);
   uiSingleColorShader->GetProgram()->SetUniformMatrix2fv(uiSingleColorShader->GetViewMatrixLocation(), pixelToOpenGLMatrix, true, f);
+  
+  minimapShader->GetProgram()->UseProgram(f);
+  minimapShader->GetProgram()->SetUniformMatrix2fv(minimapShader->GetViewMatrixLocation(), pixelToOpenGLMatrix, true, f);
 }
 
 void RenderWindow::UpdateViewMatrix() {
@@ -1660,10 +1675,12 @@ void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
   RenderSprites(&textures, outlineShader, f);
 }
 
-void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
+void RenderWindow::RenderGameUI(double displayedServerTime, double secondsSinceLastFrame, QOpenGLFunctions_3_2_Core* f) {
   RenderMenuPanel(f);
   
   RenderResourcePanel(f);
+  
+  RenderMinimap(secondsSinceLastFrame, f);
   
   RenderSelectionPanel(f);
   
@@ -1716,7 +1733,7 @@ void RenderWindow::RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2
   
   // Render the player names in the bottom-right
   const auto& players = match->GetPlayers();
-  int currentY = widgetHeight - uiScale * 4;
+  int currentY = GetMinimapPanelTopLeft().y();
   for (int i = static_cast<int>(players.size()) - 1; i >= 0; -- i) {
     bool isPlayingOrHasWon =
         (match->GetPlayers()[i].state == Match::PlayerState::Playing) ||
@@ -2016,6 +2033,36 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       Qt::AlignHCenter | Qt::AlignVCenter,
       currentAgeTextDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
+}
+
+QPointF RenderWindow::GetMinimapPanelTopLeft() {
+  return QPointF(
+      widgetWidth - uiScale * minimapPanel.texture->GetWidth(),
+      widgetHeight - uiScale * minimapPanel.texture->GetHeight());
+}
+
+void RenderWindow::RenderMinimap(double secondsSinceLastFrame, QOpenGLFunctions_3_2_Core* f) {
+  QPointF topLeft = GetMinimapPanelTopLeft();
+  
+  RenderUIGraphic(
+      topLeft.x(),
+      topLeft.y(),
+      uiScale * minimapPanel.texture->GetWidth(),
+      uiScale * minimapPanel.texture->GetHeight(),
+      qRgba(255, 255, 255, 255), minimapPanel.pointBuffer,
+      *minimapPanel.texture,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+  
+  // Update minimap?
+  timeSinceLastMinimapUpdate += secondsSinceLastFrame;
+  if (timeSinceLastMinimapUpdate >= minimapUpdateInterval) {
+    timeSinceLastMinimapUpdate = fmod(timeSinceLastMinimapUpdate, minimapUpdateInterval);
+    
+    minimap->Update(map.get(), playerColors, f);
+  }
+  
+  // Render minimap
+  minimap->Render(topLeft, uiScale, minimapShader, f);
 }
 
 QPointF RenderWindow::GetSelectionPanelTopLeft() {
@@ -2398,6 +2445,11 @@ bool RenderWindow::IsUIAt(int x, int y) {
   
   QPointF resourcePanelTopLeft = GetResourcePanelTopLeft();
   if (resourcePanelOpaquenessMap.IsOpaque(factor * (x - resourcePanelTopLeft.x()), factor * (y - resourcePanelTopLeft.y()))) {
+    return true;
+  }
+  
+  QPointF minimapPanelTopLeft = GetMinimapPanelTopLeft();
+  if (minimapPanelOpaquenessMap.IsOpaque(factor * (x - minimapPanelTopLeft.x()), factor * (y - minimapPanelTopLeft.y()))) {
     return true;
   }
   
@@ -3197,7 +3249,7 @@ void RenderWindow::initializeGL() {
   
   isLoading = true;
   loadingStep = 0;
-  maxLoadingStep = 61;
+  maxLoadingStep = 62;
   loadingThread->start();
   
   // Create resources right now which are required for rendering the loading screen:
@@ -3206,6 +3258,7 @@ void RenderWindow::initializeGL() {
   uiShader.reset(new UIShader());
   uiSingleColorShader.reset(new UISingleColorShader());
   uiSingleColorFullscreenShader.reset(new UISingleColorFullscreenShader());
+  minimapShader.reset(new MinimapShader());
   
   // Create a buffer containing a single point for sprite rendering. TODO: Remove this
   f->glGenBuffers(1, &pointBuffer);
@@ -3547,7 +3600,7 @@ void RenderWindow::paintGL() {
   // TODO: Would it be faster to render this at the start and then prevent rendering over the UI pixels,
   //       for example by setting the z-buffer such that no further pixel will be rendered there?
   CHECK_OPENGL_NO_ERROR();
-  RenderGameUI(displayedServerTime, f);
+  RenderGameUI(displayedServerTime, secondsSinceLastFrame, f);
   CHECK_OPENGL_NO_ERROR();
   
   uiTimer.Stop();

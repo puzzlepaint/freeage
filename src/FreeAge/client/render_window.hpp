@@ -15,6 +15,7 @@
 #include "FreeAge/client/decal.hpp"
 #include "FreeAge/client/map.hpp"
 #include "FreeAge/client/match.hpp"
+#include "FreeAge/client/minimap.hpp"
 #include "FreeAge/client/opaqueness_map.hpp"
 #include "FreeAge/client/render_utils.hpp"
 #include "FreeAge/client/shader_health_bar.hpp"
@@ -112,11 +113,13 @@ class RenderWindow : public QOpenGLWindow {
   void RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f);
   
   
-  void RenderGameUI(double displayedServerTime, QOpenGLFunctions_3_2_Core* f);
+  void RenderGameUI(double displayedServerTime, double secondsSinceLastFrame, QOpenGLFunctions_3_2_Core* f);
   QPointF GetMenuPanelTopLeft();
   void RenderMenuPanel(QOpenGLFunctions_3_2_Core* f);
   QPointF GetResourcePanelTopLeft();
   void RenderResourcePanel(QOpenGLFunctions_3_2_Core* f);
+  QPointF GetMinimapPanelTopLeft();
+  void RenderMinimap(double secondsSinceLastFrame, QOpenGLFunctions_3_2_Core* f);
   QPointF GetSelectionPanelTopLeft();
   void RenderObjectIcon(const Texture* iconTexture, float x, float y, float size, int state, GLuint iconPointBuffer, GLuint overlayPointBuffer, QOpenGLFunctions_3_2_Core* f);
   void RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f);
@@ -294,6 +297,7 @@ class RenderWindow : public QOpenGLWindow {
   std::shared_ptr<SpriteShader> shadowShader;
   std::shared_ptr<SpriteShader> outlineShader;
   std::shared_ptr<HealthBarShader> healthBarShader;
+  std::shared_ptr<MinimapShader> minimapShader;
   
   // FPS computation.
   TimePoint fpsMeasuringFrameStartTime;
@@ -374,6 +378,12 @@ class RenderWindow : public QOpenGLWindow {
   TextureAndPointBuffer buildMilitaryBuildings;
   TextureAndPointBuffer toggleBuildingsCategory;
   TextureAndPointBuffer quit;
+  
+  TextureAndPointBuffer minimapPanel;
+  OpaquenessMap minimapPanelOpaquenessMap;
+  std::shared_ptr<Minimap> minimap;
+  static constexpr float minimapUpdateInterval = 0.5f;
+  float timeSinceLastMinimapUpdate = minimapUpdateInterval + 999;
   
   TextureAndPointBuffer selectionPanel;
   OpaquenessMap selectionPanelOpaquenessMap;

@@ -138,6 +138,7 @@ set(FREEAGE_SRCS
   src/FreeAge/client/main.cpp
   src/FreeAge/client/map.cpp
   src/FreeAge/client/match.cpp
+  src/FreeAge/client/minimap.cpp
   src/FreeAge/client/mod_manager.cpp
   src/FreeAge/client/object.cpp
   src/FreeAge/client/opaqueness_map.cpp
@@ -147,6 +148,7 @@ set(FREEAGE_SRCS
   src/FreeAge/client/server_connection.cpp
   src/FreeAge/client/shader_color_dilation.cpp
   src/FreeAge/client/shader_health_bar.cpp
+  src/FreeAge/client/shader_minimap.cpp
   src/FreeAge/client/shader_program.cpp
   src/FreeAge/client/shader_sprite.cpp
   src/FreeAge/client/shader_terrain.cpp
