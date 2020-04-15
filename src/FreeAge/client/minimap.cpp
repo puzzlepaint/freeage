@@ -5,6 +5,7 @@
 #include "FreeAge/client/minimap.hpp"
 
 #include "FreeAge/client/map.hpp"
+#include "FreeAge/common/util.hpp"
 
 Minimap::~Minimap() {
   if (haveTexture) {
@@ -206,4 +207,47 @@ void Minimap::Render(const QPointF& topLeft, float uiScale, const std::shared_pt
   
   f->glDrawArrays(GL_TRIANGLES, 0, numVertices);
   CHECK_OPENGL_NO_ERROR();
+}
+
+bool Minimap::ScreenToMapCoord(int screenX, int screenY, const QPointF& topLeft, float uiScale, Map* map, float* mapCoordX, float* mapCoordY) {
+  QPointF top(
+      topLeft.x() + uiScale * 480,
+      topLeft.y() + uiScale * 37);
+  QPointF right(
+      topLeft.x() + uiScale * 824.5f,
+      topLeft.y() + uiScale * 221.5f);
+  QPointF bottom(
+      topLeft.x() + uiScale * 480,
+      topLeft.y() + uiScale * 408);
+  QPointF left(
+      topLeft.x() + uiScale * 136.5f,
+      topLeft.y() + uiScale * 221.5f);
+  
+  QPointF leftToBottom = bottom - left;
+  QPointF leftToTop = top - left;
+  
+  QPointF leftToCursor = QPoint(screenX, screenY) - left;
+  
+  // Equation:
+  // x * leftToBottom + y * leftToTop = leftToCursor
+  //
+  // In matrix form:
+  // (leftToBottom.x() leftToTop.x()) * (x) = (leftToCursor.x())
+  // (leftToBottom.y() leftToTop.y()) * (y) = (leftToCursor.y())
+  //
+  // --> (x, y) can be determined by multiplying the inverted matrix from the left with leftToCursor.
+  const float a = leftToBottom.x();
+  const float b = leftToTop.x();
+  const float c = leftToBottom.y();
+  const float d = leftToTop.y();
+  
+  float invDet = 1.f / (a * d - b * c);
+  
+  *mapCoordX = map->GetWidth()  * invDet * (d * leftToCursor.x() - b * leftToCursor.y());
+  *mapCoordY = map->GetHeight() * invDet * (-c * leftToCursor.x() + a * leftToCursor.y());
+  
+  return *mapCoordX >= 0 &&
+         *mapCoordX <= map->GetWidth() &&
+         *mapCoordY >= 0 &&
+         *mapCoordY <= map->GetHeight();
 }

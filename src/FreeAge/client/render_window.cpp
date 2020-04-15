@@ -3651,6 +3651,21 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
   
   bool isUIClick = IsUIAt(event->x(), event->y());
   
+  // Handle clicks on the minimap.
+  if (isUIClick) {
+    float mapCoordX, mapCoordY;
+    if (minimap->ScreenToMapCoord(event->pos().x(), event->pos().y(), GetMinimapPanelTopLeft(), uiScale, map.get(), &mapCoordX, &mapCoordY)) {
+      if (event->button() == Qt::LeftButton) {
+        scroll = QPointF(mapCoordX, mapCoordY);
+        scrollProjectedCoordOffset = QPointF(0, 0);
+        UpdateViewMatrix();
+      } else if (event->button() == Qt::RightButton) {
+        RightClickOnMap(false, QPoint(-1, -1), true, QPointF(mapCoordX, mapCoordY));
+      }
+      return;
+    }
+  }
+  
   if (event->button() == Qt::LeftButton) {
     // Has a command button been pressed?
     if (match->IsPlayerStillInGame()) {
@@ -3681,7 +3696,6 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
     
     if (isUIClick) {
       menuButton.MousePress(event->pos());
-      
       return;
     }
     
@@ -3720,77 +3734,12 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
     possibleDragStart = true;
     dragging = false;
   } else if (event->button() == Qt::RightButton &&
-             !isUIClick &&
-             match->IsPlayerStillInGame()) {
-    bool haveOwnUnitSelected = false;
-    bool haveBuildingSelected = false;
-    std::vector<ClientObject*> selectedObject(selection.size());
+             !isUIClick) {
+    QPointF projectedCoord = ScreenCoordToProjectedCoord(event->x(), event->y());
+    QPointF mapCoord;
+    bool haveMapCoord = map->ProjectedCoordToMapCoord(projectedCoord, &mapCoord);
     
-    for (usize i = 0; i < selection.size(); ++ i) {
-      u32 id = selection[i];
-      auto objectIt = map->GetObjects().find(id);
-      if (objectIt == map->GetObjects().end()) {
-        selectedObject[i] = nullptr;
-      } else {
-        selectedObject[i] = objectIt->second;
-        haveBuildingSelected |= objectIt->second->isBuilding();
-        haveOwnUnitSelected |= objectIt->second->isUnit() && objectIt->second->GetPlayerIndex() == match->GetPlayerIndex();
-      }
-    }
-    
-    if (haveOwnUnitSelected && !haveBuildingSelected) {
-      // Command units.
-      std::vector<bool> unitsCommanded(selection.size(), false);
-      
-      // Check whether the units are right-clicked onto a suitable target object.
-      // TODO: In the target selection, factor in whether villagers / military units are selected to prefer selecting suitable targets.
-      //       Also, exclude own units (except when commanding monks, or targeting transport ships, siege towers, etc.)
-      u32 targetObjectId;
-      if (GetObjectToSelectAt(event->x(), event->y(), &targetObjectId, &selection, false, true)) {
-        // Command all selected units that can interact with the returned target object to it.
-        ClientObject* targetObject = map->GetObjects().at(targetObjectId);
-        
-        std::vector<u32> suitableUnits;
-        suitableUnits.reserve(selection.size());
-        for (usize i = 0; i < selection.size(); ++ i) {
-          if (!unitsCommanded[i] &&
-              selectedObject[i] &&
-              GetInteractionType(selectedObject[i], targetObject) != InteractionType::Invalid) {
-            suitableUnits.push_back(selection[i]);
-            unitsCommanded[i] = true;
-          }
-        }
-        
-        if (!suitableUnits.empty()) {
-          connection->Write(CreateSetTargetMessage(suitableUnits, targetObjectId));
-          
-          // Make the ground outline of the target flash green three times
-          LetObjectFlash(targetObjectId);
-        }
-      }
-      
-      // Send the remaining selected units to the clicked map coordinate.
-      QPointF projectedCoord = ScreenCoordToProjectedCoord(event->x(), event->y());
-      if (map->ProjectedCoordToMapCoord(projectedCoord, &moveToMapCoord)) {
-        std::vector<u32> remainingUnits;
-        remainingUnits.reserve(selection.size());
-        for (usize i = 0; i < selection.size(); ++ i) {
-          if (!unitsCommanded[i]) {
-            remainingUnits.push_back(selection[i]);
-            unitsCommanded[i] = true;
-          }
-        }
-        
-        if (!remainingUnits.empty()) {
-          // Send the move command to the server.
-          connection->Write(CreateMoveToMapCoordMessage(remainingUnits, moveToMapCoord));
-          
-          // Show the move-to marker.
-          moveToTime = Clock::now();
-          haveMoveTo = true;
-        }
-      }
-    }
+    RightClickOnMap(true, event->pos(), haveMapCoord, mapCoord);
   }
 }
 
@@ -3833,6 +3782,16 @@ void RenderWindow::HandleMouseMoveEvent() {
     }
   }
   
+  // Dragging on the minimap (and not on the actual map)?
+  if (!dragging && (lastMouseMoveEventButtons & Qt::LeftButton)) {
+    float mapCoordX, mapCoordY;
+    if (minimap->ScreenToMapCoord(lastCursorPos.x(), lastCursorPos.y(), GetMinimapPanelTopLeft(), uiScale, map.get(), &mapCoordX, &mapCoordY)) {
+      scroll = QPointF(mapCoordX, mapCoordY);
+      scrollProjectedCoordOffset = QPointF(0, 0);
+      UpdateViewMatrix();
+    }
+  }
+  
   // If a command button has been pressed but the cursor moves away from it, abort the button press.
   if (pressedCommandButtonRow >= 0 &&
       pressedCommandButtonCol >= 0 &&
@@ -3853,6 +3812,85 @@ void RenderWindow::HandleMouseMoveEvent() {
   
   // If hovering over the game area, possibly change the cursor to indicate possible interactions.
   UpdateCursor();
+}
+
+void RenderWindow::RightClickOnMap(bool haveScreenCoord, const QPoint& screenCoord, bool haveMapCoord, const QPointF& mapCoord) {
+  if (!match->IsPlayerStillInGame()) {
+    return;
+  }
+  
+  bool haveOwnUnitSelected = false;
+  bool haveBuildingSelected = false;
+  std::vector<ClientObject*> selectedObject(selection.size());
+  
+  for (usize i = 0; i < selection.size(); ++ i) {
+    u32 id = selection[i];
+    auto objectIt = map->GetObjects().find(id);
+    if (objectIt == map->GetObjects().end()) {
+      selectedObject[i] = nullptr;
+    } else {
+      selectedObject[i] = objectIt->second;
+      haveBuildingSelected |= objectIt->second->isBuilding();
+      haveOwnUnitSelected |= objectIt->second->isUnit() && objectIt->second->GetPlayerIndex() == match->GetPlayerIndex();
+    }
+  }
+  
+  if (haveOwnUnitSelected && !haveBuildingSelected) {
+    // Command units.
+    std::vector<bool> unitsCommanded(selection.size(), false);
+    
+    // Check whether the units are right-clicked onto a suitable target object.
+    // TODO: In the target selection, factor in whether villagers / military units are selected to prefer selecting suitable targets.
+    //       Also, exclude own units (except when commanding monks, or targeting transport ships, siege towers, etc.)
+    if (haveScreenCoord) {
+      u32 targetObjectId;
+      if (GetObjectToSelectAt(screenCoord.x(), screenCoord.y(), &targetObjectId, &selection, false, true)) {
+        // Command all selected units that can interact with the returned target object to it.
+        ClientObject* targetObject = map->GetObjects().at(targetObjectId);
+        
+        std::vector<u32> suitableUnits;
+        suitableUnits.reserve(selection.size());
+        for (usize i = 0; i < selection.size(); ++ i) {
+          if (!unitsCommanded[i] &&
+              selectedObject[i] &&
+              GetInteractionType(selectedObject[i], targetObject) != InteractionType::Invalid) {
+            suitableUnits.push_back(selection[i]);
+            unitsCommanded[i] = true;
+          }
+        }
+        
+        if (!suitableUnits.empty()) {
+          connection->Write(CreateSetTargetMessage(suitableUnits, targetObjectId));
+          
+          // Make the ground outline of the target flash green three times
+          LetObjectFlash(targetObjectId);
+        }
+      }
+    }
+    
+    // Send the remaining selected units to the clicked map coordinate.
+    if (haveMapCoord) {
+      moveToMapCoord = mapCoord;
+      
+      std::vector<u32> remainingUnits;
+      remainingUnits.reserve(selection.size());
+      for (usize i = 0; i < selection.size(); ++ i) {
+        if (!unitsCommanded[i]) {
+          remainingUnits.push_back(selection[i]);
+          unitsCommanded[i] = true;
+        }
+      }
+      
+      if (!remainingUnits.empty()) {
+        // Send the move command to the server.
+        connection->Write(CreateMoveToMapCoordMessage(remainingUnits, moveToMapCoord));
+        
+        // Show the move-to marker.
+        moveToTime = Clock::now();
+        haveMoveTo = true;
+      }
+    }
+  }
 }
 
 void RenderWindow::UpdateCursor() {

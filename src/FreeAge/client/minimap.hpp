@@ -23,6 +23,11 @@ class Minimap {
   
   void Render(const QPointF& topLeft, float uiScale, const std::shared_ptr<MinimapShader>& shader, QOpenGLFunctions_3_2_Core* f);
   
+  /// Converts a screen coordinate (e.g., the cursor position) to the corresponding map coordinate.
+  /// Returns true if the conversion was successful, false if the screen coordinate is not within the minimap.
+  /// The results in mapCoordX and mapCoordY are only valid if true is returned.
+  bool ScreenToMapCoord(int screenX, int screenY, const QPointF& topLeft, float uiScale, Map* map, float* mapCoordX, float* mapCoordY);
+  
  private:
   bool haveTexture = false;
   GLuint textureId;

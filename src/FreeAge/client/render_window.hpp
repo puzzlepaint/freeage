@@ -82,6 +82,7 @@ class RenderWindow : public QOpenGLWindow {
   void LoadingFinished();
   
   void HandleMouseMoveEvent();
+  void RightClickOnMap(bool haveScreenCoord, const QPoint& screenCoord, bool haveMapCoord, const QPointF& mapCoord);
   void UpdateCursor();
   
  protected:
