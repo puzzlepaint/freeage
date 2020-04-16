@@ -3046,6 +3046,10 @@ void RenderWindow::ShowEconomyBuildingCommandButtons() {
   commandButtons[0][2].SetBuilding(BuildingType::MiningCamp, Qt::Key_E);
   commandButtons[0][3].SetBuilding(BuildingType::LumberCamp, Qt::Key_R);
   commandButtons[0][4].SetBuilding(BuildingType::Dock, Qt::Key_T);
+
+  if (gameController->GetBuildingTypeCount(BuildingType::TownCenter) != GetBuildingMaxInstances(BuildingType::TownCenter)) {
+    commandButtons[1][0].SetBuilding(BuildingType::TownCenter, Qt::Key_A);
+  }
   
   commandButtons[2][3].SetAction(CommandButton::ActionType::ToggleBuildingsCategory, toggleBuildingsCategory.texture.get());
   commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quit.texture.get(), Qt::Key_Escape);

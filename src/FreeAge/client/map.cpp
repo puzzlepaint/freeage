@@ -335,6 +335,16 @@ void Map::AddObject(u32 objectId, ClientObject* object) {
   objects.insert(std::make_pair(objectId, object));
 }
 
+void Map::DeleteObject(u32 objectId) {
+  auto it = objects.find(objectId);
+  if (it == objects.end()) {
+    LOG(ERROR) << "Cannot find to erase object id: " << objectId;
+    return;
+  }
+  delete it->second;
+  objects.erase(it);
+}
+
 bool Map::IsUnitInFogOfWar(ClientUnit* unit) {
   int tileX = std::max<int>(0, std::min<int>(width - 1, unit->GetMapCoord().x()));
   int tileY = std::max<int>(0, std::min<int>(height - 1, unit->GetMapCoord().y()));
