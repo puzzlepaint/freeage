@@ -72,6 +72,7 @@ set_target_properties(gtest gtest_main PROPERTIES FOLDER "third_party")
 add_library(FreeAgeLib
   src/FreeAge/common/building_types.cpp
   src/FreeAge/common/messages.cpp
+  src/FreeAge/common/player.cpp
   src/FreeAge/common/timing.cpp
   src/FreeAge/common/unit_types.cpp
 )

@@ -6,6 +6,7 @@
 #include <QApplication>
 
 #include "FreeAge/common/logging.hpp"
+#include "FreeAge/common/player.hpp"
 #include "FreeAge/client/map.hpp"
 
 int main(int argc, char** argv) {
@@ -78,4 +79,37 @@ TEST(Map, CoordinateConversion_HillyMap) {
   }
   
   TestProjectedCoordToMapCoord(testMap);
+}
+
+TEST(PlayerStats, Operations) {
+
+  PlayerStats stats;
+  LOG(INFO) << "sizeof(PlayerStats) = " << sizeof(PlayerStats);
+
+  EXPECT_EQ(stats.GetBuildingTypeCount(BuildingType::Barracks), 0);
+  EXPECT_FALSE(stats.GetBuildingTypeExisted(BuildingType::Barracks));
+
+  stats.BuildingAdded(BuildingType::House, true);
+  stats.BuildingAdded(BuildingType::House, false);
+  stats.BuildingAdded(BuildingType::Barracks, true);
+  stats.BuildingAdded(BuildingType::House, false);
+  stats.BuildingFinished(BuildingType::House);
+  stats.UnitAdded(UnitType::FemaleVillager);
+  stats.UnitAdded(UnitType::MaleVillager);
+
+  EXPECT_EQ(stats.GetAvailablePopulationSpace(), 10);
+  EXPECT_EQ(stats.GetPopulationCount(), 2);
+  EXPECT_EQ(stats.GetBuildingTypeCount(BuildingType::Barracks), 1);
+  EXPECT_TRUE(stats.GetBuildingTypeExisted(BuildingType::Barracks));
+
+  stats.BuildingRemoved(BuildingType::House, true);
+  stats.BuildingRemoved(BuildingType::Barracks, true);
+  stats.UnitTransformed(UnitType::FemaleVillager, UnitType::FemaleVillagerGoldMiner);
+  stats.UnitRemoved(UnitType::MaleVillager);
+
+  EXPECT_EQ(stats.GetAvailablePopulationSpace(), 5);
+  EXPECT_EQ(stats.GetPopulationCount(), 1);
+  EXPECT_EQ(stats.GetBuildingTypeCount(BuildingType::Barracks), 0);
+  EXPECT_TRUE(stats.GetBuildingTypeExisted(BuildingType::Barracks));
+
 }
