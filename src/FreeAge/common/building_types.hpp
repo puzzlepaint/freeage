@@ -63,6 +63,9 @@ bool IsDropOffPointForResource(BuildingType building, ResourceType resource);
 u32 GetBuildingMaxHP(BuildingType type);
 u32 GetBuildingMeleeArmor(BuildingType type);
 
+/// TODO: This needs to consider the player's age.
+int GetBuildingMaxInstances(BuildingType type);
+
 int GetBuildingProvidedPopulationSpace(BuildingType type);
 
 float GetBuildingLineOfSight(BuildingType type);
