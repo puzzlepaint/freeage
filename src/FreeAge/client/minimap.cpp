@@ -144,35 +144,36 @@ void Minimap::Render(const QPointF& topLeft, float uiScale, const std::shared_pt
   // Update vertices?
   f->glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
   
+  QPointF corners[4];
+  GetMinimapCorners(topLeft, uiScale, corners);
+  const QPointF& top = corners[0];
+  const QPointF& right = corners[1];
+  const QPointF& bottom = corners[2];
+  const QPointF& left = corners[3];
+  
   float data[] = {
-    // Top
-    static_cast<float>(topLeft.x() + uiScale * 480),
-    static_cast<float>(topLeft.y() + uiScale * 37),
+    static_cast<float>(top.x()),
+    static_cast<float>(top.y()),
     0.f,
     1.f,
-    // Right
-    static_cast<float>(topLeft.x() + uiScale * 824.5f),
-    static_cast<float>(topLeft.y() + uiScale * 221.5f),
+    static_cast<float>(right.x()),
+    static_cast<float>(right.y()),
     1.f,
     1.f,
-    // Bottom
-    static_cast<float>(topLeft.x() + uiScale * 480),
-    static_cast<float>(topLeft.y() + uiScale * 408),
+    static_cast<float>(bottom.x()),
+    static_cast<float>(bottom.y()),
     1.f,
     0.f,
-    // Top
-    static_cast<float>(topLeft.x() + uiScale * 480),
-    static_cast<float>(topLeft.y() + uiScale * 37),
+    static_cast<float>(top.x()),
+    static_cast<float>(top.y()),
     0.f,
     1.f,
-    // Bottom
-    static_cast<float>(topLeft.x() + uiScale * 480),
-    static_cast<float>(topLeft.y() + uiScale * 408),
+    static_cast<float>(bottom.x()),
+    static_cast<float>(bottom.y()),
     1.f,
     0.f,
-    // Left
-    static_cast<float>(topLeft.x() + uiScale * 136.5f),
-    static_cast<float>(topLeft.y() + uiScale * 221.5f),
+    static_cast<float>(left.x()),
+    static_cast<float>(left.y()),
     0.f,
     0.f
   };
@@ -210,18 +211,11 @@ void Minimap::Render(const QPointF& topLeft, float uiScale, const std::shared_pt
 }
 
 bool Minimap::ScreenToMapCoord(int screenX, int screenY, const QPointF& topLeft, float uiScale, Map* map, float* mapCoordX, float* mapCoordY) {
-  QPointF top(
-      topLeft.x() + uiScale * 480,
-      topLeft.y() + uiScale * 37);
-  QPointF right(
-      topLeft.x() + uiScale * 824.5f,
-      topLeft.y() + uiScale * 221.5f);
-  QPointF bottom(
-      topLeft.x() + uiScale * 480,
-      topLeft.y() + uiScale * 408);
-  QPointF left(
-      topLeft.x() + uiScale * 136.5f,
-      topLeft.y() + uiScale * 221.5f);
+  QPointF corners[4];
+  GetMinimapCorners(topLeft, uiScale, corners);
+  const QPointF& top = corners[0];
+  const QPointF& bottom = corners[2];
+  const QPointF& left = corners[3];
   
   QPointF leftToBottom = bottom - left;
   QPointF leftToTop = top - left;
@@ -250,4 +244,31 @@ bool Minimap::ScreenToMapCoord(int screenX, int screenY, const QPointF& topLeft,
          *mapCoordX <= map->GetWidth() &&
          *mapCoordY >= 0 &&
          *mapCoordY <= map->GetHeight();
+}
+
+void Minimap::MapCoordToScreen(float mapCoordX, float mapCoordY, const QPointF& topLeft, float uiScale, Map* map, float* screenX, float* screenY) {
+  QPointF corners[4];
+  GetMinimapCorners(topLeft, uiScale, corners);
+  const QPointF& top = corners[0];
+  const QPointF& bottom = corners[2];
+  const QPointF& left = corners[3];
+  
+  QPointF screenCoord = left + (bottom - left) * (mapCoordX / map->GetWidth()) + (top - left) * (mapCoordY / map->GetHeight());
+  *screenX = screenCoord.x();
+  *screenY = screenCoord.y();
+}
+
+void Minimap::GetMinimapCorners(const QPointF& topLeft, float uiScale, QPointF* corners) {
+  corners[0] = QPointF(
+      topLeft.x() + uiScale * 480,
+      topLeft.y() + uiScale * 37);
+  corners[1] = QPointF(
+      topLeft.x() + uiScale * 824.5f,
+      topLeft.y() + uiScale * 221.5f);
+  corners[2] = QPointF(
+      topLeft.x() + uiScale * 480,
+      topLeft.y() + uiScale * 408);
+  corners[3] = QPointF(
+      topLeft.x() + uiScale * 136.5f,
+      topLeft.y() + uiScale * 221.5f);
 }

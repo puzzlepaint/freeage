@@ -34,6 +34,7 @@
 #include "FreeAge/client/sprite.hpp"
 #include "FreeAge/client/sprite_atlas.hpp"
 #include "FreeAge/common/timing.hpp"
+#include "FreeAge/common/util.hpp"
 
 
 class LoadingThread : public QThread {
@@ -900,18 +901,18 @@ void RenderWindow::UpdateView(const TimePoint& now, QOpenGLFunctions_3_2_Core* f
   }
 }
 
-void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset, QOpenGLFunctions_3_2_Core* f) {
+void RenderWindow::RenderPath(float halfLineWidth, const QRgb& color, const std::vector<QPointF>& vertices, const QPointF& offset, bool closed, QOpenGLFunctions_3_2_Core* f) {
   CHECK_OPENGL_NO_ERROR();
   
-  // Repeat the first 2 vertices to close the path and get information
-  // on the bend direction at the end.
-  int numVertices = 2 * (vertices.size() + 1);
+  // If the path should be closed, repeat the first 2 vertices to close the path
+  // and get information on the bend direction at the end.
+  int numVertices = 2 * (vertices.size() + (closed ? 1 : 0));
   
   // Buffer geometry data.
-  int elementSizeInBytes = 3 * sizeof(float);
-  std::vector<float> vertexData(3 * numVertices);  // TODO: Could skip the 3rd dimension
+  int elementSizeInBytes = 2 * sizeof(float);
+  std::vector<float> vertexData(2 * numVertices);
   int lastVertex = vertices.size() - 1;
-  for (usize i = 0; i <= vertices.size(); ++ i) {
+  for (usize i = 0; i < vertices.size() + (closed ? 1 : 0); ++ i) {
     int thisVertex = i % vertices.size();
     int nextVertex = (i + 1) % vertices.size();
     
@@ -920,29 +921,53 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
     
     lastVertex = thisVertex;
     
-    float prevToCurNormalizer = 1.f / sqrtf(prevToCur.x() * prevToCur.x() + prevToCur.y() * prevToCur.y());
+    float prevToCurNormalizer = 1.f / Length(prevToCur);
     prevToCur.setX(prevToCurNormalizer * prevToCur.x());
     prevToCur.setY(prevToCurNormalizer * prevToCur.y());
     
-    float curToNextNormalizer = 1.f / sqrtf(curToNext.x() * curToNext.x() + curToNext.y() * curToNext.y());
+    float curToNextNormalizer = 1.f / Length(curToNext);
     curToNext.setX(curToNextNormalizer * curToNext.x());
     curToNext.setY(curToNextNormalizer * curToNext.y());
     
     QPointF prevToCurRight(halfLineWidth * -prevToCur.y(), halfLineWidth * prevToCur.x());
+    
+    // Special cases for the ends of open paths.
+    if (!closed && i == 0) {
+      QPointF curToNextRight(halfLineWidth * -curToNext.y(), halfLineWidth * curToNext.x());
+      
+      // Vertex to the left of the line
+      vertexData[4 * i + 0] = vertices[thisVertex].x() - curToNextRight.x() + offset.x();
+      vertexData[4 * i + 1] = vertices[thisVertex].y() - curToNextRight.y() + offset.y();
+      
+      // Vertex to the right of the line
+      vertexData[4 * i + 2] = vertices[thisVertex].x() + curToNextRight.x() + offset.x();
+      vertexData[4 * i + 3] = vertices[thisVertex].y() + curToNextRight.y() + offset.y();
+      
+      continue;
+    } else if (!closed && i == vertices.size() - 1) {
+      // Vertex to the left of the line
+      vertexData[4 * i + 0] = vertices[thisVertex].x() - prevToCurRight.x() + offset.x();
+      vertexData[4 * i + 1] = vertices[thisVertex].y() - prevToCurRight.y() + offset.y();
+      
+      // Vertex to the right of the line
+      vertexData[4 * i + 2] = vertices[thisVertex].x() + prevToCurRight.x() + offset.x();
+      vertexData[4 * i + 3] = vertices[thisVertex].y() + prevToCurRight.y() + offset.y();
+      
+      continue;
+    }
+    
     int bendDirection = ((prevToCurRight.x() * curToNext.x() + prevToCurRight.y() * curToNext.y()) > 0) ? 1 : -1;
     
     float halfBendAngle = std::max<float>(1e-4f, 0.5f * acos(std::max<float>(-1, std::min<float>(1, prevToCur.x() * -curToNext.x() + prevToCur.y() * -curToNext.y()))));
     float length = halfLineWidth / tan(halfBendAngle);
     
     // Vertex to the left of the line
-    vertexData[6 * i + 0] = vertices[thisVertex].x() - prevToCurRight.x() + bendDirection * length * prevToCur.x() + offset.x();
-    vertexData[6 * i + 1] = vertices[thisVertex].y() - prevToCurRight.y() + bendDirection * length * prevToCur.y() + offset.y();
-    vertexData[6 * i + 2] = 0;
+    vertexData[4 * i + 0] = vertices[thisVertex].x() - prevToCurRight.x() + bendDirection * length * prevToCur.x() + offset.x();
+    vertexData[4 * i + 1] = vertices[thisVertex].y() - prevToCurRight.y() + bendDirection * length * prevToCur.y() + offset.y();
     
     // Vertex to the right of the line
-    vertexData[6 * i + 3] = vertices[thisVertex].x() + prevToCurRight.x() - bendDirection * length * prevToCur.x() + offset.x();
-    vertexData[6 * i + 4] = vertices[thisVertex].y() + prevToCurRight.y() - bendDirection * length * prevToCur.y() + offset.y();
-    vertexData[6 * i + 5] = 0;
+    vertexData[4 * i + 2] = vertices[thisVertex].x() + prevToCurRight.x() - bendDirection * length * prevToCur.x() + offset.x();
+    vertexData[4 * i + 3] = vertices[thisVertex].y() + prevToCurRight.y() - bendDirection * length * prevToCur.y() + offset.y();
   }
   usize bufferSize = numVertices * elementSizeInBytes;
   PrepareBufferObject(bufferSize, f);
@@ -956,9 +981,9 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
   f->glUnmapBuffer(GL_ARRAY_BUFFER);
   CHECK_OPENGL_NO_ERROR();
   uiSingleColorShader->GetProgram()->SetPositionAttribute(
-      3,
+      2,
       GetGLType<float>::value,
-      3 * sizeof(float),
+      2 * sizeof(float),
       0,
       f);
   
@@ -1234,8 +1259,8 @@ void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object
                   ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
     }
     
-    RenderClosedPath(effectiveZoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, effectiveZoom * 2), f);
-    RenderClosedPath(effectiveZoom * 1.1f, color, outlineVertices, QPointF(0, 0), f);
+    RenderPath(effectiveZoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, effectiveZoom * 2), /*closed*/ true, f);
+    RenderPath(effectiveZoom * 1.1f, color, outlineVertices, QPointF(0, 0), /*closed*/ true, f);
   } else if (object->isUnit()) {
     ClientUnit& unit = *AsUnit(object);
     
@@ -1251,8 +1276,8 @@ void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object
                   ((viewMatrix[1] * outlineVertices[i].y() + viewMatrix[3]) * -0.5f + 0.5f) * height());
     }
     
-    RenderClosedPath(effectiveZoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, effectiveZoom * 2), f);
-    RenderClosedPath(effectiveZoom * 1.1f, color, outlineVertices, QPointF(0, 0), f);
+    RenderPath(effectiveZoom * 1.1f, qRgba(0, 0, 0, 255), outlineVertices, QPointF(0, effectiveZoom * 2), /*closed*/ true, f);
+    RenderPath(effectiveZoom * 1.1f, color, outlineVertices, QPointF(0, 0), /*closed*/ true, f);
   }
 }
 
@@ -1966,30 +1991,26 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
           uiScale * 2*22);
       
       f->glBindBuffer(GL_ARRAY_BUFFER, popWhiteBackgroundPointBuffer.buffer);
-      f->glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(float), nullptr, GL_STREAM_DRAW);
+      f->glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(float), nullptr, GL_STREAM_DRAW);
       
       uiSingleColorShader->GetProgram()->UseProgram(f);
       f->glUniform4f(uiSingleColorShader->GetColorLocation(), 1.f, 1.f, 1.f, 1.f);
       
-      float* data = static_cast<float*>(f->glMapBufferRange(GL_ARRAY_BUFFER, 0, 12 * sizeof(float), GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT));
+      float* data = static_cast<float*>(f->glMapBufferRange(GL_ARRAY_BUFFER, 0, 8 * sizeof(float), GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT));
       data[0] = rect.x();
       data[1] = rect.y();
-      data[2] = 0;
-      data[3] = rect.right();
-      data[4] = rect.y();
-      data[5] = 0;
-      data[6] = rect.x();
+      data[2] = rect.right();
+      data[3] = rect.y();
+      data[4] = rect.x();
+      data[5] = rect.bottom();
+      data[6] = rect.right();
       data[7] = rect.bottom();
-      data[8] = 0;
-      data[9] = rect.right();
-      data[10] = rect.bottom();
-      data[11] = 0;
       f->glUnmapBuffer(GL_ARRAY_BUFFER);
       CHECK_OPENGL_NO_ERROR();
       uiSingleColorShader->GetProgram()->SetPositionAttribute(
-          3,
+          2,
           GetGLType<float>::value,
-          3 * sizeof(float),
+          2 * sizeof(float),
           0,
           f);
       
@@ -2069,6 +2090,126 @@ void RenderWindow::RenderMinimap(double secondsSinceLastFrame, QOpenGLFunctions_
   
   // Render the minimap
   minimap->Render(topLeft, uiScale, minimapShader, f);
+  
+  // Render the frame showing the (approximate) bounds of the current view on the minimap
+  QPointF projectedCoordAtScreenCenter = map->MapCoordToProjectedCoord(scroll) + scrollProjectedCoordOffset;
+  QPointF screenCenterMapCoord;
+  if (!map->ProjectedCoordToMapCoord(projectedCoordAtScreenCenter, &screenCenterMapCoord)) {
+    screenCenterMapCoord = scroll;
+  }
+  
+  float frameCenterX;
+  float frameCenterY;
+  minimap->MapCoordToScreen(screenCenterMapCoord.x(), screenCenterMapCoord.y(), topLeft, uiScale, map.get(), &frameCenterX, &frameCenterY);
+  
+  QPointF corners[4];
+  minimap->GetMinimapCorners(topLeft, uiScale, corners);
+  const QPointF& top = corners[0];
+  const QPointF& right = corners[1];
+  const QPointF& bottom = corners[2];
+  const QPointF& left = corners[3];
+  
+  // NOTE: Assuming the same scaling for x and y (i.e., map width == map height).
+  float minimapScaling = Length(top - left) / Length(map->MapCoordToProjectedCoord(QPointF(0, map->GetHeight())));
+  
+  float halfScreenWidthOnMinimap = minimapScaling * 0.5f * projectedCoordsViewRect.width();
+  float halfScreenHeightOnMinimap = minimapScaling * 0.5f * projectedCoordsViewRect.height();
+  
+  std::vector<QPointF> vertices(2);
+  QPointF topLeftCorner = QPointF(frameCenterX - halfScreenWidthOnMinimap, frameCenterY - halfScreenHeightOnMinimap);
+  QPointF topRightCorner = QPointF(frameCenterX + halfScreenWidthOnMinimap, frameCenterY - halfScreenHeightOnMinimap);
+  QPointF bottomLeftCorner = QPointF(frameCenterX - halfScreenWidthOnMinimap, frameCenterY + halfScreenHeightOnMinimap);
+  QPointF bottomRightCorner = QPointF(frameCenterX + halfScreenWidthOnMinimap, frameCenterY + halfScreenHeightOnMinimap);
+  QPointF shadowOffset = uiScale * QPointF(2, 2);
+  
+  QPointF leftToTop_right = RightVector(top - left);
+  QPointF topToRight_right = RightVector(right - top);
+  QPointF rightToBottom_right = RightVector(bottom - right);
+  QPointF bottomToLeft_right = RightVector(left - bottom);
+  
+  auto clamp = [&](const QPointF& input, float xDir, float yDir) {
+    QPointF result = input;
+    
+    // Clamp by top-left edge of minimap?
+    if (Dot(leftToTop_right, input - left) < 0) {
+      IntersectLines(result, QPointF(xDir, yDir), left, top - left, &result);
+    }
+    
+    // Clamp by top-right edge of minimap?
+    if (Dot(topToRight_right, input - top) < 0) {
+      IntersectLines(result, QPointF(xDir, yDir), top, right - top, &result);
+    }
+    
+    // Clamp by bottom-right edge of minimap?
+    if (Dot(rightToBottom_right, input - right) < 0) {
+      IntersectLines(result, QPointF(xDir, yDir), right, bottom - right, &result);
+    }
+    
+    // Clamp by bottom-left edge of minimap?
+    if (Dot(bottomToLeft_right, input - bottom) < 0) {
+      IntersectLines(result, QPointF(xDir, yDir), bottom, left - bottom, &result);
+    }
+    
+    return result;
+  };
+  
+  // --- Shadow ---
+  // Left edge
+  if ((topLeftCorner + shadowOffset).x() >= left.x()) {
+    vertices[0] = clamp(topLeftCorner + shadowOffset, 0, 1);
+    vertices[1] = clamp(bottomLeftCorner + shadowOffset, 0, -1);
+    RenderPath(uiScale * 2.f, qRgba(0, 0, 0, 255), vertices, QPointF(0, 0), /*closed*/ false, f);
+  }
+  
+  // Right edge
+  if ((topRightCorner + shadowOffset).x() <= right.x()) {
+    vertices[0] = clamp(topRightCorner + shadowOffset, 0, 1);
+    vertices[1] = clamp(bottomRightCorner + shadowOffset, 0, -1);
+    RenderPath(uiScale * 2.f, qRgba(0, 0, 0, 255), vertices, QPointF(0, 0), /*closed*/ false, f);
+  }
+  
+  // Top edge
+  if ((topLeftCorner + shadowOffset).y() >= top.y()) {
+    vertices[0] = clamp(topLeftCorner + shadowOffset, 1, 0);
+    vertices[1] = clamp(topRightCorner + shadowOffset, -1, 0);
+    RenderPath(uiScale * 2.f, qRgba(0, 0, 0, 255), vertices, QPointF(0, 0), /*closed*/ false, f);
+  }
+  
+  // Bottom edge
+  if ((bottomLeftCorner + shadowOffset).y() <= bottom.y()) {
+    vertices[0] = clamp(bottomLeftCorner + shadowOffset, 1, 0);
+    vertices[1] = clamp(bottomRightCorner + shadowOffset, -1, 0);
+    RenderPath(uiScale * 2.f, qRgba(0, 0, 0, 255), vertices, QPointF(0, 0), /*closed*/ false, f);
+  }
+  
+  // --- Frame ---
+  // Left edge
+  if (topLeftCorner.x() >= left.x()) {
+    vertices[0] = clamp(topLeftCorner, 0, 1);
+    vertices[1] = clamp(bottomLeftCorner, 0, -1);
+    RenderPath(uiScale * 2.f, qRgba(255, 255, 255, 255), vertices, QPointF(0, 0), /*closed*/ false, f);
+  }
+  
+  // Right edge
+  if (topRightCorner.x() <= right.x()) {
+    vertices[0] = clamp(topRightCorner, 0, 1);
+    vertices[1] = clamp(bottomRightCorner, 0, -1);
+    RenderPath(uiScale * 2.f, qRgba(255, 255, 255, 255), vertices, QPointF(0, 0), /*closed*/ false, f);
+  }
+  
+  // Top edge
+  if (topLeftCorner.y() >= top.y()) {
+    vertices[0] = clamp(topLeftCorner, 1, 0);
+    vertices[1] = clamp(topRightCorner, -1, 0);
+    RenderPath(uiScale * 2.f, qRgba(255, 255, 255, 255), vertices, QPointF(0, 0), /*closed*/ false, f);
+  }
+  
+  // Bottom edge
+  if (bottomLeftCorner.y() <= bottom.y()) {
+    vertices[0] = clamp(bottomLeftCorner, 1, 0);
+    vertices[1] = clamp(bottomRightCorner, -1, 0);
+    RenderPath(uiScale * 2.f, qRgba(255, 255, 255, 255), vertices, QPointF(0, 0), /*closed*/ false, f);
+  }
 }
 
 QPointF RenderWindow::GetSelectionPanelTopLeft() {
@@ -3581,8 +3722,8 @@ void RenderWindow::paintGL() {
     vertices[2] = lastCursorPos;
     vertices[3] = QPointF(lastCursorPos.x(), dragStartPos.y());
     
-    RenderClosedPath(1.1f, qRgba(0, 0, 0, 255), vertices, QPointF(2, 2), f);
-    RenderClosedPath(1.1f, qRgba(255, 255, 255, 255), vertices, QPointF(0, 0), f);
+    RenderPath(1.1f, qRgba(0, 0, 0, 255), vertices, QPointF(2, 2), /*closed*/ true, f);
+    RenderPath(1.1f, qRgba(255, 255, 255, 255), vertices, QPointF(0, 0), /*closed*/ true, f);
   }
   
   selectionBoxTimer.Stop();

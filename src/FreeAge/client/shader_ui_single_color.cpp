@@ -14,10 +14,10 @@ UISingleColorShader::UISingleColorShader() {
   
   CHECK(program->AttachShader(
       "#version 330 core\n"
-      "in vec3 in_position;\n"
+      "in vec2 in_position;\n"
       "uniform mat2 u_viewMatrix;\n"
       "void main() {\n"
-      "  gl_Position = vec4(u_viewMatrix[0][0] * in_position.x + u_viewMatrix[1][0], u_viewMatrix[0][1] * in_position.y + u_viewMatrix[1][1], in_position.z, 1);\n"
+      "  gl_Position = vec4(u_viewMatrix[0][0] * in_position.x + u_viewMatrix[1][0], u_viewMatrix[0][1] * in_position.y + u_viewMatrix[1][1], 0, 1);\n"
       "}\n",
       ShaderProgram::ShaderType::kVertexShader, f));
   
