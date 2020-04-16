@@ -95,6 +95,7 @@ class Map {
   inline const std::unordered_map<u32, ClientObject*>& GetObjects() const { return objects; }
   
   void AddObject(u32 objectId, ClientObject* object);
+  void DeleteObject(u32 objectId);
   
   bool IsUnitInFogOfWar(ClientUnit* unit);
   bool IsBuildingInFogOfWar(ClientBuilding* building);
