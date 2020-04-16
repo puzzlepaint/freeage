@@ -87,6 +87,14 @@ class RenderWindow : public QOpenGLWindow {
   
  protected:
   void CreatePlayerColorPaletteTexture();
+  
+  /// Helper to prepare a buffer in the GL_ARRAY_BUFFER target with *at least* the given size in bytes,
+  /// which has not been used before in rendering the current frame (meaning that it can be mapped without synchronization).
+  ///
+  /// IMPORTANT: The returned buffer may be larger than requested, and it must not be shrunk!
+  /// Otherwise, PrepareBufferObject() will assume that the buffer is larger than it actually is,
+  /// which may cause a crash later. So, *never* use glBufferData() on the returned buffer!
+  /// Instead, use glBufferSubData() or glMapBufferRange().
   usize PrepareBufferObject(usize size, QOpenGLFunctions_3_2_Core* f);
   
   void ComputePixelToOpenGLMatrix(QOpenGLFunctions_3_2_Core* f);
@@ -427,8 +435,6 @@ class RenderWindow : public QOpenGLWindow {
   // Resources.
   bool haveSyncObject = false;
   GLsync syncObject;
-  
-  GLuint pointBuffer;
   
   // Generic list of vertex buffer objects
   struct BufferObject {

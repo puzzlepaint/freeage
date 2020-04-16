@@ -268,7 +268,7 @@ SpriteShader::~SpriteShader() {
   program.reset();
 }
 
-void SpriteShader::UseProgram(QOpenGLFunctions_3_2_Core* f) {
+void SpriteShader::UseProgramAndSetAttribPointers(QOpenGLFunctions_3_2_Core* f) {
   program->UseProgram(f);
   
   usize offset = 0;

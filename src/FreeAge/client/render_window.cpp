@@ -782,6 +782,13 @@ usize RenderWindow::PrepareBufferObject(usize size, QOpenGLFunctions_3_2_Core* f
   
   f->glBindBuffer(GL_ARRAY_BUFFER, bufferObjects[nextBufferObject].name);
   
+  // For debugging:
+  // GLint actualBufferSize;
+  // f->glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &actualBufferSize);
+  // if (actualBufferSize != static_cast<int>(bufferObjects[nextBufferObject].size)) {
+  //   LOG(FATAL) << "Actual buffer size (" << actualBufferSize << ") differs from expected size (" << bufferObjects[nextBufferObject].size << ")";
+  // }
+  
   if (bufferObjects[nextBufferObject].size < size) {
     f->glBufferData(GL_ARRAY_BUFFER, size, nullptr, GL_STREAM_DRAW);
     bufferObjects[nextBufferObject].size = size;
@@ -859,13 +866,13 @@ void RenderWindow::UpdateView(const TimePoint& now, QOpenGLFunctions_3_2_Core* f
     
     // Apply the view transformation to all shaders.
     // TODO: Use a uniform buffer object for that.
-    spriteShader->UseProgram(f);
+    spriteShader->GetProgram()->UseProgram(f);
     spriteShader->GetProgram()->SetUniformMatrix2fv(spriteShader->GetViewMatrixLocation(), viewMatrix, true, f);
     
-    shadowShader->UseProgram(f);
+    shadowShader->GetProgram()->UseProgram(f);
     shadowShader->GetProgram()->SetUniformMatrix2fv(shadowShader->GetViewMatrixLocation(), viewMatrix, true, f);
     
-    outlineShader->UseProgram(f);
+    outlineShader->GetProgram()->UseProgram(f);
     outlineShader->GetProgram()->SetUniformMatrix2fv(outlineShader->GetViewMatrixLocation(), viewMatrix, true, f);
     
     healthBarShader->GetProgram()->UseProgram(f);
@@ -958,11 +965,11 @@ void RenderWindow::RenderClosedPath(float halfLineWidth, const QRgb& color, cons
   // Draw lines.
   f->glDrawArrays(GL_TRIANGLE_STRIP, 0, numVertices);
   CHECK_OPENGL_NO_ERROR();
-  
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);  // TODO: remove this
 }
 
 void RenderWindow::RenderSprites(std::vector<Texture*>* textures, const std::shared_ptr<SpriteShader>& shader, QOpenGLFunctions_3_2_Core* f) {
+  shader->GetProgram()->UseProgram(f);
+  
   for (Texture* texture : *textures) {
     // Bind the texture
     f->glBindTexture(GL_TEXTURE_2D, texture->GetId());
@@ -975,25 +982,22 @@ void RenderWindow::RenderSprites(std::vector<Texture*>* textures, const std::sha
     } else {
       usize bufferSize = texture->DrawCallBuffer().size();
       PrepareBufferObject(bufferSize, f);
-      shader->UseProgram(f);  // TODO: We only need to set up the vertex attributes again after changing the GL_ARRAY_BUFFER buffer; we would not need to "use" the program again
       
       void* data = f->glMapBufferRange(GL_ARRAY_BUFFER, 0, bufferSize, GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
       memcpy(data, texture->DrawCallBuffer().data(), bufferSize);
       f->glUnmapBuffer(GL_ARRAY_BUFFER);
+      
+      shader->UseProgramAndSetAttribPointers(f);  // TODO: We only need to set up the vertex attributes again after changing the GL_ARRAY_BUFFER buffer; we would not need to "use" the program again
       
       f->glDrawArrays(GL_POINTS, 0, bufferSize / vertexSize);
     }
     
     texture->DrawCallBuffer().clear();
   }
-  
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);  // TODO: remove this
 }
 
 void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
-  
-  shadowShader->UseProgram(f);
   
   std::vector<Texture*> textures;
   textures.reserve(64);
@@ -1075,7 +1079,7 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
 }
 
 void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsThatCauseOutlines, QOpenGLFunctions_3_2_Core* f) {
-  spriteShader->UseProgram(f);
+  spriteShader->GetProgram()->UseProgram(f);
   
   Timer preparationTimer("RenderBuildings() preparation");
   
@@ -1134,7 +1138,7 @@ void RenderWindow::RenderBuildings(double displayedServerTime, bool buildingsTha
 }
 
 void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
-  spriteShader->UseProgram(f);
+  spriteShader->GetProgram()->UseProgram(f);
   
   QPoint foundationBaseTile(-1, -1);
   bool canBePlacedHere = CanBuildingFoundationBePlacedHere(constructBuildingType, lastCursorPos, &foundationBaseTile);
@@ -1255,7 +1259,7 @@ void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object
 void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   
-  outlineShader->UseProgram(f);
+  outlineShader->GetProgram()->UseProgram(f);
   
   std::vector<Texture*> textures;
   textures.reserve(64);
@@ -1358,7 +1362,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
 }
 
 void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_Core* f) {
-  spriteShader->UseProgram(f);
+  spriteShader->GetProgram()->UseProgram(f);
   
   std::vector<Texture*> textures;
   textures.reserve(64);
@@ -1403,7 +1407,7 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
 }
 
 void RenderWindow::RenderMoveToMarker(const TimePoint& now, QOpenGLFunctions_3_2_Core* f) {
-  spriteShader->UseProgram(f);
+  spriteShader->GetProgram()->UseProgram(f);
   
   float effectiveZoom = ComputeEffectiveZoom();
   
@@ -1476,6 +1480,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions
           kHealthBarWidth,
           kHealthBarHeight);
       if (barRect.intersects(projectedCoordsViewRect)) {
+        PrepareBufferObject(3 * sizeof(float), f);
         RenderHealthBar(
             barRect,
             centerProjectedCoord.y(),
@@ -1505,6 +1510,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions
           kHealthBarWidth,
           kHealthBarHeight);
       if (barRect.intersects(projectedCoordsViewRect)) {
+        PrepareBufferObject(3 * sizeof(float), f);
         RenderHealthBar(
             barRect,
             centerProjectedCoord.y(),
@@ -1530,7 +1536,7 @@ void RenderWindow::RenderOccludingDecals(QOpenGLFunctions_3_2_Core* f) {
 }
 
 void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_2_Core* f) {
-  spriteShader->UseProgram(f);
+  spriteShader->GetProgram()->UseProgram(f);
   
   std::vector<Texture*> textures;
   textures.reserve(64);
@@ -1577,7 +1583,7 @@ void RenderWindow::RenderDecals(std::vector<Decal*>& decals, QOpenGLFunctions_3_
 }
 
 void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
-  shadowShader->UseProgram(f);
+  shadowShader->GetProgram()->UseProgram(f);
   
   std::vector<Texture*> textures;
   textures.reserve(64);
@@ -1624,7 +1630,7 @@ void RenderWindow::RenderOccludingDecalShadows(QOpenGLFunctions_3_2_Core* f) {
 }
 
 void RenderWindow::RenderOccludingDecalOutlines(QOpenGLFunctions_3_2_Core* f) {
-  outlineShader->UseProgram(f);
+  outlineShader->GetProgram()->UseProgram(f);
   
   std::vector<Texture*> textures;
   textures.reserve(64);
@@ -2053,7 +2059,7 @@ void RenderWindow::RenderMinimap(double secondsSinceLastFrame, QOpenGLFunctions_
       *minimapPanel.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
-  // Update minimap?
+  // Update the minimap?
   timeSinceLastMinimapUpdate += secondsSinceLastFrame;
   if (timeSinceLastMinimapUpdate >= minimapUpdateInterval) {
     timeSinceLastMinimapUpdate = fmod(timeSinceLastMinimapUpdate, minimapUpdateInterval);
@@ -2061,7 +2067,7 @@ void RenderWindow::RenderMinimap(double secondsSinceLastFrame, QOpenGLFunctions_
     minimap->Update(map.get(), playerColors, f);
   }
   
-  // Render minimap
+  // Render the minimap
   minimap->Render(topLeft, uiScale, minimapShader, f);
 }
 
@@ -3260,15 +3266,6 @@ void RenderWindow::initializeGL() {
   uiSingleColorFullscreenShader.reset(new UISingleColorFullscreenShader());
   minimapShader.reset(new MinimapShader());
   
-  // Create a buffer containing a single point for sprite rendering. TODO: Remove this
-  f->glGenBuffers(1, &pointBuffer);
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
-  int elementSizeInBytes = 3 * sizeof(float);
-  float data[] = {
-      0.f, 0.f, 0};
-  f->glBufferData(GL_ARRAY_BUFFER, 1 * elementSizeInBytes, data, GL_STREAM_DRAW);
-  CHECK_OPENGL_NO_ERROR();
-  
   // Load the loading icon.
   loadingIcon.Load(GetModdedPath(graphicsSubPath.parent_path().parent_path() / "wpfg" / "resources" / "campaign" / "campaign_icon_2swords.png"));
   
@@ -3309,9 +3306,6 @@ void RenderWindow::paintGL() {
     f->glDeleteSync(syncObject);
     haveSyncObject = false;
   }
-  
-  // By default, use pointBuffer as the array buffer
-  f->glBindBuffer(GL_ARRAY_BUFFER, pointBuffer);
   
   // Render loading screen?
   if (isLoading) {
