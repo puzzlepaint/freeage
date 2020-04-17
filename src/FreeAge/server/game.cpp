@@ -335,8 +335,15 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
   const char* data = msg.data();
   
   BuildingType type = static_cast<BuildingType>(mango::uload16(data + 3));
-  // TODO: Check whether the player is allowed to build this type of building
-  
+
+  // check whether the player is allowed to build this type of building
+  int max = GetBuildingMaxInstances(type);
+  bool maxReached = max != -1 && player->stats.GetBuildingTypeCount(type) >= max;
+  if (maxReached) {
+    LOG(ERROR) << "Received a PlaceBuildingFoundation message for which the player cannot build";
+    return;
+  }
+
   QSize foundationSize = GetBuildingSize(type);
   QPoint baseTile(
       mango::uload16(data + 5),
@@ -407,6 +414,8 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
   u32 newBuildingId;
   ServerBuilding* newBuildingFoundation = map->AddBuilding(player->index, type, baseTile, /*buildPercentage*/ 0, &newBuildingId, /*addOccupancy*/ false);
   
+  player->stats.BuildingAdded(type, false);
+
   QByteArray addObjectMsg = CreateAddObjectMessage(newBuildingId, newBuildingFoundation);
   accumulatedMessages[player->index] += addObjectMsg;
   
@@ -474,7 +483,7 @@ void Game::HandleDequeueProductionQueueItemMessage(const QByteArray& msg, Player
   
   // Adjust population count (if relevant).
   if (queueIndex == 0 && building->GetProductionPercentage() > 0) {
-    playersInGame->at(building->GetPlayerIndex())->populationIncludingInProduction -= 1;
+    playersInGame->at(building->GetPlayerIndex())->stats.populationInProduction -= 1;
   }
   
   // Remove the item from the queue.
@@ -668,7 +677,7 @@ void Game::StartGame() {
     player->socket->write(mapUncoverMsg);
   }
   
-  // Send creation messages for the initial map objects and count initial population
+  // Send creation messages for the initial map objects and update stats
   const auto& objects = map->GetObjects();
   for (const auto& item : objects) {
     ServerObject* object = item.second;
@@ -680,11 +689,9 @@ void Game::StartGame() {
     
     if (object->isBuilding()) {
       ServerBuilding* building = AsBuilding(object);
-      if (building->GetPlayerIndex() != kGaiaPlayerIndex) {
-        playersInGame->at(building->GetPlayerIndex())->availablePopulationSpace += GetBuildingProvidedPopulationSpace(building->GetBuildingType());
-      }
+      GetPlayerStats(building->GetPlayerIndex())->BuildingAdded(building->GetBuildingType(), true);
     } else if (object->isUnit()) {
-      playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction += 1;
+      GetPlayerStats(object->GetPlayerIndex())->UnitAdded(AsUnit(object)->GetUnitType());
     }
   }
   for (auto& player : *playersInGame) {
@@ -692,6 +699,10 @@ void Game::StartGame() {
   }
   
   LOG(INFO) << "Server: Game start prepared";
+  gaiStats.log();
+  for (auto& player : *playersInGame) {
+    player->stats.log();
+  }
 }
 
 void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds) {
@@ -1083,7 +1094,7 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
     if (newPercentage == 100 && targetBuilding->GetBuildPercentage() != 100) {
       // Building completed.
       if (targetBuilding->GetPlayerIndex() != kGaiaPlayerIndex) {
-        playersInGame->at(targetBuilding->GetPlayerIndex())->availablePopulationSpace += GetBuildingProvidedPopulationSpace(targetBuilding->GetBuildingType());
+        GetPlayerStats(targetBuilding->GetPlayerIndex())->BuildingFinished(targetBuilding->GetBuildingType());
       }
     }
     targetBuilding->SetBuildPercentage(newPercentage);
@@ -1236,7 +1247,7 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
     float previousPercentage = building->GetProductionPercentage();
     if (previousPercentage == 0) {
       // Only start producing the unit if population space is available.
-      canProduce = player.populationIncludingInProduction < player.availablePopulationSpace;
+      canProduce = player.stats.GetPopulationCountIncludingInProduction() < player.stats.GetAvailablePopulationSpace();
       if (!canProduce) {
         player.isHoused = true;
       }
@@ -1250,7 +1261,7 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
       bool completed = false;
       if (newPercentage >= 100) {
         // Remove the population count for the unit in production.
-        player.populationIncludingInProduction -= 1;
+        player.stats.populationInProduction -= 1;
         
         // Special case for UnitType::MaleVillager: Randomly decide whether to produce a male or female.
         if (unitInProduction == UnitType::MaleVillager) {
@@ -1272,7 +1283,7 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
         accumulatedMessages[building->GetPlayerIndex()] += CreateUpdateProductionMessage(buildingId, building->GetProductionPercentage(), 100.f / productionTime);
         
         // Add the population count for the unit in production.
-        player.populationIncludingInProduction += 1;
+        player.stats.populationInProduction += 1;
       }
     }
   }
@@ -1426,8 +1437,7 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
     accumulatedMessages[player->index] += addObjectMsg;
   }
   
-  // Handle population counting
-  playersInGame->at(newUnit->GetPlayerIndex())->populationIncludingInProduction += 1;
+  GetPlayerStats(newUnit->GetPlayerIndex())->UnitAdded(unitInProduction);
 }
 
 void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting) {
@@ -1446,6 +1456,7 @@ void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 
     unit->SetTarget(targetId, targetObject, isManualTargeting);
     
     if (oldUnitType != unit->GetUnitType()) {
+      GetPlayerStats(playerIndex)->UnitTransformed(oldUnitType, unit->GetUnitType());
       // Notify all clients that see the unit about its change of type.
       QByteArray msg = CreateChangeUnitTypeMessage(id, unit->GetUnitType());
       for (auto& player : *playersInGame) {
@@ -1477,15 +1488,10 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   }
   ServerObject* object = it->second;
   
-  bool sendObjectDeathToOwningPlayerOnly = false;
-  if (object->isBuilding()) {
-    ServerBuilding* building = AsBuilding(object);
-    if (building->GetBuildPercentage() == 0) {
-      // For building foundations, only the player that owns them knows about the object.
-      // So we only need to send the object death message to this player.
-      sendObjectDeathToOwningPlayerOnly = true;
-    }
-  }
+  // For building foundations, only the player that owns them knows about the object.
+  // So we only need to send the object death message to this player.
+  bool isFoundation = object->isBuilding() && AsBuilding(object)->GetBuildPercentage() == 0;
+  bool sendObjectDeathToOwningPlayerOnly = isFoundation;
   
   QByteArray msg = CreateObjectDeathMessage(objectId);
   for (auto& player : *playersInGame) {
@@ -1518,19 +1524,16 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
       playersInGame->at(building->GetPlayerIndex())->resources.Add(GetUnitCost(building->GetProductionQueue()[queueIndex]));
     }
     if (building->GetProductionPercentage() > 0) {
-      playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction -= 1;
+      playersInGame->at(object->GetPlayerIndex())->stats.populationInProduction -= 1;
     }
   }
   
-  // Handle population counting.
+  // Handle player stats.
   if (object->isBuilding()) {
     ServerBuilding* building = AsBuilding(object);
-    if (building->GetPlayerIndex() != kGaiaPlayerIndex &&
-        building->GetBuildPercentage() == 100) {
-      playersInGame->at(building->GetPlayerIndex())->availablePopulationSpace -= GetBuildingProvidedPopulationSpace(building->GetBuildingType());
-    }
+    GetPlayerStats(building->GetPlayerIndex())->BuildingRemoved(building->GetBuildingType(), building->GetBuildPercentage() == 100);
   } else if (object->isUnit()) {
-    playersInGame->at(object->GetPlayerIndex())->populationIncludingInProduction -= 1;
+    GetPlayerStats(object->GetPlayerIndex())->UnitRemoved(AsUnit(object)->GetUnitType());
   }
   
   // If all objects of a player are gone, the player gets defeated.

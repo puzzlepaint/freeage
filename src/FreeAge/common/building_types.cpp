@@ -222,7 +222,6 @@ int GetBuildingMaxInstances(BuildingType type) {
   if (type == BuildingType::TownCenter) { // TODO: add wonder
     return 1;
   } else if (type >= BuildingType::House && type <= BuildingType::PalisadeGate) {
-    // TODO: use infinity instead of -1 ?
     return -1; // unlimited
   }
   return 0;

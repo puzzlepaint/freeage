@@ -63,7 +63,10 @@ bool IsDropOffPointForResource(BuildingType building, ResourceType resource);
 u32 GetBuildingMaxHP(BuildingType type);
 u32 GetBuildingMeleeArmor(BuildingType type);
 
+/// Returns the max number of the given building type that the player can build.
+/// Returns -1 if unlimited.
 /// TODO: This needs to consider the player's age.
+/// TODO: use infinity instead of -1 ?
 int GetBuildingMaxInstances(BuildingType type);
 
 int GetBuildingProvidedPopulationSpace(BuildingType type);

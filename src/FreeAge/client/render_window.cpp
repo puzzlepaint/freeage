@@ -270,6 +270,7 @@ bool RenderWindow::LoadResources() {
     emit LoadingProgressUpdated(static_cast<int>(100 * loadingStep / static_cast<float>(maxLoadingStep) + 0.5f));
   };
   
+  Timer timer("LoadResources()");
   LOG(1) << "LoadResource() start";
 
   const GLubyte* glVendor = f->glGetString(GL_VENDOR);
@@ -361,6 +362,7 @@ bool RenderWindow::LoadResources() {
   auto& unitTypes = ClientUnitType::GetUnitTypes();
   unitTypes.resize(static_cast<int>(UnitType::NumUnits));
   for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
+    Timer timer("LoadResources() - Load unit");
     if (!unitTypes[unitType].Load(static_cast<UnitType>(unitType), graphicsSubPath, cachePath, colorDilationShader.get(), palettes)) {
       LOG(ERROR) << "Exiting because of a resource load error for unit " << unitType << ".";
       emit LoadingError(tr("Failed to load unit type: %1. Aborting.").arg(unitType));
@@ -376,6 +378,7 @@ bool RenderWindow::LoadResources() {
   auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
   buildingTypes.resize(static_cast<int>(BuildingType::NumBuildings));
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
+    Timer timer("LoadResources() - Load building");
     if (!buildingTypes[buildingType].Load(static_cast<BuildingType>(buildingType), graphicsSubPath, cachePath, colorDilationShader.get(), palettes)) {
       LOG(ERROR) << "Exiting because of a resource load error for building " << buildingType << ".";
       emit LoadingError(tr("Failed to load building type: %1. Aborting.").arg(buildingType));
@@ -554,6 +557,8 @@ bool RenderWindow::LoadResources() {
   iconOverlayActiveTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "icon_overlay_active.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
+  timer.Stop();
+
   // Output timings of the resource loading processes and clear those statistics from further timing prints.
   LOG(INFO) << "Loading timings:";
   Timing::print(std::cout, kSortByTotal);
@@ -3195,7 +3200,7 @@ void RenderWindow::ShowEconomyBuildingCommandButtons() {
   commandButtons[0][4].SetBuilding(BuildingType::Dock, Qt::Key_T);
 
   if (gameController->GetBuildingTypeCount(BuildingType::TownCenter) != GetBuildingMaxInstances(BuildingType::TownCenter)) {
-    commandButtons[1][0].SetBuilding(BuildingType::TownCenter, Qt::Key_A);
+    commandButtons[2][0].SetBuilding(BuildingType::TownCenter, Qt::Key_Z);
   }
   
   commandButtons[2][3].SetAction(CommandButton::ActionType::ToggleBuildingsCategory, toggleBuildingsCategory.texture.get());

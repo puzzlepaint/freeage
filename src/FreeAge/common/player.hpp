@@ -46,13 +46,22 @@ struct PlayerStats {
   /// Called when a building construction is completeted.
   void BuildingFinished(BuildingType buildingType);
 
-  /// TODO: implement, note that research can add population space
+  /// TODO: implement, note that research can add population space.
   void ResearchCompleted(/* TODO */) {};
+
+  /// The population of the units that are currently being produced.
+  /// TODO: implement on the client, now only used by the server
+  int populationInProduction = 0;
 
   // getters
 
   inline int GetPopulationCount() const { return populationCount; }
   inline int GetAvailablePopulationSpace() const { return availablePopulationSpace; }
+
+  /// The current population count of this player,
+  /// *including units being produced*. This is required for "housed" checking,
+  /// and it is different from the population count shown to the client.
+  inline int GetPopulationCountIncludingInProduction() const { return populationCount + populationInProduction; }
 
   /// The number of buildings with the given type that have been constructred
   /// or are under construction.
