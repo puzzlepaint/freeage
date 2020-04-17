@@ -13,6 +13,7 @@
 
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/messages.hpp"
+#include "FreeAge/common/player.hpp"
 #include "FreeAge/common/resources.hpp"
 #include "FreeAge/server/map.hpp"
 #include "FreeAge/server/settings.hpp"
@@ -58,14 +59,9 @@ struct PlayerInGame {
   /// needs to be sent to the client.
   ResourceAmount lastResources;
   
-  /// The current available population space of this player.
-  int availablePopulationSpace = 0;
-  
-  /// The current population count of this player,
-  /// *including units being produced*. This is required for "housed" checking,
-  /// and it is different from the population count shown to the client.
-  int populationIncludingInProduction = 0;
-  
+  /// The current stats of the player
+  PlayerStats stats;
+
   /// Whether the player is currently housed.
   /// This is reset to false at the beginning of each game step and set to true
   /// if any of the player's buildings cannot produce something due to lack of population space.
@@ -129,7 +125,6 @@ class Game {
   
   void RemovePlayer(int playerIndex, PlayerExitReason reason);
   
-  
   /// Stores the game map and the objects on it.
   std::shared_ptr<ServerMap> map;
   
@@ -143,6 +138,11 @@ class Game {
   
   /// List of players in the game.
   std::vector<std::shared_ptr<PlayerInGame>>* playersInGame;
+
+  /// The Gai's stats
+  PlayerStats gaiStats;
+
+  inline PlayerStats* GetPlayerStats(int playerIndex) { return &(playerIndex == kGaiaPlayerIndex ? gaiStats : playersInGame->at(playerIndex)->stats); }
   
   /// Stores the object IDs that should be deleted at the end of the current
   /// game step. This list is required since we generally cannot directly delete
