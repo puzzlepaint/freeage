@@ -2622,9 +2622,11 @@ void RenderWindow::ShowMenu(bool show) {
   menuShown = show;
   
   if (menuShown) {
+    if (grabMouse) UngrabMouse();
     setCursor(defaultCursor);
     menuButtonResign.SetEnabled(match->GetThisPlayer().state == Match::PlayerState::Playing);
   } else {
+    if (grabMouse) GrabMouse();
     UpdateCursor();
   }
 }
@@ -4110,6 +4112,7 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
     if (pressedCommandButtonRow >= 0 &&
         pressedCommandButtonCol >= 0 &&
         match->IsPlayerStillInGame()) {
+      // TODO: pass if the shift key is pressed
       PressCommandButton(&commandButtons[pressedCommandButtonRow][pressedCommandButtonCol]);
       
       pressedCommandButtonRow = -1;

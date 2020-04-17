@@ -28,7 +28,7 @@ class GameController : public QObject {
   
   void ParseMessagesUntil(double displayedServerTime);
   
-  void ProduceUnit(const std::vector<u32>& selection, UnitType type);
+  void ProduceUnit(const std::vector<u32>& selection, UnitType type, int count);
   
   /// Returns the current resource amount of the player.
   inline const ResourceAmount& GetCurrentResourceAmount() { return playerResources; }
