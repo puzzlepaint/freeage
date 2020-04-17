@@ -270,7 +270,7 @@ bool RenderWindow::LoadResources() {
     emit LoadingProgressUpdated(static_cast<int>(100 * loadingStep / static_cast<float>(maxLoadingStep) + 0.5f));
   };
   
-  Timer timer("LoadResources()");
+  Timer loadResourcesTimer("LoadResources()");
   LOG(1) << "LoadResource() start";
 
   const GLubyte* glVendor = f->glGetString(GL_VENDOR);
@@ -557,8 +557,7 @@ bool RenderWindow::LoadResources() {
   iconOverlayActiveTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "icon_overlay_active.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
-  timer.Stop();
-
+  loadResourcesTimer.Stop();
   // Output timings of the resource loading processes and clear those statistics from further timing prints.
   LOG(INFO) << "Loading timings:";
   Timing::print(std::cout, kSortByTotal);
@@ -3089,8 +3088,8 @@ QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y(
   return true;
 }
 
-void RenderWindow::PressCommandButton(CommandButton* button) {
-  button->Pressed(selection, gameController.get());
+void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
+  button->Pressed(selection, gameController.get(), shift);
   
   // Handle building construction.
   if (button->GetType() == CommandButton::Type::ConstructBuilding &&
@@ -3869,7 +3868,10 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
         
         connection->Write(CreatePlaceBuildingFoundationMessage(constructBuildingType, foundationBaseTile, selectedVillagerIds));
         
-        constructBuildingType = BuildingType::NumBuildings;
+        if (!(event->modifiers() & Qt::ShiftModifier)) {
+          // only if shift is not pressed
+          constructBuildingType = BuildingType::NumBuildings;
+        }
         return;
       }
     }
@@ -4112,8 +4114,9 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
     if (pressedCommandButtonRow >= 0 &&
         pressedCommandButtonCol >= 0 &&
         match->IsPlayerStillInGame()) {
-      // TODO: pass if the shift key is pressed
-      PressCommandButton(&commandButtons[pressedCommandButtonRow][pressedCommandButtonCol]);
+
+      bool shift = event->modifiers() & Qt::ShiftModifier;
+      PressCommandButton(&commandButtons[pressedCommandButtonRow][pressedCommandButtonCol], shift);
       
       pressedCommandButtonRow = -1;
       pressedCommandButtonCol = -1;
@@ -4300,7 +4303,7 @@ void RenderWindow::keyReleaseEvent(QKeyEvent* event) {
       for (int col = 0; col < kCommandButtonCols; ++ col) {
         if (commandButtons[row][col].GetHotkey() != Qt::Key_unknown &&
             commandButtons[row][col].GetHotkey() == event->key()) {
-          PressCommandButton(&commandButtons[row][col]);
+          PressCommandButton(&commandButtons[row][col], event->modifiers() & Qt::ShiftModifier);
           
           pressedCommandButtonRow = -1;
           pressedCommandButtonCol = -1;

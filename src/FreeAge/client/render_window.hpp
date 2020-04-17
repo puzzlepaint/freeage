@@ -179,7 +179,7 @@ class RenderWindow : public QOpenGLWindow {
   /// coordinates of the building are returned in baseTile.
   bool CanBuildingFoundationBePlacedHere(BuildingType type, const QPointF& cursorPos, QPoint* baseTile);
   
-  void PressCommandButton(CommandButton* button);
+  void PressCommandButton(CommandButton* button, bool shift);
   
   void ShowDefaultCommandButtonsForSelection();
   void ShowEconomyBuildingCommandButtons();

@@ -52,7 +52,7 @@ class CommandButton {
       const Texture& iconOverlayNormalTexture,
       UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f);
   
-  void Pressed(const std::vector<u32>& selection, GameController* gameController);
+  void Pressed(const std::vector<u32>& selection, GameController* gameController, bool shift);
   
   /// Tests whether the given point is within the button. Only works correctly after the
   /// button has been rendered.

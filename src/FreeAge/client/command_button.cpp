@@ -93,13 +93,13 @@ void CommandButton::Render(
   buttonRect = QRectF(x, y, size, size);
 }
 
-void CommandButton::Pressed(const std::vector<u32>& selection, GameController* gameController) {
+void CommandButton::Pressed(const std::vector<u32>& selection, GameController* gameController, bool shift) {
   if (type == Type::Invisible) {
     LOG(ERROR) << "An invisible button has been pressed.";
     return;
   } else if (type == Type::ProduceUnit) {
     if (gameController->GetLatestKnownResourceAmount().CanAfford(GetUnitCost(unitProductionType))) {
-      int count = 1; // TODO: 5 if shift is down
+      int count = shift ? 5 : 1;
       gameController->ProduceUnit(selection, unitProductionType, count);
     }
   }
