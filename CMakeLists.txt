@@ -118,6 +118,7 @@ add_executable(FreeAgeServer
   src/FreeAge/server/map.cpp
   src/FreeAge/server/match_setup.cpp
   src/FreeAge/server/object.cpp
+  src/FreeAge/server/pathfinding.cpp
   src/FreeAge/server/unit.cpp
 )
 target_link_libraries(FreeAgeServer
