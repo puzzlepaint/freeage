@@ -8,24 +8,42 @@
 #include "FreeAge/common/building_types.hpp"
 #include "FreeAge/common/unit_types.hpp"
 
+/// A collection of stats for a player.
+/// All of the stats can be reproduced from the game state, but they are kept track of here
+/// for performace and ease of access to them.
+///
+/// Extension to the game logic should go at the private *Change methods:
+///
+///   void UnfinishedBuildingChange(BuildingType buildingType, int d)
+///   void FinishedBuildingChange(BuildingType buildingType, int d)
+///   void UnitChange(UnitType unitType, bool death, int d)
+///   void Change()
+///
 struct PlayerStats {
  public:
 
   PlayerStats(); // TODO: pass the whatever the GetBuildingProvidedPopulationSpace will need
   ~PlayerStats();
 
+  /// Called when new building is added.
   void BuildingAdded(BuildingType buildingType, bool finished);
 
+  /// Called when new unit is added.
   void UnitAdded(UnitType unitType);
 
+  /// Called when a building is destroyed.
   void BuildingRemoved(BuildingType buildingType, bool finished);
 
+  /// Called when new unit is killed.
   void UnitRemoved(UnitType unitType);
 
+  /// Called when a building changes type.
   void BuildingTransformed(BuildingType fromBuildingType, BuildingType toBuildingType);
 
+  /// Called when a unit changes type.
   void UnitTransformed(UnitType fromUnitType, UnitType toUnitType);
 
+  /// Called when a building construction is completeted.
   void BuildingFinished(BuildingType buildingType);
 
   /// TODO: implement, note that research can add population space
@@ -48,22 +66,33 @@ struct PlayerStats {
     return buildingExisted[static_cast<int>(buildingType)];
   }
 
-private:
+  // debug
+
+  void log() const;
+
+ private:
 
   // core methods
 
+  /// Called when the number of unfinished buildings change.
   void UnfinishedBuildingChange(BuildingType buildingType, int d);
 
+  /// Called when the number of finished buildings change.
   void FinishedBuildingChange(BuildingType buildingType, int d);
 
+  /// Called when the number of units change.
   void UnitChange(UnitType unitType, bool death, int d);
 
-  // TODO: change from arrays to maps if the sizeof(PlayerStats) gets too big
+  /// Called when something change.
+  void Change();
+
+  // TODO: change from arrays to maps if the sizeof(PlayerStats) gets too big ?
+  // TODO: merge array of ints to a single array of structs ?
 
   /// The number of units alive per unit type.
   int unitsAlive[static_cast<int>(UnitType::NumUnits)];
 
-  /// The number of units died per unit type
+  /// The number of units died per unit type.
   int unitsDied[static_cast<int>(UnitType::NumUnits)];
 
   /// The current population count.
