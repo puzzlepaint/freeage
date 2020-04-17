@@ -699,7 +699,7 @@ void Game::StartGame() {
   }
   
   LOG(INFO) << "Server: Game start prepared";
-  gaiStats.log();
+  gaiaStats.log();
   for (auto& player : *playersInGame) {
     player->stats.log();
   }

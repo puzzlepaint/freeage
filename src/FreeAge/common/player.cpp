@@ -4,6 +4,8 @@
 
 #include "FreeAge/common/player.hpp"
 
+#include <cassert>
+
 PlayerStats::PlayerStats() {
 
   for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <limits>
+
 #include <QObject>
 #include <QString>
 
@@ -50,6 +52,21 @@ struct ResourceAmount {
       }
     }
     return true;
+  }
+
+  /// Returns the number of time that the given resource amount can be subtracted from
+  /// this resource amount.
+  /// TODO: rename ?
+  inline int CanAffordTimes(const ResourceAmount& other) const {
+    int min = std::numeric_limits<int>::max();
+    for (int i = 0; i < static_cast<int>(ResourceType::NumTypes); ++ i) {
+      if (other.resources[i] == 0) continue;
+      if (other.resources[i] > resources[i]) {
+        return 0;
+      }
+      min = std::min<int>(min, resources[i] / other.resources[i]);
+    }
+    return min;
   }
   
   inline void Add(const ResourceAmount& value) {
