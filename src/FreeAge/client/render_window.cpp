@@ -4163,7 +4163,11 @@ void RenderWindow::wheelEvent(QWheelEvent* event) {
       -2.f / (widgetHeight * viewMatrix[1]) * screenCoordDifference.y());
   
   QPointF newScreenCenterProjectedCoords = map->MapCoordToProjectedCoord(scroll) - requiredProjectedCoordDifference;
-  map->ProjectedCoordToMapCoord(newScreenCenterProjectedCoords, &scroll);
+  if (!map->ProjectedCoordToMapCoord(newScreenCenterProjectedCoords, &scroll) && smoothZooming) {
+    QPointF actualNewScreenCenterProjectedCoords = map->MapCoordToProjectedCoord(scroll);
+    scrollProjectedCoordOffset = ScreenCoordToProjectedCoord(0.5f * widgetWidth, 0.5f * widgetHeight) - actualNewScreenCenterProjectedCoords;
+    requiredProjectedCoordDifference = QPointF(0, 0);
+  }
   
   if (smoothZooming) {
     scrollProjectedCoordOffset += requiredProjectedCoordDifference;
