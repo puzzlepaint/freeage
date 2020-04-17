@@ -465,7 +465,10 @@ void GameController::HandleChangeUnitTypeMessage(const QByteArray& data) {
   }
   
   ClientUnit* unit = AsUnit(it->second);
+  UnitType oldType = unit->GetType();
   unit->SetType(newType);
+
+  playerStats.UnitTransformed(oldType, newType);
 }
 
 void GameController::HandleSetCarriedResourcesMessage(const QByteArray& data) {
