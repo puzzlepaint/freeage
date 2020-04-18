@@ -53,6 +53,7 @@ jobs:
     - name: deploy Qt
       run: |
         windeployqt build\Release\FreeAgeTest.exe
+        windeployqt build\Release\FreeAgeServer.exe
         windeployqt build\Release\FreeAge.exe
     - name: test
       run: cd build && ctest
