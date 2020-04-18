@@ -13,6 +13,7 @@
 #include "FreeAge/client/match.hpp"
 #include "FreeAge/client/render_window.hpp"
 #include "FreeAge/client/server_connection.hpp"
+#include "FreeAge/common/player.hpp"
 
 /// Handles the game on the client side:
 /// * Handles incoming messages from the server
@@ -38,11 +39,12 @@ class GameController : public QObject {
   // TODO: Remove? Does not seem really useful and we cannot get this unless we peek into messages just for it.
   inline const ResourceAmount& GetLatestKnownResourceAmount() { return /*latestKnownPlayerResources*/ playerResources; }
   
-  inline int GetPopulationCount() const { return populationCount; }
-  inline int GetAvailablePopulationSpace() const { return availablePopulationSpace; }
+  inline int GetPopulationCount() const { return playerStats.GetPopulationCount(); }
+  inline int GetAvailablePopulationSpace() const { return playerStats.GetAvailablePopulationSpace(); }
+  inline int GetBuildingTypeCount(BuildingType buildingType) const { return playerStats.GetBuildingTypeCount(buildingType); }
   
   inline bool IsPlayerHoused() const { return isHoused; }
-  
+
   inline double GetGameStartServerTimeSeconds() const { return gameStartServerTimeSeconds; }
   
   inline void SetLastDisplayedServerTime(double serverTime) { lastDisplayedServerTime = serverTime; }
@@ -85,14 +87,11 @@ class GameController : public QObject {
   
   /// The resources of the player.
   ResourceAmount playerResources;
-  
-  /// The current population count.
-  int populationCount = 0;
-  
-  /// The available population space.
-  int availablePopulationSpace = 0;
-  
-  /// Whether the player is currenly housed.
+
+  /// The current stats of the player
+  PlayerStats playerStats;
+
+  /// Whether the player is currently housed.
   bool isHoused = false;
   
   /// The last server time that has been used to display the game state in the render window.

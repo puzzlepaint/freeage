@@ -268,10 +268,12 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
     
     ClientBuilding* newBuilding = new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y(), buildPercentage, initialHP);
     map->AddObject(objectId, newBuilding);
-    if (playerIndex == match->GetPlayerIndex() && buildPercentage == 100) {
-      availablePopulationSpace += GetBuildingProvidedPopulationSpace(buildingType);
-      
-      newBuilding->UpdateFieldOfView(map.get(), 1);
+    if (playerIndex == match->GetPlayerIndex()) {
+      playerStats.BuildingAdded(buildingType, buildPercentage == 100);
+
+      if (buildPercentage == 100) {
+        newBuilding->UpdateFieldOfView(map.get(), 1);
+      }
     }
   } else if (objectType == ObjectType::Unit) {
     UnitType unitType = static_cast<UnitType>(mango::uload16(buffer + 10));
@@ -286,7 +288,7 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
     ClientUnit* newUnit = new ClientUnit(playerIndex, unitType, mapCoord, initialHP);
     map->AddObject(objectId, newUnit);
     if (playerIndex == match->GetPlayerIndex()) {
-      populationCount += 1;
+      playerStats.UnitAdded(newUnit->GetType());
       
       newUnit->UpdateFieldOfView(map.get(), 1);
     }
@@ -322,20 +324,23 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
       renderWindow->AddDecal(newDecal);
       
       if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
-        // Subtract the population space that this building gave.
-        availablePopulationSpace -= GetBuildingProvidedPopulationSpace(building->GetType());
-        
+        playerStats.BuildingRemoved(building->GetType(), true);
+
         object->UpdateFieldOfView(map.get(), -1);
       }
     } else {
       // TODO: Destruction animations for foundations
+
+      if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
+        playerStats.BuildingRemoved(building->GetType(), false);
+      }
     }
   } else if (object->isUnit()) {
     Decal* newDecal = new Decal(AsUnit(object), map.get(), currentGameStepServerTime);
     renderWindow->AddDecal(newDecal);
     
     if (object->GetPlayerIndex() == match->GetPlayerIndex()) {
-      populationCount -= 1;
+      playerStats.UnitRemoved(AsUnit(object)->GetType());
       
       object->UpdateFieldOfView(map.get(), -1);
     }
@@ -424,11 +429,11 @@ void GameController::HandleBuildPercentageUpdate(const QByteArray& data) {
   memcpy(&percentage, buffer + 4, 4);
   
   ClientBuilding* building = AsBuilding(it->second);
-  if (building->GetBuildPercentage() != 100 && percentage == 100) {
-    // The building has been completed.
-    if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
-      availablePopulationSpace += GetBuildingProvidedPopulationSpace(building->GetType());
-      
+  if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
+    if (building->GetBuildPercentage() != 100 && percentage == 100) {
+      // The building has been completed.
+      playerStats.BuildingFinished(building->GetType());
+
       building->UpdateFieldOfView(map.get(), 1);
     }
   }
@@ -460,7 +465,10 @@ void GameController::HandleChangeUnitTypeMessage(const QByteArray& data) {
   }
   
   ClientUnit* unit = AsUnit(it->second);
+  UnitType oldType = unit->GetType();
   unit->SetType(newType);
+
+  playerStats.UnitTransformed(oldType, newType);
 }
 
 void GameController::HandleSetCarriedResourcesMessage(const QByteArray& data) {
