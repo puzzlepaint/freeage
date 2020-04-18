@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 
 cmake_policy(SET CMP0054 NEW)
 
-project(FreeAge)
+project(FreeAge LANGUAGES CXX)
 
 include(CTest)
 
@@ -68,7 +68,6 @@ set_target_properties(gtest gtest_main PROPERTIES FOLDER "third_party")
 
 
 # FreeAge base library, used by both the application and the test
-# TODO: Unify cpp / cc spelling. Maybe also use hpp to make it clear for headers too that they are C++ code, not C code.
 add_library(FreeAgeLib
   src/FreeAge/common/building_types.cpp
   src/FreeAge/common/messages.cpp
