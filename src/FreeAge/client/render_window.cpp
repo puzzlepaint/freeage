@@ -4,6 +4,7 @@
 
 #include "FreeAge/client/render_window.hpp"
 
+#include <cassert>
 #include <math.h>
 
 #include <QApplication>
@@ -2465,6 +2466,10 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
       float buttonLeft = commandButtonsLeft + (commandButtonsRight - commandButtonSize - commandButtonsLeft) * (col / (kCommandButtonCols - 1.));
       float buttonTop = commandButtonsTop + (commandButtonsBottom - commandButtonSize - commandButtonsTop) * (row / (kCommandButtonRows - 1.));
       
+      if (commandButtons[row][col].GetType() == CommandButton::Type::Invisible) {
+        continue; // skip invisible buttons
+      }
+
       bool pressed =
           pressedCommandButtonRow == row &&
           pressedCommandButtonCol == col;
@@ -2473,17 +2478,15 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
           lastCursorPos.y() >= buttonTop &&
           lastCursorPos.x() < buttonLeft + commandButtonSize &&
           lastCursorPos.y() < buttonTop + commandButtonSize;
+      bool active = activeCommandButton == &commandButtons[row][col];
       
-      bool disabled = false;
-      if (commandButtons[row][col].GetType() == CommandButton::Type::ProduceUnit) {
-        disabled =
-            !gameController->GetLatestKnownResourceAmount().CanAfford(
-                GetUnitCost(commandButtons[row][col].GetUnitProductionType()));
-      } else if (commandButtons[row][col].GetType() == CommandButton::Type::ConstructBuilding) {
-        disabled =
-            !gameController->GetLatestKnownResourceAmount().CanAfford(
-                GetBuildingCost(commandButtons[row][col].GetBuildingConstructionType()));
+      CommandButton::State state = commandButtons[row][col].GetState(gameController.get());
+      if (state == CommandButton::State::MaxLimitReached ||
+          state == CommandButton::State::Researched ||
+          state == CommandButton::State::Locked) {
+        continue; // dont show
       }
+      bool disabled = state != CommandButton::State::Valid;
       
       commandButtons[row][col].Render(
           buttonLeft,
@@ -2491,7 +2494,7 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
           commandButtonSize,
           uiScale * 4,
           disabled ? *iconOverlayNormalExpensiveTexture :
-              (pressed ? *iconOverlayActiveTexture :
+              (pressed || active ? *iconOverlayActiveTexture :
                   (mouseOver ? *iconOverlayHoverTexture : *iconOverlayNormalTexture)),
           uiShader.get(), widgetWidth, widgetHeight, f);
     }
@@ -3089,11 +3092,21 @@ QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y(
 }
 
 void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
+
+  CommandButton::State state = button->GetState(gameController.get());
+  if (state != CommandButton::State::Valid) {
+    
+    ReportNonValidCommandButton(button, state);
+    return;
+  }
+  // The state of the command button is Valid.
+  
+  // TODO: merge code from RenderWindow::PressCommandButton and CommandButton::Pressed
   button->Pressed(selection, gameController.get(), shift);
   
   // Handle building construction.
-  if (button->GetType() == CommandButton::Type::ConstructBuilding &&
-      gameController->GetLatestKnownResourceAmount().CanAfford(GetBuildingCost(button->GetBuildingConstructionType()))) {
+  if (button->GetType() == CommandButton::Type::ConstructBuilding) {
+    activeCommandButton = button;
     constructBuildingType = button->GetBuildingConstructionType();
   }
   
@@ -3115,9 +3128,51 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
       break;
     case CommandButton::ActionType::Quit:
       ShowDefaultCommandButtonsForSelection();
+      activeCommandButton = nullptr;
       constructBuildingType = BuildingType::NumBuildings;
       break;
     }
+  }
+}
+
+void RenderWindow::ReportNonValidCommandButton(CommandButton* button, CommandButton::State state) {
+
+  if (state == CommandButton::State::CannotAfford) {
+    
+    QString name;
+    ResourceAmount cost;
+    if (button->GetType() == CommandButton::Type::ConstructBuilding) {
+      name = GetBuildingName(button->GetBuildingConstructionType());
+      cost = GetBuildingCost(button->GetBuildingConstructionType());
+    } else if (button->GetType() == CommandButton::Type::ProduceUnit) {
+      name = GetUnitName(button->GetUnitProductionType());
+      cost = GetUnitCost(button->GetUnitProductionType());
+    } else {
+      assert(false); // TODO: implement all CommandButton::Type which can have State::CannotAfford
+    }
+
+    // TODO: move from the log to the gui message system
+    LOG(INFO) << name.toStdString() << " is not affordable, missing: ";
+    // TODO: extract to function 
+    for (int i = 0; i < static_cast<int>(ResourceType::NumTypes); ++ i) {
+      u32 available = gameController->GetLatestKnownResourceAmount().resources[i];
+      u32 needed = cost.resources[i];
+      if (available < needed) {
+        LOG(INFO) << (needed - available) << " " << GetResourceName(static_cast<ResourceType>(i)).toStdString();
+      }
+    }
+
+  } else if (state == CommandButton::State::MaxLimitReached) {
+
+    QString name;
+    if (button->GetType() == CommandButton::Type::ConstructBuilding) {
+      name = GetBuildingName(button->GetBuildingConstructionType());
+    } else {
+      assert(false); // TODO: implement all CommandButton::Type which can have State::MaxLimitReached
+    }
+
+    // TODO: move from the log to the gui message system
+    LOG(INFO) << "Max limit reached for " << name.toStdString();
   }
 }
 
@@ -3200,9 +3255,7 @@ void RenderWindow::ShowEconomyBuildingCommandButtons() {
   commandButtons[0][3].SetBuilding(BuildingType::LumberCamp, Qt::Key_R);
   commandButtons[0][4].SetBuilding(BuildingType::Dock, Qt::Key_T);
 
-  if (gameController->GetBuildingTypeCount(BuildingType::TownCenter) != GetBuildingMaxInstances(BuildingType::TownCenter)) {
-    commandButtons[2][0].SetBuilding(BuildingType::TownCenter, Qt::Key_Z);
-  }
+  commandButtons[2][0].SetBuilding(BuildingType::TownCenter, Qt::Key_Z);
   
   commandButtons[2][3].SetAction(CommandButton::ActionType::ToggleBuildingsCategory, toggleBuildingsCategory.texture.get());
   commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quit.texture.get(), Qt::Key_Escape);
@@ -3848,6 +3901,20 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
     if (match->IsPlayerStillInGame() && constructBuildingType != BuildingType::NumBuildings) {
       ignoreLeftMouseRelease = true;
       
+      CommandButton::State state = activeCommandButton->GetState(gameController.get());
+      if (state != CommandButton::State::Valid) {
+        ReportNonValidCommandButton(activeCommandButton, state);
+      
+        if (state == CommandButton::State::CannotAfford) {
+          // remain in construction mode, player may want to wait until the construction is affordable
+        } else {
+          // exit construction mode 
+          activeCommandButton = nullptr;
+          constructBuildingType = BuildingType::NumBuildings;
+        }
+        return;
+      }
+
       QPoint foundationBaseTile;
       bool canBePlacedHere = CanBuildingFoundationBePlacedHere(constructBuildingType, lastCursorPos, &foundationBaseTile);
       if (canBePlacedHere) {
@@ -3868,8 +3935,10 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
         
         connection->Write(CreatePlaceBuildingFoundationMessage(constructBuildingType, foundationBaseTile, selectedVillagerIds));
         
-        if (!(event->modifiers() & Qt::ShiftModifier)) {
-          // only if shift is not pressed
+        bool shift = event->modifiers() & Qt::ShiftModifier;
+        if (!shift) {
+          // un-set constructBuildingType
+          activeCommandButton = nullptr;
           constructBuildingType = BuildingType::NumBuildings;
         }
         return;
@@ -4200,6 +4269,7 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
     if (!menuShown &&
         constructBuildingType != BuildingType::NumBuildings) {
       ShowDefaultCommandButtonsForSelection();
+      activeCommandButton = nullptr;
       constructBuildingType = BuildingType::NumBuildings;
       return;
     }
