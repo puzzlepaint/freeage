@@ -1,28 +1,66 @@
-name: C/C++ CI
+name: C/C++ CI 
 
-on: push
+on:
+  push:
+  release:
+    types: [created]
 
 jobs:
   build-linux:
+
     runs-on: ubuntu-latest
+
     steps:
     - name: setup
       run: sudo apt-get update && sudo apt-get install ninja-build gcc-8 qtbase5-dev libqt5x11extras5-dev
     - uses: actions/checkout@v2
     - name: make
-      run: mkdir build && cd build && CXX=/usr/bin/g++-8 cmake -DCMAKE_BUILD_TYPE=Release -GNinja .. && ninja
+      run: mkdir build && cd build && CXX=/usr/bin/g++-8 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja .. && ninja
+    - name: zip
+      if: github.event_name == 'release'
+      run: tar cvzf freeage.tar.gz build
+    - uses: actions/upload-artifact@v1
+      with:
+        name: freeage.tar.gz
+        path: freeage.tar.gz
+    - name: Upload binaries to release
+      if: github.event_name == 'release'
+      uses: svenstaro/upload-release-action@v1-release
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: freeage.tar.gz
+        asset_name: freeage-linux-x86_64.tar.gz
+        tag: ${{ github.ref }}
+        overwrite: true
+  
   
   build-windows:
     runs-on: windows-latest
+    
     steps:
     - uses: actions/checkout@v2
-    - name: install Qt
+    - name: Install Qt
       uses: jurplel/install-qt-action@v2
     - name: configure
       run: mkdir build && cd build && cmake ..
     - name: build
-      run: cmake --build build --config Release
-    - name: deploy Qt
-      run: windeployqt build\Release\FreeAgeTest.exe
+      run: cmake --build build --config Debug
     - name: test
       run: cd build && ctest
+    - name: zip
+      if: github.event_name == 'release'
+      run: Compress-Archive build freeage.zip 
+      shell: powershell
+    - uses: actions/upload-artifact@v1
+      with:
+        name: freeage.zip
+        path: freeage.zip
+    - name: Upload binaries to release
+      if: github.event_name == 'release'
+      uses: svenstaro/upload-release-action@v1-release
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: freeage.zip
+        asset_name: freeage-windows.zip
+        tag: ${{ github.ref }}
+        overwrite: true
