@@ -180,6 +180,7 @@ class RenderWindow : public QOpenGLWindow {
   bool CanBuildingFoundationBePlacedHere(BuildingType type, const QPointF& cursorPos, QPoint* baseTile);
   
   void PressCommandButton(CommandButton* button, bool shift);
+  void ReportNonValidCommandButton(CommandButton* button, CommandButton::State state);
   
   void ShowDefaultCommandButtonsForSelection();
   void ShowEconomyBuildingCommandButtons();
@@ -424,10 +425,19 @@ class RenderWindow : public QOpenGLWindow {
   bool commandButtonPressedByHotkey = false;
   
   bool showingEconomyBuildingCommandButtons = false;
+
+  // TODO: Somehow group constructBuildingType and activeCommandButton to avoid
+  // setting the one and not the other. Could also be generalized for other types of commands
+  // that need more input than a press of the button (eg. attack move, set gather point,
+  // garrison)
+
   /// The type of building that the user is about to place a foundation for.
   /// If not constructing a building, this is set to BuildingType::NumBuildings.
   BuildingType constructBuildingType = BuildingType::NumBuildings;
   
+  /// The command button which action is under way. Currently only of Type::ConstructBuilding.
+  CommandButton* activeCommandButton;
+
   // Control groups.
   static constexpr int kNumControlGroups = 10;
   std::vector<u32> controlGroups[kNumControlGroups];

@@ -54,6 +54,32 @@ void CommandButton::SetAction(ActionType actionType, const Texture* texture, Qt:
   this->texture = texture;
 }
 
+CommandButton::State CommandButton::GetState(GameController* gameController) const {
+
+  if (GetType() == CommandButton::Type::ProduceUnit) {
+    if (!gameController->GetLatestKnownResourceAmount().CanAfford(
+            GetUnitCost(GetUnitProductionType()))) {
+      return State::CannotAfford;
+    }
+
+  } else if (GetType() == CommandButton::Type::ConstructBuilding) {
+    BuildingType buildingType = GetBuildingConstructionType();
+
+    // Check for the max limit
+    int max = GetBuildingMaxInstances(buildingType);
+    if (max != -1 && gameController->GetBuildingTypeCount(buildingType) >= max) {
+      return State::MaxLimitReached;
+    }
+
+    // Can afford must be the last check
+    if (!gameController->GetLatestKnownResourceAmount().CanAfford(GetBuildingCost(buildingType))) {
+      return State::CannotAfford;
+    }
+  }
+
+  return State::Valid;
+}
+
 void CommandButton::Render(
     float x, float y, float size, float iconInset,
     const Texture& iconOverlayNormalTexture,
@@ -94,13 +120,13 @@ void CommandButton::Render(
 }
 
 void CommandButton::Pressed(const std::vector<u32>& selection, GameController* gameController, bool shift) {
+  // called only if state is Valid
+  
   if (type == Type::Invisible) {
     LOG(ERROR) << "An invisible button has been pressed.";
     return;
   } else if (type == Type::ProduceUnit) {
-    if (gameController->GetLatestKnownResourceAmount().CanAfford(GetUnitCost(unitProductionType))) {
-      int count = shift ? 5 : 1;
-      gameController->ProduceUnit(selection, unitProductionType, count);
-    }
+    int count = shift ? 5 : 1;
+    gameController->ProduceUnit(selection, unitProductionType, count);
   }
 }

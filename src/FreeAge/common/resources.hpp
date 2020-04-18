@@ -56,7 +56,6 @@ struct ResourceAmount {
 
   /// Returns the number of time that the given resource amount can be subtracted from
   /// this resource amount.
-  /// TODO: rename ?
   inline int CanAffordTimes(const ResourceAmount& other) const {
     int min = std::numeric_limits<int>::max();
     for (int i = 0; i < static_cast<int>(ResourceType::NumTypes); ++ i) {

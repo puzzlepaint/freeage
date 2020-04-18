@@ -30,6 +30,22 @@ class CommandButton {
     ToggleBuildingsCategory,
     Quit
   };
+
+  enum class State {
+    /// Valid and visible
+    Valid = 0,
+    /// Cannot be affored by the player, visible but disabled.
+    CannotAfford,
+    /// Max limit reached, not visible. (currently only the TownCenter can have this state)
+    MaxLimitReached,
+    /// Already researched, not visible.
+    Researched,
+    /// The requirements are not met, visible but disabled. (eg. "Advance age" without the
+    /// building requirements met)
+    VisibleLocked,
+    /// The requirements are not met, not visible. (eg. "Castle" in Dark age)
+    Locked
+  };
   
   void InitializePointBuffers();
   void UnloadPointBuffers();
@@ -47,6 +63,8 @@ class CommandButton {
   
   void SetAction(ActionType actionType, const Texture* texture, Qt::Key hotkey = Qt::Key_unknown);
   
+  State GetState(GameController* gameController) const;
+
   void Render(
       float x, float y, float size, float iconInset,
       const Texture& iconOverlayNormalTexture,

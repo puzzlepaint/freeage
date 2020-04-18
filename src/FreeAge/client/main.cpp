@@ -82,6 +82,7 @@ int main(int argc, char** argv) {
   
   // Parse command line options.
   QCommandLineParser parser;
+  parser.addHelpOption();
   
   QCommandLineOption noServerOption("no-server", QObject::tr("Do not start a server when hosting, but connect to an existing server process instead using the host token 'aaaaaa'."));
   parser.addOption(noServerOption);
