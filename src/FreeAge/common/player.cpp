@@ -7,7 +7,6 @@
 #include <cassert>
 
 PlayerStats::PlayerStats() {
-
   for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
     unitsAlive[unitType] = 0;
     unitsDied[unitType] = 0;
@@ -67,16 +66,16 @@ void PlayerStats::BuildingFinished(BuildingType buildingType) {
 // core methods
 
 void PlayerStats::UnfinishedBuildingChange(BuildingType buildingType, int d) {
-
   buildingConstructions[static_cast<int>(buildingType)] += d;
 
   Change();
 }
 
 void PlayerStats::FinishedBuildingChange(BuildingType buildingType, int d) {
-
   buildingAlive[static_cast<int>(buildingType)] += d;
-  if (d > 0) buildingExisted[static_cast<int>(buildingType)] = true;
+  if (d > 0) {
+    buildingExisted[static_cast<int>(buildingType)] = true;
+  }
 
   availablePopulationSpace += d * GetBuildingProvidedPopulationSpace(buildingType);
 
@@ -91,13 +90,14 @@ void PlayerStats::UnitChange(UnitType unitType, bool death, int d) {
   populationCount += d;
 
   unitsAlive[static_cast<int>(unitType)] += d;
-  if (death) unitsDied[static_cast<int>(unitType)] += -d;
+  if (death) {
+    unitsDied[static_cast<int>(unitType)] += -d;
+  }
 
   Change();
 }
 
 void PlayerStats::Change() {
-
   // log();
 }
 
@@ -105,7 +105,9 @@ void PlayerStats::log() const {
   LOG(INFO) << "--- Stats";
 
   for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
-    if (!unitsAlive[unitType] && !unitsDied[unitType]) continue;
+    if (!unitsAlive[unitType] && !unitsDied[unitType]) {
+      continue;
+    }
 
     LOG(INFO) << GetUnitName(static_cast<UnitType>(unitType)).toStdString() << "(" << unitType << ")"
         << " " << unitsAlive[unitType]
@@ -113,7 +115,9 @@ void PlayerStats::log() const {
   }
 
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
-    if (!buildingExisted[buildingType] && !buildingAlive[buildingType] && !buildingConstructions[buildingType]) continue;
+    if (!buildingExisted[buildingType] && !buildingAlive[buildingType] && !buildingConstructions[buildingType]) {
+      continue;
+    }
 
     LOG(INFO) << GetBuildingName(static_cast<BuildingType>(buildingType)).toStdString() << "(" << buildingType << ")"
         << " " << buildingExisted[buildingType]

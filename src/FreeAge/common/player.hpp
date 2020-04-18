@@ -118,5 +118,4 @@ struct PlayerStats {
 
   /// If a building has ever been constructed per building type.
   bool buildingExisted[static_cast<int>(BuildingType::NumBuildings)];
-
 };
