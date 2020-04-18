@@ -3112,6 +3112,13 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
   
   // "Action" buttons are handled here.
   if (button->GetType() == CommandButton::Type::Action) {
+
+    if (constructBuildingType != BuildingType::NumBuildings) {
+      // exit construction mode
+      activeCommandButton = nullptr;
+      constructBuildingType = BuildingType::NumBuildings;
+    }
+
     switch (button->GetActionType()) {
     case CommandButton::ActionType::BuildEconomyBuilding:
       ShowEconomyBuildingCommandButtons();
@@ -3128,8 +3135,6 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
       break;
     case CommandButton::ActionType::Quit:
       ShowDefaultCommandButtonsForSelection();
-      activeCommandButton = nullptr;
-      constructBuildingType = BuildingType::NumBuildings;
       break;
     }
   }
@@ -3952,6 +3957,15 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
     dragging = false;
   } else if (event->button() == Qt::RightButton &&
              !isUIClick) {
+
+    if (constructBuildingType != BuildingType::NumBuildings) {
+      // exit construction mode
+      activeCommandButton = nullptr;
+      constructBuildingType = BuildingType::NumBuildings;
+      // return in order to not process the right click as a unit command
+      return;
+    }
+
     QPointF projectedCoord = ScreenCoordToProjectedCoord(event->x(), event->y());
     QPointF mapCoord;
     bool haveMapCoord = map->ProjectedCoordToMapCoord(projectedCoord, &mapCoord);

@@ -31,6 +31,9 @@ class CommandButton {
     Quit
   };
 
+  /// The state of the command button describes if it's valid for the player to use it.
+  /// The state is either valid (with the State::Valid value) or invalid with a value
+  /// that describes the reason.
   enum class State {
     /// Valid and visible
     Valid = 0,

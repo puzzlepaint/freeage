@@ -436,7 +436,7 @@ class RenderWindow : public QOpenGLWindow {
   BuildingType constructBuildingType = BuildingType::NumBuildings;
   
   /// The command button which action is under way. Currently only of Type::ConstructBuilding.
-  CommandButton* activeCommandButton;
+  CommandButton* activeCommandButton = nullptr;
 
   // Control groups.
   static constexpr int kNumControlGroups = 10;
