@@ -390,7 +390,7 @@ void ServerMap::PlaceElevation(int tileX, int tileY, int elevationValue) {
 }
 
 bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord, ServerUnit** collidingUnit) {
-  float radius = GetUnitRadius(unit->GetUnitType());
+  float radius = GetUnitRadius(unit->GetType());
   
   // Test collision with the map bounds, accounting for NaNs with the negation
   if (!(mapCoord.x() >= radius &&
@@ -439,7 +439,7 @@ bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord, Serve
     if (object->isUnit() && object != unit) {
       ServerUnit* otherUnit = AsUnit(object);
       
-      float otherRadius = GetUnitRadius(otherUnit->GetUnitType());
+      float otherRadius = GetUnitRadius(otherUnit->GetType());
       QPointF offset = otherUnit->GetMapCoord() - mapCoord;
       float squaredDistance = offset.x() * offset.x() + offset.y() * offset.y();
       if (squaredDistance < (radius + otherRadius) * (radius + otherRadius)) {
@@ -501,14 +501,14 @@ u32 ServerMap::AddUnit(ServerUnit* newUnit) {
 
 void ServerMap::SetBuildingOccupancy(ServerBuilding* building, bool occupied) {
   const QPoint& baseTile = building->GetBaseTile();
-  QRect occupancyRect = GetBuildingOccupancy(building->GetBuildingType());
+  QRect occupancyRect = GetBuildingOccupancy(building->GetType());
   for (int y = baseTile.y() + occupancyRect.y(), endY = baseTile.y() + occupancyRect.y() + occupancyRect.height(); y < endY; ++ y) {
     for (int x = baseTile.x() + occupancyRect.x(), endX = baseTile.x() + occupancyRect.x() + occupancyRect.width(); x < endX; ++ x) {
       occupiedForUnitsAt(x, y) = occupied;
     }
   }
   
-  QSize buildingSize = GetBuildingSize(building->GetBuildingType());
+  QSize buildingSize = GetBuildingSize(building->GetType());
   for (int y = baseTile.y(), endY = baseTile.y() + buildingSize.height(); y < endY; ++ y) {
     for (int x = baseTile.x(), endX = baseTile.x() + buildingSize.width(); x < endX; ++ x) {
       occupiedForBuildingsAt(x, y) = occupied;

@@ -16,20 +16,20 @@ InteractionType GetInteractionType(ServerObject* actor, ServerObject* target) {
     if (target->isBuilding()) {
       ServerBuilding* targetBuilding = AsBuilding(target);
       
-      if (IsVillager(actorUnit->GetUnitType())) {
+      if (IsVillager(actorUnit->GetType())) {
         if (targetBuilding->GetPlayerIndex() == actorUnit->GetPlayerIndex() &&
             targetBuilding->GetBuildPercentage() < 100) {
           return InteractionType::Construct;
-        } else if (targetBuilding->GetBuildingType() == BuildingType::ForageBush) {
+        } else if (targetBuilding->GetType() == BuildingType::ForageBush) {
           return InteractionType::CollectBerries;
-        } else if (targetBuilding->GetBuildingType() == BuildingType::GoldMine) {
+        } else if (targetBuilding->GetType() == BuildingType::GoldMine) {
           return InteractionType::CollectGold;
-        } else if (targetBuilding->GetBuildingType() == BuildingType::StoneMine) {
+        } else if (targetBuilding->GetType() == BuildingType::StoneMine) {
           return InteractionType::CollectStone;
-        } else if (IsTree(targetBuilding->GetBuildingType())) {
+        } else if (IsTree(targetBuilding->GetType())) {
           return InteractionType::CollectWood;
         } else if (actorUnit->GetCarriedResourceAmount() > 0 &&
-                   IsDropOffPointForResource(targetBuilding->GetBuildingType(), actorUnit->GetCarriedResourceType())) {
+                   IsDropOffPointForResource(targetBuilding->GetType(), actorUnit->GetCarriedResourceType())) {
           return InteractionType::DropOffResource;
         }
       }

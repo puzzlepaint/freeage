@@ -43,7 +43,7 @@ class ServerBuilding : public ServerObject {
   inline float GetProductionPercentage() const { return productionPercentage; }
   inline void SetProductionPercentage(float percentage) { productionPercentage = percentage; }
   
-  inline BuildingType GetBuildingType() const { return type; }
+  inline BuildingType GetType() const { return type; }
   inline const QPoint& GetBaseTile() const { return baseTile; }
   
   inline float GetBuildPercentage() const { return buildPercentage; }

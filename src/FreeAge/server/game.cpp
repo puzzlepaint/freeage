@@ -600,13 +600,13 @@ QByteArray Game::CreateAddObjectMessage(u32 objectId, ServerObject* object) {
   
   if (object->isBuilding()) {
     ServerBuilding* building = AsBuilding(object);
-    mango::ustore16(data + 13, static_cast<u16>(building->GetBuildingType()));  // TODO: Would 8 bits be sufficient here?
+    mango::ustore16(data + 13, static_cast<u16>(building->GetType()));  // TODO: Would 8 bits be sufficient here?
     mango::ustore16(data + 15, building->GetBaseTile().x());
     mango::ustore16(data + 17, building->GetBaseTile().y());
     *reinterpret_cast<float*>(data + 19) = building->GetBuildPercentage();
   } else {
     ServerUnit* unit = AsUnit(object);
-    mango::ustore16(data + 13, static_cast<u16>(unit->GetUnitType()));  // TODO: Would 8 bits be sufficient here?
+    mango::ustore16(data + 13, static_cast<u16>(unit->GetType()));  // TODO: Would 8 bits be sufficient here?
     *reinterpret_cast<float*>(data + 15) = unit->GetMapCoord().x();
     *reinterpret_cast<float*>(data + 19) = unit->GetMapCoord().y();
   }
@@ -643,8 +643,8 @@ void Game::StartGame() {
       
       if (item.second->isBuilding()) {
         ServerBuilding* building = AsBuilding(item.second);
-        if (building->GetBuildingType() == BuildingType::TownCenter) {
-          QSize buildingSize = GetBuildingSize(building->GetBuildingType());
+        if (building->GetType() == BuildingType::TownCenter) {
+          QSize buildingSize = GetBuildingSize(building->GetType());
           initialViewCenter =
               QPointF(building->GetBaseTile().x() + 0.5f * buildingSize.width(),
                       building->GetBaseTile().y() + 0.5f * buildingSize.height());
@@ -652,7 +652,7 @@ void Game::StartGame() {
         }
       } else {  // if (item.second->isUnit()) {
         ServerUnit* unit = AsUnit(item.second);
-        if (IsVillager(unit->GetUnitType())) {
+        if (IsVillager(unit->GetType())) {
           initialViewCenter = unit->GetMapCoord();
         }
       }
@@ -689,9 +689,9 @@ void Game::StartGame() {
     
     if (object->isBuilding()) {
       ServerBuilding* building = AsBuilding(object);
-      GetPlayerStats(building->GetPlayerIndex())->BuildingAdded(building->GetBuildingType(), true);
+      GetPlayerStats(building->GetPlayerIndex())->BuildingAdded(building->GetType(), true);
     } else if (object->isUnit()) {
-      GetPlayerStats(object->GetPlayerIndex())->UnitAdded(AsUnit(object)->GetUnitType());
+      GetPlayerStats(object->GetPlayerIndex())->UnitAdded(AsUnit(object)->GetType());
     }
   }
   for (auto& player : *playersInGame) {
@@ -780,21 +780,21 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
 
 static bool DoesUnitTouchBuildingArea(ServerUnit* unit, const QPointF& unitMapCoord, ServerBuilding* building, float errorMargin) {
   // Get the point withing the building's area which is closest to the unit
-  QSize buildingSize = GetBuildingSize(building->GetBuildingType());
+  QSize buildingSize = GetBuildingSize(building->GetType());
   const QPoint& baseTile = building->GetBaseTile();
   QPointF closestPointInBuilding(
       std::max<float>(baseTile.x(), std::min<float>(baseTile.x() + buildingSize.width(), unitMapCoord.x())),
       std::max<float>(baseTile.y(), std::min<float>(baseTile.y() + buildingSize.height(), unitMapCoord.y())));
   
   // Check whether this point is closer to the unit than the unit's radius.
-  float unitRadius = GetUnitRadius(unit->GetUnitType());
+  float unitRadius = GetUnitRadius(unit->GetType());
   float threshold = unitRadius - errorMargin;
   return SquaredDistance(unitMapCoord, closestPointInBuilding) < threshold * threshold;
 }
 
 static bool DoUnitsTouch(ServerUnit* unit, const QPointF& unitMapCoord, ServerUnit* otherUnit, float errorMargin) {
-  float unitRadius = GetUnitRadius(unit->GetUnitType());
-  float otherUnitRadius = GetUnitRadius(otherUnit->GetUnitType());
+  float unitRadius = GetUnitRadius(unit->GetType());
+  float otherUnitRadius = GetUnitRadius(otherUnit->GetType());
   
   float threshold = unitRadius + otherUnitRadius - errorMargin;
   return SquaredDistance(unitMapCoord, otherUnit->GetMapCoord()) < threshold * threshold;
@@ -803,7 +803,7 @@ static bool DoUnitsTouch(ServerUnit* unit, const QPointF& unitMapCoord, ServerUn
 static bool IsFoundationFree(ServerBuilding* foundation, ServerMap* map) {
   // Check whether map tiles are occupied
   const QPoint& baseTile = foundation->GetBaseTile();
-  QSize foundationSize = GetBuildingSize(foundation->GetBuildingType());
+  QSize foundationSize = GetBuildingSize(foundation->GetType());
   for (int y = baseTile.y(); y < baseTile.y() + foundationSize.height(); ++ y) {
     for (int x = baseTile.x(); x < baseTile.x() + foundationSize.width(); ++ x) {
       if (map->occupiedForBuildingsAt(x, y)) {
@@ -827,14 +827,14 @@ static bool IsFoundationFree(ServerBuilding* foundation, ServerMap* map) {
 
 static bool TryEvadeUnit(ServerUnit* unit, float moveDistance, const QPointF& newMapCoord, ServerUnit* collidingUnit, QPointF* evadeMapCoord) {
   // Intersect a circle of radius "moveDistance", centered at unit->GetMapCoord(),
-  // with a circle of radius GetUnitRadius(unit->GetUnitType()) + GetUnitRadius(collidingUnit->GetUnitType()), centered at collidingUnit->GetMapCoord().
+  // with a circle of radius GetUnitRadius(unit->GetType()) + GetUnitRadius(collidingUnit->GetType()), centered at collidingUnit->GetMapCoord().
   constexpr float kErrorTolerance = 1e-3f;
   
   const QPointF unitCenter = unit->GetMapCoord();
   float unitMoveRadius = moveDistance;
   
   const QPointF obstacleCenter = collidingUnit->GetMapCoord();
-  float obstacleRadius = GetUnitRadius(unit->GetUnitType()) + GetUnitRadius(collidingUnit->GetUnitType()) + kErrorTolerance;
+  float obstacleRadius = GetUnitRadius(unit->GetType()) + GetUnitRadius(collidingUnit->GetType()) + kErrorTolerance;
   
   QPointF unitToObstacle = obstacleCenter - unitCenter;
   float centerDistance = Length(unitToObstacle);
@@ -1087,14 +1087,14 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
   // Add progress to the construction.
   // TODO: In the original game, two villagers building does not result in twice the speed. Account for this.
   if (canConstruct) {
-    double constructionTime = GetBuildingConstructionTime(targetBuilding->GetBuildingType());
+    double constructionTime = GetBuildingConstructionTime(targetBuilding->GetType());
     double constructionStepAmount = stepLengthInSeconds / constructionTime;
     
     double newPercentage = std::min<double>(100, targetBuilding->GetBuildPercentage() + 100 * constructionStepAmount);
     if (newPercentage == 100 && targetBuilding->GetBuildPercentage() != 100) {
       // Building completed.
       if (targetBuilding->GetPlayerIndex() != kGaiaPlayerIndex) {
-        GetPlayerStats(targetBuilding->GetPlayerIndex())->BuildingFinished(targetBuilding->GetBuildingType());
+        GetPlayerStats(targetBuilding->GetPlayerIndex())->BuildingFinished(targetBuilding->GetType());
       }
     }
     targetBuilding->SetBuildPercentage(newPercentage);
@@ -1106,7 +1106,7 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
       accumulatedMessages[player->index] += msg;
     }
     
-    u32 maxHP = GetBuildingMaxHP(targetBuilding->GetBuildingType());
+    u32 maxHP = GetBuildingMaxHP(targetBuilding->GetType());
     double addedHP = constructionStepAmount * maxHP;
     targetBuilding->SetHP(std::min<float>(targetBuilding->GetHPInternalFloat() + addedHP, maxHP));
     
@@ -1133,13 +1133,13 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
 void Game::SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, ServerUnit* villager, ServerBuilding* targetBuilding, bool* unitMovementChanged, bool* stayInPlace) {
   // Determine the resource type to gather.
   ResourceType gatheredType;
-  if (IsTree(targetBuilding->GetBuildingType())) {
+  if (IsTree(targetBuilding->GetType())) {
     gatheredType = ResourceType::Wood;
-  } else if (targetBuilding->GetBuildingType() == BuildingType::ForageBush) {
+  } else if (targetBuilding->GetType() == BuildingType::ForageBush) {
     gatheredType = ResourceType::Food;
-  } else if (targetBuilding->GetBuildingType() == BuildingType::GoldMine) {
+  } else if (targetBuilding->GetType() == BuildingType::GoldMine) {
     gatheredType = ResourceType::Gold;
-  } else if (targetBuilding->GetBuildingType() == BuildingType::StoneMine) {
+  } else if (targetBuilding->GetType() == BuildingType::StoneMine) {
     gatheredType = ResourceType::Stone;
   } else {
     LOG(ERROR) << "Server: Failed to determine the resource type to gather.";
@@ -1181,10 +1181,10 @@ void Game::SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, 
       if (item.second->GetPlayerIndex() == villager->GetPlayerIndex() &&
           item.second->isBuilding()) {
         ServerBuilding* candidateDropOffPoint = AsBuilding(item.second);
-        if (IsDropOffPointForResource(candidateDropOffPoint->GetBuildingType(), villager->GetCarriedResourceType())) {
+        if (IsDropOffPointForResource(candidateDropOffPoint->GetType(), villager->GetCarriedResourceType())) {
           // TODO: Improve the distance computation. Ideally we would use the distance that the
           //       villager has to walk to the edge of the building, not the straight-line distance to its center.
-          QSize candidateSize = GetBuildingSize(candidateDropOffPoint->GetBuildingType());
+          QSize candidateSize = GetBuildingSize(candidateDropOffPoint->GetType());
           QPointF candidateCenter = candidateDropOffPoint->GetBaseTile() + 0.5f * QPointF(candidateSize.width(), candidateSize.height());
           
           float squaredDistance = SquaredDistance(candidateCenter, villager->GetMapCoord());
@@ -1297,7 +1297,7 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
   }
   *stayInPlace = true;
   
-  int numAttackFrames = GetUnitAttackFrames(unit->GetUnitType());
+  int numAttackFrames = GetUnitAttackFrames(unit->GetType());
   double fullAttackTime = numAttackFrames / (1.f * animationFramesPerSecond);
   double attackDamageTime = 0.5 * fullAttackTime;  // TODO: Does this differ among units? Is this available in some data file?
   
@@ -1309,12 +1309,12 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
     // Compute the attack damage.
     int meleeArmor;
     if (target->isUnit()) {
-      meleeArmor = GetUnitMeleeArmor(AsUnit(target)->GetUnitType());
+      meleeArmor = GetUnitMeleeArmor(AsUnit(target)->GetType());
     } else {
       CHECK(target->isBuilding());
-      meleeArmor = GetBuildingMeleeArmor(AsBuilding(target)->GetBuildingType());
+      meleeArmor = GetBuildingMeleeArmor(AsBuilding(target)->GetType());
     }
-    int meleeDamage = std::max(0, static_cast<int>(GetUnitMeleeAttack(unit->GetUnitType())) - meleeArmor);
+    int meleeDamage = std::max(0, static_cast<int>(GetUnitMeleeAttack(unit->GetType())) - meleeArmor);
     
     // TODO: Pierce damage
     // TODO: Damage bonuses
@@ -1357,7 +1357,7 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   // Look for a free space to place the unit next to the building.
   float unitRadius = GetUnitRadius(unitInProduction);
   
-  QSize buildingSize = GetBuildingSize(building->GetBuildingType());
+  QSize buildingSize = GetBuildingSize(building->GetType());
   QPointF buildingBaseCoord(building->GetBaseTile() + QPointF(buildingSize.width() + unitRadius, -unitRadius));
   float extendedWidth = buildingSize.width() + 2 * unitRadius;
   float extendedHeight = buildingSize.height() + 2 * unitRadius;
@@ -1451,14 +1451,14 @@ void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 
     }
     
     ServerUnit* unit = AsUnit(it->second);
-    UnitType oldUnitType = unit->GetUnitType();
+    UnitType oldUnitType = unit->GetType();
     
     unit->SetTarget(targetId, targetObject, isManualTargeting);
     
-    if (oldUnitType != unit->GetUnitType()) {
-      GetPlayerStats(playerIndex)->UnitTransformed(oldUnitType, unit->GetUnitType());
+    if (oldUnitType != unit->GetType()) {
+      GetPlayerStats(playerIndex)->UnitTransformed(oldUnitType, unit->GetType());
       // Notify all clients that see the unit about its change of type.
-      QByteArray msg = CreateChangeUnitTypeMessage(id, unit->GetUnitType());
+      QByteArray msg = CreateChangeUnitTypeMessage(id, unit->GetType());
       for (auto& player : *playersInGame) {
         accumulatedMessages[player->index] += msg;
       }
@@ -1517,7 +1517,7 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
     if (deletedManually && building->GetBuildPercentage() < 100) {
       float remainingResourceAmount = 1 - building->GetBuildPercentage() / 100.f;
       
-      ResourceAmount cost = GetBuildingCost(building->GetBuildingType());
+      ResourceAmount cost = GetBuildingCost(building->GetType());
       playersInGame->at(building->GetPlayerIndex())->resources.Add(remainingResourceAmount * cost);
     }
     for (usize queueIndex = 0; queueIndex < building->GetProductionQueue().size(); ++ queueIndex) {
@@ -1531,9 +1531,9 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   // Handle player stats.
   if (object->isBuilding()) {
     ServerBuilding* building = AsBuilding(object);
-    GetPlayerStats(building->GetPlayerIndex())->BuildingRemoved(building->GetBuildingType(), building->GetBuildPercentage() == 100);
+    GetPlayerStats(building->GetPlayerIndex())->BuildingRemoved(building->GetType(), building->GetBuildPercentage() == 100);
   } else if (object->isUnit()) {
-    GetPlayerStats(object->GetPlayerIndex())->UnitRemoved(AsUnit(object)->GetUnitType());
+    GetPlayerStats(object->GetPlayerIndex())->UnitRemoved(AsUnit(object)->GetType());
   }
   
   // If all objects of a player are gone, the player gets defeated.
