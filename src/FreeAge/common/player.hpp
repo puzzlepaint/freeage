@@ -63,8 +63,15 @@ struct PlayerStats {
   /// and it is different from the population count shown to the client.
   inline int GetPopulationCountIncludingInProduction() const { return populationCount + populationInProduction; }
 
+  /// The number of units with the given type that are alive.
+  inline int GetUnitTypeCount(UnitType unitType) const {
+    return unitsAlive[static_cast<int>(unitType)];
+  }
+
+  inline int GetVillagerCount() const { return villagerCount; }
+
   /// The number of buildings with the given type that have been constructred
-  /// or are under construction.
+  /// or are under construction and are alive.
   inline int GetBuildingTypeCount(BuildingType buildingType) const {
     int i = static_cast<int>(buildingType);
     return buildingConstructions[i] + buildingAlive[i];
@@ -100,6 +107,10 @@ struct PlayerStats {
 
   /// The number of units alive per unit type.
   int unitsAlive[static_cast<int>(UnitType::NumUnits)];
+
+  /// The number of all the units that are a type of villager (stored separately 
+  /// because it's needed by the gui on every frame).
+  int villagerCount = 0;
 
   /// The number of units died per unit type.
   int unitsDied[static_cast<int>(UnitType::NumUnits)];

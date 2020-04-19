@@ -94,6 +94,10 @@ void PlayerStats::UnitChange(UnitType unitType, bool death, int d) {
     unitsDied[static_cast<int>(unitType)] += -d;
   }
 
+  if (IsVillager(unitType)) {
+    villagerCount += d;
+  }
+
   Change();
 }
 
