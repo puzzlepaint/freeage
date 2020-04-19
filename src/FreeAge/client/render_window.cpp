@@ -1903,7 +1903,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
   auto renderSingleResource = [&](int index, TextureAndPointBuffer& resourceDisplay,
       TextDisplayAndPointBuffer& resourceTextDisplay, TextDisplayAndPointBuffer& villagersTextDisplay,
       int resourceCount, int villagerCount) {
-    // Render on of the four resources
+    // Render one of the four resources
     RenderUIGraphic(
         topLeft.x() + uiScale * (17 + index * 200),
         topLeft.y() + uiScale * 16,
