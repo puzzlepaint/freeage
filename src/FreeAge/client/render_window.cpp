@@ -182,14 +182,19 @@ RenderWindow::~RenderWindow() {
   resourcePanel.Unload();
   resourceWood.Unload();
   woodTextDisplay.Destroy();
+  woodVillagersTextDisplay.Destroy();
   resourceFood.Unload();
   foodTextDisplay.Destroy();
+  foodVillagersTextDisplay.Destroy();
   resourceGold.Unload();
   goldTextDisplay.Destroy();
+  goldVillagersTextDisplay.Destroy();
   resourceStone.Unload();
   stoneTextDisplay.Destroy();
+  stoneVillagersTextDisplay.Destroy();
   pop.Unload();
   popTextDisplay.Destroy();
+  popVillagersTextDisplay.Destroy();
   popWhiteBackgroundPointBuffer.Destroy();
   idleVillagerDisabled.Unload();
   currentAgeShield.Unload();
@@ -346,7 +351,12 @@ bool RenderWindow::LoadResources() {
   foodTextDisplay.Initialize();
   goldTextDisplay.Initialize();
   stoneTextDisplay.Initialize();
+  woodVillagersTextDisplay.Initialize();
+  foodVillagersTextDisplay.Initialize();
+  goldVillagersTextDisplay.Initialize();
+  stoneVillagersTextDisplay.Initialize();
   popTextDisplay.Initialize();
+  popVillagersTextDisplay.Initialize();
   popWhiteBackgroundPointBuffer.Initialize();
   currentAgeTextDisplay.Initialize();
   gameTimeDisplay.Initialize();
@@ -1890,85 +1900,50 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       *resourcePanel.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
-  RenderUIGraphic(
-      topLeft.x() + uiScale * (17 + 0 * 200),
-      topLeft.y() + uiScale * 16,
-      uiScale * 83,
-      uiScale * 83,
-      qRgba(255, 255, 255, 255), resourceWood.pointBuffer,
-      *resourceWood.texture,
-      uiShader.get(), widgetWidth, widgetHeight, f);
-  woodTextDisplay.textDisplay->Render(
-      georgiaFontSmaller,
-      qRgba(255, 255, 255, 255),
-      QString::number(resources.wood()),
-      QRect(topLeft.x() + uiScale * (17 + 0 * 200 + 83 + 16),
-            topLeft.y() + uiScale * 16,
-            uiScale * 82,
-            uiScale * 83),
-      Qt::AlignLeft | Qt::AlignVCenter,
-      woodTextDisplay.pointBuffer,
-      uiShader.get(), widgetWidth, widgetHeight, f);
+  auto renderSingleResource = [&](int index, TextureAndPointBuffer& resourceDisplay,
+      TextDisplayAndPointBuffer& resourceTextDisplay, TextDisplayAndPointBuffer& villagersTextDisplay,
+      int resourceCount, int villagerCount) {
+    // Render on of the four resources
+    RenderUIGraphic(
+        topLeft.x() + uiScale * (17 + index * 200),
+        topLeft.y() + uiScale * 16,
+        uiScale * 83,
+        uiScale * 83,
+        qRgba(255, 255, 255, 255), resourceDisplay.pointBuffer,
+        *resourceDisplay.texture,
+        uiShader.get(), widgetWidth, widgetHeight, f);
+    resourceTextDisplay.textDisplay->Render(
+        georgiaFontSmaller,
+        qRgba(255, 255, 255, 255),
+        QString::number(resourceCount),
+        QRect(topLeft.x() + uiScale * (17 + index * 200 + 83 + 16),
+              topLeft.y() + uiScale * 16,
+              uiScale * 82,
+              uiScale * 83),
+        Qt::AlignLeft | Qt::AlignVCenter,
+        resourceTextDisplay.pointBuffer,
+        uiShader.get(), widgetWidth, widgetHeight, f);
+    villagersTextDisplay.textDisplay->Render(
+        georgiaFontSmaller, // TODO: use an even smaller font
+        qRgba(255, 255, 255, 255),
+        QString::number(villagerCount),
+        QRect(topLeft.x() + uiScale * (17 + index * 200),
+              topLeft.y() + uiScale * 16,
+              uiScale * 79,
+              uiScale * 83),
+        Qt::AlignRight | Qt::AlignBottom,
+        villagersTextDisplay.pointBuffer,
+        uiShader.get(), widgetWidth, widgetHeight, f);
+  };
   
-  RenderUIGraphic(
-      topLeft.x() + uiScale * (17 + 1 * 200),
-      topLeft.y() + uiScale * 16,
-      uiScale * 83,
-      uiScale * 83,
-      qRgba(255, 255, 255, 255), resourceFood.pointBuffer,
-      *resourceFood.texture,
-      uiShader.get(), widgetWidth, widgetHeight, f);
-  foodTextDisplay.textDisplay->Render(
-      georgiaFontSmaller,
-      qRgba(255, 255, 255, 255),
-      QString::number(resources.food()),
-      QRect(topLeft.x() + uiScale * (17 + 1 * 200 + 83 + 16),
-            topLeft.y() + uiScale * 16,
-            uiScale * 82,
-            uiScale * 83),
-      Qt::AlignLeft | Qt::AlignVCenter,
-      foodTextDisplay.pointBuffer,
-      uiShader.get(), widgetWidth, widgetHeight, f);
-  
-  RenderUIGraphic(
-      topLeft.x() + uiScale * (17 + 2 * 200),
-      topLeft.y() + uiScale * 16,
-      uiScale * 83,
-      uiScale * 83,
-      qRgba(255, 255, 255, 255), resourceGold.pointBuffer,
-      *resourceGold.texture,
-      uiShader.get(), widgetWidth, widgetHeight, f);
-  goldTextDisplay.textDisplay->Render(
-      georgiaFontSmaller,
-      qRgba(255, 255, 255, 255),
-      QString::number(resources.gold()),
-      QRect(topLeft.x() + uiScale * (17 + 2 * 200 + 83 + 16),
-            topLeft.y() + uiScale * 16,
-            uiScale * 82,
-            uiScale * 83),
-      Qt::AlignLeft | Qt::AlignVCenter,
-      goldTextDisplay.pointBuffer,
-      uiShader.get(), widgetWidth, widgetHeight, f);
-  
-  RenderUIGraphic(
-      topLeft.x() + uiScale * (17 + 3 * 200),
-      topLeft.y() + uiScale * 16,
-      uiScale * 83,
-      uiScale * 83,
-      qRgba(255, 255, 255, 255), resourceStone.pointBuffer,
-      *resourceStone.texture,
-      uiShader.get(), widgetWidth, widgetHeight, f);
-  stoneTextDisplay.textDisplay->Render(
-      georgiaFontSmaller,
-      qRgba(255, 255, 255, 255),
-      QString::number(resources.stone()),
-      QRect(topLeft.x() + uiScale * (17 + 3 * 200 + 83 + 16),
-            topLeft.y() + uiScale * 16,
-            uiScale * 82,
-            uiScale * 83),
-      Qt::AlignLeft | Qt::AlignVCenter,
-      stoneTextDisplay.pointBuffer,
-      uiShader.get(), widgetWidth, widgetHeight, f);
+  renderSingleResource(0, resourceWood, woodTextDisplay, woodVillagersTextDisplay, resources.wood(),
+      gameController->GetUnitTypeCount(UnitType::MaleVillagerLumberjack) + gameController->GetUnitTypeCount(UnitType::FemaleVillagerLumberjack));
+  renderSingleResource(1, resourceFood, foodTextDisplay, foodVillagersTextDisplay, resources.food(),
+      gameController->GetUnitTypeCount(UnitType::MaleVillagerForager) + gameController->GetUnitTypeCount(UnitType::FemaleVillagerForager));
+  renderSingleResource(2, resourceGold, goldTextDisplay, goldVillagersTextDisplay, resources.gold(),
+      gameController->GetUnitTypeCount(UnitType::MaleVillagerGoldMiner) + gameController->GetUnitTypeCount(UnitType::FemaleVillagerGoldMiner));
+  renderSingleResource(3, resourceStone, stoneTextDisplay, stoneVillagersTextDisplay, resources.stone(),
+      gameController->GetUnitTypeCount(UnitType::MaleVillagerStoneMiner) + gameController->GetUnitTypeCount(UnitType::FemaleVillagerStoneMiner));
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 4 * 200),
@@ -2035,6 +2010,17 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
       popTextDisplay.pointBuffer,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+  popVillagersTextDisplay.textDisplay->Render(
+      georgiaFontSmaller,
+      qRgba(255, 255, 255, 255),
+      QString::number(gameController->GetVillagerCount()),
+      QRect(topLeft.x() + uiScale * (17 + 4 * 200),
+            topLeft.y() + uiScale * 16,
+            uiScale * 79,
+            uiScale * 83),
+      Qt::AlignRight | Qt::AlignBottom,
+      popVillagersTextDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(

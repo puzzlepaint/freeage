@@ -42,7 +42,9 @@ class GameController : public QObject {
   inline int GetPopulationCount() const { return playerStats.GetPopulationCount(); }
   inline int GetAvailablePopulationSpace() const { return playerStats.GetAvailablePopulationSpace(); }
   inline int GetBuildingTypeCount(BuildingType buildingType) const { return playerStats.GetBuildingTypeCount(buildingType); }
-  
+  inline int GetUnitTypeCount(UnitType unitType) const { return playerStats.GetUnitTypeCount(unitType); }
+  inline int GetVillagerCount() const { return playerStats.GetVillagerCount(); }
+
   inline bool IsPlayerHoused() const { return isHoused; }
 
   inline double GetGameStartServerTimeSeconds() const { return gameStartServerTimeSeconds; }
