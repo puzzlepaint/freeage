@@ -3132,7 +3132,6 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
 void RenderWindow::ReportNonValidCommandButton(CommandButton* button, CommandButton::State state) {
 
   if (state == CommandButton::State::CannotAfford) {
-    
     QString name;
     ResourceAmount cost;
     if (button->GetType() == CommandButton::Type::ConstructBuilding) {
@@ -3155,9 +3154,7 @@ void RenderWindow::ReportNonValidCommandButton(CommandButton* button, CommandBut
         LOG(INFO) << (needed - available) << " " << GetResourceName(static_cast<ResourceType>(i)).toStdString();
       }
     }
-
   } else if (state == CommandButton::State::MaxLimitReached) {
-
     QString name;
     if (button->GetType() == CommandButton::Type::ConstructBuilding) {
       name = GetBuildingName(button->GetBuildingConstructionType());
@@ -3193,7 +3190,7 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
       ClientBuilding* building = AsBuilding(object);
       
       if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
-        if (building->GetBuildPercentage() == 100) {
+        if (building->IsCompleted()) {
           atLeastOneOwnBuildingFullyConstructed = true;
         }
         

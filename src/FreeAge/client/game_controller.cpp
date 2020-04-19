@@ -329,7 +329,7 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
   // In addition, handle population count / space changes.
   if (object->isBuilding()) {
     ClientBuilding* building = AsBuilding(object);
-    if (building->GetBuildPercentage() == 100) {
+    if (building->IsCompleted()) {
       Decal* newDecal = new Decal(building, map.get(), currentGameStepServerTime);
       renderWindow->AddDecal(newDecal);
       
@@ -440,7 +440,7 @@ void GameController::HandleBuildPercentageUpdate(const QByteArray& data) {
   
   ClientBuilding* building = AsBuilding(it->second);
   if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
-    if (building->GetBuildPercentage() != 100 && percentage == 100) {
+    if (!building->IsCompleted() && percentage == 100) {
       // The building has been completed.
       playerStats.BuildingFinished(building->GetType());
 

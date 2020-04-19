@@ -49,6 +49,9 @@ class ServerBuilding : public ServerObject {
   inline float GetBuildPercentage() const { return buildPercentage; }
   inline void SetBuildPercentage(float percentage) { buildPercentage = percentage; }
   
+  inline bool IsFoundation() const { return buildPercentage <= 0; }
+  inline bool IsCompleted() const { return buildPercentage >= 100; }
+  
  private:
   // TODO: Allow to queue technologies as well
   std::vector<UnitType> productionQueue;
@@ -63,7 +66,7 @@ class ServerBuilding : public ServerObject {
   QPoint baseTile;
   
   /// The build percentage of this building, in percent. Special cases:
-  /// * Exactly 100 means that the building is finished.
+  /// * Exactly 100 means that the building is completed.
   /// * Exactly   0 means that this is a building foundation (i.e., it does not affect map occupancy (yet)).
   float buildPercentage;
 };

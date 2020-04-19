@@ -299,7 +299,7 @@ void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player)
     LOG(ERROR) << "Received a ProduceUnit message for a building that is not owned by the player";
     return;
   }
-  if (productionBuilding->GetBuildPercentage() != 100) {
+  if (!productionBuilding->IsCompleted()) {
     LOG(ERROR) << "Received a ProduceUnit message for a building that is not fully constructed";
     return;
   }
@@ -1059,7 +1059,7 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
   // TODO: In the latter case, if only allied units obstruct the foundation, we should first
   //       try to make these units move off of the foudation. Only if this fails then the construction should halt.
   bool canConstruct = true;
-  if (targetBuilding->GetBuildPercentage() == 0) {
+  if (targetBuilding->IsFoundation()) {
     if (IsFoundationFree(targetBuilding, map.get())) {
       // Add the foundation's occupancy to the map.
       // TODO: The foundation's occupancy may differ from the final building's occupancy, e.g., for town centers. Handle this case properly.
@@ -1091,7 +1091,7 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
     double constructionStepAmount = stepLengthInSeconds / constructionTime;
     
     double newPercentage = std::min<double>(100, targetBuilding->GetBuildPercentage() + 100 * constructionStepAmount);
-    if (newPercentage == 100 && targetBuilding->GetBuildPercentage() != 100) {
+    if (newPercentage == 100 && !targetBuilding->IsCompleted()) {
       // Building completed.
       if (targetBuilding->GetPlayerIndex() != kGaiaPlayerIndex) {
         GetPlayerStats(targetBuilding->GetPlayerIndex())->BuildingFinished(targetBuilding->GetType());
@@ -1490,7 +1490,7 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   
   // For building foundations, only the player that owns them knows about the object.
   // So we only need to send the object death message to this player.
-  bool isFoundation = object->isBuilding() && AsBuilding(object)->GetBuildPercentage() == 0;
+  bool isFoundation = object->isBuilding() && AsBuilding(object)->IsFoundation();
   bool sendObjectDeathToOwningPlayerOnly = isFoundation;
   
   QByteArray msg = CreateObjectDeathMessage(objectId);
@@ -1511,10 +1511,10 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   //   and "refund" the population space for any unit currently being produced
   if (object->isBuilding()) {
     ServerBuilding* building = AsBuilding(object);
-    if (building->GetBuildPercentage() > 0) {
+    if (!building->IsFoundation()) {
       map->RemoveBuildingOccupancy(building);
     }
-    if (deletedManually && building->GetBuildPercentage() < 100) {
+    if (deletedManually && !building->IsCompleted()) {
       float remainingResourceAmount = 1 - building->GetBuildPercentage() / 100.f;
       
       ResourceAmount cost = GetBuildingCost(building->GetType());
@@ -1531,7 +1531,7 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   // Handle player stats.
   if (object->isBuilding()) {
     ServerBuilding* building = AsBuilding(object);
-    GetPlayerStats(building->GetPlayerIndex())->BuildingRemoved(building->GetType(), building->GetBuildPercentage() == 100);
+    GetPlayerStats(building->GetPlayerIndex())->BuildingRemoved(building->GetType(), building->IsCompleted());
   } else if (object->isUnit()) {
     GetPlayerStats(object->GetPlayerIndex())->UnitRemoved(AsUnit(object)->GetType());
   }

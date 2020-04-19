@@ -18,7 +18,7 @@ InteractionType GetInteractionType(ServerObject* actor, ServerObject* target) {
       
       if (IsVillager(actorUnit->GetType())) {
         if (targetBuilding->GetPlayerIndex() == actorUnit->GetPlayerIndex() &&
-            targetBuilding->GetBuildPercentage() < 100) {
+            !targetBuilding->IsCompleted()) {
           return InteractionType::Construct;
         } else if (targetBuilding->GetType() == BuildingType::ForageBush) {
           return InteractionType::CollectBerries;
