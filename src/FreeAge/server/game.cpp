@@ -1543,7 +1543,15 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
       if (item.second->GetPlayerIndex() == object->GetPlayerIndex() &&
           item.first != it->first) {
         playerHasRemainingObject = true;
-        break;
+        for (u32 id : objectDeleteList) {
+          if (id == item.first) {
+            playerHasRemainingObject = false;
+            break;
+          }
+        }
+        if (playerHasRemainingObject) {
+          break;
+        }
       }
     }
     
