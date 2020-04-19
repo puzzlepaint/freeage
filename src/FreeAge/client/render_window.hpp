@@ -479,6 +479,7 @@ class RenderWindow : public QOpenGLWindow {
   std::shared_ptr<ServerConnection> connection;
   QFont georgiaFont;
   QFont georgiaFontSmaller;
+  QFont georgiaFontTiny;
   QFont georgiaFontLarger;
   QFont georgiaFontLargerStrikeOut;
   QFont georgiaFontHuge;

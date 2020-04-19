@@ -97,6 +97,9 @@ RenderWindow::RenderWindow(
   georgiaFontSmaller = georgiaFont;
   georgiaFontSmaller.setPixelSize(uiScale * 2*15);
   
+  georgiaFontTiny = georgiaFont;
+  georgiaFontTiny.setPixelSize(uiScale * 2*12);
+  
   georgiaFontHuge = georgiaFont;
   georgiaFontHuge.setPixelSize(uiScale * 2*40);
   georgiaFontHuge.setBold(true);
@@ -1924,7 +1927,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
         resourceTextDisplay.pointBuffer,
         uiShader.get(), widgetWidth, widgetHeight, f);
     villagersTextDisplay.textDisplay->Render(
-        georgiaFontSmaller, // TODO: use an even smaller font
+        georgiaFontTiny,
         qRgba(255, 255, 255, 255),
         QString::number(villagerCount),
         QRect(topLeft.x() + uiScale * (17 + index * 200),
@@ -2012,7 +2015,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       popTextDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   popVillagersTextDisplay.textDisplay->Render(
-      georgiaFontSmaller,
+      georgiaFontTiny,
       qRgba(255, 255, 255, 255),
       QString::number(gameController->GetVillagerCount()),
       QRect(topLeft.x() + uiScale * (17 + 4 * 200),
