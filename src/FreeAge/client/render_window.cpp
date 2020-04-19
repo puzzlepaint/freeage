@@ -2122,22 +2122,22 @@ void RenderWindow::RenderMinimap(double secondsSinceLastFrame, QOpenGLFunctions_
     QPointF result = input;
     
     // Clamp by top-left edge of minimap?
-    if (Dot(leftToTop_right, input - left) < 0) {
+    if (Dot(leftToTop_right, result - left) < 0) {
       IntersectLines(result, QPointF(xDir, yDir), left, top - left, &result);
     }
     
     // Clamp by top-right edge of minimap?
-    if (Dot(topToRight_right, input - top) < 0) {
+    if (Dot(topToRight_right, result - top) < 0) {
       IntersectLines(result, QPointF(xDir, yDir), top, right - top, &result);
     }
     
     // Clamp by bottom-right edge of minimap?
-    if (Dot(rightToBottom_right, input - right) < 0) {
+    if (Dot(rightToBottom_right, result - right) < 0) {
       IntersectLines(result, QPointF(xDir, yDir), right, bottom - right, &result);
     }
     
     // Clamp by bottom-left edge of minimap?
-    if (Dot(bottomToLeft_right, input - bottom) < 0) {
+    if (Dot(bottomToLeft_right, result - bottom) < 0) {
       IntersectLines(result, QPointF(xDir, yDir), bottom, left - bottom, &result);
     }
     
