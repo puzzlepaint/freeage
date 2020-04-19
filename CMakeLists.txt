@@ -103,10 +103,10 @@ target_link_libraries(FreeAgeLib PUBLIC
   loguru
   Threads::Threads
 )
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-target_link_libraries(FreeAgeLib PUBLIC
-  stdc++fs  # TODO: I think this is specific to gcc version 8
-)
+# Special case for GCC 8: Make std::filesystem work
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
+    NOT CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9)
+  target_link_libraries(FreeAgeLib PUBLIC stdc++fs)
 endif()
 
 
