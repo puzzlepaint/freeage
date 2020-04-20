@@ -8,6 +8,7 @@
 #include <QSize>
 #include <QString>
 
+#include "FreeAge/common/damage.hpp"
 #include "FreeAge/common/resources.hpp"
 
 /// Building types. The numbers must be sequential, starting from zero,
@@ -61,7 +62,7 @@ bool IsDropOffPointForResource(BuildingType building, ResourceType resource);
 
 /// TODO: This needs to consider the player's civilization and researched technologies
 u32 GetBuildingMaxHP(BuildingType type);
-u32 GetBuildingMeleeArmor(BuildingType type);
+Armor GetBuildingArmor(BuildingType type);
 
 /// Returns the max number of the given building type that the player can build.
 /// Returns -1 if unlimited.

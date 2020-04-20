@@ -6,6 +6,7 @@
 
 #include <QString>
 
+#include "FreeAge/common/damage.hpp"
 #include "FreeAge/common/resources.hpp"
 
 /// Unit types. The numbers must be sequential, starting from zero,
@@ -83,7 +84,7 @@ int GetUnitAttackFrames(UnitType type);
 
 /// TODO: This needs to consider the player's civilization and researched technologies
 u32 GetUnitMaxHP(UnitType type);
-u32 GetUnitMeleeAttack(UnitType type);
-u32 GetUnitMeleeArmor(UnitType type);
+Damage GetUnitDamage(UnitType type); // TODO: replace with GetAttack
+Armor GetUnitArmor(UnitType type);
 
 float GetUnitLineOfSight(UnitType type);
