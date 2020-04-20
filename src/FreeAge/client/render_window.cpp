@@ -4,6 +4,7 @@
 
 #include "FreeAge/client/render_window.hpp"
 
+#include <cassert>
 #include <math.h>
 
 #include <QApplication>
@@ -96,6 +97,9 @@ RenderWindow::RenderWindow(
   georgiaFontSmaller = georgiaFont;
   georgiaFontSmaller.setPixelSize(uiScale * 2*15);
   
+  georgiaFontTiny = georgiaFont;
+  georgiaFontTiny.setPixelSize(uiScale * 2*12);
+  
   georgiaFontHuge = georgiaFont;
   georgiaFontHuge.setPixelSize(uiScale * 2*40);
   georgiaFontHuge.setBold(true);
@@ -181,14 +185,19 @@ RenderWindow::~RenderWindow() {
   resourcePanel.Unload();
   resourceWood.Unload();
   woodTextDisplay.Destroy();
+  woodVillagersTextDisplay.Destroy();
   resourceFood.Unload();
   foodTextDisplay.Destroy();
+  foodVillagersTextDisplay.Destroy();
   resourceGold.Unload();
   goldTextDisplay.Destroy();
+  goldVillagersTextDisplay.Destroy();
   resourceStone.Unload();
   stoneTextDisplay.Destroy();
+  stoneVillagersTextDisplay.Destroy();
   pop.Unload();
   popTextDisplay.Destroy();
+  popVillagersTextDisplay.Destroy();
   popWhiteBackgroundPointBuffer.Destroy();
   idleVillagerDisabled.Unload();
   currentAgeShield.Unload();
@@ -270,7 +279,7 @@ bool RenderWindow::LoadResources() {
     emit LoadingProgressUpdated(static_cast<int>(100 * loadingStep / static_cast<float>(maxLoadingStep) + 0.5f));
   };
   
-  Timer timer("LoadResources()");
+  Timer loadResourcesTimer("LoadResources()");
   LOG(1) << "LoadResource() start";
 
   const GLubyte* glVendor = f->glGetString(GL_VENDOR);
@@ -345,7 +354,12 @@ bool RenderWindow::LoadResources() {
   foodTextDisplay.Initialize();
   goldTextDisplay.Initialize();
   stoneTextDisplay.Initialize();
+  woodVillagersTextDisplay.Initialize();
+  foodVillagersTextDisplay.Initialize();
+  goldVillagersTextDisplay.Initialize();
+  stoneVillagersTextDisplay.Initialize();
   popTextDisplay.Initialize();
+  popVillagersTextDisplay.Initialize();
   popWhiteBackgroundPointBuffer.Initialize();
   currentAgeTextDisplay.Initialize();
   gameTimeDisplay.Initialize();
@@ -557,8 +571,7 @@ bool RenderWindow::LoadResources() {
   iconOverlayActiveTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "icon_overlay_active.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
   didLoadingStep();
   
-  timer.Stop();
-
+  loadResourcesTimer.Stop();
   // Output timings of the resource loading processes and clear those statistics from further timing prints.
   LOG(INFO) << "Loading timings:";
   Timing::print(std::cout, kSortByTotal);
@@ -1890,85 +1903,50 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
       *resourcePanel.texture,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
-  RenderUIGraphic(
-      topLeft.x() + uiScale * (17 + 0 * 200),
-      topLeft.y() + uiScale * 16,
-      uiScale * 83,
-      uiScale * 83,
-      qRgba(255, 255, 255, 255), resourceWood.pointBuffer,
-      *resourceWood.texture,
-      uiShader.get(), widgetWidth, widgetHeight, f);
-  woodTextDisplay.textDisplay->Render(
-      georgiaFontSmaller,
-      qRgba(255, 255, 255, 255),
-      QString::number(resources.wood()),
-      QRect(topLeft.x() + uiScale * (17 + 0 * 200 + 83 + 16),
-            topLeft.y() + uiScale * 16,
-            uiScale * 82,
-            uiScale * 83),
-      Qt::AlignLeft | Qt::AlignVCenter,
-      woodTextDisplay.pointBuffer,
-      uiShader.get(), widgetWidth, widgetHeight, f);
+  auto renderSingleResource = [&](int index, TextureAndPointBuffer& resourceDisplay,
+      TextDisplayAndPointBuffer& resourceTextDisplay, TextDisplayAndPointBuffer& villagersTextDisplay,
+      int resourceCount, int villagerCount) {
+    // Render one of the four resources
+    RenderUIGraphic(
+        topLeft.x() + uiScale * (17 + index * 200),
+        topLeft.y() + uiScale * 16,
+        uiScale * 83,
+        uiScale * 83,
+        qRgba(255, 255, 255, 255), resourceDisplay.pointBuffer,
+        *resourceDisplay.texture,
+        uiShader.get(), widgetWidth, widgetHeight, f);
+    resourceTextDisplay.textDisplay->Render(
+        georgiaFontSmaller,
+        qRgba(255, 255, 255, 255),
+        QString::number(resourceCount),
+        QRect(topLeft.x() + uiScale * (17 + index * 200 + 83 + 16),
+              topLeft.y() + uiScale * 16,
+              uiScale * 82,
+              uiScale * 83),
+        Qt::AlignLeft | Qt::AlignVCenter,
+        resourceTextDisplay.pointBuffer,
+        uiShader.get(), widgetWidth, widgetHeight, f);
+    villagersTextDisplay.textDisplay->Render(
+        georgiaFontTiny,
+        qRgba(255, 255, 255, 255),
+        QString::number(villagerCount),
+        QRect(topLeft.x() + uiScale * (17 + index * 200),
+              topLeft.y() + uiScale * 16,
+              uiScale * 79,
+              uiScale * 83),
+        Qt::AlignRight | Qt::AlignBottom,
+        villagersTextDisplay.pointBuffer,
+        uiShader.get(), widgetWidth, widgetHeight, f);
+  };
   
-  RenderUIGraphic(
-      topLeft.x() + uiScale * (17 + 1 * 200),
-      topLeft.y() + uiScale * 16,
-      uiScale * 83,
-      uiScale * 83,
-      qRgba(255, 255, 255, 255), resourceFood.pointBuffer,
-      *resourceFood.texture,
-      uiShader.get(), widgetWidth, widgetHeight, f);
-  foodTextDisplay.textDisplay->Render(
-      georgiaFontSmaller,
-      qRgba(255, 255, 255, 255),
-      QString::number(resources.food()),
-      QRect(topLeft.x() + uiScale * (17 + 1 * 200 + 83 + 16),
-            topLeft.y() + uiScale * 16,
-            uiScale * 82,
-            uiScale * 83),
-      Qt::AlignLeft | Qt::AlignVCenter,
-      foodTextDisplay.pointBuffer,
-      uiShader.get(), widgetWidth, widgetHeight, f);
-  
-  RenderUIGraphic(
-      topLeft.x() + uiScale * (17 + 2 * 200),
-      topLeft.y() + uiScale * 16,
-      uiScale * 83,
-      uiScale * 83,
-      qRgba(255, 255, 255, 255), resourceGold.pointBuffer,
-      *resourceGold.texture,
-      uiShader.get(), widgetWidth, widgetHeight, f);
-  goldTextDisplay.textDisplay->Render(
-      georgiaFontSmaller,
-      qRgba(255, 255, 255, 255),
-      QString::number(resources.gold()),
-      QRect(topLeft.x() + uiScale * (17 + 2 * 200 + 83 + 16),
-            topLeft.y() + uiScale * 16,
-            uiScale * 82,
-            uiScale * 83),
-      Qt::AlignLeft | Qt::AlignVCenter,
-      goldTextDisplay.pointBuffer,
-      uiShader.get(), widgetWidth, widgetHeight, f);
-  
-  RenderUIGraphic(
-      topLeft.x() + uiScale * (17 + 3 * 200),
-      topLeft.y() + uiScale * 16,
-      uiScale * 83,
-      uiScale * 83,
-      qRgba(255, 255, 255, 255), resourceStone.pointBuffer,
-      *resourceStone.texture,
-      uiShader.get(), widgetWidth, widgetHeight, f);
-  stoneTextDisplay.textDisplay->Render(
-      georgiaFontSmaller,
-      qRgba(255, 255, 255, 255),
-      QString::number(resources.stone()),
-      QRect(topLeft.x() + uiScale * (17 + 3 * 200 + 83 + 16),
-            topLeft.y() + uiScale * 16,
-            uiScale * 82,
-            uiScale * 83),
-      Qt::AlignLeft | Qt::AlignVCenter,
-      stoneTextDisplay.pointBuffer,
-      uiShader.get(), widgetWidth, widgetHeight, f);
+  renderSingleResource(0, resourceWood, woodTextDisplay, woodVillagersTextDisplay, resources.wood(),
+      gameController->GetUnitTypeCount(UnitType::MaleVillagerLumberjack) + gameController->GetUnitTypeCount(UnitType::FemaleVillagerLumberjack));
+  renderSingleResource(1, resourceFood, foodTextDisplay, foodVillagersTextDisplay, resources.food(),
+      gameController->GetUnitTypeCount(UnitType::MaleVillagerForager) + gameController->GetUnitTypeCount(UnitType::FemaleVillagerForager));
+  renderSingleResource(2, resourceGold, goldTextDisplay, goldVillagersTextDisplay, resources.gold(),
+      gameController->GetUnitTypeCount(UnitType::MaleVillagerGoldMiner) + gameController->GetUnitTypeCount(UnitType::FemaleVillagerGoldMiner));
+  renderSingleResource(3, resourceStone, stoneTextDisplay, stoneVillagersTextDisplay, resources.stone(),
+      gameController->GetUnitTypeCount(UnitType::MaleVillagerStoneMiner) + gameController->GetUnitTypeCount(UnitType::FemaleVillagerStoneMiner));
   
   RenderUIGraphic(
       topLeft.x() + uiScale * (17 + 4 * 200),
@@ -2035,6 +2013,17 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
             uiScale * 83),
       Qt::AlignLeft | Qt::AlignVCenter,
       popTextDisplay.pointBuffer,
+      uiShader.get(), widgetWidth, widgetHeight, f);
+  popVillagersTextDisplay.textDisplay->Render(
+      georgiaFontTiny,
+      qRgba(255, 255, 255, 255),
+      QString::number(gameController->GetVillagerCount()),
+      QRect(topLeft.x() + uiScale * (17 + 4 * 200),
+            topLeft.y() + uiScale * 16,
+            uiScale * 79,
+            uiScale * 83),
+      Qt::AlignRight | Qt::AlignBottom,
+      popVillagersTextDisplay.pointBuffer,
       uiShader.get(), widgetWidth, widgetHeight, f);
   
   RenderUIGraphic(
@@ -2136,22 +2125,22 @@ void RenderWindow::RenderMinimap(double secondsSinceLastFrame, QOpenGLFunctions_
     QPointF result = input;
     
     // Clamp by top-left edge of minimap?
-    if (Dot(leftToTop_right, input - left) < 0) {
+    if (Dot(leftToTop_right, result - left) < 0) {
       IntersectLines(result, QPointF(xDir, yDir), left, top - left, &result);
     }
     
     // Clamp by top-right edge of minimap?
-    if (Dot(topToRight_right, input - top) < 0) {
+    if (Dot(topToRight_right, result - top) < 0) {
       IntersectLines(result, QPointF(xDir, yDir), top, right - top, &result);
     }
     
     // Clamp by bottom-right edge of minimap?
-    if (Dot(rightToBottom_right, input - right) < 0) {
+    if (Dot(rightToBottom_right, result - right) < 0) {
       IntersectLines(result, QPointF(xDir, yDir), right, bottom - right, &result);
     }
     
     // Clamp by bottom-left edge of minimap?
-    if (Dot(bottomToLeft_right, input - bottom) < 0) {
+    if (Dot(bottomToLeft_right, result - bottom) < 0) {
       IntersectLines(result, QPointF(xDir, yDir), bottom, left - bottom, &result);
     }
     
@@ -2466,6 +2455,10 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
       float buttonLeft = commandButtonsLeft + (commandButtonsRight - commandButtonSize - commandButtonsLeft) * (col / (kCommandButtonCols - 1.));
       float buttonTop = commandButtonsTop + (commandButtonsBottom - commandButtonSize - commandButtonsTop) * (row / (kCommandButtonRows - 1.));
       
+      if (commandButtons[row][col].GetType() == CommandButton::Type::Invisible) {
+        continue; // skip invisible buttons
+      }
+
       bool pressed =
           pressedCommandButtonRow == row &&
           pressedCommandButtonCol == col;
@@ -2474,17 +2467,15 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
           lastCursorPos.y() >= buttonTop &&
           lastCursorPos.x() < buttonLeft + commandButtonSize &&
           lastCursorPos.y() < buttonTop + commandButtonSize;
+      bool active = activeCommandButton == &commandButtons[row][col];
       
-      bool disabled = false;
-      if (commandButtons[row][col].GetType() == CommandButton::Type::ProduceUnit) {
-        disabled =
-            !gameController->GetLatestKnownResourceAmount().CanAfford(
-                GetUnitCost(commandButtons[row][col].GetUnitProductionType()));
-      } else if (commandButtons[row][col].GetType() == CommandButton::Type::ConstructBuilding) {
-        disabled =
-            !gameController->GetLatestKnownResourceAmount().CanAfford(
-                GetBuildingCost(commandButtons[row][col].GetBuildingConstructionType()));
+      CommandButton::State state = commandButtons[row][col].GetState(gameController.get());
+      if (state == CommandButton::State::MaxLimitReached ||
+          state == CommandButton::State::Researched ||
+          state == CommandButton::State::Locked) {
+        continue; // dont show
       }
+      bool disabled = state != CommandButton::State::Valid;
       
       commandButtons[row][col].Render(
           buttonLeft,
@@ -2492,7 +2483,7 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
           commandButtonSize,
           uiScale * 4,
           disabled ? *iconOverlayNormalExpensiveTexture :
-              (pressed ? *iconOverlayActiveTexture :
+              (pressed || active ? *iconOverlayActiveTexture :
                   (mouseOver ? *iconOverlayHoverTexture : *iconOverlayNormalTexture)),
           uiShader.get(), widgetWidth, widgetHeight, f);
     }
@@ -2622,9 +2613,11 @@ void RenderWindow::ShowMenu(bool show) {
   menuShown = show;
   
   if (menuShown) {
+    if (grabMouse) UngrabMouse();
     setCursor(defaultCursor);
     menuButtonResign.SetEnabled(match->GetThisPlayer().state == Match::PlayerState::Playing);
   } else {
+    if (grabMouse) GrabMouse();
     UpdateCursor();
   }
 }
@@ -3087,17 +3080,34 @@ QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y(
   return true;
 }
 
-void RenderWindow::PressCommandButton(CommandButton* button) {
-  button->Pressed(selection, gameController.get());
+void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
+
+  CommandButton::State state = button->GetState(gameController.get());
+  if (state != CommandButton::State::Valid) {
+    
+    ReportNonValidCommandButton(button, state);
+    return;
+  }
+  // The state of the command button is Valid.
+  
+  // TODO: merge code from RenderWindow::PressCommandButton and CommandButton::Pressed
+  button->Pressed(selection, gameController.get(), shift);
   
   // Handle building construction.
-  if (button->GetType() == CommandButton::Type::ConstructBuilding &&
-      gameController->GetLatestKnownResourceAmount().CanAfford(GetBuildingCost(button->GetBuildingConstructionType()))) {
+  if (button->GetType() == CommandButton::Type::ConstructBuilding) {
+    activeCommandButton = button;
     constructBuildingType = button->GetBuildingConstructionType();
   }
   
   // "Action" buttons are handled here.
   if (button->GetType() == CommandButton::Type::Action) {
+
+    if (constructBuildingType != BuildingType::NumBuildings) {
+      // exit construction mode
+      activeCommandButton = nullptr;
+      constructBuildingType = BuildingType::NumBuildings;
+    }
+
     switch (button->GetActionType()) {
     case CommandButton::ActionType::BuildEconomyBuilding:
       ShowEconomyBuildingCommandButtons();
@@ -3114,9 +3124,46 @@ void RenderWindow::PressCommandButton(CommandButton* button) {
       break;
     case CommandButton::ActionType::Quit:
       ShowDefaultCommandButtonsForSelection();
-      constructBuildingType = BuildingType::NumBuildings;
       break;
     }
+  }
+}
+
+void RenderWindow::ReportNonValidCommandButton(CommandButton* button, CommandButton::State state) {
+
+  if (state == CommandButton::State::CannotAfford) {
+    QString name;
+    ResourceAmount cost;
+    if (button->GetType() == CommandButton::Type::ConstructBuilding) {
+      name = GetBuildingName(button->GetBuildingConstructionType());
+      cost = GetBuildingCost(button->GetBuildingConstructionType());
+    } else if (button->GetType() == CommandButton::Type::ProduceUnit) {
+      name = GetUnitName(button->GetUnitProductionType());
+      cost = GetUnitCost(button->GetUnitProductionType());
+    } else {
+      assert(false); // TODO: implement all CommandButton::Type which can have State::CannotAfford
+    }
+
+    // TODO: move from the log to the gui message system
+    LOG(INFO) << name.toStdString() << " is not affordable, missing: ";
+    // TODO: extract to function 
+    for (int i = 0; i < static_cast<int>(ResourceType::NumTypes); ++ i) {
+      u32 available = gameController->GetLatestKnownResourceAmount().resources[i];
+      u32 needed = cost.resources[i];
+      if (available < needed) {
+        LOG(INFO) << (needed - available) << " " << GetResourceName(static_cast<ResourceType>(i)).toStdString();
+      }
+    }
+  } else if (state == CommandButton::State::MaxLimitReached) {
+    QString name;
+    if (button->GetType() == CommandButton::Type::ConstructBuilding) {
+      name = GetBuildingName(button->GetBuildingConstructionType());
+    } else {
+      assert(false); // TODO: implement all CommandButton::Type which can have State::MaxLimitReached
+    }
+
+    // TODO: move from the log to the gui message system
+    LOG(INFO) << "Max limit reached for " << name.toStdString();
   }
 }
 
@@ -3143,7 +3190,7 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
       ClientBuilding* building = AsBuilding(object);
       
       if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
-        if (building->GetBuildPercentage() == 100) {
+        if (building->IsCompleted()) {
           atLeastOneOwnBuildingFullyConstructed = true;
         }
         
@@ -3199,9 +3246,7 @@ void RenderWindow::ShowEconomyBuildingCommandButtons() {
   commandButtons[0][3].SetBuilding(BuildingType::LumberCamp, Qt::Key_R);
   commandButtons[0][4].SetBuilding(BuildingType::Dock, Qt::Key_T);
 
-  if (gameController->GetBuildingTypeCount(BuildingType::TownCenter) != GetBuildingMaxInstances(BuildingType::TownCenter)) {
-    commandButtons[2][0].SetBuilding(BuildingType::TownCenter, Qt::Key_Z);
-  }
+  commandButtons[2][0].SetBuilding(BuildingType::TownCenter, Qt::Key_Z);
   
   commandButtons[2][3].SetAction(CommandButton::ActionType::ToggleBuildingsCategory, toggleBuildingsCategory.texture.get());
   commandButtons[2][4].SetAction(CommandButton::ActionType::Quit, quit.texture.get(), Qt::Key_Escape);
@@ -3847,6 +3892,20 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
     if (match->IsPlayerStillInGame() && constructBuildingType != BuildingType::NumBuildings) {
       ignoreLeftMouseRelease = true;
       
+      CommandButton::State state = activeCommandButton->GetState(gameController.get());
+      if (state != CommandButton::State::Valid) {
+        ReportNonValidCommandButton(activeCommandButton, state);
+      
+        if (state == CommandButton::State::CannotAfford) {
+          // remain in construction mode, player may want to wait until the construction is affordable
+        } else {
+          // exit construction mode 
+          activeCommandButton = nullptr;
+          constructBuildingType = BuildingType::NumBuildings;
+        }
+        return;
+      }
+
       QPoint foundationBaseTile;
       bool canBePlacedHere = CanBuildingFoundationBePlacedHere(constructBuildingType, lastCursorPos, &foundationBaseTile);
       if (canBePlacedHere) {
@@ -3867,7 +3926,12 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
         
         connection->Write(CreatePlaceBuildingFoundationMessage(constructBuildingType, foundationBaseTile, selectedVillagerIds));
         
-        constructBuildingType = BuildingType::NumBuildings;
+        bool shift = event->modifiers() & Qt::ShiftModifier;
+        if (!shift) {
+          // un-set constructBuildingType
+          activeCommandButton = nullptr;
+          constructBuildingType = BuildingType::NumBuildings;
+        }
         return;
       }
     }
@@ -3879,6 +3943,15 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
     dragging = false;
   } else if (event->button() == Qt::RightButton &&
              !isUIClick) {
+
+    if (constructBuildingType != BuildingType::NumBuildings) {
+      // exit construction mode
+      activeCommandButton = nullptr;
+      constructBuildingType = BuildingType::NumBuildings;
+      // return in order to not process the right click as a unit command
+      return;
+    }
+
     QPointF projectedCoord = ScreenCoordToProjectedCoord(event->x(), event->y());
     QPointF mapCoord;
     bool haveMapCoord = map->ProjectedCoordToMapCoord(projectedCoord, &mapCoord);
@@ -4110,7 +4183,9 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
     if (pressedCommandButtonRow >= 0 &&
         pressedCommandButtonCol >= 0 &&
         match->IsPlayerStillInGame()) {
-      PressCommandButton(&commandButtons[pressedCommandButtonRow][pressedCommandButtonCol]);
+
+      bool shift = event->modifiers() & Qt::ShiftModifier;
+      PressCommandButton(&commandButtons[pressedCommandButtonRow][pressedCommandButtonCol], shift);
       
       pressedCommandButtonRow = -1;
       pressedCommandButtonCol = -1;
@@ -4194,6 +4269,7 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
     if (!menuShown &&
         constructBuildingType != BuildingType::NumBuildings) {
       ShowDefaultCommandButtonsForSelection();
+      activeCommandButton = nullptr;
       constructBuildingType = BuildingType::NumBuildings;
       return;
     }
@@ -4297,7 +4373,7 @@ void RenderWindow::keyReleaseEvent(QKeyEvent* event) {
       for (int col = 0; col < kCommandButtonCols; ++ col) {
         if (commandButtons[row][col].GetHotkey() != Qt::Key_unknown &&
             commandButtons[row][col].GetHotkey() == event->key()) {
-          PressCommandButton(&commandButtons[row][col]);
+          PressCommandButton(&commandButtons[row][col], event->modifiers() & Qt::ShiftModifier);
           
           pressedCommandButtonRow = -1;
           pressedCommandButtonCol = -1;

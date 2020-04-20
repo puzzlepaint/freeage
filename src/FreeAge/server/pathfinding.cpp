@@ -190,7 +190,7 @@ void PlanUnitPath(ServerUnit* unit, ServerMap* map) {
         ServerBuilding* targetBuilding = AsBuilding(targetObject);
         
         const QPoint& baseTile = targetBuilding->GetBaseTile();
-        QSize buildingSize = GetBuildingSize(targetBuilding->GetBuildingType());
+        QSize buildingSize = GetBuildingSize(targetBuilding->GetType());
         goalRect = QRect(baseTile, buildingSize);
       }
     }
@@ -492,7 +492,7 @@ void PlanUnitPath(ServerUnit* unit, ServerMap* map) {
   }
   
   // Smooth the planned path by attempting to drop corners.
-  float unitRadius = GetUnitRadius(unit->GetUnitType());
+  float unitRadius = GetUnitRadius(unit->GetType());
   for (usize i = 1; i < reversePath.size(); ++ i) {
     const QPointF& p0 = (i == reversePath.size() - 1) ? unit->GetMapCoord() : reversePath[i + 1];
     const QPointF& p1 = reversePath[i - 1];

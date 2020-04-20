@@ -69,7 +69,7 @@ void ServerUnit::SetTargetInternal(u32 targetObjectId, ServerObject* targetObjec
   
   if (targetObject->isBuilding()) {
     ServerBuilding* targetBuilding = AsBuilding(targetObject);
-    QSize buildingSize = GetBuildingSize(targetBuilding->GetBuildingType());
+    QSize buildingSize = GetBuildingSize(targetBuilding->GetType());
     moveToTarget = targetBuilding->GetBaseTile() + 0.5f * QPointF(buildingSize.width(), buildingSize.height());
   } else if (targetObject->isUnit()) {
     ServerUnit* targetUnit = AsUnit(targetObject);

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 
 cmake_policy(SET CMP0054 NEW)
 
-project(FreeAge)
+project(FreeAge LANGUAGES CXX)
 
 include(CTest)
 
@@ -68,7 +68,6 @@ set_target_properties(gtest gtest_main PROPERTIES FOLDER "third_party")
 
 
 # FreeAge base library, used by both the application and the test
-# TODO: Unify cpp / cc spelling. Maybe also use hpp to make it clear for headers too that they are C++ code, not C code.
 add_library(FreeAgeLib
   src/FreeAge/common/building_types.cpp
   src/FreeAge/common/messages.cpp
@@ -104,10 +103,10 @@ target_link_libraries(FreeAgeLib PUBLIC
   loguru
   Threads::Threads
 )
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-target_link_libraries(FreeAgeLib PUBLIC
-  stdc++fs  # TODO: I think this is specific to gcc version 8
-)
+# Special case for GCC 8: Make std::filesystem work
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
+    NOT CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9)
+  target_link_libraries(FreeAgeLib PUBLIC stdc++fs)
 endif()
 
 

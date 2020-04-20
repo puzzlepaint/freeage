@@ -179,7 +179,8 @@ class RenderWindow : public QOpenGLWindow {
   /// coordinates of the building are returned in baseTile.
   bool CanBuildingFoundationBePlacedHere(BuildingType type, const QPointF& cursorPos, QPoint* baseTile);
   
-  void PressCommandButton(CommandButton* button);
+  void PressCommandButton(CommandButton* button, bool shift);
+  void ReportNonValidCommandButton(CommandButton* button, CommandButton::State state);
   
   void ShowDefaultCommandButtonsForSelection();
   void ShowEconomyBuildingCommandButtons();
@@ -364,14 +365,19 @@ class RenderWindow : public QOpenGLWindow {
   OpaquenessMap resourcePanelOpaquenessMap;
   TextureAndPointBuffer resourceWood;
   TextDisplayAndPointBuffer woodTextDisplay;
+  TextDisplayAndPointBuffer woodVillagersTextDisplay;
   TextureAndPointBuffer resourceFood;
   TextDisplayAndPointBuffer foodTextDisplay;
+  TextDisplayAndPointBuffer foodVillagersTextDisplay;
   TextureAndPointBuffer resourceGold;
   TextDisplayAndPointBuffer goldTextDisplay;
+  TextDisplayAndPointBuffer goldVillagersTextDisplay;
   TextureAndPointBuffer resourceStone;
   TextDisplayAndPointBuffer stoneTextDisplay;
+  TextDisplayAndPointBuffer stoneVillagersTextDisplay;
   TextureAndPointBuffer pop;
   TextDisplayAndPointBuffer popTextDisplay;
+  TextDisplayAndPointBuffer popVillagersTextDisplay;
   double housedStartTime = -1;
   PointBuffer popWhiteBackgroundPointBuffer;
   TextureAndPointBuffer idleVillagerDisabled;
@@ -424,10 +430,19 @@ class RenderWindow : public QOpenGLWindow {
   bool commandButtonPressedByHotkey = false;
   
   bool showingEconomyBuildingCommandButtons = false;
+
+  // TODO: Somehow group constructBuildingType and activeCommandButton to avoid
+  // setting the one and not the other. Could also be generalized for other types of commands
+  // that need more input than a press of the button (eg. attack move, set gather point,
+  // garrison)
+
   /// The type of building that the user is about to place a foundation for.
   /// If not constructing a building, this is set to BuildingType::NumBuildings.
   BuildingType constructBuildingType = BuildingType::NumBuildings;
   
+  /// The command button which action is under way. Currently only of Type::ConstructBuilding.
+  CommandButton* activeCommandButton = nullptr;
+
   // Control groups.
   static constexpr int kNumControlGroups = 10;
   std::vector<u32> controlGroups[kNumControlGroups];
@@ -464,6 +479,7 @@ class RenderWindow : public QOpenGLWindow {
   std::shared_ptr<ServerConnection> connection;
   QFont georgiaFont;
   QFont georgiaFontSmaller;
+  QFont georgiaFontTiny;
   QFont georgiaFontLarger;
   QFont georgiaFontLargerStrikeOut;
   QFont georgiaFontHuge;

@@ -30,6 +30,25 @@ class CommandButton {
     ToggleBuildingsCategory,
     Quit
   };
+
+  /// The state of the command button describes if it's valid for the player to use it.
+  /// The state is either valid (with the State::Valid value) or invalid with a value
+  /// that describes the reason.
+  enum class State {
+    /// Valid and visible
+    Valid = 0,
+    /// Cannot be affored by the player, visible but disabled.
+    CannotAfford,
+    /// Max limit reached, not visible. (currently only the TownCenter can have this state)
+    MaxLimitReached,
+    /// Already researched, not visible.
+    Researched,
+    /// The requirements are not met, visible but disabled. (eg. "Advance age" without the
+    /// building requirements met)
+    VisibleLocked,
+    /// The requirements are not met, not visible. (eg. "Castle" in Dark age)
+    Locked
+  };
   
   void InitializePointBuffers();
   void UnloadPointBuffers();
@@ -47,12 +66,14 @@ class CommandButton {
   
   void SetAction(ActionType actionType, const Texture* texture, Qt::Key hotkey = Qt::Key_unknown);
   
+  State GetState(GameController* gameController) const;
+
   void Render(
       float x, float y, float size, float iconInset,
       const Texture& iconOverlayNormalTexture,
       UIShader* uiShader, int widgetWidth, int widgetHeight, QOpenGLFunctions_3_2_Core* f);
   
-  void Pressed(const std::vector<u32>& selection, GameController* gameController);
+  void Pressed(const std::vector<u32>& selection, GameController* gameController, bool shift);
   
   /// Tests whether the given point is within the button. Only works correctly after the
   /// button has been rendered.

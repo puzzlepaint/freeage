@@ -101,15 +101,25 @@ void GameController::ParseMessagesUntil(double displayedServerTime) {
   connection->Unlock();
 }
 
-void GameController::ProduceUnit(const std::vector<u32>& selection, UnitType type) {
+void GameController::ProduceUnit(const std::vector<u32>& selection, UnitType type, int count) {
   if (selection.empty()) {
     LOG(ERROR) << "Attempted to produce a unit without a selected building.";
     return;
   }
-  
+
+  int affordable = playerResources.CanAffordTimes(GetUnitCost(type));
+  count = std::min<int>(count, affordable);
+
+  if (count == 0) {
+    return;
+  }
+
   // TODO: Implement proper multi-queue.
   // For now, we always queue the unit in the first selected building.
-  connection->Write(CreateProduceUnitMessage(selection.front(), static_cast<u16>(type)));
+  for (int i = 0; i < count; ++ i) {
+    // TODO: group messages
+    connection->Write(CreateProduceUnitMessage(selection.front(), static_cast<u16>(type)));
+  }
 }
 
 void GameController::ParseMessage(const QByteArray& data, ServerToClientMessage msgType) {
@@ -319,7 +329,7 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
   // In addition, handle population count / space changes.
   if (object->isBuilding()) {
     ClientBuilding* building = AsBuilding(object);
-    if (building->GetBuildPercentage() == 100) {
+    if (building->IsCompleted()) {
       Decal* newDecal = new Decal(building, map.get(), currentGameStepServerTime);
       renderWindow->AddDecal(newDecal);
       
@@ -430,7 +440,7 @@ void GameController::HandleBuildPercentageUpdate(const QByteArray& data) {
   
   ClientBuilding* building = AsBuilding(it->second);
   if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
-    if (building->GetBuildPercentage() != 100 && percentage == 100) {
+    if (!building->IsCompleted() && percentage == 100) {
       // The building has been completed.
       playerStats.BuildingFinished(building->GetType());
 

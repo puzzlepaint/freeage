@@ -137,10 +137,10 @@ class Game {
   /// List of players in the game.
   std::vector<std::shared_ptr<PlayerInGame>>* playersInGame;
 
-  /// The Gai's stats
-  PlayerStats gaiStats;
+  /// The Gaia's stats
+  PlayerStats gaiaStats;
 
-  inline PlayerStats* GetPlayerStats(int playerIndex) { return &(playerIndex == kGaiaPlayerIndex ? gaiStats : playersInGame->at(playerIndex)->stats); }
+  inline PlayerStats* GetPlayerStats(int playerIndex) { return &(playerIndex == kGaiaPlayerIndex ? gaiaStats : playersInGame->at(playerIndex)->stats); }
   
   /// Stores the object IDs that should be deleted at the end of the current
   /// game step. This list is required since we generally cannot directly delete

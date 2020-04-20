@@ -28,7 +28,7 @@ class GameController : public QObject {
   
   void ParseMessagesUntil(double displayedServerTime);
   
-  void ProduceUnit(const std::vector<u32>& selection, UnitType type);
+  void ProduceUnit(const std::vector<u32>& selection, UnitType type, int count);
   
   /// Returns the current resource amount of the player.
   inline const ResourceAmount& GetCurrentResourceAmount() { return playerResources; }
@@ -42,7 +42,9 @@ class GameController : public QObject {
   inline int GetPopulationCount() const { return playerStats.GetPopulationCount(); }
   inline int GetAvailablePopulationSpace() const { return playerStats.GetAvailablePopulationSpace(); }
   inline int GetBuildingTypeCount(BuildingType buildingType) const { return playerStats.GetBuildingTypeCount(buildingType); }
-  
+  inline int GetUnitTypeCount(UnitType unitType) const { return playerStats.GetUnitTypeCount(unitType); }
+  inline int GetVillagerCount() const { return playerStats.GetVillagerCount(); }
+
   inline bool IsPlayerHoused() const { return isHoused; }
 
   inline double GetGameStartServerTimeSeconds() const { return gameStartServerTimeSeconds; }

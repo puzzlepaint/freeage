@@ -250,4 +250,23 @@ properly before it is told about it by the server.
 If you are interested in contributing, the [good first issues](https://github.com/puzzlepaint/freeage/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 might be a good place to start.
 
+#### Debugging the server ####
+
+Normally, the client process starts a new server process when clicking "Create new lobby".
+This may make it difficult to debug the server process. For quick debugging of both the
+client and the server side, they can both be started in `gdb` as follows:
+
+```
+gdb --ex run --args ./FreeAgeServer --no-token
+gdb --ex run --args ./FreeAge --player=HostPlayer --no-server
+```
+
+This way, a click on "Create new lobby" will connect to the existing server (running in `gdb`) instead.
+It is also possible to start additional client instances on the same system for testing multiplayer
+behavior. Separate names can be configured with the `--player` option, for example:
+
+```
+gdb --ex run --args ./FreeAge --player=JoiningPlayer
+```
+
 14!

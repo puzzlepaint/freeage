@@ -127,6 +127,9 @@ class ClientBuilding : public ClientObject {
   inline float GetBuildPercentage() const { return buildPercentage; }
   inline void SetBuildPercentage(float percentage) { buildPercentage = percentage; }
   
+  inline bool IsFoundation() const { return buildPercentage <= 0; }
+  inline bool IsCompleted() const { return buildPercentage >= 100; }
+  
   /// Adds a unit to the end of the production queue.
   inline void QueueUnit(UnitType type) { productionQueue.push_back(type); }
   void DequeueUnit(int index);
@@ -170,7 +173,7 @@ class ClientBuilding : public ClientObject {
   int baseTileY;
   
   /// The build percentage of this building, in percent. Special cases:
-  /// * Exactly 100 means that the building is finished.
+  /// * Exactly 100 means that the building is completed.
   /// * Exactly   0 means that this is a building foundation (i.e., it does not affect map occupancy (yet)).
   float buildPercentage;
 };
