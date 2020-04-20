@@ -12,6 +12,12 @@ inline DamageValues::DamageValues() {
   }
 }
 
+DamageValues::DamageValues(const DamageValues& other) {
+  for (int i = 0; i < static_cast<int>(DamageType::NumDamageTypes); ++ i) {
+    values[i] = other.GetValue(i);
+  }
+}
+
 void DamageValues::AddValue(DamageType damageType, i32 value) {
   if (value == None) {
     return; // ignore

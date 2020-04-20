@@ -227,7 +227,11 @@ Armor GetBuildingArmor(BuildingType type) {
   case BuildingType::PalisadeWall: return buildingWallArmor(2, 5);  // TODO: 0 during construction?
   case BuildingType::PalisadeGate: return buildingWallArmor(2, 2);  // TODO: 0 during construction?
   
-  case BuildingType::TreeOak: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TreeOak"; return GetDefaultArmor(false);
+  case BuildingType::TreeOak: { // assumption
+    Armor armor = GetDefaultArmor(false);
+    armor.SetValue(DamageType::Tree, 0);
+    return armor;
+  };
   case BuildingType::ForageBush: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::ForageBush"; return GetDefaultArmor(false);
   case BuildingType::GoldMine: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::GoldMine"; return GetDefaultArmor(false);
   case BuildingType::StoneMine: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::StoneMine"; return GetDefaultArmor(false);
