@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <QApplication>
 
+#include "FreeAge/common/damage.hpp"
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/common/player.hpp"
 #include "FreeAge/client/map.hpp"
@@ -111,5 +112,56 @@ TEST(PlayerStats, Operations) {
   EXPECT_EQ(stats.GetPopulationCount(), 1);
   EXPECT_EQ(stats.GetBuildingTypeCount(BuildingType::Barracks), 0);
   EXPECT_TRUE(stats.GetBuildingTypeExisted(BuildingType::Barracks));
+
+}
+
+TEST(Damage, DamageValues) {
+  LOG(INFO) << "sizeof(DamageValues) = " << sizeof(DamageValues);
+
+  Armor armor = GetDefaultArmor(true);
+  Damage damage = GetDefaultDamage(false);
+
+  EXPECT_EQ(armor.melee(), 0);
+  EXPECT_EQ(damage.melee(), Damage::None);
+  EXPECT_EQ(damage.GetValue(DamageType::Building), Damage::None);
+
+  armor.AddValue(DamageType::Melee, 1);
+  damage.AddValue(DamageType::Melee, 1);
+
+  EXPECT_EQ(armor.GetValue(DamageType::Melee), 1);
+  EXPECT_EQ(damage.GetValue(DamageType::Melee), 1);
+
+}
+
+TEST(Damage, CalculateDamage) {
+
+  Damage archerDamage = GetDefaultDamage(true);
+  archerDamage.SetValue(DamageType::Pierce, 4);
+  archerDamage.SetValue(DamageType::Spearman, 3);
+
+  Armor villagerArmor = GetDefaultArmor(true);
+
+  Armor spearmanArmor = GetDefaultArmor(true);
+  spearmanArmor.SetValue(DamageType::Melee, 0);
+  spearmanArmor.SetValue(DamageType::Pierce, 0);
+  spearmanArmor.SetValue(DamageType::Infantry, 0);
+  spearmanArmor.SetValue(DamageType::Spearman, 0);
+
+  EXPECT_EQ(CalculateDamage(archerDamage, villagerArmor), 4);
+  EXPECT_EQ(CalculateDamage(archerDamage, spearmanArmor), 7);
+
+  villagerArmor.AddValue(DamageType::Pierce, 2);
+  spearmanArmor.AddValue(DamageType::Pierce, 1);
+
+  EXPECT_EQ(CalculateDamage(archerDamage, villagerArmor), 2);
+  EXPECT_EQ(CalculateDamage(archerDamage, spearmanArmor), 6);
+
+  Armor ramArmor = GetDefaultArmor(true);
+  ramArmor.SetValue(DamageType::Melee, -3);
+
+  Damage villagerDamage = GetDefaultDamage(true);
+  villagerDamage.SetValue(DamageType::Melee, 3);
+
+  EXPECT_EQ(CalculateDamage(villagerDamage, ramArmor), 6);
 
 }
