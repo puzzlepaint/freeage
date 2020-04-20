@@ -53,7 +53,7 @@ class ClientBuildingType {
     static std::vector<ClientBuildingType> buildingTypesSingleton;
     return buildingTypesSingleton;
   }
-  
+
  private:
   QString GetFilename() const;
   QString GetFoundationFilename() const;
@@ -149,6 +149,9 @@ class ClientBuilding : public ClientObject {
     }
   }
   
+  /// The scale of the tree sprites. Starts with a value of 1 and can be changed durring a match.
+  static float TreeScale;
+
  private:
   // TODO: Allow to queue technologies as well
   std::vector<UnitType> productionQueue;

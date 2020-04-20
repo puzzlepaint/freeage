@@ -249,8 +249,7 @@ bool ClientBuildingType::DoesCauseOutlinesInternal() const {
 }
 
 bool ClientBuildingType::UsesRandomSpriteFrame() const {
-  return (static_cast<int>(type) >= static_cast<int>(BuildingType::FirstTree) &&
-          static_cast<int>(type) <= static_cast<int>(BuildingType::LastTree)) ||
+  return IsTree(type) ||
          type == BuildingType::House ||
          type == BuildingType::PalisadeWall ||
          type == BuildingType::ForageBush ||
@@ -283,6 +282,7 @@ void ClientBuildingType::SetCommandButtons(CommandButton commandButtons[3][5]) {
   }
 }
 
+float ClientBuilding::TreeScale = 1.f;
 
 ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY, float buildPercentage, u32 hp)
     : ClientObject(ObjectType::Building, playerIndex, hp),
@@ -309,11 +309,12 @@ QRectF ClientBuilding::GetRectInProjectedCoords(
   
   const Sprite::Frame::Layer& layer = shadow ? sprite.frame(frameIndex).shadow : sprite.frame(frameIndex).graphic;
   bool isGraphic = !shadow && !outline;
+  float scale = IsTree(type) ? TreeScale : 1.f;
   return QRectF(
-      centerProjectedCoord.x() - layer.centerX + (isGraphic ? 1 : 0),
-      centerProjectedCoord.y() - layer.centerY + (isGraphic ? 1 : 0),
-      layer.imageWidth + (isGraphic ? -2 : 0),
-      layer.imageHeight + (isGraphic ? -2 : 0));
+      centerProjectedCoord.x() - layer.centerX * scale + (isGraphic ? 1 : 0),
+      centerProjectedCoord.y() - layer.centerY * scale + (isGraphic ? 1 : 0),
+      layer.imageWidth * scale + (isGraphic ? -2 : 0),
+      layer.imageHeight * scale + (isGraphic ? -2 : 0));
 }
 
 void ClientBuilding::Render(
@@ -387,7 +388,7 @@ void ClientBuilding::Render(
       outline,
       outlineOrModulationColor,
       playerIndex,
-      1.f);
+      IsTree(type) ? TreeScale : 1.f);
   
   if (type == BuildingType::TownCenter && spriteType == BuildingSprite::Building) {
     // Front
