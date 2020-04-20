@@ -190,32 +190,41 @@ u32 GetBuildingMaxHP(BuildingType type) {
   return 0;
 }
 
-u32 GetBuildingMeleeArmor(BuildingType type) {
+Armor GetBuildingArmor(BuildingType type) {
+  auto buildingArmor = [](int melee , int pierce) {
+    Armor armor = GetDefaultArmor(false);
+    armor.SetValue(DamageType::Melee, melee);
+    armor.SetValue(DamageType::Pierce, pierce);
+    armor.SetValue(DamageType::Building, 0);
+    armor.SetValue(DamageType::StandardBuilding, 0);
+    return armor;
+  };
+
   switch (type) {
-  case BuildingType::TownCenter: return 3;
-  case BuildingType::TownCenterBack: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterBack"; return 0;
-  case BuildingType::TownCenterCenter: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterCenter"; return 0;
-  case BuildingType::TownCenterFront: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterFront"; return 0;
-  case BuildingType::TownCenterMain: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterMain"; return 0;
-  case BuildingType::House: return 0;
+  case BuildingType::TownCenter: return buildingArmor(3, 5);
+  case BuildingType::TownCenterBack: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterBack"; return GetDefaultArmor(false);
+  case BuildingType::TownCenterCenter: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterCenter"; return GetDefaultArmor(false);
+  case BuildingType::TownCenterFront: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterFront"; return GetDefaultArmor(false);
+  case BuildingType::TownCenterMain: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterMain"; return GetDefaultArmor(false);
+  case BuildingType::House: return buildingArmor(0, 7);
   
-  case BuildingType::Mill: return 0;
-  case BuildingType::MiningCamp: return 0;
-  case BuildingType::LumberCamp: return 0;
-  case BuildingType::Dock: return 0;
+  case BuildingType::Mill: return buildingArmor(0, 7);
+  case BuildingType::MiningCamp: return buildingArmor(0, 7);
+  case BuildingType::LumberCamp: return buildingArmor(0, 7);
+  case BuildingType::Dock: return buildingArmor(0, 7);
   
-  case BuildingType::Barracks: return 0;
-  case BuildingType::Outpost: return 0;
-  case BuildingType::PalisadeWall: return 2;  // TODO: 0 during construction?
-  case BuildingType::PalisadeGate: return 2;  // TODO: 0 during construction?
+  case BuildingType::Barracks: return buildingArmor(0, 7);
+  case BuildingType::Outpost: return buildingArmor(0, 0);
+  case BuildingType::PalisadeWall: return buildingArmor(2, 5);  // TODO: 0 during construction?
+  case BuildingType::PalisadeGate: return buildingArmor(2, 2);  // TODO: 0 during construction?
   
-  case BuildingType::TreeOak: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TreeOak"; return 0;
-  case BuildingType::ForageBush: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::ForageBush"; return 0;
-  case BuildingType::GoldMine: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::GoldMine"; return 0;
-  case BuildingType::StoneMine: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::StoneMine"; return 0;
-  case BuildingType::NumBuildings: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::NumBuildings"; return 0;
+  case BuildingType::TreeOak: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TreeOak"; return GetDefaultArmor(false);
+  case BuildingType::ForageBush: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::ForageBush"; return GetDefaultArmor(false);
+  case BuildingType::GoldMine: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::GoldMine"; return GetDefaultArmor(false);
+  case BuildingType::StoneMine: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::StoneMine"; return GetDefaultArmor(false);
+  case BuildingType::NumBuildings: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::NumBuildings"; return GetDefaultArmor(false);
   }
-  return 0;
+  return GetDefaultArmor(false);
 }
 
 int GetBuildingMaxInstances(BuildingType type) {

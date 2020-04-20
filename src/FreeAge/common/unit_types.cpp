@@ -144,44 +144,63 @@ u32 GetUnitMaxHP(UnitType type) {
   return 0;
 }
 
-u32 GetUnitMeleeAttack(UnitType type) {
+Damage GetUnitDamage(UnitType type) {
   // TODO: Load this from some data file
   
   if (IsVillager(type)) {
-    return 3;
+    Damage damage = GetDefaultDamage(true);
+    damage.SetValue(DamageType::Melee, 3);
+    damage.SetValue(DamageType::StoneDefense, 6);
+    damage.SetValue(DamageType::Building, 3);
+    return damage;
   }
   
   switch (type) {
-  case UnitType::Militia:
-    return 4;
-  case UnitType::Scout:
-    return 3;
+  case UnitType::Militia: {
+    Damage damage = GetDefaultDamage(true);
+    damage.SetValue(DamageType::Melee, 4);
+    return damage;
+  }
+  case UnitType::Scout: {
+    Damage damage = GetDefaultDamage(true);
+    damage.SetValue(DamageType::Melee, 3);
+    damage.SetValue(DamageType::Monk, 6);
+    return damage;
+  }
   default:
     LOG(ERROR) << "Function called on unsupported type: " << static_cast<int>(type);
     break;
   }
   
-  return 0;
+  return GetDefaultDamage(true);
 }
 
-u32 GetUnitMeleeArmor(UnitType type) {
+Armor GetUnitArmor(UnitType type) {
   // TODO: Load this from some data file
   
   if (IsVillager(type)) {
-    return 0;
+    return GetDefaultArmor(true);
   }
   
   switch (type) {
-  case UnitType::Militia:
-    return 0;
-  case UnitType::Scout:
-    return 0;
+  case UnitType::Militia: {
+    Armor armor = GetDefaultArmor(true);
+    armor.SetValue(DamageType::Pierce, 1);
+    armor.SetValue(DamageType::Infantry, 0);
+    return armor;
+  }
+  case UnitType::Scout: {
+    Armor armor = GetDefaultArmor(true);
+    armor.SetValue(DamageType::Pierce, 2);
+    armor.SetValue(DamageType::Cavalry, 0);
+    return armor;
+  }
   default:
     LOG(ERROR) << "Function called on unsupported type: " << static_cast<int>(type);
     break;
   }
   
-  return 0;
+  return GetDefaultArmor(true);
 }
 
 float GetUnitLineOfSight(UnitType type) {

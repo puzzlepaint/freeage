@@ -4,6 +4,8 @@
 
 #include "FreeAge/common/damage.hpp"
 
+#include <algorithm>
+
 inline DamageValues::DamageValues() {
   for (int i = 0; i < static_cast<int>(DamageType::NumDamageTypes); ++ i) {
     values[i] = None;
