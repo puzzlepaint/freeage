@@ -311,10 +311,10 @@ QRectF ClientBuilding::GetRectInProjectedCoords(
   bool isGraphic = !shadow && !outline;
   float scale = IsTree(type) ? TreeScale : 1.f;
   return QRectF(
-      centerProjectedCoord.x() - layer.centerX * scale + (isGraphic ? 1 : 0),
-      centerProjectedCoord.y() - layer.centerY * scale + (isGraphic ? 1 : 0),
-      layer.imageWidth * scale + (isGraphic ? -2 : 0),
-      layer.imageHeight * scale + (isGraphic ? -2 : 0));
+      centerProjectedCoord.x() + scale * (-layer.centerX + (isGraphic ? 1 : 0)),
+      centerProjectedCoord.y() + scale * (-layer.centerY + (isGraphic ? 1 : 0)),
+      scale * (layer.imageWidth + (isGraphic ? -2 : 0)),
+      scale * (layer.imageHeight + (isGraphic ? -2 : 0)));
 }
 
 void ClientBuilding::Render(
