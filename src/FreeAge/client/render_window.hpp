@@ -282,6 +282,9 @@ class RenderWindow : public QOpenGLWindow {
   
   /// Whether to use smooth zooming or step-wise zooming. TODO: Make configurable.
   bool smoothZooming = true;
+
+  /// The target value for the ClientBuilding::TreeScale to interpolate over.
+  float treeScale = 1;
   
   /// Game start time.
   TimePoint renderStartTime;

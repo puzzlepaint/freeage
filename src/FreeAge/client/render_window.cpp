@@ -3629,6 +3629,16 @@ void RenderWindow::paintGL() {
       scrollProjectedCoordOffset.setY(0);
     }
   }
+
+  if (treeScale != ClientBuilding::TreeScale) {
+    float d = treeScale - ClientBuilding::TreeScale;
+    if (fabs(d) < 0.001f) {
+      ClientBuilding::TreeScale = treeScale;
+    } else {
+      // TODO: change with proper frame rate idependant interpolation
+      ClientBuilding::TreeScale += d * .1f;
+    }
+  }
   
   // Center the view on the selection if the space key is held.
   if (spaceHeld) {
@@ -4303,12 +4313,14 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
   } else if (event->key() == Qt::Key_H) {
     JumpToNextTownCenter();
   } else if (event->key() == Qt::Key_J) { // TODO: change key
-    // TODO: get values from user settings
-    float mediumValue = .35f;
-    float smallValue = .2f;
+    bool animate = true; // TODO: user setting
+    float mediumValue = .35f; // TODO: user setting
+    float smallValue = .2f; // TODO: user setting
     float value = shift ? smallValue : mediumValue;
-    ClientBuilding::TreeScale = ClientBuilding::TreeScale != value ? value : 1.f;
-    // TODO: animate ??
+    treeScale = treeScale != value ? value : 1.f;
+    if (!animate) {
+      ClientBuilding::TreeScale = treeScale;
+    }
   } else if (event->key() == Qt::Key_Space) {
     spaceHeld = true;
   } else if (event->key() >= Qt::Key_0 && event->key() <= Qt::Key_9) {
