@@ -19,7 +19,7 @@ jobs:
     - name: make
       run: mkdir build && cd build && CXX=/usr/bin/g++-8 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja .. && ninja
     - name: test
-      run: cd build && ctest -VV
+      run: cd build && QT_QPA_PLATFORM=offscreen ctest -VV
 # TODO: this could be used to build an AppImage, add artifacts on each build and/or release. 
 #    - name: zip
 #      if: github.event_name == 'release'
@@ -56,7 +56,7 @@ jobs:
         windeployqt build\Release\FreeAgeServer.exe
         windeployqt build\Release\FreeAge.exe
     - name: test
-      run: cd build && ctest
+      run: cd build && ctest -VV
     - uses: actions/upload-artifact@v1
       with:
         name: freeage-windows
