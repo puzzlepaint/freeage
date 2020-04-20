@@ -84,7 +84,7 @@ int GetUnitAttackFrames(UnitType type);
 
 /// TODO: This needs to consider the player's civilization and researched technologies
 u32 GetUnitMaxHP(UnitType type);
-Damage GetUnitDamage(UnitType type); // TODO: replace with GetAttack
+Damage GetUnitDamage(UnitType type);
 Armor GetUnitArmor(UnitType type);
 
 float GetUnitLineOfSight(UnitType type);

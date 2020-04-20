@@ -1307,24 +1307,22 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
       timeSinceActionStart - stepLengthInSeconds < attackDamageTime &&
       target != nullptr) {
     // Compute the attack damage.
-    int meleeArmor;
+    // TODO: Elevation multiplier 5/4 or 3/4
+    float multiplier = 1;
+    int damage;
     if (target->isUnit()) {
-      meleeArmor = GetUnitMeleeArmor(AsUnit(target)->GetType());
+      damage = CalculateDamage(GetUnitDamage(unit->GetType()),
+          GetUnitArmor(AsUnit(target)->GetType()), multiplier);
     } else {
       CHECK(target->isBuilding());
-      meleeArmor = GetBuildingMeleeArmor(AsBuilding(target)->GetType());
+      damage = CalculateDamage(GetUnitDamage(unit->GetType()),
+          GetBuildingArmor(AsBuilding(target)->GetType()), multiplier);
     }
-    int meleeDamage = std::max(0, static_cast<int>(GetUnitMeleeAttack(unit->GetType())) - meleeArmor);
-    
-    // TODO: Pierce damage
-    // TODO: Damage bonuses
-    // TODO: Elevation multiplier 5/4 or 3/4
-    
-    int totalDamage = std::max(1, meleeDamage);
+    CHECK(damage >= 1);
     
     // Do the attack damage.
     float oldHP = target->GetHPInternalFloat();
-    float hp = target->GetHPInternalFloat() - totalDamage;
+    float hp = target->GetHPInternalFloat() - damage;
     if (hp > 0.5f) {
       target->SetHP(hp);
       
