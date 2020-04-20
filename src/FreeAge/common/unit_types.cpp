@@ -152,6 +152,7 @@ Damage GetUnitDamage(UnitType type) {
     damage.SetValue(DamageType::Melee, 3);
     damage.SetValue(DamageType::StoneDefense, 6);
     damage.SetValue(DamageType::Building, 3);
+    damage.SetValue(DamageType::Tree, 15); // assumption
     return damage;
   }
   

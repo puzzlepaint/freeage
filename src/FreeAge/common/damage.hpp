@@ -61,6 +61,8 @@ struct DamageValues {
   /// Prefer GetDefaultArmor and GetDefaultDamage to create new objects.
   inline DamageValues();
 
+  DamageValues(const DamageValues& other);
+
   /// Increase the value of a damage type (handling cases with values of None).
   void AddValue(DamageType damageType, i32 value);
 

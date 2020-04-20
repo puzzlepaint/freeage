@@ -165,3 +165,22 @@ TEST(Damage, CalculateDamage) {
   EXPECT_EQ(CalculateDamage(villagerDamage, ramArmor), 6);
 
 }
+
+TEST(GameLogic, VillagerVsTree) {
+  // Test the number of hits needed to chop a tree.
+
+  Damage villagerDamage = GetUnitDamage(UnitType::MaleVillagerLumberjack);
+  Damage treeArmor = GetBuildingArmor(BuildingType::TreeOak);
+
+  // kill in two hits
+  EXPECT_EQ(CalculateDamage(villagerDamage, treeArmor), 15);
+
+  // apply the Sappers technology
+  villagerDamage.AddValue(DamageType::Building, 15);
+  villagerDamage.AddValue(DamageType::StoneDefense, 15);
+  villagerDamage.AddValue(DamageType::Tree, 5); // assumption
+
+  // kill in one hit
+  EXPECT_GE(CalculateDamage(villagerDamage, treeArmor), 20);
+
+}
