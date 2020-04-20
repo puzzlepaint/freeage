@@ -149,7 +149,7 @@ class ClientBuilding : public ClientObject {
     }
   }
   
-  /// The scale of the tree sprites. Starts with a value of 1 and can be changed durring a match.
+  /// The scale of the tree sprites. Starts with a value of 1 and can be changed during a match.
   static float TreeScale;
 
  private:

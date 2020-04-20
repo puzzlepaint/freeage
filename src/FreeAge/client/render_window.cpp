@@ -3631,12 +3631,13 @@ void RenderWindow::paintGL() {
   }
 
   if (treeScale != ClientBuilding::TreeScale) {
-    float d = treeScale - ClientBuilding::TreeScale;
-    if (fabs(d) < 0.001f) {
+    constexpr float treeScaleUpdateRate = 0.85f;
+
+    if (fabs(treeScale - ClientBuilding::TreeScale) < 0.001f) {
       ClientBuilding::TreeScale = treeScale;
     } else {
-      // TODO: change with proper frame rate idependant interpolation
-      ClientBuilding::TreeScale += d * .1f;
+      float factor = std::pow(treeScaleUpdateRate, 60 * secondsSinceLastFrame);
+      ClientBuilding::TreeScale = (1.f - factor) * treeScale + factor * ClientBuilding::TreeScale;
     }
   }
   
