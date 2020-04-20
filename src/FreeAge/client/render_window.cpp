@@ -4282,6 +4282,8 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
     return;
   }
   
+  bool shift = event->modifiers() & Qt::ShiftModifier;
+
   if (event->key() == Qt::Key_Right) {
     scrollRightPressed = true;
     scrollRightPressTime = Clock::now();
@@ -4300,6 +4302,13 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
     }
   } else if (event->key() == Qt::Key_H) {
     JumpToNextTownCenter();
+  } else if (event->key() == Qt::Key_J) { // TODO: change key
+    // TODO: get values from user settings
+    float mediumValue = .35f;
+    float smallValue = .2f;
+    float value = shift ? smallValue : mediumValue;
+    ClientBuilding::TreeScale = ClientBuilding::TreeScale != value ? value : 1.f;
+    // TODO: animate ??
   } else if (event->key() == Qt::Key_Space) {
     spaceHeld = true;
   } else if (event->key() >= Qt::Key_0 && event->key() <= Qt::Key_9) {
