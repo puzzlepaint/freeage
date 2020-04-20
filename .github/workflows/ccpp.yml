@@ -51,7 +51,10 @@ jobs:
     - name: build
       run: cmake --build build --config Release
     - name: deploy Qt
-      run: windeployqt build\Release\FreeAgeTest.exe
+      run: |
+        windeployqt build\Release\FreeAgeTest.exe
+        windeployqt build\Release\FreeAgeServer.exe
+        windeployqt build\Release\FreeAge.exe
     - name: test
       run: cd build && ctest
     - uses: actions/upload-artifact@v1
