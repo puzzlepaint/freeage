@@ -199,6 +199,15 @@ Armor GetBuildingArmor(BuildingType type) {
     armor.SetValue(DamageType::StandardBuilding, 0);
     return armor;
   };
+  auto buildingWallArmor = [](int melee , int pierce) {
+    Armor armor = GetDefaultArmor(false);
+    armor.SetValue(DamageType::Melee, melee);
+    armor.SetValue(DamageType::Pierce, pierce);
+    armor.SetValue(DamageType::Building, 0);
+    armor.SetValue(DamageType::StandardBuilding, 0);
+    armor.SetValue(DamageType::WallGate, 0);
+    return armor;
+  };
 
   switch (type) {
   case BuildingType::TownCenter: return buildingArmor(3, 5);
@@ -215,8 +224,8 @@ Armor GetBuildingArmor(BuildingType type) {
   
   case BuildingType::Barracks: return buildingArmor(0, 7);
   case BuildingType::Outpost: return buildingArmor(0, 0);
-  case BuildingType::PalisadeWall: return buildingArmor(2, 5);  // TODO: 0 during construction?
-  case BuildingType::PalisadeGate: return buildingArmor(2, 2);  // TODO: 0 during construction?
+  case BuildingType::PalisadeWall: return buildingWallArmor(2, 5);  // TODO: 0 during construction?
+  case BuildingType::PalisadeGate: return buildingWallArmor(2, 2);  // TODO: 0 during construction?
   
   case BuildingType::TreeOak: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TreeOak"; return GetDefaultArmor(false);
   case BuildingType::ForageBush: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::ForageBush"; return GetDefaultArmor(false);
