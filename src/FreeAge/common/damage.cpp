@@ -3,10 +3,11 @@
 // See the COPYING file in the project root for the license text.
 
 #include "FreeAge/common/damage.hpp"
+#include "FreeAge/common/logging.hpp"
 
 #include <algorithm>
 
-inline DamageValues::DamageValues() {
+DamageValues::DamageValues() {
   for (int i = 0; i < static_cast<int>(DamageType::NumDamageTypes); ++ i) {
     values[i] = None;
   }
@@ -14,7 +15,7 @@ inline DamageValues::DamageValues() {
 
 DamageValues::DamageValues(const DamageValues& other) {
   for (int i = 0; i < static_cast<int>(DamageType::NumDamageTypes); ++ i) {
-    values[i] = other.GetValue(i);
+    values[i] = other.values[i];
   }
 }
 
@@ -34,9 +35,11 @@ void DamageValues::AddValue(DamageType damageType, i32 value) {
 Armor GetDefaultArmor(bool isUnit) {
   Armor armor;
   if (isUnit) {
+    CHECK_EQ(armor.GetValue(DamageType::Melee), Armor::None);
     armor.SetValue(DamageType::Melee, 0);
     armor.SetValue(DamageType::Pierce, 0);
     armor.SetValue(DamageType::AntiLeitis, 0);
+    CHECK_EQ(armor.GetValue(DamageType::Melee), 0);
   }
   return armor;
 }
@@ -63,5 +66,5 @@ i32 CalculateDamage(const Damage& damage, const Armor& armor, float multiplier) 
     sum += std::max(0, damageValue - armorValue);
   }
   // damage is always at least 1
-  return std::max(1, static_cast<i32>(sum * multiplier));
+  return std::max(1, static_cast<i32>(sum * multiplier + .5f));
 }

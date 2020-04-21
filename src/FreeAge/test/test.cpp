@@ -118,10 +118,11 @@ TEST(PlayerStats, Operations) {
 TEST(Damage, DamageValues) {
   LOG(INFO) << "sizeof(DamageValues) = " << sizeof(DamageValues);
 
-  Armor armor = GetDefaultArmor(true);
-  Damage damage = GetDefaultDamage(false);
+  Armor armor = GetUnitDefaultArmor();
+  Damage damage = GetBuildingDefaultDamage();
 
   EXPECT_EQ(armor.melee(), 0);
+  EXPECT_EQ(armor.pierce(), 0);
   EXPECT_EQ(damage.melee(), Damage::None);
   EXPECT_EQ(damage.GetValue(DamageType::Building), Damage::None);
 
@@ -135,13 +136,13 @@ TEST(Damage, DamageValues) {
 
 TEST(Damage, CalculateDamage) {
 
-  Damage archerDamage = GetDefaultDamage(true);
+  Damage archerDamage = GetUnitDefaultDamage();
   archerDamage.SetValue(DamageType::Pierce, 4);
   archerDamage.SetValue(DamageType::Spearman, 3);
 
-  Armor villagerArmor = GetDefaultArmor(true);
+  Armor villagerArmor = GetUnitDefaultArmor();
 
-  Armor spearmanArmor = GetDefaultArmor(true);
+  Armor spearmanArmor = GetUnitDefaultArmor();
   spearmanArmor.SetValue(DamageType::Melee, 0);
   spearmanArmor.SetValue(DamageType::Pierce, 0);
   spearmanArmor.SetValue(DamageType::Infantry, 0);
@@ -156,10 +157,10 @@ TEST(Damage, CalculateDamage) {
   EXPECT_EQ(CalculateDamage(archerDamage, villagerArmor), 2);
   EXPECT_EQ(CalculateDamage(archerDamage, spearmanArmor), 6);
 
-  Armor ramArmor = GetDefaultArmor(true);
+  Armor ramArmor = GetUnitDefaultArmor();
   ramArmor.SetValue(DamageType::Melee, -3);
 
-  Damage villagerDamage = GetDefaultDamage(true);
+  Damage villagerDamage = GetUnitDefaultDamage();
   villagerDamage.SetValue(DamageType::Melee, 3);
 
   EXPECT_EQ(CalculateDamage(villagerDamage, ramArmor), 6);

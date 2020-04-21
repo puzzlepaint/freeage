@@ -59,24 +59,24 @@ struct DamageValues {
 
   /// Initialize all values with None.
   /// Prefer GetDefaultArmor and GetDefaultDamage to create new objects.
-  inline DamageValues();
+  DamageValues();
 
   DamageValues(const DamageValues& other);
 
   /// Increase the value of a damage type (handling cases with values of None).
   void AddValue(DamageType damageType, i32 value);
 
-  inline void SetValue(DamageType damageType, i32 value) { values[static_cast<int>(damageType)] = value; }
+  void SetValue(DamageType damageType, i32 value) { values[static_cast<int>(damageType)] = value; }
 
-  inline i32 GetValue(DamageType damageType) const { return values[static_cast<int>(damageType)]; }
-  inline i32 GetValue(int index) const { return values[index]; }
+  i32 GetValue(DamageType damageType) const { return values[static_cast<int>(damageType)]; }
+  i32 GetValue(int index) const { return values[index]; }
 
-  inline i32 HasValue(DamageType damageType) const { return values[static_cast<int>(damageType)] != None; }
+  i32 HasValue(DamageType damageType) const { return values[static_cast<int>(damageType)] != None; }
 
   // The original gui mostly uses the Melee and Pierce values.
 
-  inline i32 melee() const { return GetValue(DamageType::Melee); }
-  inline i32 pierce() const { return GetValue(DamageType::Pierce); }
+  i32 melee() const { return GetValue(DamageType::Melee); }
+  i32 pierce() const { return GetValue(DamageType::Pierce); }
 
  private:
 
@@ -98,6 +98,11 @@ typedef DamageValues Damage;
 Armor GetDefaultArmor(bool isUnit);
 /// Returns the Damage with the default values.
 Damage GetDefaultDamage(bool isUnit);
+
+inline Armor GetUnitDefaultArmor() { return GetDefaultArmor(true); }
+inline Damage GetUnitDefaultDamage() { return GetDefaultDamage(true); }
+inline Armor GetBuildingDefaultArmor() { return GetDefaultArmor(false); }
+inline Damage GetBuildingDefaultDamage() { return GetDefaultDamage(false); }
 
 /// Returns the damage (reduction of health) that the given Damage will cause to the
 /// object with the given Armor.
