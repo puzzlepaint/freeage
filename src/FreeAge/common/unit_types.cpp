@@ -148,7 +148,7 @@ Damage GetUnitDamage(UnitType type) {
   // TODO: Load this from some data file
   
   if (IsVillager(type)) {
-    Damage damage = GetDefaultDamage(true);
+    Damage damage = GetUnitDefaultDamage();
     damage.SetValue(DamageType::Melee, 3);
     damage.SetValue(DamageType::StoneDefense, 6);
     damage.SetValue(DamageType::Building, 3);
@@ -158,12 +158,12 @@ Damage GetUnitDamage(UnitType type) {
   
   switch (type) {
   case UnitType::Militia: {
-    Damage damage = GetDefaultDamage(true);
+    Damage damage = GetUnitDefaultDamage();
     damage.SetValue(DamageType::Melee, 4);
     return damage;
   }
   case UnitType::Scout: {
-    Damage damage = GetDefaultDamage(true);
+    Damage damage = GetUnitDefaultDamage();
     damage.SetValue(DamageType::Melee, 3);
     damage.SetValue(DamageType::Monk, 6);
     return damage;
@@ -173,25 +173,25 @@ Damage GetUnitDamage(UnitType type) {
     break;
   }
   
-  return GetDefaultDamage(true);
+  return GetUnitDefaultDamage();
 }
 
 Armor GetUnitArmor(UnitType type) {
   // TODO: Load this from some data file
   
   if (IsVillager(type)) {
-    return GetDefaultArmor(true);
+    return GetUnitDefaultArmor();
   }
   
   switch (type) {
   case UnitType::Militia: {
-    Armor armor = GetDefaultArmor(true);
+    Armor armor = GetUnitDefaultArmor();
     armor.SetValue(DamageType::Pierce, 1);
     armor.SetValue(DamageType::Infantry, 0);
     return armor;
   }
   case UnitType::Scout: {
-    Armor armor = GetDefaultArmor(true);
+    Armor armor = GetUnitDefaultArmor();
     armor.SetValue(DamageType::Pierce, 2);
     armor.SetValue(DamageType::Cavalry, 0);
     return armor;
@@ -201,7 +201,7 @@ Armor GetUnitArmor(UnitType type) {
     break;
   }
   
-  return GetDefaultArmor(true);
+  return GetUnitDefaultArmor();
 }
 
 float GetUnitLineOfSight(UnitType type) {

@@ -192,7 +192,7 @@ u32 GetBuildingMaxHP(BuildingType type) {
 
 Armor GetBuildingArmor(BuildingType type) {
   auto buildingArmor = [](int melee , int pierce) {
-    Armor armor = GetDefaultArmor(false);
+    Armor armor = GetBuildingDefaultArmor();
     armor.SetValue(DamageType::Melee, melee);
     armor.SetValue(DamageType::Pierce, pierce);
     armor.SetValue(DamageType::Building, 0);
@@ -200,7 +200,7 @@ Armor GetBuildingArmor(BuildingType type) {
     return armor;
   };
   auto buildingWallArmor = [](int melee , int pierce) {
-    Armor armor = GetDefaultArmor(false);
+    Armor armor = GetBuildingDefaultArmor();
     armor.SetValue(DamageType::Melee, melee);
     armor.SetValue(DamageType::Pierce, pierce);
     armor.SetValue(DamageType::Building, 0);
@@ -211,10 +211,10 @@ Armor GetBuildingArmor(BuildingType type) {
 
   switch (type) {
   case BuildingType::TownCenter: return buildingArmor(3, 5);
-  case BuildingType::TownCenterBack: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterBack"; return GetDefaultArmor(false);
-  case BuildingType::TownCenterCenter: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterCenter"; return GetDefaultArmor(false);
-  case BuildingType::TownCenterFront: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterFront"; return GetDefaultArmor(false);
-  case BuildingType::TownCenterMain: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterMain"; return GetDefaultArmor(false);
+  case BuildingType::TownCenterBack: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterBack"; return GetBuildingDefaultArmor();
+  case BuildingType::TownCenterCenter: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterCenter"; return GetBuildingDefaultArmor();
+  case BuildingType::TownCenterFront: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterFront"; return GetBuildingDefaultArmor();
+  case BuildingType::TownCenterMain: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::TownCenterMain"; return GetBuildingDefaultArmor();
   case BuildingType::House: return buildingArmor(0, 7);
   
   case BuildingType::Mill: return buildingArmor(0, 7);
@@ -228,16 +228,16 @@ Armor GetBuildingArmor(BuildingType type) {
   case BuildingType::PalisadeGate: return buildingWallArmor(2, 2);  // TODO: 0 during construction?
   
   case BuildingType::TreeOak: { // assumption
-    Armor armor = GetDefaultArmor(false);
+    Armor armor = GetBuildingDefaultArmor();
     armor.SetValue(DamageType::Tree, 0);
     return armor;
   };
-  case BuildingType::ForageBush: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::ForageBush"; return GetDefaultArmor(false);
-  case BuildingType::GoldMine: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::GoldMine"; return GetDefaultArmor(false);
-  case BuildingType::StoneMine: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::StoneMine"; return GetDefaultArmor(false);
-  case BuildingType::NumBuildings: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::NumBuildings"; return GetDefaultArmor(false);
+  case BuildingType::ForageBush: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::ForageBush"; return GetBuildingDefaultArmor();
+  case BuildingType::GoldMine: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::GoldMine"; return GetBuildingDefaultArmor();
+  case BuildingType::StoneMine: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::StoneMine"; return GetBuildingDefaultArmor();
+  case BuildingType::NumBuildings: LOG(ERROR) << "GetBuildingMeleeArmor() called on BuildingType::NumBuildings"; return GetBuildingDefaultArmor();
   }
-  return GetDefaultArmor(false);
+  return GetBuildingDefaultArmor();
 }
 
 int GetBuildingMaxInstances(BuildingType type) {
