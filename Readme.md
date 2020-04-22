@@ -65,6 +65,9 @@ Binary downloads for Windows are provided via [GitHub Releases](https://github.c
 On Linux, see below for how to build the project yourself.
 
 Run `FreeAge.exe` (Windows) / `FreeAge` (Linux) to start the game.
+If an error like "VCRUNTIME140_1.dll not found, reinstalling may fix this problem" shows up,
+download and install the latest [Visual Studio redistributable files from Microsoft](https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads).
+These are common DLLs that are used by many programs; sometimes such an update is required if a new version is being used.
 
 A settings dialog will show where you may enter your player name and adjust
 some preferences. In addition, the paths to the asset files from the original
@@ -103,14 +106,15 @@ start a game with only a single player for testing purposes.
 
 Hotkeys are currently hard-coded to the following:
 
-* Arrow keys: Scrolling
-* H:          Jump to town center
-* A:          Build villager / Build militia / Economy buildings
-* S:          Military buildings
-* Q - R, A:   Grid mapping for constructing the corresponding buildings
-* Del:        Delete building or unit
-* 1 - 0:      Control groups (define by holding Ctrl)
-* Space:      Jump to selected object(s)
+* Arrow keys:  Scrolling
+* H:           Jump to town center
+* A:           Build villager / Build militia / Economy buildings
+* S:           Military buildings
+* Q - R, A, Z: Grid mapping for constructing the corresponding buildings
+* Del:         Delete building or unit
+* 1 - 0:       Control groups (define by holding Ctrl)
+* Space:       Jump to selected object(s)
+* (Shift+)J    Toggle small trees (or tiny trees if holding Shift)
 
 ### Playing over the Internet ###
 
