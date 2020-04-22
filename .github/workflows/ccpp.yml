@@ -20,7 +20,7 @@ jobs:
       run: mkdir build && cd build && CXX=/usr/bin/g++-8 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja .. && ninja
     - name: test
       run: cd build && QT_QPA_PLATFORM=offscreen ctest -VV
-# TODO: this could be used to build an AppImage, add artifacts on each build and/or release. 
+# TODO: this could be used to build an AppImage, add artifacts on each build and/or release.
 #    - name: zip
 #      if: github.event_name == 'release'
 #      run: tar cvzf freeage.tar.gz build
@@ -57,15 +57,17 @@ jobs:
         windeployqt build\Release\FreeAge.exe
     - name: test
       run: cd build && ctest -VV
+    - name: cleanup
+      run: cd build\Release && del *.lib && del *.exp && del Qt5Svg.dll && del opengl32sw.dll && del FreeAgeTest.exe
     - uses: actions/upload-artifact@v1
       with:
         name: freeage-windows
         path: build\Release
     - name: Create ZIP file for release (runs on Release event only)
       if: github.event_name == 'release'
-      run: Compress-Archive build freeage.zip 
+      run: Compress-Archive build freeage.zip
       shell: powershell
-    - name: Upload binaries to release (runs on Release event only) 
+    - name: Upload binaries to release (runs on Release event only)
       if: github.event_name == 'release'
       uses: svenstaro/upload-release-action@v1-release
       with:
