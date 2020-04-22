@@ -35,6 +35,9 @@ void DamageValues::AddValue(DamageType damageType, i32 value) {
 Armor GetDefaultArmor(bool isUnit) {
   Armor armor;
   if (isUnit) {
+    // NOTE: Inserting this CHECK_EQ() was necessary for the call
+    //       armor.SetValue(DamageType::Melee, 0) below to yield the expected result
+    //       when compiled with MSVC. This seems like a possible compiler bug.
     CHECK_EQ(armor.GetValue(DamageType::Melee), Armor::None);
     armor.SetValue(DamageType::Melee, 0);
     armor.SetValue(DamageType::Pierce, 0);
