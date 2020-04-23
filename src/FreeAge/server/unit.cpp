@@ -18,7 +18,7 @@ void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject, bool 
   targetObjectInteraction = interaction;
   if (interaction == InteractionType::Unknown) {
     interaction = GetInteractionType(this, targetObject);
-    // keep the targetObjectInteraction with the value of Unknown
+    // Keeps the targetObjectInteraction with the value of Unknown.
   }
 
   if (interaction == InteractionType::Construct) {

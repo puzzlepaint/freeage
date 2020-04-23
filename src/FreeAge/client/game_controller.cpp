@@ -436,7 +436,8 @@ void GameController::GarrisonUnit(u32 unitId, ClientUnit* unit, u32 targetObject
     unit->SetGarrisonedInsideObject(kInvalidObjectId);
   }
   
-  // TODO (maanoo): gamelogic
+  // TODO: if relic, keep track of number of relics in PlayerStats
+  // TODO: rest of gamelogic #stats
 }
 
 void GameController::HandleGameStepTimeMessage(const QByteArray& data) {

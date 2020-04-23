@@ -16,7 +16,8 @@ enum class ObjectType {
 constexpr u32 kInvalidObjectId = std::numeric_limits<u32>::max();
 
 enum class InteractionType {
-  // TODO (maanoo): doc
+  // A pseudo intercation type that describes that intercation is not specified and 
+  // must be determined by a call to GetInteractionType. To not be confused with ::Invalid.
   Unknown = 0,
 
   // A villager constructs a building.

@@ -206,8 +206,7 @@ enum class ServerToClientMessage {
   /// The speed may be zero, which indicates that the unit has stopped moving.
   UnitMovement,
   
-  /// TODO (maanoo): doc, 
-  // For now, the same message for garrison and ungarrison.
+  /// Tells the client that a unit is garrisoned or ungarrisoned from an object (building or unit).
   UnitGarrison,
 
   /// Tells the client about updates to its game resource amounts (wood, food, etc.)
