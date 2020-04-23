@@ -435,6 +435,7 @@ void GameController::GarrisonUnit(u32 unitId, ClientUnit* unit, u32 targetObject
   } else {
     targetObject->UngarrisonUnit(unitId);
     unit->SetGarrisonedInsideObject(kInvalidObjectId);
+    unit->ClearOverrideDirection();
   }
   
   // TODO: if relic, keep track of number of relics in PlayerStats
