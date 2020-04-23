@@ -98,7 +98,7 @@ void Minimap::Update(Map* map, const std::vector<QRgb>& playerColors, QOpenGLFun
       }
     } else if (item.second->isUnit()) {
       ClientUnit* unit = AsUnit(item.second);
-      if (map->IsUnitInFogOfWar(unit)) {
+      if (unit->IsGarrisoned() || map->IsUnitInFogOfWar(unit)) {
         continue;
       }
       
