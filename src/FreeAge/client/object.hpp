@@ -34,22 +34,22 @@ class ClientObject {
   inline u32 GetHP() const { return hp; }
   inline void SetHP(u32 newHP) { hp = newHP; }
   
-  // TODO (maanoo): move to cpp
-  // TODO (maanoo): doc
-  inline void GarrisonUnit(u32 unitId) { garrisonedUnits.emplace_back(unitId); }
-  inline void UngarrisonUnit(u32 unitId) { garrisonedUnits.erase(std::remove(garrisonedUnits.begin(), garrisonedUnits.end(), unitId), garrisonedUnits.end()); }
+  void GarrisonUnit(u32 unitId);
+  void UngarrisonUnit(u32 unitId);
 
+  // Returns the IDs of the units that are garrisoned.
+  inline const std::vector<u32>& GetGarrisonedUnits() const { return garrisonedUnits; }
   inline int GetGarrisonedUnitsCount() const { return garrisonedUnits.size(); }
 
  protected:
   /// Index of the player which this object belongs to.
   int playerIndex;
   
-  // TODO (maanoo): doc
-  std::vector<u32> garrisonedUnits;
-  
   /// Current hitpoints of the object.
   u32 hp;
+  
+  // The IDs of the units that are garrisoned.
+  std::vector<u32> garrisonedUnits;
   
   /// 0 for buildings, 1 for units.
   u8 objectType;

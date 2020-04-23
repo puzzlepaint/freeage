@@ -43,6 +43,14 @@ const Texture* ClientObject::GetIconTexture() const {
   return nullptr;
 }
 
+void ClientObject::GarrisonUnit(u32 unitId) { 
+  garrisonedUnits.emplace_back(unitId);
+}
+
+void ClientObject::UngarrisonUnit(u32 unitId) {
+  garrisonedUnits.erase(std::remove(garrisonedUnits.begin(), garrisonedUnits.end(), unitId), garrisonedUnits.end());
+}
+
 InteractionType GetInteractionType(ClientObject* actor, ClientObject* target) {
   // TODO: There is a copy of this function in the server code. Can we merge these copies?
   
@@ -75,6 +83,8 @@ InteractionType GetInteractionType(ClientObject* actor, ClientObject* target) {
         target->GetPlayerIndex() != kGaiaPlayerIndex) {
       return InteractionType::Attack;
     }
+
+    // TODO (maanoo): add Garrison, all cases cannot be handled here, the user has to use the garrison button in some cases
   }
   
   return InteractionType::Invalid;

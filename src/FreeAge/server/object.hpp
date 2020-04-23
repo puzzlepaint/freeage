@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cmath>
+#include <vector>
 
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/object_types.hpp"
@@ -25,6 +26,13 @@ class ServerObject {
   inline u32 GetHP() const { return std::round(hp); }
   inline float GetHPInternalFloat() const { return hp; };
   inline void SetHP(float newHP) { hp = newHP; }
+
+  void GarrisonUnit(u32 unitId);
+  void UngarrisonUnit(u32 unitId);
+
+  // Returns the IDs of the units that are garrisoned.
+  inline const std::vector<u32>& GetGarrisonedUnits() const { return garrisonedUnits; }
+  inline int GetGarrisonedUnitsCount() const { return garrisonedUnits.size(); }
   
  private:
   /// Current hitpoints of the object.
@@ -32,6 +40,9 @@ class ServerObject {
   float hp;
   
   u8 playerIndex;
+  
+  // The IDs of the units that are garrisoned.
+  std::vector<u32> garrisonedUnits;
   
   /// 0 for buildings, 1 for units.
   u8 objectType;

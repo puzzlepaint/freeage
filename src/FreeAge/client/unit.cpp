@@ -373,7 +373,7 @@ void ClientUnit::SetMovementSegment(double serverTime, const QPointF& startPoint
 }
 
 void ClientUnit::UpdateGameState(double serverTime, Map* map, Match* match) {
-  // Update the unit's movment according to the movement segment.
+  // Update the unit's movement according to the movement segment.
   UpdateMapCoord(serverTime, map, match);
   
   // Update facing direction.

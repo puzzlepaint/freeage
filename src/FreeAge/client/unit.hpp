@@ -121,12 +121,16 @@ class ClientUnit : public ClientObject {
   
   void SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action, Map* map, Match* match);
   
+  inline bool IsGarrisoned() const { return garrisonedObjectId != kInvalidObjectId; }
+
   inline void SetCarriedResources(ResourceType type, u8 amount) {
     carriedResourceType = type;
     carriedResourceAmount = amount;
   }
   inline ResourceType GetCarriedResourceType() const { return carriedResourceType; }
   inline int GetCarriedResourceAmount() const { return carriedResourceAmount; }
+
+  inline void SetGarrisonedInsideObject(u32 objectId) { garrisonedObjectId = objectId; }
   
   /// Updates the unit's state to the given server time.
   void UpdateGameState(double serverTime, Map* map, Match* match);
@@ -151,6 +155,9 @@ class ClientUnit : public ClientObject {
   
   /// If this is in the past, then overrideDirection must be ignored.
   double overrideDirectionExpireTime = -1;
+  
+  /// The object in which the unit is garrisoned
+  u32 garrisonedObjectId = kInvalidObjectId;
   
   UnitAnimation currentAnimation;
   int currentAnimationVariant;
