@@ -3141,7 +3141,7 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
         }
         break;
       case CommandButton::ActionType::UngarrisonAll:
-        // TODO (maanoo): extract to function
+        // TODO: extract to function
         for (u32 id : selection) {
           auto it = map->GetObjects().find(id);
           if (it == map->GetObjects().end()) {
