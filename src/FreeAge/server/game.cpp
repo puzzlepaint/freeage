@@ -1408,76 +1408,8 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   u32 newUnitId;
   ServerUnit* newUnit = map->AddUnit(building->GetPlayerIndex(), unitInProduction, QPointF(-999, -999), &newUnitId);
   
-  // Look for a free space to place the unit next to the building.
-  float unitRadius = GetUnitRadius(unitInProduction);
-  
-  QSize buildingSize = GetBuildingSize(building->GetType());
-  QPointF buildingBaseCoord(building->GetBaseTile() + QPointF(buildingSize.width() + unitRadius, -unitRadius));
-  float extendedWidth = buildingSize.width() + 2 * unitRadius;
-  float extendedHeight = buildingSize.height() + 2 * unitRadius;
-  
-  bool foundFreeSpace = false;
-  QPointF freeSpace(-999, -999);
-  
-  // Try to place the unit on the bottom-left or bottom-right side of the building.
-  // This equals +x or -y in map coordinates.
-  float offset = 0;
-  while (offset <= std::max(extendedWidth, extendedHeight)) {
-    // Test bottom-right side
-    if (offset < extendedHeight) {
-      QPointF testPoint = buildingBaseCoord + QPointF(0, offset);
-      if (!map->DoesUnitCollide(newUnit, testPoint)) {
-        foundFreeSpace = true;
-        freeSpace = testPoint;
-        break;
-      }
-    }
-    
-    // Test bottom-left side
-    if (offset < extendedWidth) {
-      QPointF testPoint = buildingBaseCoord + QPointF(-offset, 0);
-      if (!map->DoesUnitCollide(newUnit, testPoint)) {
-        foundFreeSpace = true;
-        freeSpace = testPoint;
-        break;
-      }
-    }
-    
-    // Incease the offset. Make sure that we reach the end in a reasonable number
-    // of steps, even in case the unit radius is very small (or even zero).
-    offset += std::min(0.02f * extendedWidth, 2 * unitRadius);
-  }
-  
-  // Try to place the unit on the top-left or top-right side of the building.
-  // This equals -x or +y in map coordinates.
-  if (!foundFreeSpace) {
-    offset = 2 * unitRadius;
-    while (offset <= std::max(extendedWidth, extendedHeight)) {
-      // Test top-left side
-      if (offset < extendedHeight) {
-        QPointF testPoint = buildingBaseCoord + QPointF(-extendedWidth, offset);
-        if (!map->DoesUnitCollide(newUnit, testPoint)) {
-          foundFreeSpace = true;
-          freeSpace = testPoint;
-          break;
-        }
-      }
-      
-      // Test top-right side
-      if (offset < extendedWidth) {
-        QPointF testPoint = buildingBaseCoord + QPointF(-offset, extendedHeight);
-        if (!map->DoesUnitCollide(newUnit, testPoint)) {
-          foundFreeSpace = true;
-          freeSpace = testPoint;
-          break;
-        }
-      }
-      
-      // Incease the offset. Make sure that we reach the end in a reasonable number
-      // of steps, even in case the unit radius is very small (or even zero).
-      offset += std::min(0.02f * extendedWidth, 2 * unitRadius);
-    }
-  }
+  QPointF freeSpace;
+  bool foundFreeSpace = FindFreeSpaceAroundBuilding(building, newUnit, freeSpace);
   
   if (foundFreeSpace) {
     newUnit->SetMapCoord(freeSpace);
@@ -1492,6 +1424,74 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   }
   
   GetPlayerStats(newUnit->GetPlayerIndex())->UnitAdded(unitInProduction);
+}
+
+bool Game::FindFreeSpaceAroundBuilding(ServerBuilding* building, ServerUnit* unit, QPointF& freeSpace) {
+
+  // Look for a free space to place the unit next to the building.
+  float unitRadius = GetUnitRadius(unit->GetType());
+  
+  QSize buildingSize = GetBuildingSize(building->GetType());
+  QPointF buildingBaseCoord(building->GetBaseTile() + QPointF(buildingSize.width() + unitRadius, -unitRadius));
+  float extendedWidth = buildingSize.width() + 2 * unitRadius;
+  float extendedHeight = buildingSize.height() + 2 * unitRadius;
+
+  freeSpace = QPointF(-999, -999);
+  
+  // Try to place the unit on the bottom-left or bottom-right side of the building.
+  // This equals +x or -y in map coordinates.
+  float offset = 0;
+  while (offset <= std::max(extendedWidth, extendedHeight)) {
+    // Test bottom-right side
+    if (offset < extendedHeight) {
+      QPointF testPoint = buildingBaseCoord + QPointF(0, offset);
+      if (!map->DoesUnitCollide(unit, testPoint)) {
+        freeSpace = testPoint;
+        return true;
+      }
+    }
+    
+    // Test bottom-left side
+    if (offset < extendedWidth) {
+      QPointF testPoint = buildingBaseCoord + QPointF(-offset, 0);
+      if (!map->DoesUnitCollide(unit, testPoint)) {
+        freeSpace = testPoint;
+        return true;
+      }
+    }
+    
+    // Incease the offset. Make sure that we reach the end in a reasonable number
+    // of steps, even in case the unit radius is very small (or even zero).
+    offset += std::min(0.02f * extendedWidth, 2 * unitRadius);
+  }
+  
+  // Try to place the unit on the top-left or top-right side of the building.
+  // This equals -x or +y in map coordinates.
+  offset = 2 * unitRadius;
+  while (offset <= std::max(extendedWidth, extendedHeight)) {
+    // Test top-left side
+    if (offset < extendedHeight) {
+      QPointF testPoint = buildingBaseCoord + QPointF(-extendedWidth, offset);
+      if (!map->DoesUnitCollide(unit, testPoint)) {
+        freeSpace = testPoint;
+        return true;
+      }
+    }
+    
+    // Test top-right side
+    if (offset < extendedWidth) {
+      QPointF testPoint = buildingBaseCoord + QPointF(-offset, extendedHeight);
+      if (!map->DoesUnitCollide(unit, testPoint)) {
+        freeSpace = testPoint;
+        return true;
+      }
+    }
+    
+    // Incease the offset. Make sure that we reach the end in a reasonable number
+    // of steps, even in case the unit radius is very small (or even zero).
+    offset += std::min(0.02f * extendedWidth, 2 * unitRadius);
+  }
+  return false;
 }
 
 void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting, InteractionType interaction) {
