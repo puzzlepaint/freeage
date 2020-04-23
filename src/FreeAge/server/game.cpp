@@ -1317,7 +1317,7 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
         }
         
         // Create the unit.
-        ProduceUnit(building, unitInProduction);
+        ProduceUnit(buildingId, building, unitInProduction);
         building->RemoveCurrentItemFromQueue();
         
         newPercentage = 0;
@@ -1401,7 +1401,7 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
   return true;
 }
 
-void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
+void Game::ProduceUnit(u32 buildingId, ServerBuilding* building, UnitType unitInProduction) {
   // Create the unit object.
   u32 newUnitId;
   ServerUnit* newUnit = map->AddUnit(building->GetPlayerIndex(), unitInProduction, QPointF(-999, -999), &newUnitId);
@@ -1412,7 +1412,8 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   if (foundFreeSpace) {
     newUnit->SetMapCoord(freeSpace);
   } else {
-    // TODO (maanoo): Garrison the unit in the building
+    // TODO: set a special value that will be ignored by later checks 
+    newUnit->SetMapCoord(building->GetBaseTile());
   }
   
   // Send messages to clients that see the new unit
@@ -1421,8 +1422,15 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
     accumulatedMessages[player->index] += addObjectMsg;
   }
 
-  if (foundFreeSpace) {
+  if (!foundFreeSpace) {
+    // TODO: what happens when the capacity is full ?
+    building->GarrisonUnit(newUnit);
+    newUnit->SetGarrisonedInsideObject(building);
 
+    QByteArray unitGarrisonMessage = CreateUnitGarrisonMessage(newUnitId, buildingId);
+    for (auto& player : *playersInGame) {
+      accumulatedMessages[player->index] += unitGarrisonMessage;
+    }
   }
   
   GetPlayerStats(newUnit->GetPlayerIndex())->UnitAdded(unitInProduction);
