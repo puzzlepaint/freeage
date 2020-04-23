@@ -116,7 +116,10 @@ class ClientUnit : public ClientObject {
   
   Texture& GetTexture(bool shadow);
   
-  inline const QPointF& GetMapCoord() const { return mapCoord; }
+  inline const QPointF& GetMapCoord() const { 
+    CHECK_EQ(IsGarrisoned(), false);
+    return mapCoord;
+  }
   inline int GetDirection() const { return direction; }
   
   void SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action, Map* map, Match* match);

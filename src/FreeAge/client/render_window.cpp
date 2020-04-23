@@ -1097,7 +1097,7 @@ void RenderWindow::RenderShadows(double displayedServerTime, QOpenGLFunctions_3_
       if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front()->sprite.HasShadow()) {
         continue;
       }
-      if (map->IsUnitInFogOfWar(&unit)) {
+      if (unit.IsGarrisoned() || map->IsUnitInFogOfWar(&unit)) {
         continue;
       }
       
@@ -1380,7 +1380,7 @@ void RenderWindow::RenderOutlines(double displayedServerTime, QOpenGLFunctions_3
       if (!unitTypes[static_cast<int>(unit.GetType())].GetAnimations(unit.GetCurrentAnimation()).front()->sprite.HasOutline()) {
         continue;
       }
-      if (map->IsUnitInFogOfWar(&unit)) {
+      if (unit.IsGarrisoned() || map->IsUnitInFogOfWar(&unit)) {
         continue;
       }
       
@@ -1426,7 +1426,7 @@ void RenderWindow::RenderUnits(double displayedServerTime, QOpenGLFunctions_3_2_
       continue;
     }
     ClientUnit& unit = *AsUnit(object.second);
-    if (map->IsUnitInFogOfWar(&unit)) {
+    if (unit.IsGarrisoned() || map->IsUnitInFogOfWar(&unit)) {
       continue;
     }
     
@@ -2723,7 +2723,7 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
       }
     } else if (object.second->isUnit()) {
       ClientUnit& unit = *AsUnit(object.second);
-      if (map->IsUnitInFogOfWar(&unit)) {
+      if (unit.IsGarrisoned() || map->IsUnitInFogOfWar(&unit)) {
         continue;
       }
       
@@ -3509,7 +3509,7 @@ void RenderWindow::initializeGL() {
   
   isLoading = true;
   loadingStep = 0;
-  maxLoadingStep = 62;
+  maxLoadingStep = 64;
   loadingThread->start();
   
   // Create resources right now which are required for rendering the loading screen:

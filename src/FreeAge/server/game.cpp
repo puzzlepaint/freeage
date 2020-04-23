@@ -1424,8 +1424,8 @@ void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, Server
     unit->StopMovement();
     unit->RemoveTarget();
 
-    auto unitGarrisonMessage = CreateUnitGarrisonMessage(unitId, targetObjectId);
-    auto unitMoveMessage = CreateUnitMovementMessage(unitId,
+    QByteArray unitGarrisonMessage = CreateUnitGarrisonMessage(unitId, targetObjectId);
+    QByteArray unitMoveMessage = CreateUnitMovementMessage(unitId,
       unit->GetMapCoord(),
       unit->GetMoveSpeed() * unit->GetMovementDirection(),
       unit->GetCurrentAction());
@@ -1447,9 +1447,9 @@ void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, Server
       unit->StopMovement();
       unit->RemoveTarget();
 
-      auto unitGarrisonMessage = CreateUnitGarrisonMessage(unitId, targetObjectId);
+      QByteArray unitGarrisonMessage = CreateUnitGarrisonMessage(unitId, targetObjectId);
       // TODO: move to the gather point #gather-point
-      auto unitMoveMessage = CreateUnitMovementMessage(unitId,
+      QByteArray unitMoveMessage = CreateUnitMovementMessage(unitId,
         unit->GetMapCoord(),
         unit->GetMoveSpeed() * unit->GetMovementDirection(),
         unit->GetCurrentAction());

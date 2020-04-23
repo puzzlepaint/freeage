@@ -431,6 +431,7 @@ void GameController::GarrisonUnit(u32 unitId, ClientUnit* unit, u32 targetObject
   if (enter) {
     targetObject->GarrisonUnit(unitId);
     unit->SetGarrisonedInsideObject(targetObjectId);
+    // TODO: loose the line of sight
   } else {
     targetObject->UngarrisonUnit(unitId);
     unit->SetGarrisonedInsideObject(kInvalidObjectId);
