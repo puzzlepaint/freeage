@@ -116,7 +116,7 @@ class Game {
   /// Returns true if the attack is still in progress, false if it finished.
   bool SimulateMeleeAttack(u32 unitId, ServerUnit* unit, u32 targetId, ServerObject* target, double gameStepServerTime, float stepLengthInSeconds, bool* unitMovementChanged, bool* stayInPlace);
   
-  void ProduceUnit(ServerBuilding* building, UnitType unitInProduction);
+  void ProduceUnit(u32 buildingId, ServerBuilding* building, UnitType unitInProduction);
 
   void GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject, bool enter, bool* unitMovementChanged);
   void UngarrisonAllUnits(u32 targetObjectId, ServerObject* targetObject);
