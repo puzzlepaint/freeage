@@ -984,8 +984,10 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
               SimulateMeleeAttack(unitId, unit, targetIt->first, targetBuilding, gameStepServerTime, stepLengthInSeconds, &unitMovementChanged, &stayInPlace);
             } else if (interaction == InteractionType::Garrison) {
               GarrisonUnit(unitId, unit, targetObjectId, targetObject, true);
+              unitMovementChanged = false;
             } else if (interaction == InteractionType::Ungarrison) {
               GarrisonUnit(unitId, unit, targetObjectId, targetObject, false);
+              unitMovementChanged = false;
             }
           }
         } else if (targetObject->isUnit()) {
@@ -1425,13 +1427,8 @@ void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, Server
     unit->RemoveTarget();
 
     QByteArray unitGarrisonMessage = CreateUnitGarrisonMessage(unitId, targetObjectId);
-    QByteArray unitMoveMessage = CreateUnitMovementMessage(unitId,
-      unit->GetMapCoord(),
-      unit->GetMoveSpeed() * unit->GetMovementDirection(),
-      unit->GetCurrentAction());
     for (auto& player : *playersInGame) {
       accumulatedMessages[player->index] += unitGarrisonMessage;
-      accumulatedMessages[player->index] += unitMoveMessage;
     }
   } else {
     if (!targetObject->isBuilding()) {
@@ -1454,8 +1451,8 @@ void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, Server
         unit->GetMoveSpeed() * unit->GetMovementDirection(),
         unit->GetCurrentAction());
       for (auto& player : *playersInGame) {
-        accumulatedMessages[player->index] += unitGarrisonMessage;
         accumulatedMessages[player->index] += unitMoveMessage;
+        accumulatedMessages[player->index] += unitGarrisonMessage;
       }
     } else {
       LOG(WARNING) << "No free space for unit " << unitId << " to ungarrison object " << targetObjectId;

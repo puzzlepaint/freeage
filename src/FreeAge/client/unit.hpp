@@ -124,6 +124,9 @@ class ClientUnit : public ClientObject {
   
   void SetMovementSegment(double serverTime, const QPointF& startPoint, const QPointF& speed, UnitAction action, Map* map, Match* match);
   
+  // Must be called after teleport like position changes.
+  inline void ClearOverrideDirection() { overrideDirectionExpireTime = -1; }
+
   inline bool IsGarrisoned() const { return garrisonedObjectId != kInvalidObjectId; }
 
   inline void SetCarriedResources(ResourceType type, u8 amount) {

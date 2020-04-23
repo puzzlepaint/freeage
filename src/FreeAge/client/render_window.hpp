@@ -198,8 +198,6 @@ class RenderWindow : public QOpenGLWindow {
   void DefineControlGroup(int controlGroupIndex);
   void SelectControlGroup(int controlGroupIndex);
   
-  // TODO (maanoo): do not allow to rectangle select when activecommandbutton != nullptr
-
   bool SetActiveCommandButton(CommandButton* commandButton, bool allowToggle);
   bool UnsetActiveCommandButton();
   
@@ -217,7 +215,6 @@ class RenderWindow : public QOpenGLWindow {
   virtual void focusInEvent(QFocusEvent* event) override;
   virtual void focusOutEvent(QFocusEvent* event) override;
   virtual void resizeEvent(QResizeEvent* event) override;
-  
   
   /// Cursor handling.
   bool grabMouse;
