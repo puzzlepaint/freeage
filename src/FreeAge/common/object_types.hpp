@@ -30,6 +30,9 @@ enum class InteractionType {
   
   // A unit attacks an enemy unit or building
   Attack,
+
+  // TODO (maanoo): ??, implement in some cases in GetInteractionType
+  Garrison,
   
   // No valid interaction.
   Invalid

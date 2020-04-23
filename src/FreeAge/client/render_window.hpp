@@ -66,7 +66,7 @@ class RenderWindow : public QOpenGLWindow {
   inline void SetGameController(const std::shared_ptr<GameController>& gameController) { this->gameController = gameController; }
   
   inline void EnableBorderScrolling(bool enable) { borderScrollingEnabled = enable; }
-  
+
   void AddDecal(Decal* decal);
 
   void GrabMouse();
@@ -198,6 +198,12 @@ class RenderWindow : public QOpenGLWindow {
   void DefineControlGroup(int controlGroupIndex);
   void SelectControlGroup(int controlGroupIndex);
   
+  // TODO (maanoo): do not allow to rectangle select when on has activecommandbutton
+  /// TODO (maanoo): doc
+  CommandButton::State GetCommandButtonState(CommandButton* commandButton);
+  bool SetActiveCommandButton(CommandButton* commandButton, bool allowToggle);
+  bool UnsetActiveCommandButton();
+
   virtual void initializeGL() override;
   virtual void paintGL() override;
   virtual void resizeGL(int width, int height) override;
@@ -234,6 +240,7 @@ class RenderWindow : public QOpenGLWindow {
   QCursor gatherCursor;
   QCursor mineGoldCursor;
   QCursor mineStoneCursor;
+  QCursor garrisonCursor;
   
   /// Current map scroll position in map coordinates.
   /// The "scroll" map coordinate is visible at the center of the screen.
@@ -397,6 +404,8 @@ class RenderWindow : public QOpenGLWindow {
   TextureAndPointBuffer buildEconomyBuildings;
   TextureAndPointBuffer buildMilitaryBuildings;
   TextureAndPointBuffer toggleBuildingsCategory;
+  TextureAndPointBuffer garrison;
+  TextureAndPointBuffer ungarrisonAll;
   TextureAndPointBuffer quit;
   
   TextureAndPointBuffer minimapPanel;
@@ -444,6 +453,7 @@ class RenderWindow : public QOpenGLWindow {
   BuildingType constructBuildingType = BuildingType::NumBuildings;
   
   /// The command button which action is under way. Currently only of Type::ConstructBuilding.
+  /// TODO (maanoo): doc
   CommandButton* activeCommandButton = nullptr;
 
   // Control groups.
