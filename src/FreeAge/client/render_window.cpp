@@ -232,6 +232,10 @@ RenderWindow::~RenderWindow() {
   productionProgressText.Destroy();
   productionProgressBar.Unload();
   productionProgressBarBackgroundPointBuffer.Destroy();
+  for (int i = 0; i < kMaxGarrisonCapacity; ++ i) {
+    garrisonUnitsPointBuffers[i].Destroy();
+    garrisonUnitsOverlayPointBuffers[i].Destroy();
+  }
   
   iconOverlayNormalTexture.reset();
   iconOverlayNormalExpensiveTexture.reset();
@@ -563,6 +567,10 @@ bool RenderWindow::LoadResources() {
   productionProgressText.Initialize();
   productionProgressBar.Load(GetModdedPath(widgetuiTexturesSubPath / "ingame" / "panels" / "loadingbar_full.png"));
   productionProgressBarBackgroundPointBuffer.Initialize();
+  for (int i = 0; i < kMaxGarrisonCapacity; ++ i) {
+    garrisonUnitsPointBuffers[i].Initialize();
+    garrisonUnitsOverlayPointBuffers[i].Initialize();
+  }
   
   iconOverlayNormalTexture.reset(new Texture());
   iconOverlayNormalTexture->Load(QImage(GetModdedPathAsQString(ingameIconsSubPath / "icon_overlay_normal.png")), GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
@@ -2249,6 +2257,9 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
   for (int i = 0; i < kMaxProductionQueueSize; ++ i) {
     productionQueueIconsSize[i] = -1;
   }
+  for (int i = 0; i < kMaxGarrisonCapacity; ++ i) {
+    garrisonUnitsIconsSize[i] = -1;
+  }
   
   RenderUIGraphic(
       topLeft.x(),
@@ -2323,15 +2334,52 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
       }
     } else if (singleSelectedObject->isBuilding()) {
       ClientBuilding* singleSelectedBuilding = AsBuilding(singleSelectedObject);
+      float topOffset = 2*46;
+
+      if (singleSelectedBuilding->GetGarrisonedUnitsCount() > 0) {
+        float iconSize = 2*35; // TODO: calculate based on GetGarrisonedUnitsCount
+        usize index = 0;
+        for (auto& unit : singleSelectedBuilding->GetGarrisonedUnits()) {
+          const Texture* iconTexture = ClientUnitType::GetUnitTypes()[static_cast<int>(unit->GetType())].GetIconTexture();
+          if (iconTexture) {
+            garrisonUnitsIconsTopLeft[index] = QPointF(
+                topLeft.x() + uiScale * (2*32 + 2*155 + index*iconSize),
+                topLeft.y() + uiScale * (topOffset + 6));
+            garrisonUnitsIconsSize[index] = uiScale * iconSize;
+            int state = 0;
+            if (lastMouseMoveEventPos.x() >= garrisonUnitsIconsTopLeft[index].x() &&
+                lastMouseMoveEventPos.y() >= garrisonUnitsIconsTopLeft[index].y() &&
+                lastMouseMoveEventPos.x() < garrisonUnitsIconsTopLeft[index].x() + garrisonUnitsIconsSize[index]  &&
+                lastMouseMoveEventPos.y() < garrisonUnitsIconsTopLeft[index].y() + garrisonUnitsIconsSize[index]) {
+              state = 1;
+            }
+            RenderObjectIcon(
+                iconTexture,
+                garrisonUnitsIconsTopLeft[index].x(),
+                garrisonUnitsIconsTopLeft[index].y(),
+                garrisonUnitsIconsSize[index],
+                (pressedGarrisonUnitsItem == static_cast<int>(index)) ? 2 : state,
+                garrisonUnitsPointBuffers[index].buffer,
+                garrisonUnitsOverlayPointBuffers[index].buffer,
+                f);
+            // TODO: render a health bar
+            ++ index;
+          }
+        }
+        topOffset += iconSize + 2*12;
+      } else {
+        topOffset += 50;
+      }
       
       if (!singleSelectedBuilding->GetProductionQueue().empty()) {
+
         // Render the unit that is currently being produced.
         UnitType type = singleSelectedBuilding->GetProductionQueue().front();
         const Texture* iconTexture = ClientUnitType::GetUnitTypes()[static_cast<int>(type)].GetIconTexture();
         if (iconTexture) {
           productionQueueIconsTopLeft[0] = QPointF(
               topLeft.x() + uiScale * (2*32 + 2*155),
-              topLeft.y() + uiScale * (50 + 2*46));
+              topLeft.y() + uiScale * (topOffset));
           productionQueueIconsSize[0] = uiScale * 2*35;
           int state = 0;
           if (lastMouseMoveEventPos.x() >= productionQueueIconsTopLeft[0].x() &&
@@ -2359,7 +2407,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
               qRgba(58, 29, 21, 255),
               QObject::tr("Creating (%1%)").arg(progress),
               QRect(topLeft.x() + uiScale * (2*32 + 2*155 + 2*35 + 2*6),
-                    topLeft.y() + uiScale * (50 + 2*46),
+                    topLeft.y() + uiScale * (topOffset),
                     uiScale * 2*200,
                     uiScale * 2*35),
               Qt::AlignLeft | Qt::AlignVCenter,
@@ -2370,7 +2418,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
         int progressBarMaxWidth = uiScale * 2 * 140;
         RenderUIGraphic(
             topLeft.x() + uiScale * (2*32 + 2*155),
-            topLeft.y() + uiScale * (50 + 2*46 + 2*35 + 2*2),
+            topLeft.y() + uiScale * (topOffset + 2*35 + 2*2),
             progressBarMaxWidth,
             uiScale * 2*10,
             qRgba(20, 20, 20, 255),
@@ -2379,7 +2427,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
             uiShader.get(), widgetWidth, widgetHeight, f);
         RenderUIGraphic(
             topLeft.x() + uiScale * (2*32 + 2*155),
-            topLeft.y() + uiScale * (50 + 2*46 + 2*35 + 2*2),
+            topLeft.y() + uiScale * (topOffset + 2*35 + 2*2),
             floatProgress / 100.f * progressBarMaxWidth,
             uiScale * 2*10,
             qRgba(255, 255, 255, 255),
@@ -2396,7 +2444,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
         if (iconTexture) {
           productionQueueIconsTopLeft[queueIndex] = QPointF(
               topLeft.x() + uiScale * (2*32 + 2*155 + 2*(queueIndex - 1)*35),
-              topLeft.y() + uiScale * (50 + 2*46 + 2*49));
+              topLeft.y() + uiScale * (topOffset + 2*49));
           productionQueueIconsSize[queueIndex] = uiScale * 2*35;
           int state = 0;
           if (lastMouseMoveEventPos.x() >= productionQueueIconsTopLeft[queueIndex].x() &&
@@ -3151,7 +3199,7 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
           if (object->GetGarrisonedUnitsCount() > 0) {
             // NOTE: If the ClientObject store its ID, object->GetGarrisonedUnits() could be used instead of the iteration. #ids
             std::vector<u32> unitIds;
-            for (auto& i : map->GetObjects()) {
+            for (const auto& i : map->GetObjects()) {
               if (i.second->isUnit() && AsUnit(i.second)->GetGarrisonedInsideObject() == object) {
                 unitIds.push_back(i.first);
               }
@@ -3357,6 +3405,32 @@ void RenderWindow::DequeueProductionQueueItem(int queueIndex) {
   }
   
   connection->Write(CreateDequeueProductionQueueItemMessage(selection.front(), queueIndexFromBack));
+}
+
+void RenderWindow::UngarrisonUnit(int garrisonedUnitIndex) {
+  if (selection.size() != 1) {
+    LOG(ERROR) << "Can only ungarrison a unit if only a single building or unit is selected.";
+    return;
+  }
+  
+  u32 objectId = selection.front();
+  auto objectIt = map->GetObjects().find(objectId);
+  if (objectIt == map->GetObjects().end()) {
+    LOG(ERROR) << "Failed to find the id of the first object of the selection.";
+    return;
+  }
+  ClientUnit* garrisonedUnit = objectIt->second->GetGarrisonedUnits().at(garrisonedUnitIndex);
+  // NOTE: Looking for the id of ClientUnit #ids
+  for (const auto& i : map->GetObjects()) {
+    if (i.second == garrisonedUnit) {
+      std::vector<u32> unitIds;
+      unitIds.push_back(i.first);
+      connection->Write(CreateSetTargetWithInteractionMessage(unitIds, objectId, InteractionType::Ungarrison));
+      return;
+    }
+  }
+  
+  LOG(ERROR) << "Failed to find the garrisoned unit id.";
 }
 
 void RenderWindow::JumpToNextTownCenter() {
@@ -3971,7 +4045,20 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
         return;
       }
     }
-    
+    // Has a garrison queue item been pressed?
+    for (int i = 0; i < kMaxGarrisonCapacity; ++ i) {
+      if (garrisonUnitsIconsSize[i] <= 0) {
+        continue;
+      }
+      if (event->pos().x() >= garrisonUnitsIconsTopLeft[i].x() &&
+          event->pos().y() >= garrisonUnitsIconsTopLeft[i].y() &&
+          event->pos().x() < garrisonUnitsIconsTopLeft[i].x() + garrisonUnitsIconsSize[i]  &&
+          event->pos().y() < garrisonUnitsIconsTopLeft[i].y() + garrisonUnitsIconsSize[i]) {
+        pressedGarrisonUnitsItem = i;
+        return;
+      }
+    }
+
     if (isUIClick) {
       menuButton.MousePress(event->pos());
       return;
@@ -4144,6 +4231,13 @@ void RenderWindow::HandleMouseMoveEvent() {
         lastMouseMoveEventPos.x() < productionQueueIconsTopLeft[pressedProductionQueueItem].x() + productionQueueIconsSize[pressedProductionQueueItem]  &&
         lastMouseMoveEventPos.y() < productionQueueIconsTopLeft[pressedProductionQueueItem].y() + productionQueueIconsSize[pressedProductionQueueItem])) {
     pressedProductionQueueItem = -1;
+  }
+  if (pressedGarrisonUnitsItem >= 0 &&
+      !(lastMouseMoveEventPos.x() >= garrisonUnitsIconsTopLeft[pressedGarrisonUnitsItem].x() &&
+        lastMouseMoveEventPos.y() >= garrisonUnitsIconsTopLeft[pressedGarrisonUnitsItem].y() &&
+        lastMouseMoveEventPos.x() < garrisonUnitsIconsTopLeft[pressedGarrisonUnitsItem].x() + garrisonUnitsIconsSize[pressedGarrisonUnitsItem]  &&
+        lastMouseMoveEventPos.y() < garrisonUnitsIconsTopLeft[pressedGarrisonUnitsItem].y() + garrisonUnitsIconsSize[pressedGarrisonUnitsItem])) {
+    pressedGarrisonUnitsItem = -1;
   }
   
   // If hovering over the game area, possibly change the cursor to indicate possible interactions.
@@ -4400,6 +4494,12 @@ void RenderWindow::mouseReleaseEvent(QMouseEvent* event) {
         match->IsPlayerStillInGame()) {
       DequeueProductionQueueItem(pressedProductionQueueItem);
       pressedProductionQueueItem = -1;
+    }
+    
+    if (pressedGarrisonUnitsItem >= 0 &&
+        match->IsPlayerStillInGame()) {
+      UngarrisonUnit(pressedGarrisonUnitsItem);
+      pressedGarrisonUnitsItem = -1;
     }
     
     if (isUIClick) {
