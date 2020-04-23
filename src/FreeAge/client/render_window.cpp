@@ -4127,8 +4127,15 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
             std::vector<u32> suitableUnits;
             suitableUnits.reserve(selection.size());
             for (usize i = 0; i < selection.size(); ++ i) {
+              auto objectIt = map->GetObjects().find(selection[i]);
+              if (objectIt == map->GetObjects().end() || !objectIt->second->isUnit()) {
+                continue;
+              }
+              ClientUnit* unit = AsUnit(objectIt->second);
               // TODO: check if the targetObject allows this unit #stats
-              suitableUnits.push_back(selection[i]);
+              if (unit->GetType() != UnitType::Scout) {
+                suitableUnits.push_back(selection[i]);
+              }
             }
             
             if (!suitableUnits.empty()) {

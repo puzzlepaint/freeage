@@ -983,11 +983,9 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
             } else if (interaction == InteractionType::Attack) {
               SimulateMeleeAttack(unitId, unit, targetIt->first, targetBuilding, gameStepServerTime, stepLengthInSeconds, &unitMovementChanged, &stayInPlace);
             } else if (interaction == InteractionType::Garrison) {
-              GarrisonUnit(unitId, unit, targetObjectId, targetObject, true);
-              unitMovementChanged = false;
+              GarrisonUnit(unitId, unit, targetObjectId, targetObject, true, &unitMovementChanged);
             } else if (interaction == InteractionType::Ungarrison) {
-              GarrisonUnit(unitId, unit, targetObjectId, targetObject, false);
-              unitMovementChanged = false;
+              GarrisonUnit(unitId, unit, targetObjectId, targetObject, false, &unitMovementChanged);
             }
           }
         } else if (targetObject->isUnit()) {
@@ -1383,11 +1381,10 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
         accumulatedMessages[player->index] += msg;
       }
 
-      // check if the object is a building and has <= 20% hp left
-      if (target->GetGarrisonedUnitsCount() > 0 && target->isBuilding()) {
-        if (hp <= .2f * GetBuildingMaxHP(AsBuilding(target)->GetType())) {
-          UngarrisonAllUnits(targetId, target);
-        }
+      // Check if the object is a building and has <= 20% hp left
+      if (target->GetGarrisonedUnitsCount() > 0 && target->isBuilding() &&
+            hp <= .2f * GetBuildingMaxHP(AsBuilding(target)->GetType())) {
+        UngarrisonAllUnits(targetId, target);
       }
     } else if (oldHP > 0.5f) {
       // Remove the target.
@@ -1431,13 +1428,33 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   GetPlayerStats(newUnit->GetPlayerIndex())->UnitAdded(unitInProduction);
 }
 
-void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject, bool enter) {
+void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject, bool enter, bool* unitMovementChanged) {
   // NOTE: Could be simplified if Objects stored there ID. #ids
+  *unitMovementChanged = false; // movement will handled here
   if (enter) {
-    targetObject->GarrisonUnit(unit);
-    unit->SetGarrisonedInsideObject(targetObject);
+
     unit->StopMovement();
     unit->RemoveTarget();
+
+    // Check if the object is a building and has <= 20% hp left
+    if (targetObject->GetGarrisonedUnitsCount() > 0 && targetObject->isBuilding() &&
+        AsBuilding(targetObject)->GetHPInternalFloat() <= .2f * GetBuildingMaxHP(AsBuilding(targetObject)->GetType())) {
+      LOG(WARNING) << "Unit cannot garrison building beacause of low health";
+      *unitMovementChanged = true;
+      return;
+    }
+    
+    // TODO: replace with the garrison capacity form the unit type stats #stats
+    bool isTownCenter = targetObject->GetObjectType() == ObjectType::Building && AsBuilding(targetObject)->GetType() == BuildingType::TownCenter;
+    int capacity = isTownCenter ? 15 : 0;
+    if (targetObject->GetGarrisonedUnitsCount() >= capacity) {
+      LOG(WARNING) << "Unit cannot garrison building beacause of filled capacity";
+      *unitMovementChanged = true;
+      return;
+    }
+
+    targetObject->GarrisonUnit(unit);
+    unit->SetGarrisonedInsideObject(targetObject);
 
     QByteArray unitGarrisonMessage = CreateUnitGarrisonMessage(unitId, targetObjectId);
     QByteArray unitMoveMessage = CreateUnitMovementMessage(unitId,
@@ -1489,7 +1506,8 @@ void Game::UngarrisonAllUnits(u32 targetObjectId, ServerObject* targetObject) {
   }
   for (const auto& item : map->GetObjects()) {
     if (item.second->isUnit() && AsUnit(item.second)->GetGarrisonedInsideObject() == targetObject) {
-      GarrisonUnit(item.first, AsUnit(item.second), targetObjectId, targetObject, false);
+      bool ignored;
+      GarrisonUnit(item.first, AsUnit(item.second), targetObjectId, targetObject, false, &ignored);
     }
   }
 }
