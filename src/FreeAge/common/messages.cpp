@@ -163,7 +163,7 @@ QByteArray CreateSetTargetWithInteractionMessage(const std::vector<u32>& unitIds
   if (unitIds.empty()) {
     return QByteArray();
   }
-  
+
   // Create buffer
   QByteArray msg = CreateClientToServerMessageHeader(10 + 4 * unitIds.size(), ClientToServerMessage::SetTargetWithInteraction);
   char* data = msg.data();
