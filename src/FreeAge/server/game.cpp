@@ -1419,10 +1419,10 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
 }
 
 void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject, bool enter) {
-  // TODO: implement a way to get ID from ClientObject, then remove the ids for the arguments
+  // NOTE: If ServerObject stores its ID, the IDs could be removed from the arguments. #ids
   if (enter) {
-    targetObject->GarrisonUnit(unitId);
-    unit->SetGarrisonedInsideObject(targetObjectId);
+    targetObject->GarrisonUnit(unit);
+    unit->SetGarrisonedInsideObject(targetObject);
     unit->StopMovement();
     unit->RemoveTarget();
 
@@ -1438,8 +1438,8 @@ void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, Server
     }
     ServerBuilding* targetBuilding = AsBuilding(targetObject);
     if (QPointF freeSpace; FindFreeSpaceAroundBuilding(targetBuilding, unit, freeSpace)) {
-      targetBuilding->UngarrisonUnit(unitId);
-      unit->SetGarrisonedInsideObject(kInvalidObjectId);
+      targetBuilding->UngarrisonUnit(unit);
+      unit->SetGarrisonedInsideObject(nullptr);
       unit->SetMapCoord(freeSpace);
       unit->StopMovement();
       unit->RemoveTarget();

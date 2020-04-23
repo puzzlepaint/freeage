@@ -11,6 +11,7 @@
 #include "FreeAge/client/texture.hpp"
 
 class Map;
+class ClientUnit;
 
 /// Base class for buildings and units on the client.
 class ClientObject {
@@ -34,11 +35,11 @@ class ClientObject {
   inline u32 GetHP() const { return hp; }
   inline void SetHP(u32 newHP) { hp = newHP; }
   
-  void GarrisonUnit(u32 unitId);
-  void UngarrisonUnit(u32 unitId);
+  void GarrisonUnit(ClientUnit* unit);
+  void UngarrisonUnit(ClientUnit* unit);
 
   // Returns the IDs of the units that are garrisoned.
-  inline const std::vector<u32>& GetGarrisonedUnits() const { return garrisonedUnits; }
+  inline const std::vector<ClientUnit*>& GetGarrisonedUnits() const { return garrisonedUnits; }
   inline int GetGarrisonedUnitsCount() const { return garrisonedUnits.size(); }
 
  protected:
@@ -49,7 +50,7 @@ class ClientObject {
   u32 hp;
   
   // The IDs of the units that are garrisoned.
-  std::vector<u32> garrisonedUnits;
+  std::vector<ClientUnit*> garrisonedUnits;
   
   /// 0 for buildings, 1 for units.
   u8 objectType;
