@@ -2500,49 +2500,6 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
   }
 }
 
-CommandButton::State RenderWindow::GetCommandButtonState(CommandButton* button) {
-
-  // NOTE: Checks must follow an order of importance. For example the CannotAfford is less
-  // important than MaxLimitReached because if the max limit has been reached, if it can be
-  // affored or not is irrelevant.
-
-  if (button->GetType() == CommandButton::Type::ProduceUnit) {
-    if (!gameController->GetLatestKnownResourceAmount().CanAfford(
-            GetUnitCost(button->GetUnitProductionType()))) {
-      return CommandButton::State::CannotAfford;
-    }
-
-    // TODO: return State::Locked, if the unit is not unlocked yet
-
-  } else if (button->GetType() == CommandButton::Type::ConstructBuilding) {
-    BuildingType buildingType = button->GetBuildingConstructionType();
-
-    // Check for the max limit
-    int max = GetBuildingMaxInstances(buildingType);
-    if (max != -1 && gameController->GetBuildingTypeCount(buildingType) >= max) {
-      return CommandButton::State::MaxLimitReached;
-    }
-
-    // TODO: return State::Locked, if the unit is not unlocked yet
-
-    // Can afford must be the last check (less important than all the other checks)
-    if (!gameController->GetLatestKnownResourceAmount().CanAfford(GetBuildingCost(buildingType))) {
-      return CommandButton::State::CannotAfford;
-    }
-  } else if (button->GetType() == CommandButton::Type::Action) {
-    if (button->GetActionType() == CommandButton::ActionType::UngarrisonAll) {
-      if (selection.size() != 1) {
-        return CommandButton::State::Invalid;
-      }
-      if (map->GetObjects().at(selection.at(0))->GetGarrisonedUnitsCount() == 0) {
-        return CommandButton::State::Invalid;
-      }
-    }
-  }
-
-  return CommandButton::State::Valid;
-}
-
 void RenderWindow::RenderMenu(QOpenGLFunctions_3_2_Core* f) {
   // Update the enabled state of the resign button
   menuButtonResign.SetEnabled(match->GetThisPlayer().state == Match::PlayerState::Playing);
@@ -3152,7 +3109,7 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
   // Handle building construction.
   if (button->GetType() == CommandButton::Type::ConstructBuilding) {
     if (SetActiveCommandButton(button, /*allowToggle*/ true)) {
-      constructBuildingType = button->GetBuildingConstructionType(); // TODO (maanoo): move
+      constructBuildingType = button->GetBuildingConstructionType();
     }
   }
   
@@ -3186,7 +3143,7 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
       case CommandButton::ActionType::UngarrisonAll:
         // TODO (maanoo): extract to function
         for (u32 id : selection) {
-        auto it = map->GetObjects().find(id);
+          auto it = map->GetObjects().find(id);
           if (it == map->GetObjects().end()) {
             continue;
           }
@@ -3252,17 +3209,20 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
       commandButtons[row][col].SetInvisible();
     }
   }
+  if (selection.empty()) {
+    return;
+  }
   
   // Check whether a single type of own building is selected only.
   // In this case, show the buttons corresponding to this building type.
   bool singleOwnBuildingTypeSelected = true;
   bool atLeastOneOwnBuildingFullyConstructed = false;
-  bool atLeastOneGarrisonedUnit = true; // TODO (maanoo): change to false
+  bool atLeastOneObjectWithGarrisonCapacity = false;
   BuildingType selectedBuildingType = BuildingType::NumBuildings;
   for (usize i = 0; i < selection.size(); ++ i) {
     u32 objectId = selection[i];
     ClientObject* object = map->GetObjects().at(objectId);
-    
+
     if (object->isUnit()) {
       singleOwnBuildingTypeSelected = false;
       break;
@@ -3273,14 +3233,16 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
         if (building->IsCompleted()) {
           atLeastOneOwnBuildingFullyConstructed = true;
           
-          // TODO (maanoo): check and update atLeastOneGarrisonedUnit
+          // TODO: check if has garrison capacity and update atLeastOneObjectWithGarrisonCapacity #stats
+          if (building->GetType() == BuildingType::TownCenter) {
+            atLeastOneObjectWithGarrisonCapacity = true;
+          }
         }
         
         if (i == 0) {
           selectedBuildingType = building->GetType();
         } else if (selectedBuildingType != building->GetType()) {
           singleOwnBuildingTypeSelected = false;
-          break;
         }
       } else {
         singleOwnBuildingTypeSelected = false;
@@ -3289,7 +3251,10 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
   }
   if (!selection.empty() && singleOwnBuildingTypeSelected && atLeastOneOwnBuildingFullyConstructed) {
     GetClientBuildingType(selectedBuildingType).SetCommandButtons(commandButtons);
-    if (atLeastOneGarrisonedUnit) {
+    if (atLeastOneObjectWithGarrisonCapacity) {
+      // No need to check if the object has some units garrison just that it has a garrison capacity > 0,
+      // the command button will update its CommandButton::State to Valid or Invalid based on how many
+      // units are garrisoned at every render.
       commandButtons[1][4].SetAction(CommandButton::ActionType::UngarrisonAll, ungarrisonAll.texture.get(), Qt::Key_Z);
     }
     return;
@@ -3305,8 +3270,8 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
     if (object->isUnit()) {
       ClientUnit* unit = AsUnit(object);
       if (unit->GetPlayerIndex() == match->GetPlayerIndex()) {
+        // TODO: check the garrison type of the object #stats
         if (unit->GetType() != UnitType::Scout) {
-          // TODO (maanoo): add check
           atLeastOneUnitAbleToGarrison = true;
         }
         if (IsVillager(unit->GetType())) {
@@ -3647,6 +3612,8 @@ void RenderWindow::paintGL() {
   
   // Update the game state to the server time that should be displayed.
   double displayedServerTime = connection->ConnectionToServerLost() ? lastDisplayedServerTime : connection->GetServerTimeToDisplayNow();
+
+  bool selectionChanged = false;
   if (displayedServerTime > lastDisplayedServerTime) {
     // 1) Parse messages until the displayed server time
     gameController->ParseMessagesUntil(displayedServerTime);
@@ -3657,14 +3624,21 @@ void RenderWindow::paintGL() {
     lastDisplayedServerTime = displayedServerTime;
     gameController->SetLastDisplayedServerTime(displayedServerTime);
     
-    // Remove any objects that have been deleted from the selection or
-    // that are fully within the fog of war.
+    // Remove any objects that:
+    // - have been deleted from the selection
+    // - are fully within the fog of war
+    // - have been garrisoned
     usize outputIndex = 0;
     for (usize i = 0; i < selection.size(); ++ i) {
       auto it = map->GetObjects().find(selection[i]);
       
       // Drop if the object does not exist anymore.
       if (it == map->GetObjects().end()) {
+        continue;
+      }
+      
+      // Drop if the object have been garrisoned.
+      if (it->second->isUnit() && AsUnit(it->second)->IsGarrisoned()) {
         continue;
       }
       
@@ -3682,7 +3656,10 @@ void RenderWindow::paintGL() {
       }
       ++ outputIndex;
     }
-    selection.resize(outputIndex);
+    if (selection.size() != outputIndex) {
+      selectionChanged = true;
+      selection.resize(outputIndex);
+    }
   }
   
   // If a building in the selection has finished construction, update the command buttons
@@ -3697,7 +3674,7 @@ void RenderWindow::paintGL() {
       }
     }
   }
-  if (haveBuildingSelected) {
+  if (selectionChanged || haveBuildingSelected) {
     ShowDefaultCommandButtonsForSelection();
   }
   
@@ -4039,18 +4016,14 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
       }
     }
 
-    if (activeCommandButton != nullptr && activeCommandButton->GetType() == CommandButton::Type::Action) {
+    if (activeCommandButton && activeCommandButton->GetType() == CommandButton::Type::Action) {
       if (activeCommandButton->GetActionType() == CommandButton::ActionType::Garrison) {
         u32 targetObjectId;
-        // TODO (maanoo): check arguments
-        // NOTE: garrison is a special InteractionType
         std::vector<u32> emptySelection;
         if (GetObjectToSelectAt(event->pos().x(), event->pos().y(), &targetObjectId, &emptySelection, false, false)) {
           ClientObject* targetObject = map->GetObjects().at(targetObjectId);
 
-          // TODO: after #stats
-          // ObjectTypeStats* stats = targetObject->GetStats()  #stats
-          // int capacity = stats->garrisonCapacity #stats
+          // TODO: replace with the garrison capacity form the unit type stats #stats
           bool isTownCenter = targetObject->GetObjectType() == ObjectType::Building && AsBuilding(targetObject)->GetType() == BuildingType::TownCenter;
           int capacity = isTownCenter ? 15 : 0;
           if (capacity) {
@@ -4060,7 +4033,7 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
             std::vector<u32> suitableUnits;
             suitableUnits.reserve(selection.size());
             for (usize i = 0; i < selection.size(); ++ i) {
-              // TODO (maanoo): add unit check
+              // TODO: check if the targetObject allows this unit #stats
               suitableUnits.push_back(selection[i]);
             }
             
@@ -4071,7 +4044,6 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
             }
           }
         }
-        // TODO (maanoo): remove units form selection when they are added to an object
         UnsetActiveCommandButton();
         ignoreLeftMouseRelease = true;
         return;
@@ -4086,10 +4058,9 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
   } else if (event->button() == Qt::RightButton &&
              !isUIClick) {
 
-    if (activeCommandButton != nullptr) {
-      // exit construction mode
-      UnsetActiveCommandButton();
-      // return in order to not process the right click as a unit command
+    // cancel any active command button
+    if (UnsetActiveCommandButton()) {
+      // something was canceled, so return in order to not process the right click as a unit command.
       return;
     }
 
@@ -4261,11 +4232,12 @@ bool RenderWindow::SetActiveCommandButton(CommandButton* commandButton, bool all
 
   if (activeCommandButton->GetType() == CommandButton::Type::Action) {
     if (activeCommandButton->GetActionType() == CommandButton::ActionType::Garrison) {
-      // TODO (maanoo): set cursor
-      // TODO (maanoo): show text
       UpdateCursor();
     }
   }
+  // TODO: Move the building construction stuff here ?
+
+  // TODO: Show message about the what the user needs to do now.
   return true;
 }
 
@@ -4276,23 +4248,66 @@ bool RenderWindow::UnsetActiveCommandButton() {
 
   CommandButton* unsetCommandButton = activeCommandButton;
   activeCommandButton = nullptr;
-  constructBuildingType = BuildingType::NumBuildings; // TODO (maanoo): remove, get from activeCommandButton
+  constructBuildingType = BuildingType::NumBuildings;
 
   if (unsetCommandButton->GetType() == CommandButton::Type::Action) {
     if (unsetCommandButton->GetActionType() == CommandButton::ActionType::Garrison) {
-      // TODO (maanoo): reset cursor
-      // TODO (maanoo): hide text
       UpdateCursor();
     }
   }
+
+  // TODO: Clear the text shown by SetActiveCommandButton.
   return true;
+}
+
+CommandButton::State RenderWindow::GetCommandButtonState(CommandButton* button) {
+
+  // NOTE: Checks must follow an order of importance. For example the CannotAfford is less
+  // important than MaxLimitReached because if the max limit has been reached, if it can be
+  // affored or not is irrelevant.
+
+  if (button->GetType() == CommandButton::Type::ProduceUnit) {
+    if (!gameController->GetLatestKnownResourceAmount().CanAfford(
+            GetUnitCost(button->GetUnitProductionType()))) {
+      return CommandButton::State::CannotAfford;
+    }
+
+    // TODO: return State::Locked, if the unit is not unlocked yet
+
+  } else if (button->GetType() == CommandButton::Type::ConstructBuilding) {
+    BuildingType buildingType = button->GetBuildingConstructionType();
+
+    // Check for the max limit
+    int max = GetBuildingMaxInstances(buildingType);
+    if (max != -1 && gameController->GetBuildingTypeCount(buildingType) >= max) {
+      return CommandButton::State::MaxLimitReached;
+    }
+
+    // TODO: return State::Locked, if the unit is not unlocked yet
+
+    // Can afford must be the last check (less important than all the other checks)
+    if (!gameController->GetLatestKnownResourceAmount().CanAfford(GetBuildingCost(buildingType))) {
+      return CommandButton::State::CannotAfford;
+    }
+  } else if (button->GetType() == CommandButton::Type::Action) {
+    if (button->GetActionType() == CommandButton::ActionType::UngarrisonAll) {
+      // Check if there are any units garrisoned
+      if (selection.size() != 1) { // TODO: support for > 1 selections
+        return CommandButton::State::Invalid;
+      }
+      if (map->GetObjects().at(selection.at(0))->GetGarrisonedUnitsCount() == 0) {
+        return CommandButton::State::Invalid;
+      }
+    }
+  }
+
+  return CommandButton::State::Valid;
 }
 
 void RenderWindow::UpdateCursor() {
   QCursor* cursor = &defaultCursor;
   if (!IsUIAt(lastMouseMoveEventPos.x(), lastMouseMoveEventPos.y())) {
 
-    // TODO (maanoo): remove all the == nullptr
     if (activeCommandButton && activeCommandButton->GetType() == CommandButton::Type::Action && activeCommandButton->GetActionType() == CommandButton::ActionType::Garrison) {
       cursor = &garrisonCursor;
     } else if (u32 targetObjectId; GetObjectToSelectAt(lastMouseMoveEventPos.x(), lastMouseMoveEventPos.y(), &targetObjectId, &selection, false, true)) {
@@ -4448,7 +4463,7 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
   }
   
   if (event->key() == Qt::Key_Escape) {
-    if (!menuShown && activeCommandButton != nullptr) {
+    if (!menuShown && activeCommandButton) {
       if (!UnsetActiveCommandButton()) {
         ShowDefaultCommandButtonsForSelection();
       }

@@ -198,11 +198,12 @@ class RenderWindow : public QOpenGLWindow {
   void DefineControlGroup(int controlGroupIndex);
   void SelectControlGroup(int controlGroupIndex);
   
-  // TODO (maanoo): do not allow to rectangle select when on has activecommandbutton
-  /// TODO (maanoo): doc
-  CommandButton::State GetCommandButtonState(CommandButton* commandButton);
+  // TODO (maanoo): do not allow to rectangle select when activecommandbutton != nullptr
+
   bool SetActiveCommandButton(CommandButton* commandButton, bool allowToggle);
   bool UnsetActiveCommandButton();
+  
+  CommandButton::State GetCommandButtonState(CommandButton* commandButton);
 
   virtual void initializeGL() override;
   virtual void paintGL() override;
@@ -443,17 +444,12 @@ class RenderWindow : public QOpenGLWindow {
   
   bool showingEconomyBuildingCommandButtons = false;
 
-  // TODO: Somehow group constructBuildingType and activeCommandButton to avoid
-  // setting the one and not the other. Could also be generalized for other types of commands
-  // that need more input than a press of the button (eg. attack move, set gather point,
-  // garrison)
-
   /// The type of building that the user is about to place a foundation for.
   /// If not constructing a building, this is set to BuildingType::NumBuildings.
+  /// TODO: Remove and use the activeCommandButton->GetUnitProductionType() to unify all command buttons.
   BuildingType constructBuildingType = BuildingType::NumBuildings;
   
   /// The command button which action is under way. Currently only of Type::ConstructBuilding.
-  /// TODO (maanoo): doc
   CommandButton* activeCommandButton = nullptr;
 
   // Control groups.

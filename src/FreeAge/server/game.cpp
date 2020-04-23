@@ -964,7 +964,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
       } else {
         ServerObject* targetObject = targetIt->second;
         InteractionType interaction = unit->GetTargetObjectInteraction();
-        if (interaction == InteractionType::Unknown) { // TODO (maanoo): move this check inside the GetTargetObjectInteraction
+        if (interaction == InteractionType::Unknown) {
           interaction = GetInteractionType(unit, targetObject);
         }
         if (targetObject->isBuilding()) {
@@ -986,11 +986,11 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
               // TODO (maanoo): extract to function
               targetBuilding->GarrisonUnit(unitId);
               unit->SetGarrisonedInsideObject(targetObjectId);
-              unit->SetMapCoord(targetBuilding->GetBaseTile()); // TODO (maanoo): take the center of the building
+              unit->SetMapCoord(targetBuilding->GetBaseTile()); // TODO (maanoo): take the center of the building ?
               unit->SetMovementDirection(QPointF(0, 0));
               unit->StopMovement();
               unit->RemoveTarget();
-              // TODO (maanoo): what else ?
+
               accumulatedMessages[unit->GetPlayerIndex()] += CreateUnitGarrisonMessage(unitId, targetObjectId);
               accumulatedMessages[unit->GetPlayerIndex()] +=
                   CreateUnitMovementMessage(
@@ -1006,7 +1006,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
                 unit->SetMapCoord(freeSpace);
                 unit->StopMovement();
                 unit->RemoveTarget();
-                // TODO (maanoo): what else ?
+
                 accumulatedMessages[unit->GetPlayerIndex()] += CreateUnitGarrisonMessage(unitId, targetObjectId);
                 // TODO: move to the gather point #gather-point
                 accumulatedMessages[unit->GetPlayerIndex()] +=

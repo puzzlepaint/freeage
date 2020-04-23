@@ -47,8 +47,9 @@ InteractionType GetInteractionType(ServerObject* actor, ServerObject* target) {
         target->GetPlayerIndex() != kGaiaPlayerIndex) {
       return InteractionType::Attack;
     }
-    
-    // TODO (maanoo): add Garrison, all cases cannot be handled here, the user has to use the garrison button in some cases
+
+    // TODO: return InteractionType::Garrison only for targets that are mainly used for garrison, like the
+    //       the transport ship and rams.
   }
   
   return InteractionType::Invalid;

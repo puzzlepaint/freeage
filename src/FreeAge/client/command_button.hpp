@@ -25,11 +25,10 @@ class CommandButton {
   };
   
   enum class ActionType {
-    // TODO (maanoo): add a None for fast actiontype checks without the need for the type check
     BuildEconomyBuilding,
     BuildMilitaryBuilding,
     ToggleBuildingsCategory,
-    Garrison, // TODO (maanoo): move to type ?
+    Garrison,
     // Ungarrison, // TODO: implement
     UngarrisonAll,
     Quit
