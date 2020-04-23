@@ -131,6 +131,9 @@ void GameController::ParseMessage(const QByteArray& data, ServerToClientMessage 
   case ServerToClientMessage::UnitMovement:
     HandleUnitMovementMessage(data);
     break;
+  case ServerToClientMessage::UnitGarrison:
+    HandleUnitGarrisonMessage(data);
+    break;
   case ServerToClientMessage::HPUpdate:
     HandleHPUpdateMessage(data);
     break;
@@ -362,7 +365,7 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
 
 void GameController::HandleUnitMovementMessage(const QByteArray& data) {
   if (data.size() < 21) {
-    LOG(ERROR) << "Received a too short SetCarriedResources message";
+    LOG(ERROR) << "Received a too short UnitMovement message";
     return;
   }
   const char* buffer = data.data();
@@ -392,6 +395,50 @@ void GameController::HandleUnitMovementMessage(const QByteArray& data) {
   
   ClientUnit* unit = AsUnit(it->second);
   unit->SetMovementSegment(currentGameStepServerTime, startPoint, speed, action, map.get(), match.get());
+}
+
+void GameController::HandleUnitGarrisonMessage(const QByteArray& data) {
+  if (data.size() < 4) {
+    LOG(ERROR) << "Received a too short UnitGarrison message";
+    return;
+  }
+  const char* buffer = data.data();
+  
+  u32 unitId = mango::uload32(buffer + 0);
+  u32 targetObjectId = mango::uload32(buffer + 4);
+
+  auto unitIt = map->GetObjects().find(unitId);
+  if (unitIt == map->GetObjects().end()) {
+    LOG(ERROR) << "Received a UnitGarrison message for an object ID that is not in the map.";
+    return;
+  }
+  if (!unitIt->second->isUnit()) {
+    LOG(ERROR) << "Received a UnitGarrison message for an object ID that is a different type than a unit.";
+    return;
+  }
+  auto targetObjectIt = map->GetObjects().find(targetObjectId);
+  if (targetObjectIt == map->GetObjects().end()) {
+    LOG(ERROR) << "Received a UnitGarrison message with target object ID that is not in the map.";
+    return;
+  }
+
+  ClientUnit* unit = AsUnit(unitIt->second);
+  GarrisonUnit(unitId, unit, targetObjectId, targetObjectIt->second, !unit->IsGarrisoned());
+}
+
+void GameController::GarrisonUnit(u32 unitId, ClientUnit* unit, u32 targetObjectId, ClientObject* targetObject, bool enter) {
+  // TODO: implement a way to get ID from ClientObject, then remove the ids for the arguments
+  if (enter) {
+    targetObject->GarrisonUnit(unitId);
+    unit->SetGarrisonedInsideObject(targetObjectId);
+    unit->UpdateFieldOfView(map.get(), -1);
+  } else {
+    targetObject->UngarrisonUnit(unitId);
+    unit->SetGarrisonedInsideObject(kInvalidObjectId);
+    unit->UpdateFieldOfView(map.get(), 1);
+  }
+  
+  // TODO (maanoo): gamelogic
 }
 
 void GameController::HandleGameStepTimeMessage(const QByteArray& data) {
