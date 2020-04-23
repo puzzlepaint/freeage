@@ -1427,7 +1427,12 @@ void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, Server
     unit->RemoveTarget();
 
     QByteArray unitGarrisonMessage = CreateUnitGarrisonMessage(unitId, targetObjectId);
+    QByteArray unitMoveMessage = CreateUnitMovementMessage(unitId,
+        unit->GetMapCoord(),
+        unit->GetMoveSpeed() * unit->GetMovementDirection(),
+        unit->GetCurrentAction());
     for (auto& player : *playersInGame) {
+      accumulatedMessages[player->index] += unitMoveMessage;
       accumulatedMessages[player->index] += unitGarrisonMessage;
     }
   } else {

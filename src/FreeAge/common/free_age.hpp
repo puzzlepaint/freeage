@@ -46,6 +46,9 @@ static constexpr int kGaiaPlayerIndex = 255;
 /// The maximum capacity of production queues in buildings.
 static constexpr int kMaxProductionQueueSize = 11;
 
+/// The maximum capacity of garrison units.
+static constexpr int kMaxGarrisonCapacity = 30;
+
 // The M_PI definition might be missing sometimes, so ensure that it is present.
 #ifndef M_PI
     #define M_PI 3.14159265358979323846

@@ -187,6 +187,7 @@ class RenderWindow : public QOpenGLWindow {
   void ShowMilitaryBuildingCommandButtons();
   
   void DequeueProductionQueueItem(int queueIndex);
+  void UngarrisonUnit(int garrisonedUnitIndex);
   
   void JumpToNextTownCenter();
   /// Selects the object and centers the view on it.
@@ -427,6 +428,11 @@ class RenderWindow : public QOpenGLWindow {
   QPointF productionQueueIconsTopLeft[kMaxProductionQueueSize];
   float productionQueueIconsSize[kMaxProductionQueueSize];
   int pressedProductionQueueItem = -1;
+  PointBuffer garrisonUnitsPointBuffers[kMaxGarrisonCapacity];
+  PointBuffer garrisonUnitsOverlayPointBuffers[kMaxGarrisonCapacity];
+  QPointF garrisonUnitsIconsTopLeft[kMaxGarrisonCapacity];
+  float garrisonUnitsIconsSize[kMaxGarrisonCapacity];
+  int pressedGarrisonUnitsItem = -1;
   
   std::shared_ptr<Texture> iconOverlayNormalTexture;
   std::shared_ptr<Texture> iconOverlayNormalExpensiveTexture;
