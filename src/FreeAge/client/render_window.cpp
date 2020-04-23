@@ -3149,7 +3149,14 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
           }
           ClientObject* object = it->second;
           if (object->GetGarrisonedUnitsCount() > 0) {
-            connection->Write(CreateSetTargetWithInteractionMessage(object->GetGarrisonedUnits(), id, InteractionType::Ungarrison));
+            // NOTE: If the ClientObject store its ID, object->GetGarrisonedUnits() could be used instead of the iteration. #ids
+            std::vector<u32> unitIds;
+            for (auto& i : map->GetObjects()) {
+              if (i.second->isUnit() && AsUnit(i.second)->GetGarrisonedInsideObject() == object) {
+                unitIds.push_back(i.first);
+              }
+            }
+            connection->Write(CreateSetTargetWithInteractionMessage(unitIds, id, InteractionType::Ungarrison));
           }
         }
         break;

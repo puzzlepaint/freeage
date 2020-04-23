@@ -19,7 +19,7 @@ class ServerUnit : public ServerObject {
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   inline void SetMapCoord(const QPointF& mapCoord) { this->mapCoord = mapCoord; }
   
-  inline bool IsGarrisoned() const { return garrisonedObjectId != kInvalidObjectId; }
+  inline bool IsGarrisoned() const { return garrisonedObject != nullptr; }
 
   inline UnitAction GetCurrentAction() const { return currentAction; }
   inline void SetCurrentAction(UnitAction newAction) { currentAction = newAction; }
@@ -55,7 +55,7 @@ class ServerUnit : public ServerObject {
   inline ResourceType GetCarriedResourceType() const { return carriedResourceType; }
   inline void SetCarriedResourceType(ResourceType type) { carriedResourceType = type; }
 
-  inline void SetGarrisonedInsideObject(u32 objectId) { garrisonedObjectId = objectId; }
+  inline void SetGarrisonedInsideObject(ServerObject* object) { garrisonedObject = object; }
   
   inline int GetCarriedResourceAmount() const { return static_cast<int>(carriedResourceAmount); }
   inline float GetCarriedResourceAmountInternalFloat() const { return carriedResourceAmount; }
@@ -108,8 +108,8 @@ class ServerUnit : public ServerObject {
   /// If this changes, the clients that see the unit need to be notified.
   QPointF currentMovementDirection = QPointF(0, 0);
   
-  /// The object in which the unit is garrisoned
-  u32 garrisonedObjectId = kInvalidObjectId;
+  /// The object in which the unit is garrisoned, or nullptr if not garrisoned.
+  ServerObject* garrisonedObject = nullptr;
 
   /// Amount of resources carried (for villagers).
   float carriedResourceAmount = 0;

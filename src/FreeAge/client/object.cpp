@@ -43,12 +43,22 @@ const Texture* ClientObject::GetIconTexture() const {
   return nullptr;
 }
 
-void ClientObject::GarrisonUnit(u32 unitId) { 
-  garrisonedUnits.emplace_back(unitId);
+void ClientObject::GarrisonUnit(ClientUnit* unit) {
+  garrisonedUnits.push_back(unit);
 }
 
-void ClientObject::UngarrisonUnit(u32 unitId) {
-  garrisonedUnits.erase(std::remove(garrisonedUnits.begin(), garrisonedUnits.end(), unitId), garrisonedUnits.end());
+void ClientObject::UngarrisonUnit(ClientUnit* unit) {
+  bool found = false;
+  for (usize i = 0, size = garrisonedUnits.size(); i < size; ++ i) {
+    if (garrisonedUnits[i] == unit) {
+      garrisonedUnits.erase(garrisonedUnits.begin() + i);
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    LOG(ERROR) << "Did not find unit ID to ungarrison in garrisonedUnits";
+  }
 }
 
 InteractionType GetInteractionType(ClientObject* actor, ClientObject* target) {

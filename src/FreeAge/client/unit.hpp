@@ -127,7 +127,7 @@ class ClientUnit : public ClientObject {
   // Must be called after teleport like position changes.
   inline void ClearOverrideDirection() { overrideDirectionExpireTime = -1; }
 
-  inline bool IsGarrisoned() const { return garrisonedObjectId != kInvalidObjectId; }
+  inline bool IsGarrisoned() const { return garrisonedObject != nullptr; }
 
   inline void SetCarriedResources(ResourceType type, u8 amount) {
     carriedResourceType = type;
@@ -136,7 +136,8 @@ class ClientUnit : public ClientObject {
   inline ResourceType GetCarriedResourceType() const { return carriedResourceType; }
   inline int GetCarriedResourceAmount() const { return carriedResourceAmount; }
 
-  inline void SetGarrisonedInsideObject(u32 objectId) { garrisonedObjectId = objectId; }
+  inline void SetGarrisonedInsideObject(ClientObject* object) { garrisonedObject = object; }
+  inline ClientObject* GetGarrisonedInsideObject() const { return garrisonedObject; }
   
   /// Updates the unit's state to the given server time.
   void UpdateGameState(double serverTime, Map* map, Match* match);
@@ -162,8 +163,8 @@ class ClientUnit : public ClientObject {
   /// If this is in the past, then overrideDirection must be ignored.
   double overrideDirectionExpireTime = -1;
   
-  /// The object in which the unit is garrisoned
-  u32 garrisonedObjectId = kInvalidObjectId;
+  /// The object in which the unit is garrisoned, or nullptr if not garrisoned.
+  ClientObject* garrisonedObject = nullptr;
   
   UnitAnimation currentAnimation;
   int currentAnimationVariant;

@@ -423,18 +423,18 @@ void GameController::HandleUnitGarrisonMessage(const QByteArray& data) {
   }
 
   ClientUnit* unit = AsUnit(unitIt->second);
-  GarrisonUnit(unitId, unit, targetObjectId, targetObjectIt->second, !unit->IsGarrisoned());
+  GarrisonUnit(unit, targetObjectIt->second, !unit->IsGarrisoned());
 }
 
-void GameController::GarrisonUnit(u32 unitId, ClientUnit* unit, u32 targetObjectId, ClientObject* targetObject, bool enter) {
+void GameController::GarrisonUnit(ClientUnit* unit, ClientObject* targetObject, bool enter) {
   // TODO: implement a way to get ID from ClientObject, then remove the ids for the arguments
   if (enter) {
-    targetObject->GarrisonUnit(unitId);
-    unit->SetGarrisonedInsideObject(targetObjectId);
+    targetObject->GarrisonUnit(unit);
+    unit->SetGarrisonedInsideObject(targetObject);
     // TODO: loose the line of sight
   } else {
-    targetObject->UngarrisonUnit(unitId);
-    unit->SetGarrisonedInsideObject(kInvalidObjectId);
+    targetObject->UngarrisonUnit(unit);
+    unit->SetGarrisonedInsideObject(nullptr);
     unit->ClearOverrideDirection();
   }
   

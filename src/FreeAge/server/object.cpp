@@ -7,12 +7,22 @@
 #include "FreeAge/server/building.hpp"
 #include "FreeAge/server/unit.hpp"
 
-void ServerObject::GarrisonUnit(u32 unitId) { 
-  garrisonedUnits.emplace_back(unitId);
+void ServerObject::GarrisonUnit(ServerUnit* unit) {
+  garrisonedUnits.push_back(unit);
 }
 
-void ServerObject::UngarrisonUnit(u32 unitId) {
-  garrisonedUnits.erase(std::remove(garrisonedUnits.begin(), garrisonedUnits.end(), unitId), garrisonedUnits.end());
+void ServerObject::UngarrisonUnit(ServerUnit* unit) {
+  bool found = false;
+  for (usize i = 0, size = garrisonedUnits.size(); i < size; ++ i) {
+    if (garrisonedUnits[i] == unit) {
+      garrisonedUnits.erase(garrisonedUnits.begin() + i);
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    LOG(ERROR) << "Did not find unit to ungarrison in garrisonedUnits";
+  }
 }
 
 InteractionType GetInteractionType(ServerObject* actor, ServerObject* target) {

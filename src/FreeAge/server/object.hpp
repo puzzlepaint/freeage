@@ -10,13 +10,15 @@
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/object_types.hpp"
 
+class ServerUnit;
+
 /// Base class for game objects (buildings and units).
 class ServerObject {
  public:
   inline ServerObject(ObjectType objectType, int playerIndex)
       : playerIndex(playerIndex),
         objectType(static_cast<int>(objectType)) {}
-  
+
   inline bool isBuilding() const { return objectType == 0; }
   inline bool isUnit() const { return objectType == 1; }
   inline ObjectType GetObjectType() const { return static_cast<ObjectType>(objectType); }
@@ -27,12 +29,15 @@ class ServerObject {
   inline float GetHPInternalFloat() const { return hp; };
   inline void SetHP(float newHP) { hp = newHP; }
 
-  void GarrisonUnit(u32 unitId);
-  void UngarrisonUnit(u32 unitId);
+  void GarrisonUnit(ServerUnit* unit);
+  void UngarrisonUnit(ServerUnit* unit);
 
   // Returns the IDs of the units that are garrisoned.
-  inline const std::vector<u32>& GetGarrisonedUnits() const { return garrisonedUnits; }
+  inline const std::vector<ServerUnit*>& GetGarrisonedUnits() const { return garrisonedUnits; }
   inline int GetGarrisonedUnitsCount() const { return garrisonedUnits.size(); }
+  
+  // TODO: Add function to generate a string that represents the unit for logging and debugging.
+  //       eg. Villager@(20,4)
   
  private:
   /// Current hitpoints of the object.
@@ -42,7 +47,7 @@ class ServerObject {
   u8 playerIndex;
   
   // The IDs of the units that are garrisoned.
-  std::vector<u32> garrisonedUnits;
+  std::vector<ServerUnit*> garrisonedUnits;
   
   /// 0 for buildings, 1 for units.
   u8 objectType;
