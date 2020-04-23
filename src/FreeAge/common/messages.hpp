@@ -11,6 +11,7 @@
 
 #include "FreeAge/common/building_types.hpp"
 #include "FreeAge/common/free_age.hpp"
+#include "FreeAge/common/object_types.hpp"
 #include "FreeAge/common/unit_types.hpp"
 
 
@@ -79,6 +80,10 @@ enum class ClientToServerMessage {
   /// * Moving a monk with a relic to a monastery drops off the relic in the monastery.
   /// * Moving a trade cart / cog to an allied market / dock starts trading with it.
   SetTarget,
+
+  /// Same as SetTarget but with the interaction specified.
+  /// TODO: extend doc and rename ?
+  SetTargetWithInteraction,
   
   /// Sent upon pressing the button / hotkey to produce a unit.
   ProduceUnit,
@@ -126,6 +131,11 @@ QByteArray CreateMoveToMapCoordMessage(
 QByteArray CreateSetTargetMessage(
     const std::vector<u32>& unitIds,
     u32 targetObjectId);
+
+QByteArray CreateSetTargetWithInteractionMessage(
+    const std::vector<u32>& unitIds,
+    u32 targetObjectId,
+    InteractionType interaction);
 
 QByteArray CreateProduceUnitMessage(
     u32 buildingId,
@@ -196,6 +206,10 @@ enum class ServerToClientMessage {
   /// The speed may be zero, which indicates that the unit has stopped moving.
   UnitMovement,
   
+  /// TODO (maanoo): doc, 
+  // For now, the same message for garrison and ungarrison.
+  UnitGarrison,
+
   /// Tells the client about updates to its game resource amounts (wood, food, etc.)
   ResourcesUpdate,
   
@@ -270,6 +284,8 @@ QByteArray CreateUnitMovementMessage(
     const QPointF& startPoint,
     const QPointF& speed,
     UnitAction action);
+
+QByteArray CreateUnitGarrisonMessage(u32 unitId, u32 targetObjectId);
 
 QByteArray CreateResourcesUpdateMessage(const ResourceAmount& amount);
 

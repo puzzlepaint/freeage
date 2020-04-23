@@ -159,6 +159,30 @@ QByteArray CreateSetTargetMessage(const std::vector<u32>& unitIds, u32 targetObj
   return msg;
 }
 
+QByteArray CreateSetTargetWithInteractionMessage(const std::vector<u32>& unitIds, u32 targetObjectId, InteractionType interaction) {
+  if (unitIds.empty()) {
+    return QByteArray();
+  }
+  
+  // Create buffer
+  QByteArray msg = CreateClientToServerMessageHeader(10 + 4 * unitIds.size(), ClientToServerMessage::SetTargetWithInteraction);
+  char* data = msg.data();
+  
+  // Fill buffer
+  mango::ustore32(data + 3, targetObjectId);
+
+  mango::ustore16(data + 7, unitIds.size());  // TODO: This could also be derived from the message length
+  int offset = 9;
+  for (u32 unitId : unitIds) {
+    mango::ustore32(data + offset, unitId);
+    offset += 4;
+  }
+
+  mango::ustore32(data + offset, static_cast<u32>(interaction)); // TODO: reduce size ?
+  
+  return msg;
+}
+
 QByteArray CreateProduceUnitMessage(u32 buildingId, u16 unitType) {
   QByteArray msg = CreateClientToServerMessageHeader(6, ClientToServerMessage::ProduceUnit);
   char* data = msg.data();
@@ -303,6 +327,14 @@ QByteArray CreateUnitMovementMessage(u32 unitId, const QPointF& startPoint, cons
   *reinterpret_cast<float*>(data + 15) = speed.x();
   *reinterpret_cast<float*>(data + 19) = speed.y();
   data[23] = static_cast<u8>(action);
+  return msg;
+}
+
+QByteArray CreateUnitGarrisonMessage(u32 unitId, u32 targetObjectId) {
+  QByteArray msg = CreateServerToClientMessageHeader(8, ServerToClientMessage::UnitGarrison);
+  char* data = msg.data();
+  mango::ustore32(data + 3, unitId);
+  mango::ustore32(data + 7, targetObjectId);
   return msg;
 }
 
