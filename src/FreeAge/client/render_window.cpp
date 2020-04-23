@@ -3151,7 +3151,7 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
   
   // Handle building construction.
   if (button->GetType() == CommandButton::Type::ConstructBuilding) {
-    if (SetActiveCommandButton(button, true)) {
+    if (SetActiveCommandButton(button, /*allowToggle*/ true)) {
       constructBuildingType = button->GetBuildingConstructionType(); // TODO (maanoo): move
     }
   }
@@ -3161,10 +3161,13 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
 
     switch (button->GetActionType()) {
     case CommandButton::ActionType::Garrison:
-      SetActiveCommandButton(button, true);
+      SetActiveCommandButton(button, /*allowToggle*/ true);
       break;
     default:
-      UnsetActiveCommandButton(); // TODO (maanoo): doc
+      // Up to this point all the toggle-able buttons should have been handled
+      // because now we clear the active command button (and information about 
+      // toggling will be lost).
+      UnsetActiveCommandButton();
 
       switch (button->GetActionType()) {
       case CommandButton::ActionType::BuildEconomyBuilding:
@@ -3181,7 +3184,17 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
         }
         break;
       case CommandButton::ActionType::UngarrisonAll:
-      // TODO (maanoo): impl
+        // TODO (maanoo): extract to function
+        for (u32 id : selection) {
+        auto it = map->GetObjects().find(id);
+          if (it == map->GetObjects().end()) {
+            continue;
+          }
+          ClientObject* object = it->second;
+          if (object->GetGarrisonedUnitsCount() > 0) {
+            connection->Write(CreateSetTargetWithInteractionMessage(object->GetGarrisonedUnits(), id, InteractionType::Ungarrison));
+          }
+        }
         break;
       case CommandButton::ActionType::Quit:
         ShowDefaultCommandButtonsForSelection();

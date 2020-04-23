@@ -33,7 +33,8 @@ void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject, bool 
     type = IsMaleVillager(type) ? UnitType::MaleVillagerStoneMiner : UnitType::FemaleVillagerStoneMiner;
   } else if (interaction == InteractionType::DropOffResource ||
       interaction == InteractionType::Attack ||
-      interaction == InteractionType::Garrison) {
+      interaction == InteractionType::Garrison ||
+      interaction == InteractionType::Ungarrison) {
     // no change
   } else {
     LOG(WARNING) << "ServerUnit::SetTarget() did not handle the interaction type.";
@@ -45,6 +46,7 @@ void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject, bool 
 
 void ServerUnit::RemoveTarget() {
   targetObjectId = kInvalidObjectId;
+  targetObjectInteraction = InteractionType::Unknown;
 }
 
 void ServerUnit::SetMoveToTarget(const QPointF& mapCoord) {

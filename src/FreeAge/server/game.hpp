@@ -117,7 +117,9 @@ class Game {
   bool SimulateMeleeAttack(u32 unitId, ServerUnit* unit, u32 targetId, ServerObject* target, double gameStepServerTime, float stepLengthInSeconds, bool* unitMovementChanged, bool* stayInPlace);
   
   void ProduceUnit(ServerBuilding* building, UnitType unitInProduction);
-  
+
+  bool FindFreeSpaceAroundBuilding(ServerBuilding* building, ServerUnit* unit, QPointF& freeSpace);
+
   void SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting, InteractionType interaction = InteractionType::Unknown);
   
   void DeleteObject(u32 objectId, bool deletedManually);
