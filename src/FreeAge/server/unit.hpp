@@ -19,6 +19,8 @@ class ServerUnit : public ServerObject {
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   inline void SetMapCoord(const QPointF& mapCoord) { this->mapCoord = mapCoord; }
   
+  inline bool IsGarrisoned() const { return garrisonedObjectId != kInvalidObjectId; }
+
   inline UnitAction GetCurrentAction() const { return currentAction; }
   inline void SetCurrentAction(UnitAction newAction) { currentAction = newAction; }
   
@@ -27,11 +29,13 @@ class ServerUnit : public ServerObject {
   
   /// Attempts to command the unit to interact with the given target object.
   /// If the unit cannot actually interact with that object, this call does nothing.
-  void SetTarget(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting);
+  void SetTarget(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting, InteractionType interaction);
   void RemoveTarget();
   inline u32 GetTargetObjectId() const { return targetObjectId; }
   inline u32 GetManuallyTargetedObjectId() const { return manuallyTargetedObjectId; }
   
+  inline InteractionType GetTargetObjectInteraction() const { return targetObjectInteraction; }
+
   /// Commands the unit to move to the given mapCoord.
   void SetMoveToTarget(const QPointF& mapCoord);
   inline bool HasMoveToTarget() const { return hasMoveToTarget; }
@@ -50,6 +54,8 @@ class ServerUnit : public ServerObject {
   
   inline ResourceType GetCarriedResourceType() const { return carriedResourceType; }
   inline void SetCarriedResourceType(ResourceType type) { carriedResourceType = type; }
+
+  inline void SetGarrisonedInsideObject(u32 objectId) { garrisonedObjectId = objectId; }
   
   inline int GetCarriedResourceAmount() const { return static_cast<int>(carriedResourceAmount); }
   inline float GetCarriedResourceAmountInternalFloat() const { return carriedResourceAmount; }
@@ -74,6 +80,9 @@ class ServerUnit : public ServerObject {
   /// The unit's target object (if any). Set to kInvalidObjectId if the unit does not have a target.
   u32 targetObjectId = kInvalidObjectId;
   
+  /// The interaction with the target object.
+  InteractionType targetObjectInteraction;
+
   /// The last object that was targeted manually (by the player). For example, if the player sends
   /// a villager to gather gold, and the villager is currently walking back to a mining camp to drop
   /// off the gold it has gathered, then manuallyTargetedObjectId is the gold mine, and targetObjectId
@@ -99,6 +108,9 @@ class ServerUnit : public ServerObject {
   /// If this changes, the clients that see the unit need to be notified.
   QPointF currentMovementDirection = QPointF(0, 0);
   
+  /// The object in which the unit is garrisoned
+  u32 garrisonedObjectId = kInvalidObjectId;
+
   /// Amount of resources carried (for villagers).
   float carriedResourceAmount = 0;
   

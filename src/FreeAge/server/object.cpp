@@ -7,6 +7,14 @@
 #include "FreeAge/server/building.hpp"
 #include "FreeAge/server/unit.hpp"
 
+void ServerObject::GarrisonUnit(u32 unitId) { 
+  garrisonedUnits.emplace_back(unitId);
+}
+
+void ServerObject::UngarrisonUnit(u32 unitId) {
+  garrisonedUnits.erase(std::remove(garrisonedUnits.begin(), garrisonedUnits.end(), unitId), garrisonedUnits.end());
+}
+
 InteractionType GetInteractionType(ServerObject* actor, ServerObject* target) {
   // TODO: There is a copy of this function in the client code. Can we merge these copies?
   
@@ -39,6 +47,8 @@ InteractionType GetInteractionType(ServerObject* actor, ServerObject* target) {
         target->GetPlayerIndex() != kGaiaPlayerIndex) {
       return InteractionType::Attack;
     }
+    
+    // TODO (maanoo): add Garrison, all cases cannot be handled here, the user has to use the garrison button in some cases
   }
   
   return InteractionType::Invalid;
