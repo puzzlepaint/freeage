@@ -91,6 +91,7 @@ class Game {
   void HandlePing(const QByteArray& msg, PlayerInGame* player);
   void HandleMoveToMapCoordMessage(const QByteArray& msg, PlayerInGame* player, u32 len);
   void HandleSetTargetMessage(const QByteArray& msg, PlayerInGame* player, u32 len);
+  void HandleSetTargetWithInteractionMessage(const QByteArray& msg, PlayerInGame* player, u32 len);
   void HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player);
   void HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInGame* player);
   void HandleDeleteObjectMessage(const QByteArray& msg, PlayerInGame* player);
@@ -117,7 +118,7 @@ class Game {
   
   void ProduceUnit(ServerBuilding* building, UnitType unitInProduction);
   
-  void SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting);
+  void SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting, InteractionType interaction = InteractionType::Unknown);
   
   void DeleteObject(u32 objectId, bool deletedManually);
   

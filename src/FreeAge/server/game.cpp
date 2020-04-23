@@ -272,6 +272,39 @@ void Game::HandleSetTargetMessage(const QByteArray& msg, PlayerInGame* player, u
   SetUnitTargets(unitIds, player->index, targetId, targetIt->second, true);
 }
 
+void Game::HandleSetTargetWithInteractionMessage(const QByteArray& msg, PlayerInGame* player, u32 len) {
+  // Parse message
+  if (len < 13 + 4) {
+    LOG(ERROR) << "Server: Erroneous SetTargetWithInteraction message (1)" << len;
+    return;
+  }
+  const char* data = msg.data();
+  
+  u32 targetId = mango::uload32(data + 3);
+  auto targetIt = map->GetObjects().find(targetId);
+  if (targetIt == map->GetObjects().end()) {
+    LOG(WARNING) << "Server: Received a SetTarget message for a target ID that does not exist (anymore?)";
+    return;
+  }
+  
+  usize selectedUnitIdsSize = mango::uload16(data + 7);
+  if (len != 13 + 4 * selectedUnitIdsSize) {
+    LOG(ERROR) << "Server: SetTargetWithInteraction SetTarget message (2)";
+    return;
+  }
+  std::vector<u32> unitIds(selectedUnitIdsSize);
+  int offset = 9;
+  for (usize i = 0; i < selectedUnitIdsSize; ++ i) {
+    unitIds[i] = mango::uload32(data + offset);
+    offset += 4;
+  }
+
+  InteractionType interaction = static_cast<InteractionType>(mango::uload32(data + offset));
+  
+  // Handle command (for all suitable IDs which are actually units of the sending client)
+  SetUnitTargets(unitIds, player->index, targetId, targetIt->second, true, interaction);
+}
+
 void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player) {
   if (msg.size() < 3 + 6) {
     LOG(ERROR) << "Received a too short ProduceUnit message";
@@ -520,6 +553,9 @@ Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, con
         break;
       case ClientToServerMessage::SetTarget:
         HandleSetTargetMessage(player->unparsedBuffer, player, msgLength);
+        break;
+      case ClientToServerMessage::SetTargetWithInteraction:
+        HandleSetTargetWithInteractionMessage(player->unparsedBuffer, player, msgLength);
         break;
       case ClientToServerMessage::ProduceUnit:
         HandleProduceUnitMessage(player->unparsedBuffer, player);
@@ -906,7 +942,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
       constexpr float kReplanThresholdDistance = 0.1f * 0.1f;
       if (SquaredDistance(targetUnit->GetMapCoord(), unit->GetMoveToTargetMapCoord()) > kReplanThresholdDistance) {
         // Since we keep the target here, there is no need to use SetUnitTargets() since the unit's type will never change.
-        unit->SetTarget(unit->GetTargetObjectId(), targetUnit, false);
+        unit->SetTarget(unit->GetTargetObjectId(), targetUnit, false, unit->GetTargetObjectInteraction());
         PlanUnitPath(unit, map.get());
         unitMovementChanged = true;
       }
@@ -927,10 +963,13 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
         unit->RemoveTarget();
       } else {
         ServerObject* targetObject = targetIt->second;
+        InteractionType interaction = unit->GetTargetObjectInteraction();
+        if (interaction == InteractionType::Unknown) { // TODO (maanoo): move this check inside the GetTargetObjectInteraction
+          interaction = GetInteractionType(unit, targetObject);
+        }
         if (targetObject->isBuilding()) {
           ServerBuilding* targetBuilding = AsBuilding(targetObject);
           if (DoesUnitTouchBuildingArea(unit, newMapCoord, targetBuilding, 0)) {
-            InteractionType interaction = GetInteractionType(unit, targetBuilding);
             
             if (interaction == InteractionType::Construct) {
               SimulateBuildingConstruction(stepLengthInSeconds, unit, targetObjectId, targetBuilding, &unitMovementChanged, &stayInPlace);
@@ -943,15 +982,30 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
               SimulateResourceDropOff(unitId, unit, &unitMovementChanged);
             } else if (interaction == InteractionType::Attack) {
               SimulateMeleeAttack(unitId, unit, targetIt->first, targetBuilding, gameStepServerTime, stepLengthInSeconds, &unitMovementChanged, &stayInPlace);
+            } else if (interaction == InteractionType::Garrison) {
+              // TODO (maanoo): extract to function
+              unit->SetGarrisonedInsideObject(targetObjectId);
+              unit->SetMapCoord(targetBuilding->GetBaseTile()); // TODO (maanoo): set to infinity ?
+              unit->SetMovementDirection(QPointF(0, 0));
+              unit->SetCurrentAction(UnitAction::Idle);
+              // TODO (maanoo): what else ?
+              accumulatedMessages[unit->GetPlayerIndex()] += CreateUnitGarrisonMessage(unitId, targetObjectId);
+              accumulatedMessages[unit->GetPlayerIndex()] +=
+                  CreateUnitMovementMessage(
+                      unitId,
+                      unit->GetMapCoord(),
+                      unit->GetMoveSpeed() * unit->GetMovementDirection(),
+                      unit->GetCurrentAction());
             }
           }
         } else if (targetObject->isUnit()) {
           ServerUnit* targetUnit = AsUnit(targetObject);
           if (DoUnitsTouch(unit, newMapCoord, targetUnit, 0)) {
-            InteractionType interaction = GetInteractionType(unit, targetUnit);
-            
+
             if (interaction == InteractionType::Attack) {
               SimulateMeleeAttack(unitId, unit, targetIt->first, targetUnit, gameStepServerTime, stepLengthInSeconds, &unitMovementChanged, &stayInPlace);
+            } else if (interaction == InteractionType::Garrison) {
+              // TODO: implement
             }
           }
         }
@@ -1428,7 +1482,7 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   if (foundFreeSpace) {
     newUnit->SetMapCoord(freeSpace);
   } else {
-    // TODO: Garrison the unit in the building
+    // TODO (maanoo): Garrison the unit in the building
   }
   
   // Send messages to clients that see the new unit
@@ -1440,7 +1494,7 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   GetPlayerStats(newUnit->GetPlayerIndex())->UnitAdded(unitInProduction);
 }
 
-void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting) {
+void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting, InteractionType interaction) {
   for (u32 id : unitIds) {
     auto it = map->GetObjects().find(id);
     if (it == map->GetObjects().end() ||
@@ -1453,7 +1507,7 @@ void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 
     ServerUnit* unit = AsUnit(it->second);
     UnitType oldUnitType = unit->GetType();
     
-    unit->SetTarget(targetId, targetObject, isManualTargeting);
+    unit->SetTarget(targetId, targetObject, isManualTargeting, interaction);
     
     if (oldUnitType != unit->GetType()) {
       GetPlayerStats(playerIndex)->UnitTransformed(oldUnitType, unit->GetType());

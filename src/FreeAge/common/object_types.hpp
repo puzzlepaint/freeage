@@ -16,8 +16,11 @@ enum class ObjectType {
 constexpr u32 kInvalidObjectId = std::numeric_limits<u32>::max();
 
 enum class InteractionType {
+  // TODO (maanoo): doc
+  Unknown = 0,
+
   // A villager constructs a building.
-  Construct = 0,
+  Construct,
   
   // A villager collects a resource.
   CollectBerries,
@@ -31,7 +34,7 @@ enum class InteractionType {
   // A unit attacks an enemy unit or building
   Attack,
 
-  // TODO (maanoo): ??, implement in some cases in GetInteractionType
+  // A unit garrison in a other unit or building.
   Garrison,
   
   // No valid interaction.

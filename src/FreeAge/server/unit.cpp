@@ -14,38 +14,33 @@ ServerUnit::ServerUnit(int playerIndex, UnitType type, const QPointF& mapCoord)
   SetHP(GetUnitMaxHP(type));
 }
 
-void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting) {
-  InteractionType interaction = GetInteractionType(this, targetObject);
-  
+void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting, InteractionType interaction) {
+  targetObjectInteraction = interaction;
+  if (interaction == InteractionType::Unknown) {
+    interaction = GetInteractionType(this, targetObject);
+    // keep the targetObjectInteraction with the value of Unknown
+  }
+
   if (interaction == InteractionType::Construct) {
     type = IsMaleVillager(type) ? UnitType::MaleVillagerBuilder : UnitType::FemaleVillagerBuilder;
-    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
-    return;
   } else if (interaction == InteractionType::CollectBerries) {
     type = IsMaleVillager(type) ? UnitType::MaleVillagerForager : UnitType::FemaleVillagerForager;
-    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
-    return;
   } else if (interaction == InteractionType::CollectWood) {
     type = IsMaleVillager(type) ? UnitType::MaleVillagerLumberjack : UnitType::FemaleVillagerLumberjack;
-    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
-    return;
   } else if (interaction == InteractionType::CollectGold) {
     type = IsMaleVillager(type) ? UnitType::MaleVillagerGoldMiner : UnitType::FemaleVillagerGoldMiner;
-    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
-    return;
   } else if (interaction == InteractionType::CollectStone) {
     type = IsMaleVillager(type) ? UnitType::MaleVillagerStoneMiner : UnitType::FemaleVillagerStoneMiner;
-    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
-    return;
-  } else if (interaction == InteractionType::DropOffResource) {
-    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
-    return;
-  } else if (interaction == InteractionType::Attack) {
-    SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
+  } else if (interaction == InteractionType::DropOffResource ||
+      interaction == InteractionType::Attack ||
+      interaction == InteractionType::Garrison) {
+    // no change
+  } else {
+    LOG(WARNING) << "ServerUnit::SetTarget() did not handle the interaction type.";
     return;
   }
-  
-  LOG(WARNING) << "ServerUnit::SetTarget() did not handle the interaction type.";
+
+  SetTargetInternal(targetObjectId, targetObject, isManualTargeting);
 }
 
 void ServerUnit::RemoveTarget() {

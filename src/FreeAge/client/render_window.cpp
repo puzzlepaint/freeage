@@ -4040,7 +4040,9 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
           // int capacity = stats->garrisonCapacity #stats
           bool isTownCenter = targetObject->GetObjectType() == ObjectType::Building && AsBuilding(targetObject)->GetType() == BuildingType::TownCenter;
           int capacity = isTownCenter ? 15 : 0;
-          if (targetObject->GetGarrisonedUnitsCount() < capacity) {
+          if (capacity) {
+            // Do not check the targetObject->GetGarrisonedUnitsCount() now, by the time the unit 
+            // will reach the bulding the capacity may have changed.
 
             std::vector<u32> suitableUnits;
             suitableUnits.reserve(selection.size());
@@ -4050,7 +4052,7 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
             }
             
             if (!suitableUnits.empty()) {
-              // TODO (maanoo): create message
+              connection->Write(CreateSetTargetWithInteractionMessage(suitableUnits, targetObjectId, InteractionType::Garrison));
               
               LetObjectFlash(targetObjectId);
             }
@@ -4298,7 +4300,7 @@ void RenderWindow::UpdateCursor() {
           case InteractionType::CollectGold: cursor = &mineGoldCursor; break;
           case InteractionType::CollectStone: cursor = &mineStoneCursor; break;
           case InteractionType::Garrison: cursor = &garrisonCursor; break;
-          case InteractionType::Invalid: continue;
+          default: continue;
           }
           break;
         }
