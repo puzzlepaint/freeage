@@ -76,6 +76,11 @@ struct PlayerStats {
     int i = static_cast<int>(buildingType);
     return buildingConstructions[i] + buildingAlive[i];
   }
+  
+  /// Returns the number of existing, completed buildings with the given type.
+  inline int GetBuildingTypeAlive(BuildingType buildingType) const {
+    return buildingAlive[static_cast<int>(buildingType)];
+  }
 
   /// If a building of the given type have ever been constructed.
   inline bool GetBuildingTypeExisted(BuildingType buildingType) const {

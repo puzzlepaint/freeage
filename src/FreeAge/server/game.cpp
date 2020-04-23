@@ -1536,25 +1536,24 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   
   // If all objects of a player are gone, the player gets defeated.
   if (object->GetPlayerIndex() != kGaiaPlayerIndex) {
-    bool playerHasRemainingObject = false;
-    for (const auto& item : map->GetObjects()) {
-      if (item.second->GetPlayerIndex() == object->GetPlayerIndex() &&
-          item.first != it->first) {
-        playerHasRemainingObject = true;
-        for (u32 id : objectDeleteList) {
-          if (id == item.first) {
-            playerHasRemainingObject = false;
-            break;
-          }
-        }
-        if (playerHasRemainingObject) {
+    const PlayerStats& stats = playersInGame->at(object->GetPlayerIndex())->stats;
+    
+    // NOTE: This population check will not account for zero-population units such as sheep,
+    //       but that should be fine.
+    if (stats.GetPopulationCount() == 0) {
+      bool hasAnyBuilding = false;
+      
+      // TODO: Only consider production buildings here.
+      for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
+        if (stats.GetBuildingTypeAlive(static_cast<BuildingType>(buildingType)) > 0) {
+          hasAnyBuilding = true;
           break;
         }
       }
-    }
-    
-    if (!playerHasRemainingObject) {
-      RemovePlayer(object->GetPlayerIndex(), PlayerExitReason::Defeat);
+      
+      if (!hasAnyBuilding) {
+        RemovePlayer(object->GetPlayerIndex(), PlayerExitReason::Defeat);
+      }
     }
   }
 }
