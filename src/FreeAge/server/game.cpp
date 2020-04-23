@@ -984,10 +984,12 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
               SimulateMeleeAttack(unitId, unit, targetIt->first, targetBuilding, gameStepServerTime, stepLengthInSeconds, &unitMovementChanged, &stayInPlace);
             } else if (interaction == InteractionType::Garrison) {
               // TODO (maanoo): extract to function
+              targetBuilding->GarrisonUnit(unitId);
               unit->SetGarrisonedInsideObject(targetObjectId);
-              unit->SetMapCoord(targetBuilding->GetBaseTile()); // TODO (maanoo): set to infinity ?
+              unit->SetMapCoord(targetBuilding->GetBaseTile()); // TODO (maanoo): take the center of the building
               unit->SetMovementDirection(QPointF(0, 0));
-              unit->SetCurrentAction(UnitAction::Idle);
+              unit->StopMovement();
+              unit->RemoveTarget();
               // TODO (maanoo): what else ?
               accumulatedMessages[unit->GetPlayerIndex()] += CreateUnitGarrisonMessage(unitId, targetObjectId);
               accumulatedMessages[unit->GetPlayerIndex()] +=
@@ -996,6 +998,26 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
                       unit->GetMapCoord(),
                       unit->GetMoveSpeed() * unit->GetMovementDirection(),
                       unit->GetCurrentAction());
+            } else if (interaction == InteractionType::Ungarrison) {
+              // TODO (maanoo): extract to function
+              if (QPointF freeSpace; FindFreeSpaceAroundBuilding(targetBuilding, unit, freeSpace)) {
+                targetBuilding->UngarrisonUnit(unitId);
+                unit->SetGarrisonedInsideObject(kInvalidObjectId);
+                unit->SetMapCoord(freeSpace);
+                unit->StopMovement();
+                unit->RemoveTarget();
+                // TODO (maanoo): what else ?
+                accumulatedMessages[unit->GetPlayerIndex()] += CreateUnitGarrisonMessage(unitId, targetObjectId);
+                // TODO: move to the gather point #gather-point
+                accumulatedMessages[unit->GetPlayerIndex()] +=
+                    CreateUnitMovementMessage(
+                        unitId,
+                        unit->GetMapCoord(),
+                        unit->GetMoveSpeed() * unit->GetMovementDirection(),
+                        unit->GetCurrentAction());
+              } else {
+                LOG(WARNING) << "No free space for unit " << unitId << " to ungarrison object " << targetObjectId;
+              }
             }
           }
         } else if (targetObject->isUnit()) {

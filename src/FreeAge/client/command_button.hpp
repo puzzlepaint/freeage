@@ -30,6 +30,7 @@ class CommandButton {
     BuildMilitaryBuilding,
     ToggleBuildingsCategory,
     Garrison, // TODO (maanoo): move to type ?
+    // Ungarrison, // TODO: implement
     UngarrisonAll,
     Quit
   };

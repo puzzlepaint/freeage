@@ -36,6 +36,7 @@ enum class InteractionType {
 
   // A unit garrison in a other unit or building.
   Garrison,
+  Ungarrison,
   
   // No valid interaction.
   Invalid

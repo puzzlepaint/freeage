@@ -431,11 +431,9 @@ void GameController::GarrisonUnit(u32 unitId, ClientUnit* unit, u32 targetObject
   if (enter) {
     targetObject->GarrisonUnit(unitId);
     unit->SetGarrisonedInsideObject(targetObjectId);
-    unit->UpdateFieldOfView(map.get(), -1);
   } else {
     targetObject->UngarrisonUnit(unitId);
     unit->SetGarrisonedInsideObject(kInvalidObjectId);
-    unit->UpdateFieldOfView(map.get(), 1);
   }
   
   // TODO (maanoo): gamelogic
