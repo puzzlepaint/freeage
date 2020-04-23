@@ -998,6 +998,8 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
               SimulateMeleeAttack(unitId, unit, targetIt->first, targetUnit, gameStepServerTime, stepLengthInSeconds, &unitMovementChanged, &stayInPlace);
             } else if (interaction == InteractionType::Garrison) {
               // TODO: implement
+            } else if (interaction == InteractionType::Ungarrison) {
+              // TODO: implement
             }
           }
         }
@@ -1380,6 +1382,13 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
       for (auto& player : *playersInGame) {
         accumulatedMessages[player->index] += msg;
       }
+
+      // check if the object is a building and has <= 20% hp left
+      if (target->GetGarrisonedUnitsCount() > 0 && target->isBuilding()) {
+        if (hp <= .2f * GetBuildingMaxHP(AsBuilding(target)->GetType())) {
+          UngarrisonAllUnits(targetId, target);
+        }
+      }
     } else if (oldHP > 0.5f) {
       // Remove the target.
       DeleteObject(targetId, false);
@@ -1414,12 +1423,16 @@ void Game::ProduceUnit(ServerBuilding* building, UnitType unitInProduction) {
   for (auto& player : *playersInGame) {
     accumulatedMessages[player->index] += addObjectMsg;
   }
+
+  if (foundFreeSpace) {
+
+  }
   
   GetPlayerStats(newUnit->GetPlayerIndex())->UnitAdded(unitInProduction);
 }
 
 void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject, bool enter) {
-  // NOTE: If ServerObject stores its ID, the IDs could be removed from the arguments. #ids
+  // NOTE: Could be simplified if Objects stored there ID. #ids
   if (enter) {
     targetObject->GarrisonUnit(unit);
     unit->SetGarrisonedInsideObject(targetObject);
@@ -1467,6 +1480,18 @@ void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, Server
   
   // TODO: if relic, keep track of number of relics in PlayerStats
   // TODO: rest of gamelogic #stats
+}
+
+void Game::UngarrisonAllUnits(u32 targetObjectId, ServerObject* targetObject) {
+  // NOTE: Could be simplified if Objects stored there ID. #ids
+  if (targetObject->GetGarrisonedUnitsCount() == 0) {
+    return; // no units to ungarrison
+  }
+  for (const auto& item : map->GetObjects()) {
+    if (item.second->isUnit() && AsUnit(item.second)->GetGarrisonedInsideObject() == targetObject) {
+      GarrisonUnit(item.first, AsUnit(item.second), targetObjectId, targetObject, false);
+    }
+  }
 }
 
 bool Game::FindFreeSpaceAroundBuilding(ServerBuilding* building, ServerUnit* unit, QPointF& freeSpace) {
@@ -1585,6 +1610,10 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   }
   ServerObject* object = it->second;
   
+  if (object->GetGarrisonedUnitsCount() > 0) {
+    UngarrisonAllUnits(objectId, object);
+  }
+
   // For building foundations, only the player that owns them knows about the object.
   // So we only need to send the object death message to this player.
   bool isFoundation = object->isBuilding() && AsBuilding(object)->IsFoundation();

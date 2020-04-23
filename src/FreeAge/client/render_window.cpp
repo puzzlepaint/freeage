@@ -3197,7 +3197,7 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
           }
           ClientObject* object = it->second;
           if (object->GetGarrisonedUnitsCount() > 0) {
-            // NOTE: If the ClientObject store its ID, object->GetGarrisonedUnits() could be used instead of the iteration. #ids
+            // NOTE: Could be simplified if Objects stored there ID. #ids
             std::vector<u32> unitIds;
             for (const auto& i : map->GetObjects()) {
               if (i.second->isUnit() && AsUnit(i.second)->GetGarrisonedInsideObject() == object) {
@@ -3420,7 +3420,7 @@ void RenderWindow::UngarrisonUnit(int garrisonedUnitIndex) {
     return;
   }
   ClientUnit* garrisonedUnit = objectIt->second->GetGarrisonedUnits().at(garrisonedUnitIndex);
-  // NOTE: Looking for the id of ClientUnit #ids
+  // NOTE: Could be simplified if Objects stored there ID. #ids
   for (const auto& i : map->GetObjects()) {
     if (i.second == garrisonedUnit) {
       std::vector<u32> unitIds;

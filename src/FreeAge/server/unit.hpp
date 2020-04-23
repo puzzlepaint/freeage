@@ -56,6 +56,7 @@ class ServerUnit : public ServerObject {
   inline void SetCarriedResourceType(ResourceType type) { carriedResourceType = type; }
 
   inline void SetGarrisonedInsideObject(ServerObject* object) { garrisonedObject = object; }
+  inline ServerObject* GetGarrisonedInsideObject() const { return garrisonedObject; }
   
   inline int GetCarriedResourceAmount() const { return static_cast<int>(carriedResourceAmount); }
   inline float GetCarriedResourceAmountInternalFloat() const { return carriedResourceAmount; }
