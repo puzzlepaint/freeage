@@ -54,40 +54,6 @@ void CommandButton::SetAction(ActionType actionType, const Texture* texture, Qt:
   this->texture = texture;
 }
 
-CommandButton::State CommandButton::GetState(GameController* gameController) const {
-
-  // NOTE: Checks must follow an order of importance. For example the CannotAfford is less
-  // important than MaxLimitReached because if the max limit has been reached, if it can be
-  // affored or not is irrelevant.
-
-  if (GetType() == CommandButton::Type::ProduceUnit) {
-    if (!gameController->GetLatestKnownResourceAmount().CanAfford(
-            GetUnitCost(GetUnitProductionType()))) {
-      return State::CannotAfford;
-    }
-
-    // TODO: return State::Locked, if the unit is not unlocked yet
-
-  } else if (GetType() == CommandButton::Type::ConstructBuilding) {
-    BuildingType buildingType = GetBuildingConstructionType();
-
-    // Check for the max limit
-    int max = GetBuildingMaxInstances(buildingType);
-    if (max != -1 && gameController->GetBuildingTypeCount(buildingType) >= max) {
-      return State::MaxLimitReached;
-    }
-
-    // TODO: return State::Locked, if the unit is not unlocked yet
-
-    // Can afford must be the last check (less important than all the other checks)
-    if (!gameController->GetLatestKnownResourceAmount().CanAfford(GetBuildingCost(buildingType))) {
-      return State::CannotAfford;
-    }
-  }
-
-  return State::Valid;
-}
-
 void CommandButton::Render(
     float x, float y, float size, float iconInset,
     const Texture& iconOverlayNormalTexture,

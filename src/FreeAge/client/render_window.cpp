@@ -212,6 +212,8 @@ RenderWindow::~RenderWindow() {
   buildEconomyBuildings.Unload();
   buildMilitaryBuildings.Unload();
   toggleBuildingsCategory.Unload();
+  garrison.Unload();
+  ungarrisonAll.Unload();
   quit.Unload();
   
   minimapPanel.Unload();
@@ -303,6 +305,7 @@ bool RenderWindow::LoadResources() {
   gatherCursor = QCursor(QPixmap::fromImage(QImage(GetModdedPathAsQString(cursorsSubPath / "gather32x32.cur"))), 0, 0);
   mineGoldCursor = QCursor(QPixmap::fromImage(QImage(GetModdedPathAsQString(cursorsSubPath / "mine_gold32x32.cur"))), 0, 0);
   mineStoneCursor = QCursor(QPixmap::fromImage(QImage(GetModdedPathAsQString(cursorsSubPath / "mine_stone32x32.cur"))), 0, 0);
+  garrisonCursor = QCursor(QPixmap::fromImage(QImage(GetModdedPathAsQString(cursorsSubPath / "garrison32x32.cur"))), 0, 0);
   didLoadingStep();
   
   LOG(1) << "LoadResource(): Cursors loaded";
@@ -528,6 +531,12 @@ bool RenderWindow::LoadResources() {
   didLoadingStep();
   
   toggleBuildingsCategory.Load(GetModdedPath(ingameActionsSubPath / "032_.png"), nullptr, TextureManager::Loader::Mango);
+  didLoadingStep();
+  
+  garrison.Load(GetModdedPath(ingameActionsSubPath / "069_.png"), nullptr, TextureManager::Loader::Mango);
+  didLoadingStep();
+  
+  ungarrisonAll.Load(GetModdedPath(ingameActionsSubPath / "002_.png"), nullptr, TextureManager::Loader::Mango);
   didLoadingStep();
   
   quit.Load(GetModdedPath(ingameActionsSubPath / "000_.png"), nullptr, TextureManager::Loader::Mango);
@@ -2469,8 +2478,9 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
           lastCursorPos.y() < buttonTop + commandButtonSize;
       bool active = activeCommandButton == &commandButtons[row][col];
       
-      CommandButton::State state = commandButtons[row][col].GetState(gameController.get());
-      if (state == CommandButton::State::MaxLimitReached ||
+      CommandButton::State state = GetCommandButtonState(&commandButtons[row][col]);
+      if (state == CommandButton::State::Invalid ||
+          state == CommandButton::State::MaxLimitReached ||
           state == CommandButton::State::Researched ||
           state == CommandButton::State::Locked) {
         continue; // dont show
@@ -2488,6 +2498,49 @@ void RenderWindow::RenderCommandPanel(QOpenGLFunctions_3_2_Core* f) {
           uiShader.get(), widgetWidth, widgetHeight, f);
     }
   }
+}
+
+CommandButton::State RenderWindow::GetCommandButtonState(CommandButton* button) {
+
+  // NOTE: Checks must follow an order of importance. For example the CannotAfford is less
+  // important than MaxLimitReached because if the max limit has been reached, if it can be
+  // affored or not is irrelevant.
+
+  if (button->GetType() == CommandButton::Type::ProduceUnit) {
+    if (!gameController->GetLatestKnownResourceAmount().CanAfford(
+            GetUnitCost(button->GetUnitProductionType()))) {
+      return CommandButton::State::CannotAfford;
+    }
+
+    // TODO: return State::Locked, if the unit is not unlocked yet
+
+  } else if (button->GetType() == CommandButton::Type::ConstructBuilding) {
+    BuildingType buildingType = button->GetBuildingConstructionType();
+
+    // Check for the max limit
+    int max = GetBuildingMaxInstances(buildingType);
+    if (max != -1 && gameController->GetBuildingTypeCount(buildingType) >= max) {
+      return CommandButton::State::MaxLimitReached;
+    }
+
+    // TODO: return State::Locked, if the unit is not unlocked yet
+
+    // Can afford must be the last check (less important than all the other checks)
+    if (!gameController->GetLatestKnownResourceAmount().CanAfford(GetBuildingCost(buildingType))) {
+      return CommandButton::State::CannotAfford;
+    }
+  } else if (button->GetType() == CommandButton::Type::Action) {
+    if (button->GetActionType() == CommandButton::ActionType::UngarrisonAll) {
+      if (selection.size() != 1) {
+        return CommandButton::State::Invalid;
+      }
+      if (map->GetObjects().at(selection.at(0))->GetGarrisonedUnitsCount() == 0) {
+        return CommandButton::State::Invalid;
+      }
+    }
+  }
+
+  return CommandButton::State::Valid;
 }
 
 void RenderWindow::RenderMenu(QOpenGLFunctions_3_2_Core* f) {
@@ -3085,7 +3138,7 @@ QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y(
 
 void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
 
-  CommandButton::State state = button->GetState(gameController.get());
+  CommandButton::State state = GetCommandButtonState(button);
   if (state != CommandButton::State::Valid) {
     
     ReportNonValidCommandButton(button, state);
@@ -3098,36 +3151,44 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
   
   // Handle building construction.
   if (button->GetType() == CommandButton::Type::ConstructBuilding) {
-    activeCommandButton = button;
-    constructBuildingType = button->GetBuildingConstructionType();
+    if (SetActiveCommandButton(button, true)) {
+      constructBuildingType = button->GetBuildingConstructionType(); // TODO (maanoo): move
+    }
   }
   
   // "Action" buttons are handled here.
   if (button->GetType() == CommandButton::Type::Action) {
 
-    if (constructBuildingType != BuildingType::NumBuildings) {
-      // exit construction mode
-      activeCommandButton = nullptr;
-      constructBuildingType = BuildingType::NumBuildings;
-    }
-
     switch (button->GetActionType()) {
-    case CommandButton::ActionType::BuildEconomyBuilding:
-      ShowEconomyBuildingCommandButtons();
+    case CommandButton::ActionType::Garrison:
+      SetActiveCommandButton(button, true);
       break;
-    case CommandButton::ActionType::BuildMilitaryBuilding:
-      ShowMilitaryBuildingCommandButtons();
-      break;
-    case CommandButton::ActionType::ToggleBuildingsCategory:
-      if (showingEconomyBuildingCommandButtons) {
-        ShowMilitaryBuildingCommandButtons();
-      } else {
+    default:
+      UnsetActiveCommandButton(); // TODO (maanoo): doc
+
+      switch (button->GetActionType()) {
+      case CommandButton::ActionType::BuildEconomyBuilding:
         ShowEconomyBuildingCommandButtons();
+        break;
+      case CommandButton::ActionType::BuildMilitaryBuilding:
+        ShowMilitaryBuildingCommandButtons();
+        break;
+      case CommandButton::ActionType::ToggleBuildingsCategory:
+        if (showingEconomyBuildingCommandButtons) {
+          ShowMilitaryBuildingCommandButtons();
+        } else {
+          ShowEconomyBuildingCommandButtons();
+        }
+        break;
+      case CommandButton::ActionType::UngarrisonAll:
+      // TODO (maanoo): impl
+        break;
+      case CommandButton::ActionType::Quit:
+        ShowDefaultCommandButtonsForSelection();
+        break;
+      default:
+        break;
       }
-      break;
-    case CommandButton::ActionType::Quit:
-      ShowDefaultCommandButtonsForSelection();
-      break;
     }
   }
 }
@@ -3167,6 +3228,8 @@ void RenderWindow::ReportNonValidCommandButton(CommandButton* button, CommandBut
 
     // TODO: move from the log to the gui message system
     LOG(INFO) << "Max limit reached for " << name.toStdString();
+  } else if (state == CommandButton::State::Invalid) {
+    // TODO: Show messages for invisible buttons that have been activated by a shortcut
   }
 }
 
@@ -3181,6 +3244,7 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
   // In this case, show the buttons corresponding to this building type.
   bool singleOwnBuildingTypeSelected = true;
   bool atLeastOneOwnBuildingFullyConstructed = false;
+  bool atLeastOneGarrisonedUnit = true; // TODO (maanoo): change to false
   BuildingType selectedBuildingType = BuildingType::NumBuildings;
   for (usize i = 0; i < selection.size(); ++ i) {
     u32 objectId = selection[i];
@@ -3195,6 +3259,8 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
       if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
         if (building->IsCompleted()) {
           atLeastOneOwnBuildingFullyConstructed = true;
+          
+          // TODO (maanoo): check and update atLeastOneGarrisonedUnit
         }
         
         if (i == 0) {
@@ -3210,10 +3276,14 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
   }
   if (!selection.empty() && singleOwnBuildingTypeSelected && atLeastOneOwnBuildingFullyConstructed) {
     GetClientBuildingType(selectedBuildingType).SetCommandButtons(commandButtons);
+    if (atLeastOneGarrisonedUnit) {
+      commandButtons[1][4].SetAction(CommandButton::ActionType::UngarrisonAll, ungarrisonAll.texture.get(), Qt::Key_Z);
+    }
     return;
   }
   
   // If at least one own villager is selected, show the build buttons.
+  bool atLeastOneUnitAbleToGarrison = false;
   bool atLeastOneOwnVillagerSelected = false;
   for (usize i = 0; i < selection.size(); ++ i) {
     u32 objectId = selection[i];
@@ -3221,16 +3291,24 @@ void RenderWindow::ShowDefaultCommandButtonsForSelection() {
     
     if (object->isUnit()) {
       ClientUnit* unit = AsUnit(object);
-      if (unit->GetPlayerIndex() == match->GetPlayerIndex() &&
-          IsVillager(unit->GetType())) {
-        atLeastOneOwnVillagerSelected = true;
-        break;
+      if (unit->GetPlayerIndex() == match->GetPlayerIndex()) {
+        if (unit->GetType() != UnitType::Scout) {
+          // TODO (maanoo): add check
+          atLeastOneUnitAbleToGarrison = true;
+        }
+        if (IsVillager(unit->GetType())) {
+          atLeastOneOwnVillagerSelected = true;
+          break; // villager can also garrison
+        }
       }
     }
   }
   if (atLeastOneOwnVillagerSelected) {
     commandButtons[0][0].SetAction(CommandButton::ActionType::BuildEconomyBuilding, buildEconomyBuildings.texture.get(), Qt::Key_A);
     commandButtons[0][1].SetAction(CommandButton::ActionType::BuildMilitaryBuilding, buildMilitaryBuildings.texture.get(), Qt::Key_S);
+  }
+  if (atLeastOneUnitAbleToGarrison) {
+    commandButtons[0][4].SetAction(CommandButton::ActionType::Garrison, garrison.texture.get(), Qt::Key_G);
   }
 }
 
@@ -3903,10 +3981,10 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
     }
     
     // Place a building foundation?
-    if (match->IsPlayerStillInGame() && constructBuildingType != BuildingType::NumBuildings) {
+    if (match->IsPlayerStillInGame() && activeCommandButton && activeCommandButton->GetType() == CommandButton::Type::ConstructBuilding) {
       ignoreLeftMouseRelease = true;
       
-      CommandButton::State state = activeCommandButton->GetState(gameController.get());
+      CommandButton::State state = GetCommandButtonState(activeCommandButton);
       if (state != CommandButton::State::Valid) {
         ReportNonValidCommandButton(activeCommandButton, state);
       
@@ -3914,8 +3992,7 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
           // remain in construction mode, player may want to wait until the construction is affordable
         } else {
           // exit construction mode 
-          activeCommandButton = nullptr;
-          constructBuildingType = BuildingType::NumBuildings;
+          UnsetActiveCommandButton();
         }
         return;
       }
@@ -3943,9 +4020,45 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
         bool shift = event->modifiers() & Qt::ShiftModifier;
         if (!shift) {
           // un-set constructBuildingType
-          activeCommandButton = nullptr;
-          constructBuildingType = BuildingType::NumBuildings;
+          UnsetActiveCommandButton();
         }
+        return;
+      }
+    }
+
+    if (activeCommandButton != nullptr && activeCommandButton->GetType() == CommandButton::Type::Action) {
+      if (activeCommandButton->GetActionType() == CommandButton::ActionType::Garrison) {
+        u32 targetObjectId;
+        // TODO (maanoo): check arguments
+        // NOTE: garrison is a special InteractionType
+        std::vector<u32> emptySelection;
+        if (GetObjectToSelectAt(event->pos().x(), event->pos().y(), &targetObjectId, &emptySelection, false, false)) {
+          ClientObject* targetObject = map->GetObjects().at(targetObjectId);
+
+          // TODO: after #stats
+          // ObjectTypeStats* stats = targetObject->GetStats()  #stats
+          // int capacity = stats->garrisonCapacity #stats
+          bool isTownCenter = targetObject->GetObjectType() == ObjectType::Building && AsBuilding(targetObject)->GetType() == BuildingType::TownCenter;
+          int capacity = isTownCenter ? 15 : 0;
+          if (targetObject->GetGarrisonedUnitsCount() < capacity) {
+
+            std::vector<u32> suitableUnits;
+            suitableUnits.reserve(selection.size());
+            for (usize i = 0; i < selection.size(); ++ i) {
+              // TODO (maanoo): add unit check
+              suitableUnits.push_back(selection[i]);
+            }
+            
+            if (!suitableUnits.empty()) {
+              // TODO (maanoo): create message
+              
+              LetObjectFlash(targetObjectId);
+            }
+          }
+        }
+        // TODO (maanoo): remove units form selection when they are added to an object
+        UnsetActiveCommandButton();
+        ignoreLeftMouseRelease = true;
         return;
       }
     }
@@ -3958,10 +4071,9 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
   } else if (event->button() == Qt::RightButton &&
              !isUIClick) {
 
-    if (constructBuildingType != BuildingType::NumBuildings) {
+    if (activeCommandButton != nullptr) {
       // exit construction mode
-      activeCommandButton = nullptr;
-      constructBuildingType = BuildingType::NumBuildings;
+      UnsetActiveCommandButton();
       // return in order to not process the right click as a unit command
       return;
     }
@@ -4124,11 +4236,51 @@ void RenderWindow::RightClickOnMap(bool haveScreenCoord, const QPoint& screenCoo
   }
 }
 
+bool RenderWindow::SetActiveCommandButton(CommandButton* commandButton, bool allowToggle) {
+  if (allowToggle && activeCommandButton == commandButton) {
+    UnsetActiveCommandButton();
+    return false;
+  }
+  UnsetActiveCommandButton();
+  activeCommandButton = commandButton;
+
+  if (activeCommandButton->GetType() == CommandButton::Type::Action) {
+    if (activeCommandButton->GetActionType() == CommandButton::ActionType::Garrison) {
+      // TODO (maanoo): set cursor
+      // TODO (maanoo): show text
+      UpdateCursor();
+    }
+  }
+  return true;
+}
+
+bool RenderWindow::UnsetActiveCommandButton() {
+  if (activeCommandButton == nullptr) {
+    return false;
+  }
+
+  CommandButton* unsetCommandButton = activeCommandButton;
+  activeCommandButton = nullptr;
+  constructBuildingType = BuildingType::NumBuildings; // TODO (maanoo): remove, get from activeCommandButton
+
+  if (unsetCommandButton->GetType() == CommandButton::Type::Action) {
+    if (unsetCommandButton->GetActionType() == CommandButton::ActionType::Garrison) {
+      // TODO (maanoo): reset cursor
+      // TODO (maanoo): hide text
+      UpdateCursor();
+    }
+  }
+  return true;
+}
+
 void RenderWindow::UpdateCursor() {
   QCursor* cursor = &defaultCursor;
   if (!IsUIAt(lastMouseMoveEventPos.x(), lastMouseMoveEventPos.y())) {
-    u32 targetObjectId;
-    if (GetObjectToSelectAt(lastMouseMoveEventPos.x(), lastMouseMoveEventPos.y(), &targetObjectId, &selection, false, true)) {
+
+    // TODO (maanoo): remove all the == nullptr
+    if (activeCommandButton && activeCommandButton->GetType() == CommandButton::Type::Action && activeCommandButton->GetActionType() == CommandButton::ActionType::Garrison) {
+      cursor = &garrisonCursor;
+    } else if (u32 targetObjectId; GetObjectToSelectAt(lastMouseMoveEventPos.x(), lastMouseMoveEventPos.y(), &targetObjectId, &selection, false, true)) {
       ClientObject* targetObject = map->GetObjects().at(targetObjectId);
       for (u32 id : selection) {
         auto it = map->GetObjects().find(id);
@@ -4145,6 +4297,7 @@ void RenderWindow::UpdateCursor() {
           case InteractionType::CollectWood: cursor = &chopCursor; break;
           case InteractionType::CollectGold: cursor = &mineGoldCursor; break;
           case InteractionType::CollectStone: cursor = &mineStoneCursor; break;
+          case InteractionType::Garrison: cursor = &garrisonCursor; break;
           case InteractionType::Invalid: continue;
           }
           break;
@@ -4280,11 +4433,10 @@ void RenderWindow::keyPressEvent(QKeyEvent* event) {
   }
   
   if (event->key() == Qt::Key_Escape) {
-    if (!menuShown &&
-        constructBuildingType != BuildingType::NumBuildings) {
-      ShowDefaultCommandButtonsForSelection();
-      activeCommandButton = nullptr;
-      constructBuildingType = BuildingType::NumBuildings;
+    if (!menuShown && activeCommandButton != nullptr) {
+      if (!UnsetActiveCommandButton()) {
+        ShowDefaultCommandButtonsForSelection();
+      }
       return;
     }
     

@@ -25,9 +25,12 @@ class CommandButton {
   };
   
   enum class ActionType {
+    // TODO (maanoo): add a None for fast actiontype checks without the need for the type check
     BuildEconomyBuilding,
     BuildMilitaryBuilding,
     ToggleBuildingsCategory,
+    Garrison, // TODO (maanoo): move to type ?
+    UngarrisonAll,
     Quit
   };
 
@@ -37,6 +40,8 @@ class CommandButton {
   enum class State {
     /// Valid and visible
     Valid = 0,
+    /// Invalid and not visible (eg, ungarrison empty building)
+    Invalid, 
     /// Cannot be affored by the player, visible but disabled.
     CannotAfford,
     /// Max limit reached, not visible. (currently only the TownCenter can have this state)
@@ -66,8 +71,6 @@ class CommandButton {
   
   void SetAction(ActionType actionType, const Texture* texture, Qt::Key hotkey = Qt::Key_unknown);
   
-  State GetState(GameController* gameController) const;
-
   void Render(
       float x, float y, float size, float iconInset,
       const Texture& iconOverlayNormalTexture,
