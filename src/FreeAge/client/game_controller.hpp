@@ -61,6 +61,7 @@ class GameController : public QObject {
   void HandleAddObjectMessage(const QByteArray& data);
   void HandleObjectDeathMessage(const QByteArray& data);
   void HandleUnitMovementMessage(const QByteArray& data);
+  void HandleUnitGarrisonMessage(const QByteArray& data);
   void HandleGameStepTimeMessage(const QByteArray& data);
   void HandleResourcesUpdateMessage(const QByteArray& data, ResourceAmount* resources);
   void HandleBuildPercentageUpdate(const QByteArray& data);
@@ -73,6 +74,7 @@ class GameController : public QObject {
   void HandleRemoveFromProductionQueueMessage(const QByteArray& data);
   void HandleSetHousedMessage(const QByteArray& data);
   
+  void GarrisonUnit(u32 unitId, ClientUnit* unit, u32 targetObjectId, ClientObject* targetObject, bool enter);
   
   std::shared_ptr<ServerConnection> connection;
   std::shared_ptr<Match> match;
