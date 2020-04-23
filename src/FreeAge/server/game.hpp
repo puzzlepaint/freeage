@@ -119,6 +119,7 @@ class Game {
   void ProduceUnit(ServerBuilding* building, UnitType unitInProduction);
 
   void GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject, bool enter);
+  void UngarrisonAllUnits(u32 targetObjectId, ServerObject* targetObject);
 
   bool FindFreeSpaceAroundBuilding(ServerBuilding* building, ServerUnit* unit, QPointF& freeSpace);
 

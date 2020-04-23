@@ -32,7 +32,7 @@ class ServerObject {
   void GarrisonUnit(ServerUnit* unit);
   void UngarrisonUnit(ServerUnit* unit);
 
-  // Returns the IDs of the units that are garrisoned.
+  // Returns the units that are garrisoned.
   inline const std::vector<ServerUnit*>& GetGarrisonedUnits() const { return garrisonedUnits; }
   inline int GetGarrisonedUnitsCount() const { return garrisonedUnits.size(); }
   
@@ -46,7 +46,7 @@ class ServerObject {
   
   u8 playerIndex;
   
-  // The IDs of the units that are garrisoned.
+  // The units that are garrisoned.
   std::vector<ServerUnit*> garrisonedUnits;
   
   /// 0 for buildings, 1 for units.
