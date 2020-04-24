@@ -4112,10 +4112,16 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
 
     if (activeCommandButton && activeCommandButton->GetType() == CommandButton::Type::Action) {
       if (activeCommandButton->GetActionType() == CommandButton::ActionType::Garrison) {
+        ignoreLeftMouseRelease = true;
         u32 targetObjectId;
         std::vector<u32> emptySelection;
         if (GetObjectToSelectAt(event->pos().x(), event->pos().y(), &targetObjectId, &emptySelection, false, false)) {
           ClientObject* targetObject = map->GetObjects().at(targetObjectId);
+
+          if (targetObject->GetPlayerIndex() != match->GetPlayerIndex()) {
+            // TODO: Report to the user that a unit cannot garrison in enemy object #interface-messages
+            return;
+          }
 
           // TODO: replace with the garrison capacity form the unit type stats #stats
           bool isTownCenter = targetObject->GetObjectType() == ObjectType::Building && AsBuilding(targetObject)->GetType() == BuildingType::TownCenter;
@@ -4146,7 +4152,6 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
           }
         }
         UnsetActiveCommandButton();
-        ignoreLeftMouseRelease = true;
         return;
       }
     }

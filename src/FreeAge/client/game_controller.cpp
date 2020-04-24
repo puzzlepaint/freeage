@@ -423,20 +423,25 @@ void GameController::HandleUnitGarrisonMessage(const QByteArray& data) {
   }
 
   ClientUnit* unit = AsUnit(unitIt->second);
-  GarrisonUnit(unit, targetObjectIt->second, !unit->IsGarrisoned());
+  ChangeUnitGarrisonStatus(unit, targetObjectIt->second, !unit->IsGarrisoned());
 }
 
-void GameController::GarrisonUnit(ClientUnit* unit, ClientObject* targetObject, bool enter) {
+void GameController::ChangeUnitGarrisonStatus(ClientUnit* unit, ClientObject* targetObject, bool enter) {
+  // NOTE: the unit is ca be the current player's or not
   if (enter) {
     unit->SetMovementSegment(currentGameStepServerTime, unit->GetMapCoord(), QPointF(0, 0), UnitAction::Idle, map.get(), match.get());
-    unit->UpdateFieldOfView(map.get(), -1);
+    if (match->GetPlayerIndex() == unit->GetPlayerIndex()) {
+      unit->UpdateFieldOfView(map.get(), -1);
+    }
     targetObject->GarrisonUnit(unit);
     unit->SetGarrisonedInsideObject(targetObject);
   } else {
     targetObject->UngarrisonUnit(unit);
     unit->SetGarrisonedInsideObject(nullptr);
     unit->ClearOverrideDirection();
-    unit->UpdateFieldOfView(map.get(), 1);
+    if (match->GetPlayerIndex() == unit->GetPlayerIndex()) {
+      unit->UpdateFieldOfView(map.get(), 1);
+    }
   }
   
   // Garrison related missing features from client and server:
