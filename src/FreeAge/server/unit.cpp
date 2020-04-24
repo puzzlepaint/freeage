@@ -33,8 +33,7 @@ void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject, bool 
     type = IsMaleVillager(type) ? UnitType::MaleVillagerStoneMiner : UnitType::FemaleVillagerStoneMiner;
   } else if (interaction == InteractionType::DropOffResource ||
       interaction == InteractionType::Attack ||
-      interaction == InteractionType::Garrison ||
-      interaction == InteractionType::Ungarrison) {
+      interaction == InteractionType::Garrison) {
     // no change
   } else {
     LOG(WARNING) << "ServerUnit::SetTarget() did not handle the interaction type.";

@@ -92,6 +92,7 @@ class Game {
   void HandleMoveToMapCoordMessage(const QByteArray& msg, PlayerInGame* player, u32 len);
   void HandleSetTargetMessage(const QByteArray& msg, PlayerInGame* player, u32 len);
   void HandleSetTargetWithInteractionMessage(const QByteArray& msg, PlayerInGame* player, u32 len);
+  void HandleUngarrisonUnitsMessage(const QByteArray& msg, PlayerInGame* player, u32 len);
   void HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player);
   void HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInGame* player);
   void HandleDeleteObjectMessage(const QByteArray& msg, PlayerInGame* player);
@@ -118,15 +119,19 @@ class Game {
   
   void ProduceUnit(u32 buildingId, ServerBuilding* building, UnitType unitInProduction);
 
+  bool GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject);
+  bool UngarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject);
+  void UngarrisonAllUnits(u32 targetObjectId, ServerObject* targetObject);
+  
   /// Change the garrison state of a unit and the targets object garrisoned units list. 
   /// The enter parameter is true for garrison and false for ungarrison.
-  void GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject, bool enter, bool* unitMovementChanged);
-  
-  void UngarrisonAllUnits(u32 targetObjectId, ServerObject* targetObject);
+  /// Returns true if the unit's garrison status changed.
+  bool ChangeUnitGarrisonStatus(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject, bool enter);
 
   bool FindFreeSpaceAroundBuilding(ServerBuilding* building, ServerUnit* unit, QPointF& freeSpace);
 
-  void SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting, InteractionType interaction = InteractionType::Unknown);
+  void SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting, InteractionType interaction = InteractionType::Default);
+  void UngarrisonUnits(const std::vector<u32>& unitIds, int playerIndex);
   
   void DeleteObject(u32 objectId, bool deletedManually);
   
