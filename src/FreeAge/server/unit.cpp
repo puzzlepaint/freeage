@@ -16,7 +16,7 @@ ServerUnit::ServerUnit(int playerIndex, UnitType type, const QPointF& mapCoord)
 
 void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting, InteractionType interaction) {
   targetObjectInteraction = interaction;
-  if (interaction == InteractionType::Unknown) {
+  if (interaction == InteractionType::Default) {
     interaction = GetInteractionType(this, targetObject);
     // Keeps the targetObjectInteraction with the value of Unknown.
   }
@@ -46,7 +46,7 @@ void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject, bool 
 
 void ServerUnit::RemoveTarget() {
   targetObjectId = kInvalidObjectId;
-  targetObjectInteraction = InteractionType::Unknown;
+  targetObjectInteraction = InteractionType::Default;
 }
 
 void ServerUnit::SetMoveToTarget(const QPointF& mapCoord) {

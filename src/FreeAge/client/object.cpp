@@ -57,7 +57,7 @@ void ClientObject::UngarrisonUnit(ClientUnit* unit) {
     }
   }
   if (!found) {
-    LOG(ERROR) << "Did not find unit ID to ungarrison in garrisonedUnits";
+    LOG(ERROR) << "Did not find unit to ungarrison in garrisonedUnits";
   }
 }
 

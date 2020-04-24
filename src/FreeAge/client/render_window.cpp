@@ -3199,9 +3199,9 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
           if (object->GetGarrisonedUnitsCount() > 0) {
             // NOTE: Could be simplified if Objects stored there ID. #ids
             std::vector<u32> unitIds;
-            for (const auto& i : map->GetObjects()) {
-              if (i.second->isUnit() && AsUnit(i.second)->GetGarrisonedInsideObject() == object) {
-                unitIds.push_back(i.first);
+            for (const auto& item : map->GetObjects()) {
+              if (item.second->isUnit() && AsUnit(item.second)->GetGarrisonedInsideObject() == object) {
+                unitIds.push_back(item.first);
               }
             }
             connection->Write(CreateSetTargetWithInteractionMessage(unitIds, id, InteractionType::Ungarrison));
@@ -3421,10 +3421,10 @@ void RenderWindow::UngarrisonUnit(int garrisonedUnitIndex) {
   }
   ClientUnit* garrisonedUnit = objectIt->second->GetGarrisonedUnits().at(garrisonedUnitIndex);
   // NOTE: Could be simplified if Objects stored there ID. #ids
-  for (const auto& i : map->GetObjects()) {
-    if (i.second == garrisonedUnit) {
+  for (const auto& item: map->GetObjects()) {
+    if (item.second == garrisonedUnit) {
       std::vector<u32> unitIds;
-      unitIds.push_back(i.first);
+      unitIds.push_back(item.first);
       connection->Write(CreateSetTargetWithInteractionMessage(unitIds, objectId, InteractionType::Ungarrison));
       return;
     }

@@ -398,7 +398,7 @@ void GameController::HandleUnitMovementMessage(const QByteArray& data) {
 }
 
 void GameController::HandleUnitGarrisonMessage(const QByteArray& data) {
-  if (data.size() < 4) {
+  if (data.size() < 8) {
     LOG(ERROR) << "Received a too short UnitGarrison message";
     return;
   }
@@ -428,6 +428,7 @@ void GameController::HandleUnitGarrisonMessage(const QByteArray& data) {
 
 void GameController::GarrisonUnit(ClientUnit* unit, ClientObject* targetObject, bool enter) {
   if (enter) {
+    unit->SetMovementSegment(currentGameStepServerTime, unit->GetMapCoord(), QPointF(0, 0), UnitAction::Idle, map.get(), match.get());
     unit->UpdateFieldOfView(map.get(), -1);
     targetObject->GarrisonUnit(unit);
     unit->SetGarrisonedInsideObject(targetObject);
