@@ -698,8 +698,8 @@ void RenderWindow::GrabMouse() {
         result = ::XGrabPointer(
             QX11Info::display(),
             winId(),
-            False,
-            ButtonPressMask | ButtonReleaseMask | PointerMotionMask | FocusChangeMask | EnterWindowMask | LeaveWindowMask,
+            True,
+            0,
             GrabModeAsync,
             GrabModeAsync,
             winId(),
