@@ -438,8 +438,11 @@ void GameController::GarrisonUnit(ClientUnit* unit, ClientObject* targetObject, 
     unit->UpdateFieldOfView(map.get(), 1);
   }
   
-  // TODO: if relic, keep track of number of relics in PlayerStats
-  // TODO: rest of gamelogic #stats
+  // Garrison related missing features from client and server:
+  // TODO: If relic, keep track of number of relics in PlayerStats #relics
+  // TODO: Bonus attack to some buildings (possibly not here)
+  // TODO: Bonus speed to some units (possibly not here)
+  // TODO: Heal garrisoned units (not here, in the simulation)
 }
 
 void GameController::HandleGameStepTimeMessage(const QByteArray& data) {

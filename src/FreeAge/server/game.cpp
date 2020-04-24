@@ -995,9 +995,9 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
             if (interaction == InteractionType::Attack) {
               SimulateMeleeAttack(unitId, unit, targetIt->first, targetUnit, gameStepServerTime, stepLengthInSeconds, &unitMovementChanged, &stayInPlace);
             } else if (interaction == InteractionType::Garrison) {
-              // TODO: implement
+              GarrisonUnit(unitId, unit, targetObjectId, targetObject, true, &unitMovementChanged);
             } else if (interaction == InteractionType::Ungarrison) {
-              // TODO: implement
+              GarrisonUnit(unitId, unit, targetObjectId, targetObject, false, &unitMovementChanged);
             }
           }
         }
@@ -1438,8 +1438,9 @@ void Game::ProduceUnit(u32 buildingId, ServerBuilding* building, UnitType unitIn
 
 void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject, bool enter, bool* unitMovementChanged) {
   // NOTE: Could be simplified if Objects stored there ID. #ids
-  *unitMovementChanged = false; // movement will handled here
+  *unitMovementChanged = false;
   if (enter) {
+    // TODO: test with target object being a unit
 
     unit->StopMovement();
     unit->RemoveTarget();
@@ -1475,8 +1476,8 @@ void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, Server
     }
   } else {
     if (!targetObject->isBuilding()) {
-      // TODO: implement ungarrison from unit
-      LOG(WARNING) << "Ungarrison from unit not implemented yet";
+      // TODO: find an empty spot around the target unit and ungarrison their
+      LOG(ERROR) << "Ungarrison from unit not implemented yet";
       return;
     }
     ServerBuilding* targetBuilding = AsBuilding(targetObject);
