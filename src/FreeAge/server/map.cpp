@@ -476,6 +476,14 @@ u32 ServerMap::AddBuilding(ServerBuilding* newBuilding, bool addOccupancy) {
   return nextObjectID - 1;
 }
 
+void ServerMap::AddBuildingConstructionOccupancy(ServerBuilding* building) {
+  SetBuildingConstructionOccupancy(building, true);
+}
+
+void ServerMap::RemoveBuildingConstructionOccupancy(ServerBuilding* building) {
+  SetBuildingConstructionOccupancy(building, false);
+}
+
 void ServerMap::AddBuildingOccupancy(ServerBuilding* building) {
   SetBuildingOccupancy(building, true);
 }
@@ -497,6 +505,17 @@ u32 ServerMap::AddUnit(ServerUnit* newUnit) {
   objects.insert(std::make_pair(nextObjectID, newUnit));
   ++ nextObjectID;
   return nextObjectID - 1;
+}
+
+void ServerMap::SetBuildingConstructionOccupancy(ServerBuilding* building, bool occupied) {
+  const QPoint& baseTile = building->GetBaseTile();
+  QSize buildingSize = GetBuildingSize(building->GetType());
+  for (int y = baseTile.y(), endY = baseTile.y() + buildingSize.height(); y < endY; ++ y) {
+    for (int x = baseTile.x(), endX = baseTile.x() + buildingSize.width(); x < endX; ++ x) {
+      occupiedForUnitsAt(x, y) = occupied;
+      occupiedForBuildingsAt(x, y) = occupied;
+    }
+  }
 }
 
 void ServerMap::SetBuildingOccupancy(ServerBuilding* building, bool occupied) {

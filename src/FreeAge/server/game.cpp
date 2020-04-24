@@ -1062,8 +1062,7 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
   if (targetBuilding->IsFoundation()) {
     if (IsFoundationFree(targetBuilding, map.get())) {
       // Add the foundation's occupancy to the map.
-      // TODO: The foundation's occupancy may differ from the final building's occupancy, e.g., for town centers. Handle this case properly.
-      map->AddBuildingOccupancy(targetBuilding);
+      map->AddBuildingConstructionOccupancy(targetBuilding);
       
       // Tell all clients that observe the foundation about it (except the client which
       // is constructing it, which already knows it).
@@ -1093,6 +1092,9 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
     double newPercentage = std::min<double>(100, targetBuilding->GetBuildPercentage() + 100 * constructionStepAmount);
     if (newPercentage == 100 && !targetBuilding->IsCompleted()) {
       // Building completed.
+      map->RemoveBuildingConstructionOccupancy(targetBuilding);
+      map->AddBuildingOccupancy(targetBuilding);
+      
       if (targetBuilding->GetPlayerIndex() != kGaiaPlayerIndex) {
         GetPlayerStats(targetBuilding->GetPlayerIndex())->BuildingFinished(targetBuilding->GetType());
       }
@@ -1510,7 +1512,11 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   if (object->isBuilding()) {
     ServerBuilding* building = AsBuilding(object);
     if (!building->IsFoundation()) {
-      map->RemoveBuildingOccupancy(building);
+      if (building->IsCompleted()) {
+        map->RemoveBuildingOccupancy(building);
+      } else {
+        map->RemoveBuildingConstructionOccupancy(building);
+      }
     }
     if (deletedManually && !building->IsCompleted()) {
       float remainingResourceAmount = 1 - building->GetBuildPercentage() / 100.f;

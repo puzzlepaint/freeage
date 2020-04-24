@@ -38,6 +38,9 @@ class ServerMap {
   /// Optionally calls AddBuildingOccupancy() on the building.
   u32 AddBuilding(ServerBuilding* newBuilding, bool addOccupancy = true);
   
+  void AddBuildingConstructionOccupancy(ServerBuilding* building);
+  void RemoveBuildingConstructionOccupancy(ServerBuilding* building);
+  
   void AddBuildingOccupancy(ServerBuilding* building);
   void RemoveBuildingOccupancy(ServerBuilding* building);
   
@@ -70,6 +73,7 @@ class ServerMap {
   inline int GetHeight() const { return height; }
   
  private:
+  void SetBuildingConstructionOccupancy(ServerBuilding* building, bool occupied);
   void SetBuildingOccupancy(ServerBuilding* building, bool occupied);
   
   bool SpawnBuildingClump(const QPoint& spawnLoc, int count, BuildingType type);
