@@ -396,7 +396,7 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
     }
   }
   
-  if (maxElevation - minElevation > 2) {
+  if (maxElevation - minElevation > GetMaxElevationDifferenceForBuilding(type)) {
     LOG(WARNING) << "Received a PlaceBuildingFoundation message for a space that is too hilly";
     return;
   }

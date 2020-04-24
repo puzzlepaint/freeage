@@ -283,3 +283,11 @@ float GetBuildingLineOfSight(BuildingType type) {
   }
   return 0;
 }
+
+int GetMaxElevationDifferenceForBuilding(BuildingType type) {
+  if (type == BuildingType::TownCenter) {
+    return 0;
+  } else {
+    return 2; // TODO: Check how the original game behaves; this is just made up currently
+  }
+}

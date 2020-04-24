@@ -73,3 +73,5 @@ int GetBuildingMaxInstances(BuildingType type);
 int GetBuildingProvidedPopulationSpace(BuildingType type);
 
 float GetBuildingLineOfSight(BuildingType type);
+
+int GetMaxElevationDifferenceForBuilding(BuildingType type);
