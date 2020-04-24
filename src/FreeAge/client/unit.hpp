@@ -116,8 +116,10 @@ class ClientUnit : public ClientObject {
   
   Texture& GetTexture(bool shadow);
   
-  inline const QPointF& GetMapCoord() const { 
-    CHECK_EQ(IsGarrisoned(), false);
+  inline const QPointF& GetMapCoord() const {
+    if (IsGarrisoned()) {
+      LOG(ERROR) << "GetMapCoord() must not be called on garrisoned units.";
+    }
     return mapCoord;
   }
   inline int GetDirection() const { return direction; }

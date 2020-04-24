@@ -82,7 +82,6 @@ enum class ClientToServerMessage {
   SetTarget,
 
   /// Same as SetTarget but with the interaction specified.
-  /// TODO: extend doc and rename ?
   SetTargetWithInteraction,
   
   /// Sent upon pressing the button / hotkey to produce a unit.

@@ -118,7 +118,10 @@ class Game {
   
   void ProduceUnit(u32 buildingId, ServerBuilding* building, UnitType unitInProduction);
 
+  /// Change the garrison state of a unit and the targets object garrisoned units list. 
+  /// The enter parameter is true for garrison and false for ungarrison.
   void GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject, bool enter, bool* unitMovementChanged);
+  
   void UngarrisonAllUnits(u32 targetObjectId, ServerObject* targetObject);
 
   bool FindFreeSpaceAroundBuilding(ServerBuilding* building, ServerUnit* unit, QPointF& freeSpace);

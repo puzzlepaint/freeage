@@ -29,7 +29,6 @@ class CommandButton {
     BuildMilitaryBuilding,
     ToggleBuildingsCategory,
     Garrison,
-    // Ungarrison, // TODO: implement
     UngarrisonAll,
     Quit
   };

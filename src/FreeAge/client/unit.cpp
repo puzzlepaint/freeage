@@ -430,7 +430,7 @@ void ClientUnit::UpdateMapCoord(double serverTime, Map* map, Match* match) {
   
   if (match->GetPlayerIndex() == playerIndex &&
       (oldTileX != newTileX ||
-       oldTileY != newTileY)) {
+       oldTileY != newTileY) && !IsGarrisoned()) {
     // TODO: This could be sped up by pre-computing only the *difference* that needs to be applied
     //       for a unit's line-of-sight when moving from one tile to an adjacent tile.
     //       Even without this pre-computation, iterating over the viewCount values only once

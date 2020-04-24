@@ -427,15 +427,15 @@ void GameController::HandleUnitGarrisonMessage(const QByteArray& data) {
 }
 
 void GameController::GarrisonUnit(ClientUnit* unit, ClientObject* targetObject, bool enter) {
-  // TODO: implement a way to get ID from ClientObject, then remove the ids for the arguments
   if (enter) {
+    unit->UpdateFieldOfView(map.get(), -1);
     targetObject->GarrisonUnit(unit);
     unit->SetGarrisonedInsideObject(targetObject);
-    // TODO: loose the line of sight
   } else {
     targetObject->UngarrisonUnit(unit);
     unit->SetGarrisonedInsideObject(nullptr);
     unit->ClearOverrideDirection();
+    unit->UpdateFieldOfView(map.get(), 1);
   }
   
   // TODO: if relic, keep track of number of relics in PlayerStats
