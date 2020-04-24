@@ -283,13 +283,13 @@ void Game::HandleSetTargetWithInteractionMessage(const QByteArray& msg, PlayerIn
   u32 targetId = mango::uload32(data + 3);
   auto targetIt = map->GetObjects().find(targetId);
   if (targetIt == map->GetObjects().end()) {
-    LOG(WARNING) << "Server: Received a SetTarget message for a target ID that does not exist (anymore?)";
+    LOG(WARNING) << "Server: Received a SetTargetWithInteraction message for a target ID that does not exist (anymore?)";
     return;
   }
   
   usize selectedUnitIdsSize = mango::uload16(data + 7);
   if (len != 13 + 4 * selectedUnitIdsSize) {
-    LOG(ERROR) << "Server: SetTargetWithInteraction SetTarget message (2)";
+    LOG(ERROR) << "Server: Erroneous SetTargetWithInteraction message (2)";
     return;
   }
   std::vector<u32> unitIds(selectedUnitIdsSize);
@@ -303,6 +303,29 @@ void Game::HandleSetTargetWithInteractionMessage(const QByteArray& msg, PlayerIn
   
   // Handle command (for all suitable IDs which are actually units of the sending client)
   SetUnitTargets(unitIds, player->index, targetId, targetIt->second, true, interaction);
+}
+
+void Game::HandleUngarrisonUnitsMessage(const QByteArray& msg, PlayerInGame* player, u32 len) {
+  // Parse message
+  if (len < 5 + 4) {
+    LOG(ERROR) << "Server: Erroneous UngarrisonUnits message (1)" << len;
+    return;
+  }
+  const char* data = msg.data();
+  
+  usize selectedUnitIdsSize = mango::uload16(data + 3);
+  if (len != 5 + 4 * selectedUnitIdsSize) {
+    LOG(ERROR) << "Server: Erroneous UngarrisonUnits message (2)";
+    return;
+  }
+  std::vector<u32> unitIds(selectedUnitIdsSize);
+  int offset = 5;
+  for (usize i = 0; i < selectedUnitIdsSize; ++ i) {
+    unitIds[i] = mango::uload32(data + offset);
+    offset += 4;
+  }
+  
+  UngarrisonUnits(unitIds, player->index);
 }
 
 void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player) {
@@ -556,6 +579,9 @@ Game::ParseMessagesResult Game::TryParseClientMessages(PlayerInGame* player, con
         break;
       case ClientToServerMessage::SetTargetWithInteraction:
         HandleSetTargetWithInteractionMessage(player->unparsedBuffer, player, msgLength);
+        break;
+      case ClientToServerMessage::UngarrisonUnits:
+        HandleUngarrisonUnitsMessage(player->unparsedBuffer, player, msgLength);
         break;
       case ClientToServerMessage::ProduceUnit:
         HandleProduceUnitMessage(player->unparsedBuffer, player);
@@ -964,7 +990,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
       } else {
         ServerObject* targetObject = targetIt->second;
         InteractionType interaction = unit->GetTargetObjectInteraction();
-        if (interaction == InteractionType::Unknown) {
+        if (interaction == InteractionType::Default) {
           interaction = GetInteractionType(unit, targetObject);
         }
         if (targetObject->isBuilding()) {
@@ -983,9 +1009,8 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
             } else if (interaction == InteractionType::Attack) {
               SimulateMeleeAttack(unitId, unit, targetIt->first, targetBuilding, gameStepServerTime, stepLengthInSeconds, &unitMovementChanged, &stayInPlace);
             } else if (interaction == InteractionType::Garrison) {
-              GarrisonUnit(unitId, unit, targetObjectId, targetObject, true, &unitMovementChanged);
-            } else if (interaction == InteractionType::Ungarrison) {
-              GarrisonUnit(unitId, unit, targetObjectId, targetObject, false, &unitMovementChanged);
+              bool success = GarrisonUnit(unitId, unit, targetObjectId, targetObject);
+              unitMovementChanged = !success; //TODO: clean up
             }
           }
         } else if (targetObject->isUnit()) {
@@ -995,9 +1020,8 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
             if (interaction == InteractionType::Attack) {
               SimulateMeleeAttack(unitId, unit, targetIt->first, targetUnit, gameStepServerTime, stepLengthInSeconds, &unitMovementChanged, &stayInPlace);
             } else if (interaction == InteractionType::Garrison) {
-              GarrisonUnit(unitId, unit, targetObjectId, targetObject, true, &unitMovementChanged);
-            } else if (interaction == InteractionType::Ungarrison) {
-              GarrisonUnit(unitId, unit, targetObjectId, targetObject, false, &unitMovementChanged);
+              bool success = GarrisonUnit(unitId, unit, targetObjectId, targetObject);
+              unitMovementChanged = !success; //TODO: clean up
             }
           }
         }
@@ -1436,9 +1460,27 @@ void Game::ProduceUnit(u32 buildingId, ServerBuilding* building, UnitType unitIn
   GetPlayerStats(newUnit->GetPlayerIndex())->UnitAdded(unitInProduction);
 }
 
-void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject, bool enter, bool* unitMovementChanged) {
+bool Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject) {
+  return ChangeUnitGarrisonStatus(unitId, unit, targetObjectId, targetObject, true);
+}
+bool Game::UngarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject) {
+  return ChangeUnitGarrisonStatus(unitId, unit, targetObjectId, targetObject, false);
+}
+
+void Game::UngarrisonAllUnits(u32 targetObjectId, ServerObject* targetObject) {
   // NOTE: Could be simplified if Objects stored there ID. #ids
-  *unitMovementChanged = false;
+  if (targetObject->GetGarrisonedUnitsCount() == 0) {
+    return; // no units to ungarrison
+  }
+  for (const auto& item : map->GetObjects()) {
+    if (item.second->isUnit() && AsUnit(item.second)->GetGarrisonedInsideObject() == targetObject) {
+      UngarrisonUnit(item.first, AsUnit(item.second), targetObjectId, targetObject);
+    }
+  }
+}
+
+bool Game::ChangeUnitGarrisonStatus(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject, bool enter) {
+  // NOTE: Could be simplified if Objects stored there ID. #ids
   if (enter) {
     // TODO: test with target object being a unit
 
@@ -1446,39 +1488,31 @@ void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, Server
     unit->RemoveTarget();
 
     // Check if the object is a building and has <= 20% hp left
-    if (targetObject->GetGarrisonedUnitsCount() > 0 && targetObject->isBuilding() &&
-        AsBuilding(targetObject)->GetHPInternalFloat() <= .2f * GetBuildingMaxHP(AsBuilding(targetObject)->GetType())) {
-      LOG(WARNING) << "Unit cannot garrison building beacause of low health";
-      *unitMovementChanged = true;
-      return;
+    if (targetObject->isBuilding() && AsBuilding(targetObject)->GetHPInternalFloat() <= .2f * GetBuildingMaxHP(AsBuilding(targetObject)->GetType())) {
+      // Unit cannot garrison building beacause of low health;
+      return false;
     }
     
     // TODO: replace with the garrison capacity form the unit type stats #stats
     bool isTownCenter = targetObject->GetObjectType() == ObjectType::Building && AsBuilding(targetObject)->GetType() == BuildingType::TownCenter;
     int capacity = isTownCenter ? 15 : 0;
     if (targetObject->GetGarrisonedUnitsCount() >= capacity) {
-      LOG(WARNING) << "Unit cannot garrison building beacause of filled capacity";
-      *unitMovementChanged = true;
-      return;
+      // Unit cannot garrison building beacause of filled capacity
+      return false;
     }
 
     targetObject->GarrisonUnit(unit);
     unit->SetGarrisonedInsideObject(targetObject);
 
     QByteArray unitGarrisonMessage = CreateUnitGarrisonMessage(unitId, targetObjectId);
-    QByteArray unitMoveMessage = CreateUnitMovementMessage(unitId,
-        unit->GetMapCoord(),
-        unit->GetMoveSpeed() * unit->GetMovementDirection(),
-        unit->GetCurrentAction());
     for (auto& player : *playersInGame) {
-      accumulatedMessages[player->index] += unitMoveMessage;
       accumulatedMessages[player->index] += unitGarrisonMessage;
     }
   } else {
     if (!targetObject->isBuilding()) {
       // TODO: find an empty spot around the target unit and ungarrison their
       LOG(ERROR) << "Ungarrison from unit not implemented yet";
-      return;
+      return false;
     }
     ServerBuilding* targetBuilding = AsBuilding(targetObject);
     if (QPointF freeSpace; FindFreeSpaceAroundBuilding(targetBuilding, unit, freeSpace)) {
@@ -1499,26 +1533,15 @@ void Game::GarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, Server
         accumulatedMessages[player->index] += unitGarrisonMessage;
       }
     } else {
-      LOG(WARNING) << "No free space for unit " << unitId << " to ungarrison object " << targetObjectId;
-      // TODO: notify the client
+      // No free space for unit to ungarrison object
+      // TODO: notify the client ?
+      return false;
     }
   }
   
   // TODO: if relic, keep track of number of relics in PlayerStats
   // TODO: rest of gamelogic #stats
-}
-
-void Game::UngarrisonAllUnits(u32 targetObjectId, ServerObject* targetObject) {
-  // NOTE: Could be simplified if Objects stored there ID. #ids
-  if (targetObject->GetGarrisonedUnitsCount() == 0) {
-    return; // no units to ungarrison
-  }
-  for (const auto& item : map->GetObjects()) {
-    if (item.second->isUnit() && AsUnit(item.second)->GetGarrisonedInsideObject() == targetObject) {
-      bool ignored;
-      GarrisonUnit(item.first, AsUnit(item.second), targetObjectId, targetObject, false, &ignored);
-    }
-  }
+      return true;
 }
 
 bool Game::FindFreeSpaceAroundBuilding(ServerBuilding* building, ServerUnit* unit, QPointF& freeSpace) {
@@ -1588,8 +1611,8 @@ bool Game::FindFreeSpaceAroundBuilding(ServerBuilding* building, ServerUnit* uni
   }
   return false;
 }
-
-void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting, InteractionType interaction) {
+void Game::SetUnitTargets(const std::vector<u32>& unitIds
+, int playerIndex, u32 targetId, ServerObject* targetObject, bool isManualTargeting, InteractionType interaction) {
   for (u32 id : unitIds) {
     auto it = map->GetObjects().find(id);
     if (it == map->GetObjects().end() ||
@@ -1612,6 +1635,33 @@ void Game::SetUnitTargets(const std::vector<u32>& unitIds, int playerIndex, u32 
         accumulatedMessages[player->index] += msg;
       }
     }
+  }
+}
+
+void Game::UngarrisonUnits(const std::vector<u32>& unitIds, int playerIndex) {
+  for (u32 id : unitIds) {
+    auto it = map->GetObjects().find(id);
+    if (it == map->GetObjects().end() ||
+        !it->second->isUnit() ||
+        it->second->GetPlayerIndex() != playerIndex) {
+      LOG(WARNING) << "UngarrisonUnits() for invalid unit ID, may for example be caused by incorrect messages from a client: " << id;
+      continue;
+    }
+    ServerUnit* unit = AsUnit(it->second);
+    if (!unit->IsGarrisoned()) {
+      LOG(WARNING) << "UngarrisonUnits() for ID of unit which is not garrisoned: " << id;
+      continue;
+    }
+    ServerObject* object = unit->GetGarrisonedInsideObject();
+    // NOTE: Could be simplified if Objects stored there ID. #ids
+    u32 objectId = kInvalidObjectId;
+    for (const auto& item : map->GetObjects()) {
+      if (item.second == object) {
+        objectId = item.first;
+        break;
+      }
+    }
+    UngarrisonUnit(id, unit, objectId, object);
   }
 }
 

@@ -183,6 +183,26 @@ QByteArray CreateSetTargetWithInteractionMessage(const std::vector<u32>& unitIds
   return msg;
 }
 
+QByteArray CreateUngarrisonUnitsMessage(const std::vector<u32>& unitIds) {
+  if (unitIds.empty()) {
+    return QByteArray();
+  }
+
+  // Create buffer
+  QByteArray msg = CreateClientToServerMessageHeader(2 + 4 * unitIds.size(), ClientToServerMessage::UngarrisonUnits);
+  char* data = msg.data();
+  
+  // Fill buffer
+  mango::ustore16(data + 3, unitIds.size());  // TODO: This could also be derived from the message length
+  int offset = 5;
+  for (u32 unitId : unitIds) {
+    mango::ustore32(data + offset, unitId);
+    offset += 4;
+  }
+
+  return msg;
+}
+
 QByteArray CreateProduceUnitMessage(u32 buildingId, u16 unitType) {
   QByteArray msg = CreateClientToServerMessageHeader(6, ClientToServerMessage::ProduceUnit);
   char* data = msg.data();

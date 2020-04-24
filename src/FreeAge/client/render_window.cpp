@@ -3204,7 +3204,7 @@ void RenderWindow::PressCommandButton(CommandButton* button, bool shift) {
                 unitIds.push_back(item.first);
               }
             }
-            connection->Write(CreateSetTargetWithInteractionMessage(unitIds, id, InteractionType::Ungarrison));
+            connection->Write(CreateUngarrisonUnitsMessage(unitIds));
           }
         }
         break;
@@ -3425,7 +3425,7 @@ void RenderWindow::UngarrisonUnit(int garrisonedUnitIndex) {
     if (item.second == garrisonedUnit) {
       std::vector<u32> unitIds;
       unitIds.push_back(item.first);
-      connection->Write(CreateSetTargetWithInteractionMessage(unitIds, objectId, InteractionType::Ungarrison));
+      connection->Write(CreateUngarrisonUnitsMessage(unitIds));
       return;
     }
   }

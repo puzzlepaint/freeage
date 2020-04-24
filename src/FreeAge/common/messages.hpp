@@ -83,6 +83,9 @@ enum class ClientToServerMessage {
 
   /// Same as SetTarget but with the interaction specified.
   SetTargetWithInteraction,
+
+  /// An ungarrison command to selection of units.
+  UngarrisonUnits,
   
   /// Sent upon pressing the button / hotkey to produce a unit.
   ProduceUnit,
@@ -135,6 +138,9 @@ QByteArray CreateSetTargetWithInteractionMessage(
     const std::vector<u32>& unitIds,
     u32 targetObjectId,
     InteractionType interaction);
+
+QByteArray CreateUngarrisonUnitsMessage(
+    const std::vector<u32>& unitIds);
 
 QByteArray CreateProduceUnitMessage(
     u32 buildingId,
