@@ -74,9 +74,9 @@ class GameController : public QObject {
   void HandleRemoveFromProductionQueueMessage(const QByteArray& data);
   void HandleSetHousedMessage(const QByteArray& data);
   
-  /// Change the garrison state of a unit and the targets object garrisoned units list. 
+  /// Change the garrison status of a unit and the targets object garrisoned units list. 
   /// The enter parameter is true for garrison and false for ungarrison.
-  void GarrisonUnit(ClientUnit* unit, ClientObject* targetObject, bool enter);
+  void ChangeUnitGarrisonStatus(ClientUnit* unit, ClientObject* targetObject, bool enter);
   
   std::shared_ptr<ServerConnection> connection;
   std::shared_ptr<Match> match;
