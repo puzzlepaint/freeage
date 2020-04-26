@@ -30,16 +30,42 @@ enum class AttackType {
 };
 
 enum class GarrisonType {
+  /// No unit can be garrison.
   None,
-  Units, // TransportShip ?
-  VillagersAndFootArchersAndInfantry, // TownCenter and towers
+  /// All units.
+  AllUnits, // Transport ships
+  /// Villagers, monks and foot soldiers only.
+  VillagersAndMonksAndFootSoldiers, // TownCenter and towers
+  /// Villagers and foot soldiers only.
+  VillagersFootSoldiers, // Rams and Siege Towers
+  /// All units except siege units.
   NonSiege, // Castle
+  /// Villagers only.
   Villagers, // Khmer houses
   /// Units from production buildings can be trained directly into garrison,
   /// but not garrison from outside.
   Production,
-  /// Same as Production plus Relics can garrison
+  /// Same as Production plus Relics.
   ProductionAndRelics
+};
+
+struct PopulationCount {
+  /// TODO (puzzlepaint): Refactor ?
+  
+  inline PopulationCount()
+    : doubledCount(0) {};
+  
+  inline void SetToIntegerPopulationSpace(int count) { doubledCount = count / 2; }
+  inline void SetToIntegerPopulationDamand(int count) { doubledCount = -count / 2; }
+  inline void SetToOneHalfPopulationDemand() { doubledCount = -1; }
+
+  inline int GetDoubledCount() const { return doubledCount; }
+  inline int GetCount() const { return doubledCount / 2; }
+
+ private:
+
+  /// The doubled population space if positive or demand if negative.
+  int doubledCount;
 };
 
 struct ObjectTypeStats {
@@ -102,20 +128,13 @@ struct ObjectTypeStats {
   /// TODO: doc
   int conversionResistanceLevel;
 
+  PopulationCount population;
+
   // Used only by resource spot and animals
   ResourceAmount resources;
 };
 
-enum class PopulationDemand {
-  None,
-  One,
-  Half
-};
-
 struct UnitTypeStats : public ObjectTypeStats {
-
-  /// The population space needed.
-  PopulationDemand populationDemand;
 
   /// TODO: doc
   float radius;
@@ -125,9 +144,6 @@ struct UnitTypeStats : public ObjectTypeStats {
 };
 
 struct BuildingTypeStats : public ObjectTypeStats {
-
-  /// TODO: doc
-  int populationSpace;
 
   /// TODO: doc
   bool dropOffPoint[4];

@@ -38,12 +38,11 @@ Armor GetDefaultArmor(bool isUnit) {
     // NOTE: Inserting this CHECK_EQ() was necessary for the call
     //       armor.SetValue(DamageType::Melee, 0) below to yield the expected result
     //       when compiled with MSVC. This seems like a possible compiler bug.
-    // TODO (maanoo): put back, removed to test if operator = fixes this
-    //CHECK_EQ(armor.GetValue(DamageType::Melee), Armor::None); 
+    CHECK_EQ(armor.GetValue(DamageType::Melee), Armor::None);
     armor.SetValue(DamageType::Melee, 0);
     armor.SetValue(DamageType::Pierce, 0);
     armor.SetValue(DamageType::AntiLeitis, 0);
-    //CHECK_EQ(armor.GetValue(DamageType::Melee), 0);
+    CHECK_EQ(armor.GetValue(DamageType::Melee), 0);
   }
   return armor;
 }

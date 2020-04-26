@@ -29,7 +29,8 @@ inline void SetUnitDefaults(UnitTypeStats& s) {
   s.accuracy = 1;
   s.damage = GetUnitDefaultDamage();
   s.friendlyDamage = false;
-  s.populationDemand = PopulationDemand::One;
+  s.population = PopulationCount();
+  s.population.SetToIntegerPopulationDamand(1);
   s.radius = 0;
   s.speed = 0;
 }
@@ -98,7 +99,7 @@ inline void SetBuildingDefaults(BuildingTypeStats& s) {
   s.accuracy = 1;
   s.damage = GetBuildingDefaultDamage();
   s.friendlyDamage = false;
-  s.populationSpace = 0;
+  s.population = PopulationCount();
   s.dropOffPoint[static_cast<int>(ResourceType::Wood)] = false;
   s.dropOffPoint[static_cast<int>(ResourceType::Food)] = false;
   s.dropOffPoint[static_cast<int>(ResourceType::Gold)] = false;
@@ -272,8 +273,8 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
       /* size   */ 2,
       /* los    */ 8);
     s.occupancy = QRect(0, 2, 2, 2);
-    s.populationSpace = 5;
-    SetBuildingGarrison(s, GarrisonType::VillagersAndFootArchersAndInfantry, 15);
+    s.population.SetToIntegerPopulationSpace(5);
+    SetBuildingGarrison(s, GarrisonType::VillagersAndMonksAndFootSoldiers, 15);
     s.dropOffPoint[static_cast<int>(ResourceType::Wood)] = true;
     s.dropOffPoint[static_cast<int>(ResourceType::Food)] = true;
     s.dropOffPoint[static_cast<int>(ResourceType::Gold)] = true;
@@ -300,7 +301,7 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
       /* armor  */ 0, 7,
       /* size   */ 2,
       /* los    */ 2);
-    s.populationSpace = 5;
+    s.population.SetToIntegerPopulationSpace(5);
     SetBuildingCost(s, 25 /*seconds*/, 25 /*wood*/, 0 /*food*/, 0 /*gold*/, 0 /*stone*/);
   }
 
