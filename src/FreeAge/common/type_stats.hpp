@@ -56,7 +56,7 @@ struct PopulationCount {
     : doubledCount(0) {};
   
   inline void SetToIntegerPopulationSpace(int count) { doubledCount = count / 2; }
-  inline void SetToIntegerPopulationDamand(int count) { doubledCount = -count / 2; }
+  inline void SetToIntegerPopulationDemand(int count) { doubledCount = -count / 2; }
   inline void SetToOneHalfPopulationDemand() { doubledCount = -1; }
 
   inline int GetDoubledCount() const { return doubledCount; }
@@ -104,6 +104,7 @@ struct ObjectTypeStats {
   /// Regenerated HP per minute (can be affected by technologies)
   int regeneration;
 
+  /// The max HP or 0 if invulnerable.
   int maxHp;
 
   Armor armor;

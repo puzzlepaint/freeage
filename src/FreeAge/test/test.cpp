@@ -203,10 +203,7 @@ TEST(DataValidation, UnitTypeStats) {
     std::string name = GetUnitName(static_cast<UnitType>(unitType)).toStdString();
     UnitTypeStats& s = unitTypeStats.at(unitType);
 
-    if (s.maxHp == 0) {
-      continue; // not implemented yet
-    }
-
+    EXPECT_GE(s.maxHp, 0) << name;
     EXPECT_GT(s.radius, 0) << name;
     if (s.attackType != AttackType::NoAttack) {
       EXPECT_GT(s.fireRate, 0) << name;
@@ -239,10 +236,7 @@ TEST(DataValidation, BuildingTypeStats) {
     std::string name = GetBuildingName(static_cast<BuildingType>(buildingType)).toStdString();
     BuildingTypeStats& s = buildingTypeStats.at(buildingType);
 
-    if (s.maxHp == 0) {
-      continue; // not implemented yet
-    }
-
+    EXPECT_GE(s.maxHp, 0) << name;
     EXPECT_GT(s.size.height(), 0) << name;
     EXPECT_GT(s.size.width(), 0) << name;
     // TODO: proper check the occupancy is contained in the size
