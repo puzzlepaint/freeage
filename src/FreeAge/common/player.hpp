@@ -150,6 +150,7 @@ struct Player {
   inline const BuildingTypeStats& GetBuildingStats(BuildingType buildingType) const { return buildingTypeStats.at(static_cast<int>(buildingType)); }
 
   /// The player index.
+  /// // TODO (maanoo): doc
   const int index;
   
   /// The player color index.

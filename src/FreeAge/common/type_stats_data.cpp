@@ -10,7 +10,7 @@
 // UnitTypeStats helpers
 
 inline void SetUnitDefaults(UnitTypeStats& s) {
-  s.maxHp = 0;
+  s.maxHp = -1;
   s.regeneration = 0;
   s.armor = GetUnitDefaultArmor();
   s.lineOfSight = 0;
@@ -30,7 +30,7 @@ inline void SetUnitDefaults(UnitTypeStats& s) {
   s.damage = GetUnitDefaultDamage();
   s.friendlyDamage = false;
   s.population = PopulationCount();
-  s.population.SetToIntegerPopulationDamand(1);
+  s.population.SetToIntegerPopulationDemand(1);
   s.radius = 0;
   s.speed = 0;
 }
@@ -80,7 +80,7 @@ inline void SetUnitCost(UnitTypeStats& s, float creationTime, u32 wood, u32 food
 // BuildingTypeStats helpers
 
 inline void SetBuildingDefaults(BuildingTypeStats& s) {
-  s.maxHp = 0;
+  s.maxHp = -1;
   s.regeneration = 0;
   s.armor = GetBuildingDefaultArmor();
   s.lineOfSight = 0;
@@ -117,6 +117,10 @@ inline void SetBuildingBasic(BuildingTypeStats& s, int maxHp, int meleeArmor, in
   s.size = QSize(size, size);
   s.occupancy = QRect(0, 0, size, size);
   s.lineOfSight = lineOfSight;
+}
+
+inline void SetBuildingArmor(BuildingTypeStats& s, DamageType damageType, int value = 0) {
+  s.armor.SetValue(damageType, value);
 }
 
 inline void SetBuildingGarrison(BuildingTypeStats& s, GarrisonType garrisonType, int garrisonCapacity) {
@@ -195,21 +199,64 @@ void LoadUnitTypeStats(std::vector<UnitTypeStats>& unitTypeStats) {
     SetUnitBonusDamage(s, DamageType::Building, 3);
     SetUnitCost(s, 25 /*seconds*/, 0 /*wood*/, 50 /*food*/, 0 /*gold*/, 0 /*stone*/);
   }
-  { // Villager Hunter
-    UnitTypeStats& s = CopyUnit(unitTypeStats, UnitType::FemaleVillagerForager, UnitType::FemaleVillager); // TODO: replace *Forager with *Hunter, here for testing
-
-    s.workRate = 0.41;
-    SetUnitRangeAttack(s,
-      /* fireRate     */ 2,
-      /* pierceDamage */ 4,
-      /* accuracy     */ 1,   // assumption
-      /* maxRange     */ 3,
-      /* projectSpeed */ 6,   // assumption
-      /* attackDelay  */ .3); // assumption // TODO: attack delay?
+  {
+    UnitTypeStats& s = CopyUnit(unitTypeStats, UnitType::FemaleVillagerBuilder, UnitType::FemaleVillager);
+    s.workRate = 1;
   }
+  {
+    UnitTypeStats& s = CopyUnit(unitTypeStats, UnitType::FemaleVillagerForager, UnitType::FemaleVillager);
+    s.workRate = 0.31;
+  }
+  {
+    UnitTypeStats& s = CopyUnit(unitTypeStats, UnitType::FemaleVillagerLumberjack, UnitType::FemaleVillager);
+    s.workRate = 0.39;
+  }
+  {
+    UnitTypeStats& s = CopyUnit(unitTypeStats, UnitType::FemaleVillagerGoldMiner, UnitType::FemaleVillager);
+    s.workRate = 0.38;
+  }
+  {
+    UnitTypeStats& s = CopyUnit(unitTypeStats, UnitType::FemaleVillagerStoneMiner, UnitType::FemaleVillager);
+    s.workRate = 0.36;
+  }
+  // TODO: Add VillagerHunter
+  // { // Villager Hunter
+  //   UnitTypeStats& s = CopyUnit(unitTypeStats, UnitType::FemaleVillagerForager, UnitType::FemaleVillager); // TODO: replace *Forager with *Hunter, here for testing
+  //
+  //   s.workRate = 0.41;
+  //   SetUnitRangeAttack(s,
+  //     /* fireRate     */ 2,
+  //     /* pierceDamage */ 4,
+  //     /* accuracy     */ 1,   // assumption
+  //     /* maxRange     */ 3,
+  //     /* projectSpeed */ 6,   // assumption
+  //     /* attackDelay  */ .3); // assumption // TODO: attack delay?
+  // }
 
+  // Duplicate  
   CopyUnit(unitTypeStats, UnitType::MaleVillager, UnitType::FemaleVillager);
-  CopyUnit(unitTypeStats, UnitType::MaleVillagerForager, UnitType::FemaleVillagerForager); // TODO: replace *Forager with *Hunter, here for testing
+  CopyUnit(unitTypeStats, UnitType::MaleVillagerBuilder, UnitType::FemaleVillagerBuilder);
+  CopyUnit(unitTypeStats, UnitType::MaleVillagerForager, UnitType::FemaleVillagerForager);
+  CopyUnit(unitTypeStats, UnitType::MaleVillagerLumberjack, UnitType::FemaleVillagerLumberjack);
+  CopyUnit(unitTypeStats, UnitType::MaleVillagerGoldMiner, UnitType::FemaleVillagerGoldMiner);
+  CopyUnit(unitTypeStats, UnitType::MaleVillagerStoneMiner, UnitType::FemaleVillagerStoneMiner);
+
+  { // Militia
+    UnitTypeStats& s = InitUnit(unitTypeStats, UnitType::Militia);
+
+    SetUnitBasic(s,
+      /* hp     */ 40,
+      /* armor  */ 0, 1,
+      /* radius */ 1,
+      /* speed  */ 0.9,
+      /* los    */ 4);
+    SetUnitArmor(s, DamageType::Infantry);
+    SetUnitMeleeAttack(s,
+      /* fireRate    */ 2,
+      /* meleeDamage */ 4,
+      /* attackDelay */ 0); // TODO: attack delay?
+    SetUnitCost(s, 21 /*seconds*/, 0 /*wood*/, 60 /*food*/, 20 /*gold*/, 0 /*stone*/);
+  }
 
   { // Scout Cavalry
     UnitTypeStats& s = InitUnit(unitTypeStats, UnitType::Scout);
@@ -230,33 +277,18 @@ void LoadUnitTypeStats(std::vector<UnitTypeStats>& unitTypeStats) {
     SetUnitCost(s, 30 /*seconds*/, 0 /*wood*/, 80 /*food*/, 0 /*gold*/, 0 /*stone*/);
   }
 
-  { // Militia
-    UnitTypeStats& s = InitUnit(unitTypeStats, UnitType::Militia);
+  // TODO: remove, example of upgraded unit
+  // { // Man-at-Arms
+  //   UnitTypeStats& s = CopyUnit(unitTypeStats, UnitType::ManAtArms, UnitType::Militia);
 
-    SetUnitBasic(s,
-      /* hp     */ 40,
-      /* armor  */ 0, 1,
-      /* radius */ 1,
-      /* speed  */ 0.9,
-      /* los    */ 4);
-    SetUnitArmor(s, DamageType::Infantry);
-    SetUnitMeleeAttack(s,
-      /* fireRate    */ 2,
-      /* meleeDamage */ 4,
-      /* attackDelay */ 0); // TODO: attack delay?
-    SetUnitCost(s, 21 /*seconds*/, 0 /*wood*/, 60 /*food*/, 20 /*gold*/, 0 /*stone*/);
-  }
-  { // Man-at-Arms
-    UnitTypeStats& s = CopyUnit(unitTypeStats, UnitType::MaleVillagerLumberjack, UnitType::Militia); // TODO: replace MaleVillagerLumberjack with ManAtArms, here for testing
-
-    s.maxHp = 45;
-    SetUnitMeleeAttack(s,
-      /* fireRate    */ 2,
-      /* meleeDamage */ 6,
-      /* attackDelay */ 0); // TODO: attack delay?
-    SetUnitBonusDamage(s, DamageType::EagleWarrior, 6);
-    SetUnitBonusDamage(s, DamageType::StandardBuilding, 6);
-  }
+  //   s.maxHp = 45;
+  //   SetUnitMeleeAttack(s,
+  //     /* fireRate    */ 2,
+  //     /* meleeDamage */ 6,
+  //     /* attackDelay */ 0); // TODO: attack delay?
+  //   SetUnitBonusDamage(s, DamageType::EagleWarrior, 6);
+  //   SetUnitBonusDamage(s, DamageType::StandardBuilding, 6);
+  // }
 
 }
 
@@ -317,6 +349,43 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
     SetBuildingCost(s, 35 /*seconds*/, 100 /*wood*/, 0 /*food*/, 0 /*gold*/, 0 /*stone*/);
   }
 
+  { // MiningCamp
+    BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::MiningCamp);
+
+    SetBuildingBasic(s,
+      /* hp     */ 600,
+      /* armor  */ 0, 7,
+      /* size   */ 2,
+      /* los    */ 6);
+    s.dropOffPoint[static_cast<int>(ResourceType::Gold)] = true;
+    s.dropOffPoint[static_cast<int>(ResourceType::Stone)] = true;
+    SetBuildingCost(s, 35 /*seconds*/, 100 /*wood*/, 0 /*food*/, 0 /*gold*/, 0 /*stone*/);
+  }
+
+  { // Lumber Camp
+    BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::LumberCamp);
+
+    SetBuildingBasic(s,
+      /* hp     */ 600,
+      /* armor  */ 0, 7,
+      /* size   */ 2,
+      /* los    */ 6);
+    s.dropOffPoint[static_cast<int>(ResourceType::Wood)] = true;
+    SetBuildingCost(s, 35 /*seconds*/, 100 /*wood*/, 0 /*food*/, 0 /*gold*/, 0 /*stone*/);
+  }
+
+  { // Dock
+    BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::Dock);
+
+    SetBuildingBasic(s,
+      /* hp     */ 1800,
+      /* armor  */ 0, 7,
+      /* size   */ 3,
+      /* los    */ 6);
+    SetBuildingGarrison(s, GarrisonType::Production, 10);
+    SetBuildingCost(s, 35 /*seconds*/, 150 /*wood*/, 0 /*food*/, 0 /*gold*/, 0 /*stone*/);
+  }
+
   { // Barracks
     BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::Barracks);
 
@@ -327,6 +396,88 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
       /* los    */ 6);
     SetBuildingGarrison(s, GarrisonType::Production, 10);
     SetBuildingCost(s, 50 /*seconds*/, 175 /*wood*/, 0 /*food*/, 0 /*gold*/, 0 /*stone*/);
+  }
+
+  { // Outpost
+    BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::Outpost);
+
+    SetBuildingBasic(s,
+      /* hp     */ 500,
+      /* armor  */ 0, 0,
+      /* size   */ 1,
+      /* los    */ 6);
+    SetBuildingCost(s, 15 /*seconds*/, 25 /*wood*/, 0 /*food*/, 0 /*gold*/, 5 /*stone*/);
+  }
+
+  { // Palisade Wall
+    BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::PalisadeWall);
+
+    SetBuildingBasic(s,
+      /* hp     */ 250,
+      /* armor  */ 2, 5,
+      /* size   */ 1,
+      /* los    */ 2);
+    SetBuildingArmor(s, DamageType::WallGate);
+    SetBuildingCost(s, 6 /*seconds*/, 2 /*wood*/, 0 /*food*/, 0 /*gold*/, 0 /*stone*/);
+  }
+
+  { // Palisade Gate
+    BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::PalisadeGate);
+
+    SetBuildingBasic(s,
+      /* hp     */ 400,
+      /* armor  */ 2, 2,
+      /* size   */ 1,
+      /* los    */ 6);
+    s.size = QSize(4, 1);
+    s.occupancy = QRect(0, 0, 0, 0); // TODO: Occupancy of any Gate should be dynamic and handled by the game
+    SetBuildingCost(s, 30 /*seconds*/, 30 /*wood*/, 0 /*food*/, 0 /*gold*/, 0 /*stone*/);
+  }
+
+  // Gaia "buildings"
+
+  { // Tree Oak
+    BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::TreeOak);
+
+    SetBuildingBasic(s,
+      /* hp     */ 20,
+      /* armor  */ 0, 0,
+      /* size   */ 1,
+      /* los    */ 0);
+    SetBuildingArmor(s, DamageType::Tree);
+    s.resources.wood() = 100; // Move the wood resourse to the TreeStump
+  }
+
+  { // Forage Bush
+    BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::ForageBush);
+
+    SetBuildingBasic(s,
+      /* hp     */ 0,
+      /* armor  */ 0, 0,
+      /* size   */ 1,
+      /* los    */ 0);
+    s.resources.food() = 125;
+  }
+
+  { // Gold Mine
+    BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::GoldMine);
+
+    SetBuildingBasic(s,
+      /* hp     */ 0,
+      /* armor  */ 0, 0,
+      /* size   */ 1,
+      /* los    */ 0);
+    s.resources.gold() = 800;
+  }
+  { // Stone Mine
+    BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::StoneMine);
+
+    SetBuildingBasic(s,
+      /* hp     */ 0,
+      /* armor  */ 0, 0,
+      /* size   */ 1,
+      /* los    */ 0);
+    s.resources.stone() = 350;
   }
 }
 
