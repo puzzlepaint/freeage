@@ -22,12 +22,11 @@ class ServerBuilding;
 class ServerUnit;
 
 /// Represents a player in a game.
-struct PlayerInGame {
+struct PlayerInGame : public Player {
+
+  PlayerInGame(int index, int playerColorIndex, const GameData& gameData);
+
   void RemoveFromGame();
-  
-  
-  /// The player's index in the playersInGame vector.
-  int index;
   
   /// Socket that can be used to send and receive data to/from the player.
   QTcpSocket* socket;
@@ -39,9 +38,6 @@ struct PlayerInGame {
   /// The player name as provided by the client.
   QString name;
   
-  /// The player color index.
-  int playerColorIndex;
-  
   /// The last point in time at which a ping was received from this player.
   TimePoint lastPingTime;
   
@@ -51,17 +47,11 @@ struct PlayerInGame {
   /// Whether the player finished loading the game resources.
   bool finishedLoading = false;
   
-  /// The current game resources of the player (wood, food, gold, stone).
-  ResourceAmount resources;
-  
   /// The resources of the player at the end of the last game simulation step.
   /// Only if this differs from the current resource amount, then an update message
   /// needs to be sent to the client.
   ResourceAmount lastResources;
   
-  /// The current stats of the player
-  PlayerStats stats;
-
   /// Whether the player is currently housed.
   /// This is reset to false at the beginning of each game step and set to true
   /// if any of the player's buildings cannot produce something due to lack of population space.

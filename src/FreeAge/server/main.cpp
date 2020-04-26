@@ -16,6 +16,7 @@
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/common/messages.hpp"
+#include "FreeAge/common/type_stats_data.hpp"
 #include "FreeAge/server/game.hpp"
 #include "FreeAge/server/match_setup.hpp"
 #include "FreeAge/server/settings.hpp"
@@ -42,6 +43,11 @@ int main(int argc, char** argv) {
   QCoreApplication::setApplicationName("FreeAge");
   
   LOG(INFO) << "Server: Start";
+  
+  GameData gameData;
+  LoadGameData(gameData);
+
+  LOG(INFO) << "Server: Game data loaded";
   
   // Parse command line arguments.
   ServerSettings settings;
@@ -89,13 +95,13 @@ int main(int argc, char** argv) {
   std::vector<std::shared_ptr<PlayerInGame>> playersInGame;
   for (const auto& player : playersInMatch) {
     if (player->state == PlayerInMatch::State::Joined) {
-      std::shared_ptr<PlayerInGame> newPlayer(new PlayerInGame());
+      int index = playersInGame.size();
+      int colorIndex = player->playerColorIndex;
+      std::shared_ptr<PlayerInGame> newPlayer(new PlayerInGame(index, colorIndex, gameData));
       
-      newPlayer->index = playersInGame.size();
       newPlayer->socket = player->socket;
       newPlayer->unparsedBuffer = player->unparsedBuffer;
       newPlayer->name = player->name;
-      newPlayer->playerColorIndex = player->playerColorIndex;
       newPlayer->lastPingTime = player->lastPingTime;
       
       // TODO: Set the starting resources according to the map

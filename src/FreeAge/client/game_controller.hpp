@@ -31,19 +31,19 @@ class GameController : public QObject {
   void ProduceUnit(const std::vector<u32>& selection, UnitType type, int count);
   
   /// Returns the current resource amount of the player.
-  inline const ResourceAmount& GetCurrentResourceAmount() { return playerResources; }
+  inline const ResourceAmount& GetCurrentResourceAmount() { return player->resources; }
   
   /// Returns the latest known resource amount, even if this is for a server time that
   /// should not be displayed yet. This value is used to determine whether to make
   /// "produce unit" or "research technology" buttons active or inactive.
   // TODO: Remove? Does not seem really useful and we cannot get this unless we peek into messages just for it.
-  inline const ResourceAmount& GetLatestKnownResourceAmount() { return /*latestKnownPlayerResources*/ playerResources; }
+  inline const ResourceAmount& GetLatestKnownResourceAmount() { return /*latestKnownPlayerResources*/ player->resources; }
   
-  inline int GetPopulationCount() const { return playerStats.GetPopulationCount(); }
-  inline int GetAvailablePopulationSpace() const { return playerStats.GetAvailablePopulationSpace(); }
-  inline int GetBuildingTypeCount(BuildingType buildingType) const { return playerStats.GetBuildingTypeCount(buildingType); }
-  inline int GetUnitTypeCount(UnitType unitType) const { return playerStats.GetUnitTypeCount(unitType); }
-  inline int GetVillagerCount() const { return playerStats.GetVillagerCount(); }
+  inline int GetPopulationCount() const { return player->stats.GetPopulationCount(); }
+  inline int GetAvailablePopulationSpace() const { return player->stats.GetAvailablePopulationSpace(); }
+  inline int GetBuildingTypeCount(BuildingType buildingType) const { return player->stats.GetBuildingTypeCount(buildingType); }
+  inline int GetUnitTypeCount(UnitType unitType) const { return player->stats.GetUnitTypeCount(unitType); }
+  inline int GetVillagerCount() const { return player->stats.GetVillagerCount(); }
 
   inline bool IsPlayerHoused() const { return isHoused; }
 
@@ -91,11 +91,11 @@ class GameController : public QObject {
   /// is set to a negative value.
   double currentGameStepServerTime = -1;
   
-  /// The resources of the player.
-  ResourceAmount playerResources;
+  // TODO: use a client specific Player struct, possibly containing a pointer to the Match::Player
+  std::vector<Player> players;
 
-  /// The current stats of the player
-  PlayerStats playerStats;
+  // Pointer to current Player inside the players vector.
+  Player* player;
 
   /// Whether the player is currently housed.
   bool isHoused = false;

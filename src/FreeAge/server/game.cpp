@@ -22,6 +22,9 @@
 // in order for CIDE not to show some errors. Compiling always worked. Check the reason for the errors.
 #include <mango/core/endian.hpp>
 
+PlayerInGame::PlayerInGame(int index, int playerColorIndex, const GameData& gameData)
+    : Player(index, playerColorIndex, gameData) {}
+
 void PlayerInGame::RemoveFromGame() {
   unparsedBuffer.clear();
   isConnected = false;

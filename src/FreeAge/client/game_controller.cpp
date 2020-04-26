@@ -9,6 +9,7 @@
 #include <mango/core/endian.hpp>
 
 #include "FreeAge/common/logging.hpp"
+#include "FreeAge/common/type_stats_data.hpp"
 #include "FreeAge/client/building.hpp"
 #include "FreeAge/client/decal.hpp"
 #include "FreeAge/client/unit.hpp"
@@ -16,11 +17,23 @@
 GameController::GameController(const std::shared_ptr<Match>& match, const std::shared_ptr<ServerConnection>& connection, bool debugNetworking)
     : connection(connection),
       match(match),
+      players(),
       debugNetworking(debugNetworking) {
   if (debugNetworking) {
     networkingDebugFile.open("network_debug_log_messages.txt", std::ios::out);
     networkingDebugFile << std::setprecision(14);
   }
+
+  GameData gameData; // TODO (maanoo): store?
+  LoadGameData(gameData);
+  // Create the player list based on the match information
+  int playerIndex = 0;
+  for (const Match::Player& matchPlayer : match->GetPlayers()) {
+    // TODO (maanoo): ensure that match->GetPlayers() indexes are consecutive
+    players.emplace_back(playerIndex, matchPlayer.playerColorIndex, gameData);
+    ++ playerIndex;
+  }
+  player = &players.at(match->GetPlayerIndex());
 }
 
 void GameController::ParseMessagesUntil(double displayedServerTime) {
@@ -107,7 +120,7 @@ void GameController::ProduceUnit(const std::vector<u32>& selection, UnitType typ
     return;
   }
 
-  int affordable = playerResources.CanAffordTimes(GetUnitCost(type));
+  int affordable = player->resources.CanAffordTimes(GetUnitCost(type));
   count = std::min<int>(count, affordable);
 
   if (count == 0) {
@@ -159,7 +172,7 @@ void GameController::ParseMessage(const QByteArray& data, ServerToClientMessage 
     HandleGameStepTimeMessage(data);
     break;
   case ServerToClientMessage::ResourcesUpdate:
-    HandleResourcesUpdateMessage(data, &playerResources);
+    HandleResourcesUpdateMessage(data, &player->resources);
     break;
   case ServerToClientMessage::UpdateProduction:
     HandleUpdateProductionMessage(data);
@@ -215,7 +228,7 @@ void GameController::HandleGameBeginMessage(const QByteArray& data) {
   u32 initialFood = mango::uload32(buffer + 20);
   u32 initialGold = mango::uload32(buffer + 24);
   u32 initialStone = mango::uload32(buffer + 28);
-  playerResources = ResourceAmount(initialWood, initialFood, initialGold, initialStone);
+  player->resources = ResourceAmount(initialWood, initialFood, initialGold, initialStone);
   
   u16 mapWidth = mango::uload16(buffer + 32);
   u16 mapHeight = mango::uload16(buffer + 34);
@@ -282,7 +295,7 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
     ClientBuilding* newBuilding = new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y(), buildPercentage, initialHP);
     map->AddObject(objectId, newBuilding);
     if (playerIndex == match->GetPlayerIndex()) {
-      playerStats.BuildingAdded(buildingType, buildPercentage == 100);
+      player->GetPlayerStats().BuildingAdded(buildingType, buildPercentage == 100);
 
       if (buildPercentage == 100) {
         newBuilding->UpdateFieldOfView(map.get(), 1);
@@ -301,7 +314,7 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
     ClientUnit* newUnit = new ClientUnit(playerIndex, unitType, mapCoord, initialHP);
     map->AddObject(objectId, newUnit);
     if (playerIndex == match->GetPlayerIndex()) {
-      playerStats.UnitAdded(newUnit->GetType());
+      player->GetPlayerStats().UnitAdded(newUnit->GetType());
       
       newUnit->UpdateFieldOfView(map.get(), 1);
     }
@@ -337,7 +350,7 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
       renderWindow->AddDecal(newDecal);
       
       if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
-        playerStats.BuildingRemoved(building->GetType(), true);
+        player->GetPlayerStats().BuildingRemoved(building->GetType(), true);
 
         object->UpdateFieldOfView(map.get(), -1);
       }
@@ -345,7 +358,7 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
       // TODO: Destruction animations for foundations
 
       if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
-        playerStats.BuildingRemoved(building->GetType(), false);
+        player->GetPlayerStats().BuildingRemoved(building->GetType(), false);
       }
     }
   } else if (object->isUnit()) {
@@ -353,7 +366,7 @@ void GameController::HandleObjectDeathMessage(const QByteArray& data) {
     renderWindow->AddDecal(newDecal);
     
     if (object->GetPlayerIndex() == match->GetPlayerIndex()) {
-      playerStats.UnitRemoved(AsUnit(object)->GetType());
+      player->GetPlayerStats().UnitRemoved(AsUnit(object)->GetType());
       
       object->UpdateFieldOfView(map.get(), -1);
     }
@@ -445,7 +458,7 @@ void GameController::ChangeUnitGarrisonStatus(ClientUnit* unit, ClientObject* ta
   }
   
   // Garrison related missing features from client and server:
-  // TODO: If relic, keep track of number of relics in PlayerStats #relics
+  // TODO: If relic, keep track of number of relics in player stats #relics
   // TODO: Bonus attack to some buildings (possibly not here)
   // TODO: Bonus speed to some units (possibly not here)
   // TODO: Heal garrisoned units (not here, in the simulation)
@@ -499,7 +512,7 @@ void GameController::HandleBuildPercentageUpdate(const QByteArray& data) {
   if (building->GetPlayerIndex() == match->GetPlayerIndex()) {
     if (!building->IsCompleted() && percentage == 100) {
       // The building has been completed.
-      playerStats.BuildingFinished(building->GetType());
+      player->GetPlayerStats().BuildingFinished(building->GetType());
 
       building->UpdateFieldOfView(map.get(), 1);
     }
@@ -535,7 +548,7 @@ void GameController::HandleChangeUnitTypeMessage(const QByteArray& data) {
   UnitType oldType = unit->GetType();
   unit->SetType(newType);
 
-  playerStats.UnitTransformed(oldType, newType);
+  player->GetPlayerStats().UnitTransformed(oldType, newType);
 }
 
 void GameController::HandleSetCarriedResourcesMessage(const QByteArray& data) {
