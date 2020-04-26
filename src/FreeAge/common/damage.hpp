@@ -35,6 +35,7 @@ enum class DamageType {
   FishingShip,
   Mameluke,
   HeroKing,
+  Villager, // Not in the original 
   // buildings
   Building,
   StoneDefense,
@@ -62,6 +63,13 @@ struct DamageValues {
   DamageValues();
 
   DamageValues(const DamageValues& other);
+
+  inline constexpr DamageValues& operator = (const DamageValues& other) {
+    for (int i = 0; i < static_cast<int>(DamageType::NumDamageTypes); ++ i) {
+      values[i] = other.values[i];
+    }
+    return *this;
+  }
 
   /// Increase the value of a damage type (handling cases with values of None).
   void AddValue(DamageType damageType, i32 value);

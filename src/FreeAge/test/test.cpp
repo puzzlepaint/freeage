@@ -8,6 +8,7 @@
 #include "FreeAge/common/damage.hpp"
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/common/player.hpp"
+#include "FreeAge/common/type_stats_data.hpp"
 #include "FreeAge/client/map.hpp"
 
 int main(int argc, char** argv) {
@@ -184,4 +185,70 @@ TEST(GameLogic, VillagerVsTree) {
   // kill in one hit
   EXPECT_GE(CalculateDamage(villagerDamage, treeArmor), 20);
 
+}
+
+TEST(DataValidation, UnitTypeStats) {
+  LOG(INFO) << "sizeof(UnitTypeStats) * UnitType::NumUnits = " 
+    << sizeof(UnitTypeStats) << " * " << static_cast<int>(UnitType::NumUnits) << " = "
+    << sizeof(UnitTypeStats) * static_cast<int>(UnitType::NumUnits);
+
+  // NOTE: This could be e extracted and moved to the game in order to validate data loaded
+  //       dynamicly from files.
+
+  std::vector<UnitTypeStats> unitTypeStats;
+  LoadUnitTypeStats(unitTypeStats);
+
+  for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
+    // TODO: get the internal name
+    std::string name = GetUnitName(static_cast<UnitType>(unitType)).toStdString();
+    UnitTypeStats& s = unitTypeStats.at(unitType);
+
+    if (s.maxHp == 0) {
+      continue; // not implemented yet
+    }
+
+    EXPECT_GT(s.radius, 0) << name;
+    if (s.attackType != AttackType::None) {
+      EXPECT_GT(s.fireRate, 0) << name;
+      EXPECT_GE(s.maxRange, s.minRange) << name;
+    }
+  }
+}
+
+inline bool IsRealBuilding(BuildingType type) {
+  return !(type >= BuildingType::TownCenterBack &&
+           type <= BuildingType::TownCenterMain); 
+}
+
+TEST(DataValidation, BuildingTypeStats) {
+  LOG(INFO) << "sizeof(BuildingTypeStats) * BuildingType::NumBuildings = " 
+    << sizeof(BuildingTypeStats) << " * " << static_cast<int>(BuildingType::NumBuildings) << " = "
+    << sizeof(BuildingTypeStats) * static_cast<int>(BuildingType::NumBuildings);
+    
+  // NOTE: This could be e extracted and moved to the game in order to validate data loaded 
+  //       dynamicly from files. 
+
+  std::vector<BuildingTypeStats> buildingTypeStats;
+  LoadBuildingTypeStats(buildingTypeStats);
+
+  for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
+    if (!IsRealBuilding(static_cast<BuildingType>(buildingType))) {
+      continue;
+    }
+    // TODO: get the internal name
+    std::string name = GetBuildingName(static_cast<BuildingType>(buildingType)).toStdString();
+    BuildingTypeStats& s = buildingTypeStats.at(buildingType);
+
+    if (s.maxHp == 0) {
+      continue; // not implemented yet
+    }
+
+    EXPECT_GE(s.populationSpace, 0) << name;
+
+    EXPECT_GT(s.size.height(), 0) << name;
+    EXPECT_GT(s.size.width(), 0) << name;
+    // TODO: proper check the occupancy is contained in the size
+    EXPECT_LE(s.occupancy.height(), s.size.height()) << name;
+    EXPECT_LE(s.occupancy.width(), s.size.width()) << name;
+  }
 }
