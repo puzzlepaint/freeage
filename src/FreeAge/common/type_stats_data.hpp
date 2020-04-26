@@ -9,3 +9,6 @@
 
 void LoadUnitTypeStats(std::vector<UnitTypeStats>& unitTypeStats);
 void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats);
+
+// TODO: move elsewhere
+void LoadGameData(GameData& gameData);

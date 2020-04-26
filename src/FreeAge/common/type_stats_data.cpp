@@ -15,7 +15,7 @@ inline void SetUnitDefaults(UnitTypeStats& s) {
   s.armor = GetUnitDefaultArmor();
   s.lineOfSight = 0;
   s.workRate = 1;
-  s.garrisonType = GarrisonType::None;
+  s.garrisonType = GarrisonType::NoGarrison;
   s.garrisonCapacity = 0;
   s.conversionResistanceLevel = 0;
   s.resources = ResourceAmount();
@@ -85,11 +85,11 @@ inline void SetBuildingDefaults(BuildingTypeStats& s) {
   s.armor = GetBuildingDefaultArmor();
   s.lineOfSight = 0;
   s.workRate = 1;
-  s.garrisonType = GarrisonType::None;
+  s.garrisonType = GarrisonType::NoGarrison;
   s.garrisonCapacity = 0;
   s.conversionResistanceLevel = 3;
   s.resources = ResourceAmount();
-  s.attackType = AttackType::None;
+  s.attackType = AttackType::NoAttack;
   s.projectileSpeed = 0;
   s.areaOfEffectSize = 0;
   s.attacksCount = 1;
@@ -328,4 +328,9 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
     SetBuildingGarrison(s, GarrisonType::Production, 10);
     SetBuildingCost(s, 50 /*seconds*/, 175 /*wood*/, 0 /*food*/, 0 /*gold*/, 0 /*stone*/);
   }
+}
+
+void LoadGameData(GameData& gameData) {
+  LoadUnitTypeStats(gameData.unitTypeStats);
+  LoadBuildingTypeStats(gameData.buildingTypeStats);
 }

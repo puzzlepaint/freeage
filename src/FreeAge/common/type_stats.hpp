@@ -14,7 +14,7 @@
 static constexpr u32 typeStatsVersion = 1;
 
 enum class AttackType {
-  None,
+  NoAttack = 0,
   /// TODO: rename ?
   Default,
   /// Full damage to all affected in the area of effect.
@@ -31,7 +31,7 @@ enum class AttackType {
 
 enum class GarrisonType {
   /// No unit can be garrison.
-  None,
+  NoGarrison = 0,
   /// All units.
   AllUnits, // Transport ships
   /// Villagers, monks and foot soldiers only.
@@ -153,4 +153,12 @@ struct BuildingTypeStats : public ObjectTypeStats {
 
   /// TODO: doc
   QRect occupancy;
+};
+
+// TODO: move elsewhere
+struct GameData {
+
+  std::vector<UnitTypeStats> unitTypeStats;
+  std::vector<BuildingTypeStats> buildingTypeStats;
+
 };

@@ -129,3 +129,12 @@ void PlayerStats::log() const {
         << " " << buildingConstructions[buildingType];
   }
 }
+
+Player::Player(int index, int playerColorIndex, const GameData& gameData) 
+  : index(index),
+    playerColorIndex(playerColorIndex),
+    unitTypeStats(gameData.unitTypeStats),
+    buildingTypeStats(gameData.buildingTypeStats) {
+  // TODO: apply civilization to game data
+}
+

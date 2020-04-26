@@ -208,7 +208,7 @@ TEST(DataValidation, UnitTypeStats) {
     }
 
     EXPECT_GT(s.radius, 0) << name;
-    if (s.attackType != AttackType::None) {
+    if (s.attackType != AttackType::NoAttack) {
       EXPECT_GT(s.fireRate, 0) << name;
       EXPECT_GE(s.maxRange, s.minRange) << name;
     }
