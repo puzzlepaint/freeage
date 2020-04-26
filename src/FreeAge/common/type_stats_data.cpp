@@ -271,6 +271,7 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
       /* armor  */ 3, 5,
       /* size   */ 2,
       /* los    */ 8);
+    s.occupancy = QRect(0, 2, 2, 2);
     s.populationSpace = 5;
     SetBuildingGarrison(s, GarrisonType::VillagersAndFootArchersAndInfantry, 15);
     s.dropOffPoint[static_cast<int>(ResourceType::Wood)] = true;
