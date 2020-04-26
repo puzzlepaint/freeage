@@ -243,8 +243,6 @@ TEST(DataValidation, BuildingTypeStats) {
       continue; // not implemented yet
     }
 
-    EXPECT_GE(s.populationSpace, 0) << name;
-
     EXPECT_GT(s.size.height(), 0) << name;
     EXPECT_GT(s.size.width(), 0) << name;
     // TODO: proper check the occupancy is contained in the size
