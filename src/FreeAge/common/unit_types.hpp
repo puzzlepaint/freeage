@@ -72,4 +72,7 @@ inline ResourceType GetResourceTypeOfVillagerType(UnitType type) {
 
 QString GetUnitName(UnitType type);
 
+// TODO: Implement a GetUnitTypeInternalName() which returns the string of the enum name
+//       of each UnitType (for debugging and logging).
+
 int GetUnitAttackFrames(UnitType type);

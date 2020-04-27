@@ -55,14 +55,14 @@ struct PopulationCount {
   inline PopulationCount()
     : doubledCount(0) {};
   
-  inline void SetToIntegerPopulationSpace(int count) { doubledCount = count / 2; }
-  inline void SetToIntegerPopulationDemand(int count) { doubledCount = -count / 2; }
+  inline void SetToIntegerPopulationSpace(int count) { doubledCount = count * 2; }
+  inline void SetToIntegerPopulationDemand(int count) { doubledCount = -count * 2; }
   inline void SetToOneHalfPopulationDemand() { doubledCount = -1; }
 
-  inline int GetDoubledCount() const { return doubledCount; }
-  inline int GetCount() const { return doubledCount / 2; }
+  inline int GetDoubledPopulationSpace() const { return doubledCount > 0 ? doubledCount : 0; }
+  inline int GetDoubledPopulationDemand() const { return doubledCount < 0 ? -doubledCount : 0; }
 
- private:
+ //private:
 
   /// The doubled population space if positive or demand if negative.
   int doubledCount;
@@ -158,7 +158,7 @@ struct BuildingTypeStats : public ObjectTypeStats {
   inline bool IsDropOffPointFor(ResourceType resourceType) const { return dropOffPoint[static_cast<int>(resourceType)]; }
 };
 
-// TODO: move elsewhere
+// TODO: rename?
 struct GameData {
 
   std::vector<UnitTypeStats> unitTypeStats;

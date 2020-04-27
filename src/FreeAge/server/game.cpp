@@ -398,7 +398,7 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
 
   // check whether the player is allowed to build this type of building
   int max = GetBuildingMaxInstances(type);
-  bool maxReached = max != -1 && player->stats.GetBuildingTypeCount(type) >= max;
+  bool maxReached = max != -1 && player->GetPlayerStats().GetBuildingTypeCount(type) >= max;
   if (maxReached) {
     LOG(ERROR) << "Received a PlaceBuildingFoundation message for which the player cannot build";
     return;
@@ -474,7 +474,7 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
   u32 newBuildingId;
   ServerBuilding* newBuildingFoundation = map->AddBuilding(player, type, baseTile, /*buildPercentage*/ 0, &newBuildingId, /*addOccupancy*/ false);
   
-  player->stats.BuildingAdded(type, false);
+  player->GetPlayerStats().BuildingAdded(type, false);
 
   QByteArray addObjectMsg = CreateAddObjectMessage(newBuildingId, newBuildingFoundation);
   accumulatedMessages[player->index] += addObjectMsg;
@@ -543,7 +543,7 @@ void Game::HandleDequeueProductionQueueItemMessage(const QByteArray& msg, Player
   
   // Adjust population count (if relevant).
   if (queueIndex == 0 && building->GetProductionPercentage() > 0) {
-    playersInGame->at(building->GetPlayerIndex())->stats.populationInProduction -= 1;
+    playersInGame->at(building->GetPlayerIndex())->GetPlayerStats().populationInProduction -= 1;
   }
   
   // Remove the item from the queue.
@@ -767,7 +767,7 @@ void Game::StartGame() {
   LOG(INFO) << "Server: Game start prepared";
   gaiPlayer.GetPlayerStats().log();
   for (auto& player : *playersInGame) {
-    player->stats.log();
+    player->GetPlayerStats().log();
   }
 }
 
@@ -1324,7 +1324,7 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
     float previousPercentage = building->GetProductionPercentage();
     if (previousPercentage == 0) {
       // Only start producing the unit if population space is available.
-      canProduce = player.stats.GetPopulationCountIncludingInProduction() < player.stats.GetAvailablePopulationSpace();
+      canProduce = player.GetPlayerStats().GetPopulationCountIncludingInProduction() < player.GetPlayerStats().GetPopulationSpace();
       if (!canProduce) {
         player.isHoused = true;
       }
@@ -1339,7 +1339,7 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
       bool completed = false;
       if (newPercentage >= 100) {
         // Remove the population count for the unit in production.
-        player.stats.populationInProduction -= 1;
+        player.GetPlayerStats().populationInProduction -= 1;
         
         // Special case for UnitType::MaleVillager: Randomly decide whether to produce a male or female.
         if (unitInProduction == UnitType::MaleVillager) {
@@ -1361,7 +1361,7 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
         accumulatedMessages[building->GetPlayerIndex()] += CreateUpdateProductionMessage(buildingId, building->GetProductionPercentage(), 100.f / productionTime);
         
         // Add the population count for the unit in production.
-        player.stats.populationInProduction += 1;
+        player.GetPlayerStats().populationInProduction += 1;
       }
     }
   }
@@ -1734,7 +1734,7 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
       player->resources.Add(player->GetUnitStats(building->GetProductionQueue()[queueIndex]).cost);
     }
     if (building->GetProductionPercentage() > 0) {
-      playersInGame->at(object->GetPlayerIndex())->stats.populationInProduction -= 1;
+      playersInGame->at(object->GetPlayerIndex())->GetPlayerStats().populationInProduction -= 1;
     }
   }
   
@@ -1748,11 +1748,11 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
   
   // If all objects of a player are gone, the player gets defeated.
   if (object->GetPlayerIndex() != kGaiaPlayerIndex) {
-    const PlayerStats& stats = playersInGame->at(object->GetPlayerIndex())->stats;
+    const PlayerStats& stats = playersInGame->at(object->GetPlayerIndex())->GetPlayerStats();
     
     // NOTE: This population check will not account for zero-population units such as sheep,
     //       but that should be fine.
-    if (stats.GetPopulationCount() == 0) {
+    if (stats.GetPopulationDemand() == 0) {
       bool hasAnyBuilding = false;
       
       // TODO: Only consider production buildings here.

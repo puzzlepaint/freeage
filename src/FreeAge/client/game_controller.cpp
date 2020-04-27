@@ -23,10 +23,14 @@ GameController::GameController(const std::shared_ptr<Match>& match, const std::s
     networkingDebugFile.open("network_debug_log_messages.txt", std::ios::out);
     networkingDebugFile << std::setprecision(14);
   }
-
-  GameData gameData; // TODO (maanoo): store?
+  // NOTE: The game data are loaded temporary here. However the loading is instant and for 
+  //       now there is no need for something like a loading screen. Also it is unclear if
+  //       they will be needed in later stage, so they are just deleted after the creation of
+  //       the players.
+  GameData gameData;
   LoadGameData(gameData);
   // Create the player list based on the match information
+  players.reserve(match->GetPlayers().size() + 1);
   int playerIndex = 0;
   for (const Match::Player& matchPlayer : match->GetPlayers()) {
     players.emplace_back(playerIndex, matchPlayer.playerColorIndex, gameData);

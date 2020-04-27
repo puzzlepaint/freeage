@@ -9,6 +9,8 @@
 #include "FreeAge/common/type_stats.hpp"
 #include "FreeAge/common/unit_types.hpp"
 
+class Player;
+
 /// A collection of stats for a player.
 /// All of the stats can be reproduced from the game state, but they are kept track of here
 /// for performace and ease of access to them.
@@ -23,7 +25,7 @@
 struct PlayerStats {
  public:
 
-  PlayerStats();
+  PlayerStats(const Player* player);
   ~PlayerStats();
 
   /// Called when new building is added.
@@ -51,18 +53,20 @@ struct PlayerStats {
   void ResearchCompleted(/* TODO */) {};
 
   /// The population of the units that are currently being produced.
-  /// TODO: implement on the client, now only used by the server
+  /// TODO: Implement on the client, now only used by the server. 
+  /// TODO: Encapsulate and use the PopulationCounter
   int populationInProduction = 0;
 
   // getters
 
-  inline int GetPopulationCount() const { return populationCount; }
-  inline int GetAvailablePopulationSpace() const { return availablePopulationSpace; }
+  inline int GetPopulationDemand() const { return doubledPopulationDemand / 2; }
+  inline int GetPopulationSpace() const { return doubledPopulationSpace / 2; }
 
   /// The current population count of this player,
   /// *including units being produced*. This is required for "housed" checking,
   /// and it is different from the population count shown to the client.
-  inline int GetPopulationCountIncludingInProduction() const { return populationCount + populationInProduction; }
+  /// TODO: fix, for now the half values are ignored
+  inline int GetPopulationCountIncludingInProduction() const { return GetPopulationDemand() + populationInProduction; }
 
   /// The number of units with the given type that are alive.
   inline int GetUnitTypeCount(UnitType unitType) const {
@@ -105,11 +109,14 @@ struct PlayerStats {
   /// Called when the number of units change.
   void UnitChange(UnitType unitType, bool death, int d);
 
-  /// Called when something change.
-  void Change();
+  /// Called when something active (= not unfinished building) change.
+  void Change(const ObjectTypeStats& stats, int d);
 
   // TODO: change from arrays to maps if the sizeof(PlayerStats) gets too big ?
   // TODO: merge array of ints to a single array of structs ?
+
+  /// The player that these stats refer to.
+  const Player* player;
 
   /// The number of units alive per unit type.
   int unitsAlive[static_cast<int>(UnitType::NumUnits)];
@@ -121,11 +128,11 @@ struct PlayerStats {
   /// The number of units died per unit type.
   int unitsDied[static_cast<int>(UnitType::NumUnits)];
 
-  /// The current population count.
-  int populationCount = 0;
+  /// The current population space demand multiplied by 2 (to handle half values).
+  int doubledPopulationDemand = 0;
 
-  /// The available population space.
-  int availablePopulationSpace = 0;
+  /// The current population space supplied multiplied by 2 (to handle half values).
+  int doubledPopulationSpace = 0;
 
   /// The number of buildings under construction per building type.
   int buildingConstructions[static_cast<int>(BuildingType::NumBuildings)];
@@ -163,8 +170,6 @@ struct Player {
   /// The current game resources of the player (wood, food, gold, stone).
   ResourceAmount resources;
 
-  PlayerStats stats;
-
  private:
 
   inline UnitTypeStats& GetModifiableUnitStats(UnitType unitType) { return unitTypeStats.at(static_cast<int>(unitType)); }
@@ -173,4 +178,5 @@ struct Player {
   std::vector<UnitTypeStats> unitTypeStats;
   std::vector<BuildingTypeStats> buildingTypeStats;
 
+  PlayerStats stats;
 };

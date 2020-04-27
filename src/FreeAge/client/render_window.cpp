@@ -2020,10 +2020,11 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
   } else {
     housedStartTime = -1;
   }
+  const PlayerStats& playerStats = gameController->GetPlayer()->GetPlayerStats();
   popTextDisplay.textDisplay->Render(
       georgiaFontSmaller,
       populationBlinking ? qRgba(0, 0, 0, 255) : qRgba(255, 255, 255, 255),
-      tr("%1 / %2").arg(gameController->GetPopulationCount()).arg(gameController->GetAvailablePopulationSpace()),
+      tr("%1 / %2").arg(playerStats.GetPopulationDemand()).arg(playerStats.GetPopulationSpace()),
       QRect(topLeft.x() + uiScale * (17 + 4 * 200 + 83 + 16),
             topLeft.y() + uiScale * 16,
             uiScale * 82,
@@ -2034,7 +2035,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
   popVillagersTextDisplay.textDisplay->Render(
       georgiaFontTiny,
       qRgba(255, 255, 255, 255),
-      QString::number(gameController->GetVillagerCount()),
+      QString::number(playerStats.GetVillagerCount()),
       QRect(topLeft.x() + uiScale * (17 + 4 * 200),
             topLeft.y() + uiScale * 16,
             uiScale * 79,

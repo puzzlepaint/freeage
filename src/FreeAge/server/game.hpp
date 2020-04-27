@@ -147,7 +147,7 @@ class Game {
   /// The Gaia's stats
   Player gaiPlayer;
 
-  inline PlayerStats* GetPlayerStats(int playerIndex) { return &(playerIndex == kGaiaPlayerIndex ? gaiPlayer.GetPlayerStats() : playersInGame->at(playerIndex)->stats); }
+  inline PlayerStats* GetPlayerStats(int playerIndex) { return &(playerIndex == kGaiaPlayerIndex ? gaiPlayer.GetPlayerStats() : playersInGame->at(playerIndex)->GetPlayerStats()); }
   inline std::shared_ptr<PlayerInGame> GetPlayerInGame(int index) { return playersInGame->at(index); }
   
   /// Stores the object IDs that should be deleted at the end of the current

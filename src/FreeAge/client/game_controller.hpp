@@ -42,11 +42,8 @@ class GameController : public QObject {
   inline Player* GetPlayer() { return player; }
   inline Player* GetPlayer(int index) { return index == kGaiaPlayerIndex ? gaiaPlayer : &players.at(index); }
 
-  inline int GetPopulationCount() const { return player->stats.GetPopulationCount(); }
-  inline int GetAvailablePopulationSpace() const { return player->stats.GetAvailablePopulationSpace(); }
-  inline int GetBuildingTypeCount(BuildingType buildingType) const { return player->stats.GetBuildingTypeCount(buildingType); }
-  inline int GetUnitTypeCount(UnitType unitType) const { return player->stats.GetUnitTypeCount(unitType); }
-  inline int GetVillagerCount() const { return player->stats.GetVillagerCount(); }
+  inline int GetBuildingTypeCount(BuildingType buildingType) const { return player->GetPlayerStats().GetBuildingTypeCount(buildingType); }
+  inline int GetUnitTypeCount(UnitType unitType) const { return player->GetPlayerStats().GetUnitTypeCount(unitType); }
 
   inline bool IsPlayerHoused() const { return isHoused; }
 
