@@ -70,21 +70,6 @@ inline ResourceType GetResourceTypeOfVillagerType(UnitType type) {
   return ResourceType::NumTypes;
 }
 
-float GetUnitRadius(UnitType type);
 QString GetUnitName(UnitType type);
 
-/// TODO: This needs to consider the player's civilization and researched technologies
-ResourceAmount GetUnitCost(UnitType type);
-
-/// Returns the production time for the unit in seconds.
-/// TODO: This needs to consider the player's civilization and researched technologies
-float GetUnitProductionTime(UnitType type);
-
 int GetUnitAttackFrames(UnitType type);
-
-/// TODO: This needs to consider the player's civilization and researched technologies
-u32 GetUnitMaxHP(UnitType type);
-Damage GetUnitDamage(UnitType type);
-Armor GetUnitArmor(UnitType type);
-
-float GetUnitLineOfSight(UnitType type);

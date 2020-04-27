@@ -112,7 +112,7 @@ class ClientUnit : public ClientObject {
   }
   
   inline QString GetUnitName() const { return ::GetUnitName(type); }
-  inline const Texture* GetIconTexture() const { return ClientUnitType::GetUnitTypes()[static_cast<int>(type)].GetIconTexture(); };
+  inline const Texture* GetIconTexture() const { return ClientUnitType::GetUnitTypes()[static_cast<int>(type)].GetIconTexture(); }
   
   inline UnitAnimation GetCurrentAnimation() const { return currentAnimation; }
   void SetCurrentAnimation(UnitAnimation animation, double serverTime);

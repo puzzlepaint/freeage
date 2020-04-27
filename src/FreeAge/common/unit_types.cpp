@@ -8,26 +8,6 @@
 
 #include "FreeAge/common/logging.hpp"
 
-float GetUnitRadius(UnitType type) {
-  // TODO: Load this from some data file
-  
-  if (IsVillager(type)) {
-    return 0.15;
-  }
-  
-  switch (type) {
-  case UnitType::Militia:
-    return 0.15;
-  case UnitType::Scout:
-    return 0.3;
-  default:
-    LOG(ERROR) << "GetUnitRadius() called on unsupported type: " << static_cast<int>(type);
-    break;
-  }
-  
-  return 0;
-}
-
 QString GetUnitName(UnitType type) {
   // TODO: Load this from some data file
   switch (type) {
@@ -61,46 +41,6 @@ QString GetUnitName(UnitType type) {
   return 0;
 }
 
-ResourceAmount GetUnitCost(UnitType type) {
-  // TODO: Load this from some data file
-  
-  if (IsVillager(type)) {
-    return ResourceAmount(0, 50, 0, 0);
-  }
-  
-  switch (type) {
-  case UnitType::Militia:
-    return ResourceAmount(0, 60, 20, 0);
-  case UnitType::Scout:
-    return ResourceAmount(0, 80, 0, 0);
-  default:
-    LOG(ERROR) << "GetUnitName() called on unsupported type: " << static_cast<int>(type);
-    break;
-  }
-  
-  return ResourceAmount(0, 0, 0, 0);
-}
-
-float GetUnitProductionTime(UnitType type) {
-  // TODO: Load this from some data file
-  
-  if (IsVillager(type)) {
-    return 10;  // TODO: Set too short on purpose for testing
-  }
-  
-  switch (type) {
-  case UnitType::Militia:
-    return 8;  // TODO: Set too short on purpose for testing
-  case UnitType::Scout:
-    return 4;  // TODO: Set too short on purpose for testing
-  default:
-    LOG(ERROR) << "GetUnitProductionTime() called on unsupported type: " << static_cast<int>(type);
-    break;
-  }
-  
-  return -1;
-}
-
 int GetUnitAttackFrames(UnitType type) {
   // TODO: Load this from some data file
   // TODO: These could be extracted from the attack sprites.
@@ -118,106 +58,6 @@ int GetUnitAttackFrames(UnitType type) {
     return 30;
   default:
     LOG(ERROR) << "GetUnitAttackFrames() called on unsupported type: " << static_cast<int>(type);
-    break;
-  }
-  
-  return 0;
-}
-
-u32 GetUnitMaxHP(UnitType type) {
-  // TODO: Load this from some data file
-  
-  if (IsVillager(type)) {
-    return 25;
-  }
-  
-  switch (type) {
-  case UnitType::Militia:
-    return 40;
-  case UnitType::Scout:
-    return 45;
-  default:
-    LOG(ERROR) << "Function called on unsupported type: " << static_cast<int>(type);
-    break;
-  }
-  
-  return 0;
-}
-
-Damage GetUnitDamage(UnitType type) {
-  // TODO: Load this from some data file
-  
-  if (IsVillager(type)) {
-    Damage damage = GetUnitDefaultDamage();
-    damage.SetValue(DamageType::Melee, 3);
-    damage.SetValue(DamageType::StoneDefense, 6);
-    damage.SetValue(DamageType::Building, 3);
-    damage.SetValue(DamageType::Tree, 15); // assumption
-    return damage;
-  }
-  
-  switch (type) {
-  case UnitType::Militia: {
-    Damage damage = GetUnitDefaultDamage();
-    damage.SetValue(DamageType::Melee, 4);
-    return damage;
-  }
-  case UnitType::Scout: {
-    Damage damage = GetUnitDefaultDamage();
-    damage.SetValue(DamageType::Melee, 3);
-    damage.SetValue(DamageType::Monk, 6);
-    return damage;
-  }
-  default:
-    LOG(ERROR) << "Function called on unsupported type: " << static_cast<int>(type);
-    break;
-  }
-  
-  return GetUnitDefaultDamage();
-}
-
-Armor GetUnitArmor(UnitType type) {
-  // TODO: Load this from some data file
-  
-  if (IsVillager(type)) {
-    return GetUnitDefaultArmor();
-  }
-  
-  switch (type) {
-  case UnitType::Militia: {
-    Armor armor = GetUnitDefaultArmor();
-    armor.SetValue(DamageType::Pierce, 1);
-    armor.SetValue(DamageType::Infantry, 0);
-    return armor;
-  }
-  case UnitType::Scout: {
-    Armor armor = GetUnitDefaultArmor();
-    armor.SetValue(DamageType::Pierce, 2);
-    armor.SetValue(DamageType::Cavalry, 0);
-    return armor;
-  }
-  default:
-    LOG(ERROR) << "Function called on unsupported type: " << static_cast<int>(type);
-    break;
-  }
-  
-  return GetUnitDefaultArmor();
-}
-
-float GetUnitLineOfSight(UnitType type) {
-  // TODO: Load this from some data file
-  
-  if (IsVillager(type)) {
-    return 4;
-  }
-  
-  switch (type) {
-  case UnitType::Militia:
-    return 4;
-  case UnitType::Scout:
-    return 4;
-  default:
-    LOG(ERROR) << "Function called on unsupported type: " << static_cast<int>(type);
     break;
   }
   

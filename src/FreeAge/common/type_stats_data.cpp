@@ -187,7 +187,7 @@ void LoadUnitTypeStats(std::vector<UnitTypeStats>& unitTypeStats) {
     SetUnitBasic(s,
       /* hp     */ 25,
       /* armor  */ 0, 0,
-      /* radius */ 1,
+      /* radius */ 0.15,
       /* speed  */ 0.8,
       /* los    */ 4);
     SetUnitArmor(s, DamageType::Villager);
@@ -197,6 +197,7 @@ void LoadUnitTypeStats(std::vector<UnitTypeStats>& unitTypeStats) {
       /* attackDelay */ 0); // TODO: attack delay?
     SetUnitBonusDamage(s, DamageType::StoneDefense, 6);
     SetUnitBonusDamage(s, DamageType::Building, 3);
+    SetUnitBonusDamage(s, DamageType::Tree, 15); // assumption
     SetUnitCost(s, 25 /*seconds*/, 0 /*wood*/, 50 /*food*/, 0 /*gold*/, 0 /*stone*/);
   }
   {
@@ -247,7 +248,7 @@ void LoadUnitTypeStats(std::vector<UnitTypeStats>& unitTypeStats) {
     SetUnitBasic(s,
       /* hp     */ 40,
       /* armor  */ 0, 1,
-      /* radius */ 1,
+      /* radius */ 0.15,
       /* speed  */ 0.9,
       /* los    */ 4);
     SetUnitArmor(s, DamageType::Infantry);
@@ -264,7 +265,7 @@ void LoadUnitTypeStats(std::vector<UnitTypeStats>& unitTypeStats) {
     SetUnitBasic(s,
       /* hp     */ 45,
       /* armor  */ 0, 2,
-      /* radius */ 1.5,
+      /* radius */ 0.3,
       /* speed  */ 1.2,
       /* los    */ 4);
     s.conversionResistanceLevel = 8;
@@ -300,7 +301,7 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
     BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::TownCenter);
 
     SetBuildingBasic(s,
-      /* hp     */ 2400,
+      /* hp     */ 2402,
       /* armor  */ 3, 5,
       /* size   */ 2,
       /* los    */ 8);
@@ -441,9 +442,11 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
 
     SetBuildingBasic(s,
       /* hp     */ 20,
-      /* armor  */ 0, 0,
+      /* armor  */ DamageValues::None, DamageValues::None, // assumption
       /* size   */ 1,
       /* los    */ 0);
+    SetBuildingArmor(s, DamageType::Building, DamageValues::None);
+    SetBuildingArmor(s, DamageType::StandardBuilding, DamageValues::None);
     SetBuildingArmor(s, DamageType::Tree);
     s.resources.wood() = 100; // Move the wood resourse to the TreeStump
   }
@@ -484,4 +487,10 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
 void LoadGameData(GameData& gameData) {
   LoadUnitTypeStats(gameData.unitTypeStats);
   LoadBuildingTypeStats(gameData.buildingTypeStats);
+
+  // Changes to game data for development testing
+
+  gameData.unitTypeStats[static_cast<int>(UnitType::MaleVillager)].creationTime = 10;
+  gameData.unitTypeStats[static_cast<int>(UnitType::Militia)].creationTime = 3;
+
 }

@@ -124,7 +124,7 @@ void GameController::ProduceUnit(const std::vector<u32>& selection, UnitType typ
     return;
   }
 
-  int affordable = player->resources.CanAffordTimes(GetUnitCost(type));
+  int affordable = player->resources.CanAffordTimes(player->GetUnitStats(type).cost);
   count = std::min<int>(count, affordable);
 
   if (count == 0) {

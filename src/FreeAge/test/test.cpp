@@ -171,8 +171,13 @@ TEST(Damage, CalculateDamage) {
 TEST(GameLogic, VillagerVsTree) {
   // Test the number of hits needed to chop a tree.
 
-  Damage villagerDamage = GetUnitDamage(UnitType::MaleVillagerLumberjack);
-  Damage treeArmor = GetBuildingArmor(BuildingType::TreeOak);
+  // TODO: allow all tests to use gamedata and player
+  GameData gameData;
+  LoadGameData(gameData);
+  const Player player(0, 0, gameData);
+
+  Damage villagerDamage = player.GetUnitStats(UnitType::MaleVillagerLumberjack).damage;
+  Armor treeArmor = player.GetBuildingStats(BuildingType::TreeOak).armor;
 
   // kill in two hits
   EXPECT_EQ(CalculateDamage(villagerDamage, treeArmor), 15);
