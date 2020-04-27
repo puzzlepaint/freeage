@@ -33,7 +33,11 @@ GameController::GameController(const std::shared_ptr<Match>& match, const std::s
     players.emplace_back(playerIndex, matchPlayer.playerColorIndex, gameData);
     ++ playerIndex;
   }
+  // Add the Gaia player to the last position of the vector
+  players.emplace_back(kGaiaPlayerIndex, 0, gameData);
+  // Store pointer to the current and Gaia player
   player = &players.at(match->GetPlayerIndex());
+  gaiaPlayer = &players.back();
 }
 
 void GameController::ParseMessagesUntil(double displayedServerTime) {
@@ -292,7 +296,7 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
     }
     float buildPercentage = *reinterpret_cast<const float*>(buffer + 16);
     
-    ClientBuilding* newBuilding = new ClientBuilding(playerIndex, buildingType, baseTile.x(), baseTile.y(), buildPercentage, initialHP);
+    ClientBuilding* newBuilding = new ClientBuilding(GetPlayer(playerIndex), buildingType, baseTile.x(), baseTile.y(), buildPercentage, initialHP);
     map->AddObject(objectId, newBuilding);
     if (playerIndex == match->GetPlayerIndex()) {
       player->GetPlayerStats().BuildingAdded(buildingType, buildPercentage == 100);
@@ -311,7 +315,7 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
     QPointF mapCoord(*reinterpret_cast<const float*>(buffer + 12),
                      *reinterpret_cast<const float*>(buffer + 16));
     
-    ClientUnit* newUnit = new ClientUnit(playerIndex, unitType, mapCoord, initialHP);
+    ClientUnit* newUnit = new ClientUnit(GetPlayer(playerIndex), unitType, mapCoord, initialHP);
     map->AddObject(objectId, newUnit);
     if (playerIndex == match->GetPlayerIndex()) {
       player->GetPlayerStats().UnitAdded(newUnit->GetType());

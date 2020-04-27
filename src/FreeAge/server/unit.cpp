@@ -6,8 +6,8 @@
 
 #include "FreeAge/server/building.hpp"
 
-ServerUnit::ServerUnit(int playerIndex, UnitType type, const QPointF& mapCoord)
-    : ServerObject(ObjectType::Unit, playerIndex),
+ServerUnit::ServerUnit(Player* player, UnitType type, const QPointF& mapCoord)
+    : ServerObject(ObjectType::Unit, player),
       type(type),
       mapCoord(mapCoord),
       currentAction(UnitAction::Idle) {

@@ -17,7 +17,7 @@ struct PlayerInGame;
 /// Represents a building on the server.
 class ServerBuilding : public ServerObject {
  public:
-  ServerBuilding(int playerIndex, BuildingType type, const QPoint& baseTile, float buildPercentage);
+  ServerBuilding(Player* player, BuildingType type, const QPoint& baseTile, float buildPercentage);
   
   /// Returns whether this building can produce the given type of unit for the given player.
   /// Checks:

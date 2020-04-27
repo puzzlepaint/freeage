@@ -1219,7 +1219,7 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLF
     if (maxViewCount >= 0) {
       // Render the building foundation, colored either in gray if it can be placed at this location,
       // or in red if it cannot be placed there.
-      ClientBuilding* tempBuilding = new ClientBuilding(match->GetPlayerIndex(), constructBuildingType, foundationBaseTile.x(), foundationBaseTile.y(), 100, /*hp*/ 0);
+      ClientBuilding* tempBuilding = new ClientBuilding(gameController->GetPlayer(), constructBuildingType, foundationBaseTile.x(), foundationBaseTile.y(), 100, /*hp*/ 0);
       tempBuilding->SetFixedFrameIndex(0);
       
       QRgb modulationColor =

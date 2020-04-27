@@ -8,6 +8,7 @@
 
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/object_types.hpp"
+#include "FreeAge/common/player.hpp"
 #include "FreeAge/client/texture.hpp"
 
 class Map;
@@ -16,8 +17,8 @@ class ClientUnit;
 /// Base class for buildings and units on the client.
 class ClientObject {
  public:
-  inline ClientObject(ObjectType objectType, int playerIndex, u32 hp)
-      : playerIndex(playerIndex),
+  inline ClientObject(ObjectType objectType, Player* player, u32 hp)
+      : player(player),
         hp(hp),
         objectType(static_cast<int>(objectType)) {}
   
@@ -30,7 +31,8 @@ class ClientObject {
   QString GetObjectName() const;
   const Texture* GetIconTexture() const;
   
-  inline int GetPlayerIndex() const { return playerIndex; }
+  inline const Player* GetPlayer() const { return player; }
+  inline int GetPlayerIndex() const { return player->index; }
   
   inline u32 GetHP() const { return hp; }
   inline void SetHP(u32 newHP) { hp = newHP; }
@@ -43,8 +45,8 @@ class ClientObject {
   inline int GetGarrisonedUnitsCount() const { return garrisonedUnits.size(); }
 
  protected:
-  /// Index of the player which this object belongs to.
-  int playerIndex;
+  /// The player which this object belongs to.
+  Player* player;
   
   /// Current hitpoints of the object.
   u32 hp;

@@ -12,7 +12,7 @@ Decal::Decal(ClientUnit* unit, Map* map, double serverTime) {
   type = unitCarries ? DecalType::UnitCarryDeath : DecalType::UnitDeath;
   unitType = unit->GetType();
   direction = unit->GetDirection();
-  playerIndex = unit->GetPlayerIndex();
+  player = unit->GetPlayer();
   creationTime = serverTime;
 
   // If the unit type does not have a CarryDeath animation, use the standard Death animation instead.
@@ -33,7 +33,7 @@ Decal::Decal(ClientBuilding* building, Map* map, double serverTime) {
   type = DecalType::BuildingDestruction;
   buildingType = building->GetType();
   buildingOriginalFrameIndex = building->GetFrameIndex(serverTime);
-  playerIndex = building->GetPlayerIndex();
+  player = building->GetPlayer();
   creationTime = serverTime;
   
   const QPoint& baseTile = building->GetBaseTile();
@@ -93,7 +93,7 @@ void Decal::Render(QRgb outlineColor, SpriteShader* spriteShader, float* viewMat
       shadow,
       outline,
       outlineColor,
-      playerIndex,
+      player->index,
       1.f);
 }
 

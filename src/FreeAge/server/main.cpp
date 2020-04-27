@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
   
   // Main loop for game loading and game play state
   LOG(INFO) << "Server: Entering game loop";
-  Game game(&settings);
+  Game game(&settings, &gameData);
   game.RunGameLoop(&playersInGame);
   
   // Clean up: delete the player sockets.
