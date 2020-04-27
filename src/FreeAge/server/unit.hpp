@@ -12,7 +12,7 @@
 /// Represents a unit on the server.
 class ServerUnit : public ServerObject {
  public:
-  ServerUnit(int playerIndex, UnitType type, const QPointF& mapCoord);
+  ServerUnit(Player* player, UnitType type, const QPointF& mapCoord);
   
   inline UnitType GetType() const { return type; }
   

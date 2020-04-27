@@ -51,7 +51,7 @@ class Decal {
     return type == DecalType::UnitDeath || type == DecalType::BuildingDestruction;
   }
   
-  inline u8 GetPlayerIndex() const { return playerIndex; }
+  inline u8 GetPlayerIndex() const { return player->index; }
   
   inline int GetMinTileX() const { return minTileX; }
   inline int GetMinTileY() const { return minTileY; }
@@ -87,7 +87,7 @@ class Decal {
   u8 direction;
   
   /// Index of the player which this decal belonged to when it was still an object
-  u8 playerIndex;
+  const Player* player;
   
   /// For buildings that use a fixed frame index, this stores the frame index that the
   /// building that this decal was created from used. This is necessary to know the

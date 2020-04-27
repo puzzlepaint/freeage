@@ -39,6 +39,9 @@ class GameController : public QObject {
   // TODO: Remove? Does not seem really useful and we cannot get this unless we peek into messages just for it.
   inline const ResourceAmount& GetLatestKnownResourceAmount() { return /*latestKnownPlayerResources*/ player->resources; }
   
+  inline Player* GetPlayer() { return player; };
+  inline Player* GetPlayer(int index) { return index == kGaiaPlayerIndex ? gaiaPlayer : &players.at(index); };
+
   inline int GetPopulationCount() const { return player->stats.GetPopulationCount(); }
   inline int GetAvailablePopulationSpace() const { return player->stats.GetAvailablePopulationSpace(); }
   inline int GetBuildingTypeCount(BuildingType buildingType) const { return player->stats.GetBuildingTypeCount(buildingType); }
@@ -92,10 +95,14 @@ class GameController : public QObject {
   double currentGameStepServerTime = -1;
   
   // TODO: use a client specific Player struct, possibly containing a pointer to the Match::Player
+  // NOTE: after the in game players the player of Gaia is stored
   std::vector<Player> players;
-
+  
   // Pointer to current Player inside the players vector.
   Player* player;
+
+  // Pointer to Gaia Player inside the players vector.
+  Player* gaiaPlayer;
 
   /// Whether the player is currently housed.
   bool isHoused = false;

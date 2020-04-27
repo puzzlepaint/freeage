@@ -284,8 +284,8 @@ void ClientBuildingType::SetCommandButtons(CommandButton commandButtons[3][5]) {
 
 float ClientBuilding::TreeScale = 1.f;
 
-ClientBuilding::ClientBuilding(int playerIndex, BuildingType type, int baseTileX, int baseTileY, float buildPercentage, u32 hp)
-    : ClientObject(ObjectType::Building, playerIndex, hp),
+ClientBuilding::ClientBuilding(Player* player, BuildingType type, int baseTileX, int baseTileY, float buildPercentage, u32 hp)
+    : ClientObject(ObjectType::Building, player, hp),
       type(type),
       fixedFrameIndex(-1),
       baseTileX(baseTileX),
@@ -347,7 +347,7 @@ void ClientBuilding::Render(
         shadow ? helperSprite1->shadowTexture : helperSprite1->graphicTexture,
         spriteShader, centerProjectedCoord,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        outlineOrModulationColor, playerIndex, 1.f);
+        outlineOrModulationColor, GetPlayerIndex(), 1.f);
     
     // Back
     const ClientBuildingType& helperType2 = GetClientBuildingType(BuildingType::TownCenterBack);
@@ -357,7 +357,7 @@ void ClientBuilding::Render(
         shadow ? helperSprite2->shadowTexture : helperSprite2->graphicTexture,
         spriteShader, centerProjectedCoord,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        outlineOrModulationColor, playerIndex, 1.f);
+        outlineOrModulationColor, GetPlayerIndex(), 1.f);
     
     // Center
     const ClientBuildingType& helperType3 = GetClientBuildingType(BuildingType::TownCenterCenter);
@@ -367,7 +367,7 @@ void ClientBuilding::Render(
         shadow ? helperSprite3->shadowTexture : helperSprite3->graphicTexture,
         spriteShader, centerProjectedCoord,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        outlineOrModulationColor, playerIndex, 1.f);
+        outlineOrModulationColor, GetPlayerIndex(), 1.f);
   }
   
   bool useDarkModulation = spriteType == BuildingSprite::Foundation && buildPercentage == 0 && !shadow && !outline;
@@ -387,7 +387,7 @@ void ClientBuilding::Render(
       shadow,
       outline,
       outlineOrModulationColor,
-      playerIndex,
+      GetPlayerIndex(),
       IsTree(type) ? TreeScale : 1.f);
   
   if (type == BuildingType::TownCenter && spriteType == BuildingSprite::Building) {
@@ -399,7 +399,7 @@ void ClientBuilding::Render(
         shadow ? helperSprite4->shadowTexture : helperSprite4->graphicTexture,
         spriteShader, centerProjectedCoord,
         viewMatrix, zoom, widgetWidth, widgetHeight, frameIndex, shadow, outline,
-        outlineOrModulationColor, playerIndex, 1.f);
+        outlineOrModulationColor, GetPlayerIndex(), 1.f);
   }
 }
 

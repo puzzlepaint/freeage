@@ -9,21 +9,23 @@
 
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/object_types.hpp"
+#include "FreeAge/common/player.hpp"
 
 class ServerUnit;
 
 /// Base class for game objects (buildings and units).
 class ServerObject {
  public:
-  inline ServerObject(ObjectType objectType, int playerIndex)
-      : playerIndex(playerIndex),
+  inline ServerObject(ObjectType objectType, Player* player)
+      : player(player),
         objectType(static_cast<int>(objectType)) {}
 
   inline bool isBuilding() const { return objectType == 0; }
   inline bool isUnit() const { return objectType == 1; }
   inline ObjectType GetObjectType() const { return static_cast<ObjectType>(objectType); }
   
-  inline int GetPlayerIndex() const { return playerIndex; }
+  inline Player* GetPlayer() const { return player; }
+  inline int GetPlayerIndex() const { return player->index; }
   
   inline u32 GetHP() const { return std::round(hp); }
   inline float GetHPInternalFloat() const { return hp; };
@@ -40,11 +42,12 @@ class ServerObject {
   //       eg. Villager@(20,4)
   
  private:
+  /// The player which this object belongs to.
+  Player* player;
+
   /// Current hitpoints of the object.
   /// For display on the client, those are rounded to the nearest integer.
   float hp;
-  
-  u8 playerIndex;
   
   // The units that are garrisoned.
   std::vector<ServerUnit*> garrisonedUnits;

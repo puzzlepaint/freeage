@@ -202,8 +202,8 @@ bool ClientUnitType::LoadAnimation(int index, const char* filename, const std::f
 }
 
 
-ClientUnit::ClientUnit(int playerIndex, UnitType type, const QPointF& mapCoord, u32 hp)
-    : ClientObject(ObjectType::Unit, playerIndex, hp),
+ClientUnit::ClientUnit(Player* player, UnitType type, const QPointF& mapCoord, u32 hp)
+    : ClientObject(ObjectType::Unit, player, hp),
       type(type),
       mapCoord(mapCoord),
       direction(rand() % kNumFacingDirections),
@@ -295,7 +295,7 @@ void ClientUnit::Render(
       shadow,
       outline,
       outlineOrModulationColor,
-      playerIndex,
+      GetPlayerIndex(),
       1.f);
 }
 
@@ -428,7 +428,7 @@ void ClientUnit::UpdateMapCoord(double serverTime, Map* map, Match* match) {
   int newTileX = static_cast<int>(mapCoord.x());
   int newTileY = static_cast<int>(mapCoord.y());
   
-  if (match->GetPlayerIndex() == playerIndex &&
+  if (match->GetPlayerIndex() == GetPlayerIndex() &&
       (oldTileX != newTileX ||
        oldTileY != newTileY) && !IsGarrisoned()) {
     // TODO: This could be sped up by pre-computing only the *difference* that needs to be applied

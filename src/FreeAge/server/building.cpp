@@ -7,8 +7,8 @@
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/server/game.hpp"
 
-ServerBuilding::ServerBuilding(int playerIndex, BuildingType type, const QPoint& baseTile, float buildPercentage)
-    : ServerObject(ObjectType::Building, playerIndex),
+ServerBuilding::ServerBuilding(Player* player, BuildingType type, const QPoint& baseTile, float buildPercentage)
+    : ServerObject(ObjectType::Building, player),
       productionPercentage(0),
       type(type),
       baseTile(baseTile),

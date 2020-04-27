@@ -13,6 +13,7 @@
 #include "FreeAge/common/unit_types.hpp"
 #include "FreeAge/server/object.hpp"
 
+class Game;
 class ServerBuilding;
 class ServerUnit;
 
@@ -24,7 +25,7 @@ class ServerMap {
   
   ~ServerMap();
   
-  void GenerateRandomMap(int playerCount, int seed);
+  void GenerateRandomMap(Game* game, int seed);
   
   /// Sets the given tile's elevation to the given value,
   /// while ensuring that the maximum slope of 1 is not exceeded
@@ -33,7 +34,7 @@ class ServerMap {
   
   /// Adds a new building to the map and returns it. Optionally returns the new building's ID in id.
   /// Optionally calls AddBuildingOccupancy() on the building.
-  ServerBuilding* AddBuilding(int player, BuildingType type, const QPoint& baseTile, float buildPercentage, u32* id = nullptr, bool addOccupancy = true);
+  ServerBuilding* AddBuilding(Player* player, BuildingType type, const QPoint& baseTile, float buildPercentage, u32* id = nullptr, bool addOccupancy = true);
   /// Adds the given building to the map and returns the ID that it received.
   /// Optionally calls AddBuildingOccupancy() on the building.
   u32 AddBuilding(ServerBuilding* newBuilding, bool addOccupancy = true);
@@ -45,7 +46,7 @@ class ServerMap {
   void RemoveBuildingOccupancy(ServerBuilding* building);
   
   /// Adds a new unit to the map and returns it. Optionally returns the new unit's ID in id.
-  ServerUnit* AddUnit(int player, UnitType type, const QPointF& position, u32* id = nullptr);
+  ServerUnit* AddUnit(Player* player, UnitType type, const QPointF& position, u32* id = nullptr);
   /// Adds the given unit to the map and returns the ID that it received.
   u32 AddUnit(ServerUnit* newUnit);
   
@@ -76,7 +77,7 @@ class ServerMap {
   void SetBuildingConstructionOccupancy(ServerBuilding* building, bool occupied);
   void SetBuildingOccupancy(ServerBuilding* building, bool occupied);
   
-  bool SpawnBuildingClump(const QPoint& spawnLoc, int count, BuildingType type);
+  bool SpawnBuildingClump(Player* player, const QPoint& spawnLoc, int count, BuildingType type);
   
   
   /// The maximum possible elevation level (the lowest is zero).

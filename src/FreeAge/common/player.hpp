@@ -149,8 +149,9 @@ struct Player {
   inline const UnitTypeStats& GetUnitStats(UnitType unitType) const { return unitTypeStats.at(static_cast<int>(unitType)); }
   inline const BuildingTypeStats& GetBuildingStats(BuildingType buildingType) const { return buildingTypeStats.at(static_cast<int>(buildingType)); }
 
-  /// The player index.
-  /// // TODO (maanoo): doc
+  /// The unique player ID. The IDs are given to the players in consecutive order starting from 0
+  /// and they are used as indexes to vectors and arrays containing items for each player. The gaia player
+  /// has a index equal to kGaiaPlayerIndex which is a fixed value that does not follow the consecutive order.
   const int index;
   
   /// The player color index.

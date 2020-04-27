@@ -13,6 +13,7 @@
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/common/messages.hpp"
 #include "FreeAge/server/building.hpp"
+#include "FreeAge/server/game.hpp"
 #include "FreeAge/server/unit.hpp"
 
 ServerMap::ServerMap(int width, int height)
@@ -47,8 +48,10 @@ ServerMap::~ServerMap() {
 
 
 
-void ServerMap::GenerateRandomMap(int playerCount, int seed) {
+void ServerMap::GenerateRandomMap(Game* game, int seed) {
   srand(seed);
+  int playerCount = game->GetPlayerCount();
+  Player* gaiaPlayer = game->GetPlayer(kGaiaPlayerIndex);
   
   // Generate town centers. They are placed along a rectangle that is inset from the map edges.
   constexpr int kDistanceToMapBorder = 12;
@@ -88,7 +91,7 @@ void ServerMap::GenerateRandomMap(int playerCount, int seed) {
         townCenterLocations[player].x() + 0.5f * townCenterSize.width(),
         townCenterLocations[player].y() + 0.5f * townCenterSize.height());
     
-    AddBuilding(player, BuildingType::TownCenter, townCenterLocations[player], /*buildPercentage*/ 100);
+    AddBuilding(game->GetPlayer(player), BuildingType::TownCenter, townCenterLocations[player], /*buildPercentage*/ 100);
   }
   
   auto getRandomLocation = [&](float minDistanceToTCs, int* tileX, int* tileY) {
@@ -149,7 +152,7 @@ retryForest:  // TODO: Ugly implementation, improve this
           int diffY = y - tileY;
           float radius = sqrtf(diffX * diffX + diffY * diffY);
           if (radius <= forestRadius && !occupiedForBuildingsAt(x, y)) {
-            AddBuilding(kGaiaPlayerIndex, BuildingType::TreeOak, QPoint(x, y), /*buildPercentage*/ 100);
+            AddBuilding(gaiaPlayer, BuildingType::TreeOak, QPoint(x, y), /*buildPercentage*/ 100);
           }
         }
       }
@@ -190,7 +193,7 @@ retryBush:  // TODO: Ugly implementation, improve this
         continue;
       }
       
-      SpawnBuildingClump(spawnLoc, 4, BuildingType::ForageBush);
+      SpawnBuildingClump(gaiaPlayer, spawnLoc, 4, BuildingType::ForageBush);
     }
   }
   
@@ -228,7 +231,7 @@ retryGold:  // TODO: Ugly implementation, improve this
         continue;
       }
       
-      SpawnBuildingClump(spawnLoc, 3, BuildingType::GoldMine);
+      SpawnBuildingClump(gaiaPlayer, spawnLoc, 3, BuildingType::GoldMine);
     }
   }
   
@@ -270,7 +273,7 @@ retryGold:  // TODO: Ugly implementation, improve this
           continue;
         }
         
-        SpawnBuildingClump(spawnLoc, count, type);
+        SpawnBuildingClump(gaiaPlayer, spawnLoc, count, type);
         break;
       }
     }
@@ -290,8 +293,10 @@ retryGold:  // TODO: Ugly implementation, improve this
   
   // Generate villagers
   for (int player = 0; player < playerCount; ++ player) {
-    for (int villager = 0; villager < 3; ++ villager) {
-      ServerUnit* newUnit = new ServerUnit(player, (rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, QPointF(-1, -1));
+    // TODO: check the player civ to determine the staring number of villagers #civs
+    int startingVillagerCount = 3;
+    for (int villager = 0; villager < startingVillagerCount; ++ villager) {
+      ServerUnit* newUnit = new ServerUnit(game->GetPlayer(player), (rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, QPointF(-1, -1));
       
       while (true) {
         // TODO: Prevent this from potentially being an endless loop
@@ -311,7 +316,8 @@ retryGold:  // TODO: Ugly implementation, improve this
   
   // Generate scouts
   for (int player = 0; player < playerCount; ++ player) {
-    ServerUnit* newUnit = new ServerUnit(player, UnitType::Scout, QPointF(-1, -1));
+    // TODO: check the player civ to determine the scout unit type #civs
+    ServerUnit* newUnit = new ServerUnit(game->GetPlayer(player), UnitType::Scout, QPointF(-1, -1));
     
     while (true) {
       // TODO: Prevent this from potentially being an endless loop
@@ -457,7 +463,7 @@ bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord, Serve
   return false;
 }
 
-ServerBuilding* ServerMap::AddBuilding(int player, BuildingType type, const QPoint& baseTile, float buildPercentage, u32* id, bool addOccupancy) {
+ServerBuilding* ServerMap::AddBuilding(Player* player, BuildingType type, const QPoint& baseTile, float buildPercentage, u32* id, bool addOccupancy) {
   ServerBuilding* newBuilding = new ServerBuilding(player, type, baseTile, buildPercentage);
   int newId = AddBuilding(newBuilding, addOccupancy);
   if (id) {
@@ -495,7 +501,7 @@ void ServerMap::RemoveBuildingOccupancy(ServerBuilding* building) {
   SetBuildingOccupancy(building, false);
 }
 
-ServerUnit* ServerMap::AddUnit(int player, UnitType type, const QPointF& position, u32* id) {
+ServerUnit* ServerMap::AddUnit(Player* player, UnitType type, const QPointF& position, u32* id) {
   ServerUnit* newUnit = new ServerUnit(player, type, position);
   u32 newId = AddUnit(newUnit);
   if (id) {
@@ -538,11 +544,11 @@ void ServerMap::SetBuildingOccupancy(ServerBuilding* building, bool occupied) {
   }
 }
 
-bool ServerMap::SpawnBuildingClump(const QPoint& spawnLoc, int count, BuildingType type) {
+bool ServerMap::SpawnBuildingClump(Player* player, const QPoint& spawnLoc, int count, BuildingType type) {
   QPoint curLoc = spawnLoc;
   
   for (int t = 0; t < count; ++ t) {
-    AddBuilding(kGaiaPlayerIndex, type, curLoc, /*buildPercentage*/ 100);
+    AddBuilding(player, type, curLoc, /*buildPercentage*/ 100);
     if (t == count - 1) {
       break;
     }

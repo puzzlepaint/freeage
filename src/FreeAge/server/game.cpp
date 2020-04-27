@@ -31,8 +31,9 @@ void PlayerInGame::RemoveFromGame() {
 }
 
 
-Game::Game(ServerSettings* settings)
-    : settings(settings) {}
+Game::Game(ServerSettings* settings, GameData* gameData)
+    : gaiPlayer(kGaiaPlayerIndex, 0, *gameData),
+      settings(settings) {}
 
 void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame) {
   constexpr float kTargetFPS = 30;
@@ -471,7 +472,7 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
   
   // Add the foundation and tell the sending player that it has been added.
   u32 newBuildingId;
-  ServerBuilding* newBuildingFoundation = map->AddBuilding(player->index, type, baseTile, /*buildPercentage*/ 0, &newBuildingId, /*addOccupancy*/ false);
+  ServerBuilding* newBuildingFoundation = map->AddBuilding(player, type, baseTile, /*buildPercentage*/ 0, &newBuildingId, /*addOccupancy*/ false);
   
   player->stats.BuildingAdded(type, false);
 
@@ -684,7 +685,7 @@ void Game::StartGame() {
   
   // Generate the map.
   map.reset(new ServerMap(settings->mapSize, settings->mapSize));
-  map->GenerateRandomMap(playersInGame->size(), /*seed*/ 0);  // TODO: Choose seed
+  map->GenerateRandomMap(this, /*seed*/ 0);  // TODO: Choose seed
   
   LOG(INFO) << "Server: Preparing game start ...";
   
@@ -764,7 +765,7 @@ void Game::StartGame() {
   }
   
   LOG(INFO) << "Server: Game start prepared";
-  gaiaStats.log();
+  gaiPlayer.GetPlayerStats().log();
   for (auto& player : *playersInGame) {
     player->stats.log();
   }
@@ -1431,7 +1432,7 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
 void Game::ProduceUnit(u32 buildingId, ServerBuilding* building, UnitType unitInProduction) {
   // Create the unit object.
   u32 newUnitId;
-  ServerUnit* newUnit = map->AddUnit(building->GetPlayerIndex(), unitInProduction, QPointF(-999, -999), &newUnitId);
+  ServerUnit* newUnit = map->AddUnit(building->GetPlayer(), unitInProduction, QPointF(-999, -999), &newUnitId);
   
   QPointF freeSpace;
   bool foundFreeSpace = FindFreeSpaceAroundBuilding(building, newUnit, freeSpace);
