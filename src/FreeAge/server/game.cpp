@@ -374,7 +374,7 @@ void Game::HandleProduceUnitMessage(const QByteArray& msg, PlayerInGame* player)
   }
   
   // Does the player have sufficient resources to produce this unit?
-  ResourceAmount unitCost = GetUnitCost(unitType);
+  ResourceAmount unitCost = player->GetUnitStats(unitType).cost;
   if (!player->resources.CanAfford(unitCost)) {
     LOG(WARNING) << "Received a ProduceUnit message for a unit for which the player has not enough resources";
     return;
@@ -550,7 +550,7 @@ void Game::HandleDequeueProductionQueueItemMessage(const QByteArray& msg, Player
   UnitType removedType = building->RemoveItemFromQueue(queueIndex);
   
   // Refund the resources for the item.
-  player->resources.Add(GetUnitCost(removedType));
+  player->resources.Add(player->GetUnitStats(removedType).cost);
   
   // Tell the client about the successful removal.
   accumulatedMessages[player->index] += CreateRemoveFromProductionQueueMessage(objectId, queueIndex);
@@ -853,14 +853,14 @@ static bool DoesUnitTouchBuildingArea(ServerUnit* unit, const QPointF& unitMapCo
       std::max<float>(baseTile.y(), std::min<float>(baseTile.y() + buildingSize.height(), unitMapCoord.y())));
   
   // Check whether this point is closer to the unit than the unit's radius.
-  float unitRadius = GetUnitRadius(unit->GetType());
+  float unitRadius = unit->GetStats().radius;
   float threshold = unitRadius - errorMargin;
   return SquaredDistance(unitMapCoord, closestPointInBuilding) < threshold * threshold;
 }
 
 static bool DoUnitsTouch(ServerUnit* unit, const QPointF& unitMapCoord, ServerUnit* otherUnit, float errorMargin) {
-  float unitRadius = GetUnitRadius(unit->GetType());
-  float otherUnitRadius = GetUnitRadius(otherUnit->GetType());
+  float unitRadius = unit->GetStats().radius;
+  float otherUnitRadius = otherUnit->GetStats().radius;
   
   float threshold = unitRadius + otherUnitRadius - errorMargin;
   return SquaredDistance(unitMapCoord, otherUnit->GetMapCoord()) < threshold * threshold;
@@ -893,14 +893,14 @@ static bool IsFoundationFree(ServerBuilding* foundation, ServerMap* map) {
 
 static bool TryEvadeUnit(ServerUnit* unit, float moveDistance, const QPointF& newMapCoord, ServerUnit* collidingUnit, QPointF* evadeMapCoord) {
   // Intersect a circle of radius "moveDistance", centered at unit->GetMapCoord(),
-  // with a circle of radius GetUnitRadius(unit->GetType()) + GetUnitRadius(collidingUnit->GetType()), centered at collidingUnit->GetMapCoord().
+  // with a circle of radius unit->GetStats().radius + collidingUnit->GetStats().radius, centered at collidingUnit->GetMapCoord().
   constexpr float kErrorTolerance = 1e-3f;
   
   const QPointF unitCenter = unit->GetMapCoord();
   float unitMoveRadius = moveDistance;
   
   const QPointF obstacleCenter = collidingUnit->GetMapCoord();
-  float obstacleRadius = GetUnitRadius(unit->GetType()) + GetUnitRadius(collidingUnit->GetType()) + kErrorTolerance;
+  float obstacleRadius = unit->GetStats().radius + collidingUnit->GetStats().radius + kErrorTolerance;
   
   QPointF unitToObstacle = obstacleCenter - unitCenter;
   float centerDistance = Length(unitToObstacle);
@@ -1330,7 +1330,8 @@ void Game::SimulateGameStepForBuilding(u32 buildingId, ServerBuilding* building,
     }
     
     if (canProduce) {
-      float productionTime = GetUnitProductionTime(unitInProduction);
+      // TODO: revisit, should productionTime be stored in case the Stats.creationTime changes ?
+      float productionTime = building->GetPlayer()->GetUnitStats(unitInProduction).creationTime;
       float timeStepPercentage = 100 * stepLengthInSeconds / productionTime;
       float newPercentage = building->GetProductionPercentage() + timeStepPercentage;
       
@@ -1383,17 +1384,12 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
       timeSinceActionStart - stepLengthInSeconds < attackDamageTime &&
       target != nullptr) {
     // Compute the attack damage.
+    // TODO: handle all the attack types
+    CHECK_EQ(unit->GetStats().attackType == AttackType::Default, true);
     // TODO: Elevation multiplier 5/4 or 3/4
     float multiplier = 1;
-    int damage;
-    if (target->isUnit()) {
-      damage = CalculateDamage(GetUnitDamage(unit->GetType()),
-          GetUnitArmor(AsUnit(target)->GetType()), multiplier);
-    } else {
-      CHECK(target->isBuilding());
-      damage = CalculateDamage(GetUnitDamage(unit->GetType()),
-          GetBuildingArmor(AsBuilding(target)->GetType()), multiplier);
-    }
+    int damage = CalculateDamage(unit->GetStats().damage,
+          target->GetObjectStats().armor, multiplier);
     CHECK(damage >= 1);
     
     // Do the attack damage.
@@ -1551,7 +1547,7 @@ bool Game::ChangeUnitGarrisonStatus(u32 unitId, ServerUnit* unit, u32 targetObje
 bool Game::FindFreeSpaceAroundBuilding(ServerBuilding* building, ServerUnit* unit, QPointF& freeSpace) {
 
   // Look for a free space to place the unit next to the building.
-  float unitRadius = GetUnitRadius(unit->GetType());
+  float unitRadius = unit->GetStats().radius;
   
   QSize buildingSize = GetBuildingSize(building->GetType());
   QPointF buildingBaseCoord(building->GetBaseTile() + QPointF(buildingSize.width() + unitRadius, -unitRadius));
@@ -1732,7 +1728,8 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
       playersInGame->at(building->GetPlayerIndex())->resources.Add(remainingResourceAmount * cost);
     }
     for (usize queueIndex = 0; queueIndex < building->GetProductionQueue().size(); ++ queueIndex) {
-      playersInGame->at(building->GetPlayerIndex())->resources.Add(GetUnitCost(building->GetProductionQueue()[queueIndex]));
+      Player* player = playersInGame->at(building->GetPlayerIndex()).get();
+      player->resources.Add(player->GetUnitStats(building->GetProductionQueue()[queueIndex]).cost);
     }
     if (building->GetProductionPercentage() > 0) {
       playersInGame->at(object->GetPlayerIndex())->stats.populationInProduction -= 1;

@@ -143,8 +143,8 @@ struct Player {
   /// TODO: rename int playerColorIndex to colorIndex
   Player(int index, int playerColorIndex, const GameData& gameData);
 
-  inline const PlayerStats& GetPlayerStats() const { return stats; };
-  inline PlayerStats& GetPlayerStats() { return stats; };
+  inline const PlayerStats& GetPlayerStats() const { return stats; }
+  inline PlayerStats& GetPlayerStats() { return stats; }
 
   inline const UnitTypeStats& GetUnitStats(UnitType unitType) const { return unitTypeStats.at(static_cast<int>(unitType)); }
   inline const BuildingTypeStats& GetBuildingStats(BuildingType buildingType) const { return buildingTypeStats.at(static_cast<int>(buildingType)); }
@@ -166,6 +166,9 @@ struct Player {
   PlayerStats stats;
 
  private:
+
+  inline UnitTypeStats& GetModifiableUnitStats(UnitType unitType) { return unitTypeStats.at(static_cast<int>(unitType)); }
+  inline BuildingTypeStats& GetModifiableBuildingStats(BuildingType buildingType) { return buildingTypeStats.at(static_cast<int>(buildingType)); }
 
   std::vector<UnitTypeStats> unitTypeStats;
   std::vector<BuildingTypeStats> buildingTypeStats;

@@ -436,7 +436,7 @@ void ClientUnit::UpdateMapCoord(double serverTime, Map* map, Match* match) {
     //       Even without this pre-computation, iterating over the viewCount values only once
     //       should be faster (i.e., combine the two map->UpdateFieldOfView() calls below into
     //       one that takes both the old and the new coordinates).
-    float lineOfSight = GetUnitLineOfSight(type);
+    float lineOfSight = GetStats().lineOfSight;
     map->UpdateFieldOfView(oldTileX + 0.5f, oldTileY + 0.5f, lineOfSight, -1);
     map->UpdateFieldOfView(newTileX + 0.5f, newTileY + 0.5f, lineOfSight, 1);
   }

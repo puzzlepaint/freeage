@@ -30,7 +30,7 @@ class ServerObject {
   inline int GetPlayerIndex() const { return player->index; }
   
   inline u32 GetHP() const { return std::round(hp); }
-  inline float GetHPInternalFloat() const { return hp; };
+  inline float GetHPInternalFloat() const { return hp; }
   inline void SetHP(float newHP) { hp = newHP; }
 
   void GarrisonUnit(ServerUnit* unit);

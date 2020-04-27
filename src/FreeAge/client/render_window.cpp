@@ -1299,7 +1299,7 @@ void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object
   } else if (object->isUnit()) {
     ClientUnit& unit = *AsUnit(object);
     
-    float radius = GetUnitRadius(unit.GetType());
+    float radius = unit.GetStats().radius;
     
     std::vector<QPointF> outlineVertices(16);
     for (usize i = 0; i < outlineVertices.size(); ++ i) {
@@ -1574,7 +1574,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions
         RenderHealthBar(
             barRect,
             centerProjectedCoord.y(),
-            unit.GetHP() / (1.f * GetUnitMaxHP(unit.GetType())),
+            unit.GetHP() / (1.f * unit.GetStats().maxHp),
             (unit.GetPlayerIndex() == kGaiaPlayerIndex) ? gaiaColor : playerColors[unit.GetPlayerIndex()],
             healthBarShader.get(),
             viewMatrix,
@@ -2291,7 +2291,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
     if (singleSelectedObject->GetHP() > 0) {
       u32 maxHP;
       if (singleSelectedObject->isUnit()) {
-        maxHP = GetUnitMaxHP(AsUnit(singleSelectedObject)->GetType());
+        maxHP = AsUnit(singleSelectedObject)->GetStats().maxHp;
       } else {
         CHECK(singleSelectedObject->isBuilding());
         maxHP = GetBuildingMaxHP(AsBuilding(singleSelectedObject)->GetType());
@@ -3228,7 +3228,7 @@ void RenderWindow::ReportNonValidCommandButton(CommandButton* button, CommandBut
       cost = GetBuildingCost(button->GetBuildingConstructionType());
     } else if (button->GetType() == CommandButton::Type::ProduceUnit) {
       name = GetUnitName(button->GetUnitProductionType());
-      cost = GetUnitCost(button->GetUnitProductionType());
+      cost = gameController->GetPlayer()->GetUnitStats(button->GetUnitProductionType()).cost;
     } else {
       assert(false); // TODO: implement all CommandButton::Type which can have State::CannotAfford
     }
@@ -4381,7 +4381,7 @@ CommandButton::State RenderWindow::GetCommandButtonState(CommandButton* button) 
 
   if (button->GetType() == CommandButton::Type::ProduceUnit) {
     if (!gameController->GetLatestKnownResourceAmount().CanAfford(
-            GetUnitCost(button->GetUnitProductionType()))) {
+            gameController->GetPlayer()->GetUnitStats(button->GetUnitProductionType()).cost)) {
       return CommandButton::State::CannotAfford;
     }
 

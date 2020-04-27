@@ -11,7 +11,7 @@ ServerUnit::ServerUnit(Player* player, UnitType type, const QPointF& mapCoord)
       type(type),
       mapCoord(mapCoord),
       currentAction(UnitAction::Idle) {
-  SetHP(GetUnitMaxHP(type));
+  SetHP(GetStats().maxHp);
 }
 
 void ServerUnit::SetTarget(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting, InteractionType interaction) {

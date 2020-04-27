@@ -396,7 +396,7 @@ void ServerMap::PlaceElevation(int tileX, int tileY, int elevationValue) {
 }
 
 bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord, ServerUnit** collidingUnit) {
-  float radius = GetUnitRadius(unit->GetType());
+  float radius = unit->GetStats().radius;
   
   // Test collision with the map bounds, accounting for NaNs with the negation
   if (!(mapCoord.x() >= radius &&
@@ -448,7 +448,7 @@ bool ServerMap::DoesUnitCollide(ServerUnit* unit, const QPointF& mapCoord, Serve
         continue;
       }
       
-      float otherRadius = GetUnitRadius(otherUnit->GetType());
+      float otherRadius = otherUnit->GetStats().radius;
       QPointF offset = otherUnit->GetMapCoord() - mapCoord;
       float squaredDistance = offset.x() * offset.x() + offset.y() * offset.y();
       if (squaredDistance < (radius + otherRadius) * (radius + otherRadius)) {

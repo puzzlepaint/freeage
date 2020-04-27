@@ -17,7 +17,7 @@ void ClientObject::UpdateFieldOfView(Map* map, int change) {
     const ClientUnit* unit = static_cast<const ClientUnit*>(this);
     int tileX = static_cast<int>(unit->GetMapCoord().x());
     int tileY = static_cast<int>(unit->GetMapCoord().y());
-    map->UpdateFieldOfView(tileX + 0.5f, tileY + 0.5f, GetUnitLineOfSight(unit->GetType()), change);
+    map->UpdateFieldOfView(tileX + 0.5f, tileY + 0.5f, unit->GetStats().lineOfSight, change);
   }
 }
 

@@ -136,5 +136,8 @@ Player::Player(int index, int playerColorIndex, const GameData& gameData)
     unitTypeStats(gameData.unitTypeStats),
     buildingTypeStats(gameData.buildingTypeStats) {
   // TODO: apply civilization to game data
+  
+  // TODO: remove, here for testing
+  GetModifiableUnitStats(UnitType::Scout).maxHp += 1+index;
 }
 

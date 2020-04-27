@@ -39,8 +39,8 @@ class GameController : public QObject {
   // TODO: Remove? Does not seem really useful and we cannot get this unless we peek into messages just for it.
   inline const ResourceAmount& GetLatestKnownResourceAmount() { return /*latestKnownPlayerResources*/ player->resources; }
   
-  inline Player* GetPlayer() { return player; };
-  inline Player* GetPlayer(int index) { return index == kGaiaPlayerIndex ? gaiaPlayer : &players.at(index); };
+  inline Player* GetPlayer() { return player; }
+  inline Player* GetPlayer(int index) { return index == kGaiaPlayerIndex ? gaiaPlayer : &players.at(index); }
 
   inline int GetPopulationCount() const { return player->stats.GetPopulationCount(); }
   inline int GetAvailablePopulationSpace() const { return player->stats.GetAvailablePopulationSpace(); }
