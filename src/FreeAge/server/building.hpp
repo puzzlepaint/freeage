@@ -38,12 +38,15 @@ class ServerBuilding : public ServerObject {
   /// Removes the item with the given index from the queue. Returns the type of the queued item that was removed.
   UnitType RemoveItemFromQueue(int index);
   
+  inline BuildingType GetType() const { return type; }
+  inline const BuildingTypeStats& GetStats() const { return GetPlayer()->GetBuildingStats(type); }
+  virtual const ObjectTypeStats& GetObjectStats() const { return GetStats(); }
+
   inline const std::vector<UnitType>& GetProductionQueue() const { return productionQueue; }
   
   inline float GetProductionPercentage() const { return productionPercentage; }
   inline void SetProductionPercentage(float percentage) { productionPercentage = percentage; }
   
-  inline BuildingType GetType() const { return type; }
   inline const QPoint& GetBaseTile() const { return baseTile; }
   
   inline float GetBuildPercentage() const { return buildPercentage; }
