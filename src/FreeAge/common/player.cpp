@@ -6,12 +6,17 @@
 
 #include <cassert>
 
-PlayerStats::PlayerStats() {
+/// NOTE: In order to reduce the verbosity the player is passed with the constructor instead 
+///       of with each function call, Passing the player pointer restricts the player object 
+///       to not change the address.
+
+PlayerStats::PlayerStats(const Player* player)
+    : player(player) {
+  // Initialize all stats
   for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
     unitsAlive[unitType] = 0;
     unitsDied[unitType] = 0;
   }
-
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
     buildingConstructions[buildingType] = 0;
     buildingAlive[buildingType] = 0;
@@ -67,61 +72,56 @@ void PlayerStats::BuildingFinished(BuildingType buildingType) {
 
 void PlayerStats::UnfinishedBuildingChange(BuildingType buildingType, int d) {
   buildingConstructions[static_cast<int>(buildingType)] += d;
-
-  Change();
 }
 
 void PlayerStats::FinishedBuildingChange(BuildingType buildingType, int d) {
+  const BuildingTypeStats& stats = player->GetBuildingStats(buildingType);
+
   buildingAlive[static_cast<int>(buildingType)] += d;
   if (d > 0) {
     buildingExisted[static_cast<int>(buildingType)] = true;
   }
 
-  // TODO (maanoo): use the stats
-  // availablePopulationSpace += d * GetBuildingProvidedPopulationSpace(buildingType);
-
-  Change();
+  Change(stats, d);
 }
 
 void PlayerStats::UnitChange(UnitType unitType, bool death, int d) {
   assert(!death || d < 0); // death => d < 0
-
-  populationCount += d;
+  const UnitTypeStats& stats = player->GetUnitStats(unitType);
 
   unitsAlive[static_cast<int>(unitType)] += d;
   if (death) {
     unitsDied[static_cast<int>(unitType)] += -d;
   }
-
+  /// Keep track of classes of units.
   if (IsVillager(unitType)) {
     villagerCount += d;
   }
 
-  Change();
+  Change(stats, d);
 }
 
-void PlayerStats::Change() {
-  // log();
+void PlayerStats::Change(const ObjectTypeStats& stats, int d) {
+  // Keep track of the population. The population values can only change in the start of the 
+  // game, so no total re-evaluations are needed.
+  doubledPopulationDemand += stats.population.GetDoubledPopulationDemand() * d;
+  doubledPopulationSpace += stats.population.GetDoubledPopulationSpace() * d;
 }
 
 void PlayerStats::log() const {
   LOG(INFO) << "--- Stats";
-
   for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
     if (!unitsAlive[unitType] && !unitsDied[unitType]) {
       continue;
     }
-
     LOG(INFO) << GetUnitName(static_cast<UnitType>(unitType)).toStdString() << "(" << unitType << ")"
         << " " << unitsAlive[unitType]
         << " " << unitsDied[unitType];
   }
-
   for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
     if (!buildingExisted[buildingType] && !buildingAlive[buildingType] && !buildingConstructions[buildingType]) {
       continue;
     }
-
     LOG(INFO) << GetBuildingName(static_cast<BuildingType>(buildingType)).toStdString() << "(" << buildingType << ")"
         << " " << buildingExisted[buildingType]
         << " " << buildingAlive[buildingType]
@@ -133,10 +133,7 @@ Player::Player(int index, int playerColorIndex, const GameData& gameData)
   : index(index),
     playerColorIndex(playerColorIndex),
     unitTypeStats(gameData.unitTypeStats),
-    buildingTypeStats(gameData.buildingTypeStats) {
+    buildingTypeStats(gameData.buildingTypeStats),
+    stats(this) {
   // TODO: apply civilization to game data
-  
-  // TODO: remove, here for testing
-  GetModifiableUnitStats(UnitType::Scout).maxHp += 1+index;
 }
-

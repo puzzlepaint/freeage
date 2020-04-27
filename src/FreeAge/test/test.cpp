@@ -31,6 +31,16 @@ int main(int argc, char** argv) {
   return RUN_ALL_TESTS();
 }
 
+static std::shared_ptr<Player> CreateTestingPlayer() {
+  // Load the game data once
+  static GameData gameData;
+  if (gameData.unitTypeStats.empty()) {
+    LoadGameData(gameData);
+  }
+  // Create and return new players
+  std::shared_ptr<Player> player(new Player(0, 0, gameData));
+  return player;
+}
 
 static void TestProjectedCoordToMapCoord(const Map& map) {
   constexpr bool kDebug = false;
@@ -84,8 +94,9 @@ TEST(Map, CoordinateConversion_HillyMap) {
 }
 
 TEST(PlayerStats, Operations) {
+  std::shared_ptr<Player> player = CreateTestingPlayer();
 
-  PlayerStats stats;
+  PlayerStats& stats = player->GetPlayerStats();
   LOG(INFO) << "sizeof(PlayerStats) = " << sizeof(PlayerStats);
 
   EXPECT_EQ(stats.GetBuildingTypeCount(BuildingType::Barracks), 0);
@@ -99,8 +110,8 @@ TEST(PlayerStats, Operations) {
   stats.UnitAdded(UnitType::FemaleVillager);
   stats.UnitAdded(UnitType::MaleVillager);
 
-  // TODO (maanoo): EXPECT_EQ(stats.GetAvailablePopulationSpace(), 10);
-  // TODO (maanoo): EXPECT_EQ(stats.GetPopulationCount(), 2);
+  EXPECT_EQ(stats.GetPopulationSpace(), 10);
+  EXPECT_EQ(stats.GetPopulationDemand(), 2);
   EXPECT_EQ(stats.GetBuildingTypeCount(BuildingType::Barracks), 1);
   EXPECT_TRUE(stats.GetBuildingTypeExisted(BuildingType::Barracks));
 
@@ -109,8 +120,8 @@ TEST(PlayerStats, Operations) {
   stats.UnitTransformed(UnitType::FemaleVillager, UnitType::FemaleVillagerGoldMiner);
   stats.UnitRemoved(UnitType::MaleVillager);
 
-  // TODO (maanoo): EXPECT_EQ(stats.GetAvailablePopulationSpace(), 5);
-  // TODO (maanoo): EXPECT_EQ(stats.GetPopulationCount(), 1);
+  EXPECT_EQ(stats.GetPopulationSpace(), 5);
+  EXPECT_EQ(stats.GetPopulationDemand(), 1);
   EXPECT_EQ(stats.GetBuildingTypeCount(BuildingType::Barracks), 0);
   EXPECT_TRUE(stats.GetBuildingTypeExisted(BuildingType::Barracks));
 
@@ -170,14 +181,10 @@ TEST(Damage, CalculateDamage) {
 
 TEST(GameLogic, VillagerVsTree) {
   // Test the number of hits needed to chop a tree.
+  std::shared_ptr<Player> player = CreateTestingPlayer();
 
-  // TODO: allow all tests to use gamedata and player
-  GameData gameData;
-  LoadGameData(gameData);
-  const Player player(0, 0, gameData);
-
-  Damage villagerDamage = player.GetUnitStats(UnitType::MaleVillagerLumberjack).damage;
-  Armor treeArmor = player.GetBuildingStats(BuildingType::TreeOak).armor;
+  Damage villagerDamage = player->GetUnitStats(UnitType::MaleVillagerLumberjack).damage;
+  Armor treeArmor = player->GetBuildingStats(BuildingType::TreeOak).armor;
 
   // kill in two hits
   EXPECT_EQ(CalculateDamage(villagerDamage, treeArmor), 15);

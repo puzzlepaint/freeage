@@ -51,6 +51,9 @@ inline bool IsTree(BuildingType type) {
 
 QString GetBuildingName(BuildingType type);
 
+// TODO: Implement a GetBuildingTypeInternalName() which returns the string of the enum name
+//       of each BuildingType (for debugging and logging).
+
 /// Returns the max number of the given building type that the player can build.
 /// Returns -1 if unlimited.
 /// TODO: remove and have a check for only the Town Center bases on the civ stats #civs
