@@ -20,6 +20,8 @@ class ServerObject {
       : player(player),
         objectType(static_cast<int>(objectType)) {}
 
+  virtual ~ServerObject() {}
+
   inline bool isBuilding() const { return objectType == 0; }
   inline bool isUnit() const { return objectType == 1; }
   inline ObjectType GetObjectType() const { return static_cast<ObjectType>(objectType); }
@@ -38,6 +40,9 @@ class ServerObject {
   inline const std::vector<ServerUnit*>& GetGarrisonedUnits() const { return garrisonedUnits; }
   inline int GetGarrisonedUnitsCount() const { return garrisonedUnits.size(); }
   
+  // NOTE: For performance, GetStats() function should be preferred, when possible, over GetObjectStats().
+  virtual const ObjectTypeStats& GetObjectStats() const = 0;
+
   // TODO: Add function to generate a string that represents the unit for logging and debugging.
   //       eg. Villager@(20,4)
   

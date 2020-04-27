@@ -15,6 +15,8 @@ class ServerUnit : public ServerObject {
   ServerUnit(Player* player, UnitType type, const QPointF& mapCoord);
   
   inline UnitType GetType() const { return type; }
+  inline const UnitTypeStats& GetStats() const { return GetPlayer()->GetUnitStats(type); }
+  virtual const ObjectTypeStats& GetObjectStats() const { return GetStats(); }
   
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   inline void SetMapCoord(const QPointF& mapCoord) { this->mapCoord = mapCoord; }

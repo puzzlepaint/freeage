@@ -21,6 +21,8 @@ class ClientObject {
       : player(player),
         hp(hp),
         objectType(static_cast<int>(objectType)) {}
+
+  virtual ~ClientObject() {}
   
   void UpdateFieldOfView(Map* map, int change);
   
@@ -43,6 +45,9 @@ class ClientObject {
   // Returns the units that are garrisoned.
   inline const std::vector<ClientUnit*>& GetGarrisonedUnits() const { return garrisonedUnits; }
   inline int GetGarrisonedUnitsCount() const { return garrisonedUnits.size(); }
+  
+  // NOTE: For performance, GetStats() function should be preferred, when possible, over GetObjectStats().
+  virtual const ObjectTypeStats& GetObjectStats() const = 0;
 
  protected:
   /// The player which this object belongs to.

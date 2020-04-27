@@ -120,6 +120,9 @@ class ClientBuilding : public ClientObject {
   inline void SetFixedFrameIndex(int index) { fixedFrameIndex = index; }
   
   inline BuildingType GetType() const { return type; }
+  inline const BuildingTypeStats& GetStats() const { return GetPlayer()->GetBuildingStats(type); }
+  virtual const ObjectTypeStats& GetObjectStats() const { return GetStats(); }
+  
   inline QString GetBuildingName() const { return ::GetBuildingName(type); }
   inline const Texture* GetIconTexture() const { return ClientBuildingType::GetBuildingTypes()[static_cast<int>(type)].GetIconTexture(); };
   inline QPoint GetBaseTile() const { return QPoint(baseTileX, baseTileY); }

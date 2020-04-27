@@ -101,6 +101,9 @@ class ClientUnit : public ClientObject {
       bool outline);
   
   inline UnitType GetType() const { return type; }
+  inline const UnitTypeStats& GetStats() const { return GetPlayer()->GetUnitStats(type); }
+  virtual const ObjectTypeStats& GetObjectStats() const { return GetStats(); }
+
   inline void SetType(UnitType newType) { type = newType; }
   
   /// Convenience function that returns the ClientUnitType for this unit.
