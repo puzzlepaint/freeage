@@ -190,7 +190,7 @@ void PlanUnitPath(ServerUnit* unit, ServerMap* map) {
         ServerBuilding* targetBuilding = AsBuilding(targetObject);
         
         const QPoint& baseTile = targetBuilding->GetBaseTile();
-        QSize buildingSize = GetBuildingSize(targetBuilding->GetType());
+        QSize buildingSize = targetBuilding->GetStats().size;
         goalRect = QRect(baseTile, buildingSize);
       }
     }

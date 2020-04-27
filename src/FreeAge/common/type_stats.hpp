@@ -146,14 +146,16 @@ struct UnitTypeStats : public ObjectTypeStats {
 
 struct BuildingTypeStats : public ObjectTypeStats {
 
-  /// TODO: doc
-  bool dropOffPoint[4];
+  /// Whether it acts as a drop-off point for each resource.
+  bool dropOffPoint[static_cast<int>(ResourceType::NumTypes)];
 
   /// TODO: doc
   QSize size;
 
   /// TODO: doc
   QRect occupancy;
+
+  inline bool IsDropOffPointFor(ResourceType resourceType) const { return dropOffPoint[static_cast<int>(resourceType)]; }
 };
 
 // TODO: move elsewhere

@@ -358,7 +358,7 @@ bool Map::IsBuildingInFogOfWar(ClientBuilding* building) {
 int Map::ComputeMaxViewCountForBuilding(ClientBuilding* building) {
   int maxViewCount = -1;
   const QPoint& baseTile = building->GetBaseTile();
-  QSize size = GetBuildingSize(building->GetType());
+  QSize size = building->GetStats().size;
   for (int y = 0; y < size.height(); ++ y) {
     for (int x = 0; x < size.width(); ++ x) {
       maxViewCount = std::max(maxViewCount, viewCountAt(baseTile.x() + x, baseTile.y() + y));

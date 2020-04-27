@@ -29,7 +29,6 @@ GameController::GameController(const std::shared_ptr<Match>& match, const std::s
   // Create the player list based on the match information
   int playerIndex = 0;
   for (const Match::Player& matchPlayer : match->GetPlayers()) {
-    // TODO (maanoo): ensure that match->GetPlayers() indexes are consecutive
     players.emplace_back(playerIndex, matchPlayer.playerColorIndex, gameData);
     ++ playerIndex;
   }
@@ -288,7 +287,7 @@ void GameController::HandleAddObjectMessage(const QByteArray& data) {
     
     QPoint baseTile(mango::uload16(buffer + 12),
                     mango::uload16(buffer + 14));
-    QSize buildingSize = GetBuildingSize(buildingType);
+    QSize buildingSize = GetPlayer(playerIndex)->GetBuildingStats(buildingType).size;
     if (baseTile.x() + buildingSize.width() > map->GetWidth() ||
         baseTile.y() + buildingSize.height() > map->GetHeight()) {
       LOG(ERROR) << "Received an AddObject message containing a building with out-of-bounds coordinates";

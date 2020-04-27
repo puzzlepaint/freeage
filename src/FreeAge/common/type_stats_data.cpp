@@ -301,9 +301,9 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
     BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::TownCenter);
 
     SetBuildingBasic(s,
-      /* hp     */ 2402,
+      /* hp     */ 2400,
       /* armor  */ 3, 5,
-      /* size   */ 2,
+      /* size   */ 4,
       /* los    */ 8);
     s.occupancy = QRect(0, 2, 2, 2);
     s.population.SetToIntegerPopulationSpace(5);
@@ -418,7 +418,7 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
       /* armor  */ 2, 5,
       /* size   */ 1,
       /* los    */ 2);
-    SetBuildingArmor(s, DamageType::WallGate);
+    SetBuildingArmor(s, DamageType::WallAndGate);
     SetBuildingCost(s, 6 /*seconds*/, 2 /*wood*/, 0 /*food*/, 0 /*gold*/, 0 /*stone*/);
   }
 
@@ -490,7 +490,10 @@ void LoadGameData(GameData& gameData) {
 
   // Changes to game data for development testing
 
+  gameData.unitTypeStats[static_cast<int>(UnitType::MaleVillagerBuilder)].workRate = 4;
+  gameData.unitTypeStats[static_cast<int>(UnitType::FemaleVillagerBuilder)].workRate = 4;
   gameData.unitTypeStats[static_cast<int>(UnitType::MaleVillager)].creationTime = 10;
   gameData.unitTypeStats[static_cast<int>(UnitType::Militia)].creationTime = 3;
+  gameData.buildingTypeStats[static_cast<int>(BuildingType::Outpost)].lineOfSight = 300;
 
 }

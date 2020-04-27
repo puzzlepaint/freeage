@@ -23,7 +23,7 @@
 struct PlayerStats {
  public:
 
-  PlayerStats(); // TODO: pass the whatever the GetBuildingProvidedPopulationSpace will need
+  PlayerStats();
   ~PlayerStats();
 
   /// Called when new building is added.

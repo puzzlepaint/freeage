@@ -64,10 +64,6 @@ ClientBuildingType::~ClientBuildingType() {
   }
 }
 
-QSize ClientBuildingType::GetSize() const {
-  return GetBuildingSize(type);
-}
-
 QString ClientBuildingType::GetFilename() const {
   // TODO: Load this from some data file
   
@@ -293,7 +289,7 @@ ClientBuilding::ClientBuilding(Player* player, BuildingType type, int baseTileX,
       buildPercentage(buildPercentage) {}
 
 QPointF ClientBuilding::GetCenterMapCoord() const {
-  QSize size = GetBuildingSize(type);
+  QSize size = GetStats().size;
   return QPointF(baseTileX + 0.5f * size.width(), baseTileY + 0.5f * size.height());
 }
 

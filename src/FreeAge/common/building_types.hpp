@@ -49,29 +49,11 @@ inline bool IsTree(BuildingType type) {
          type <= BuildingType::LastTree;
 }
 
-QSize GetBuildingSize(BuildingType type);
-QRect GetBuildingOccupancy(BuildingType type);
 QString GetBuildingName(BuildingType type);
-double GetBuildingConstructionTime(BuildingType type);
-
-/// TODO: This needs to consider the player's civilization and researched technologies
-ResourceAmount GetBuildingCost(BuildingType type);
-
-/// Returns whether the given building type acts as a drop-off point for the given resource type.
-bool IsDropOffPointForResource(BuildingType building, ResourceType resource);
-
-/// TODO: This needs to consider the player's civilization and researched technologies
-u32 GetBuildingMaxHP(BuildingType type);
-Armor GetBuildingArmor(BuildingType type);
 
 /// Returns the max number of the given building type that the player can build.
 /// Returns -1 if unlimited.
-/// TODO: This needs to consider the player's age.
-/// TODO: use infinity instead of -1 ?
+/// TODO: remove and have a check for only the Town Center bases on the civ stats #civs
 int GetBuildingMaxInstances(BuildingType type);
-
-int GetBuildingProvidedPopulationSpace(BuildingType type);
-
-float GetBuildingLineOfSight(BuildingType type);
 
 int GetMaxElevationDifferenceForBuilding(BuildingType type);

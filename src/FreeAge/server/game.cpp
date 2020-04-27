@@ -404,7 +404,7 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
     return;
   }
 
-  QSize foundationSize = GetBuildingSize(type);
+  QSize foundationSize = player->GetBuildingStats(type).size;
   QPoint baseTile(
       mango::uload16(data + 5),
       mango::uload16(data + 7));
@@ -462,7 +462,7 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
   }
   
   // Does the player have sufficient resources to place this foundation?
-  ResourceAmount cost = GetBuildingCost(type);
+  ResourceAmount cost = player->GetBuildingStats(type).cost;
   if (!player->resources.CanAfford(cost)) {
     LOG(WARNING) << "Received a PlaceBuildingFoundation message for a building for which the player has not enough resources";
     return;
@@ -710,7 +710,7 @@ void Game::StartGame() {
       if (item.second->isBuilding()) {
         ServerBuilding* building = AsBuilding(item.second);
         if (building->GetType() == BuildingType::TownCenter) {
-          QSize buildingSize = GetBuildingSize(building->GetType());
+          QSize buildingSize = building->GetStats().size;
           initialViewCenter =
               QPointF(building->GetBaseTile().x() + 0.5f * buildingSize.width(),
                       building->GetBaseTile().y() + 0.5f * buildingSize.height());
@@ -846,7 +846,7 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
 
 static bool DoesUnitTouchBuildingArea(ServerUnit* unit, const QPointF& unitMapCoord, ServerBuilding* building, float errorMargin) {
   // Get the point withing the building's area which is closest to the unit
-  QSize buildingSize = GetBuildingSize(building->GetType());
+  QSize buildingSize = building->GetStats().size;
   const QPoint& baseTile = building->GetBaseTile();
   QPointF closestPointInBuilding(
       std::max<float>(baseTile.x(), std::min<float>(baseTile.x() + buildingSize.width(), unitMapCoord.x())),
@@ -869,7 +869,7 @@ static bool DoUnitsTouch(ServerUnit* unit, const QPointF& unitMapCoord, ServerUn
 static bool IsFoundationFree(ServerBuilding* foundation, ServerMap* map) {
   // Check whether map tiles are occupied
   const QPoint& baseTile = foundation->GetBaseTile();
-  QSize foundationSize = GetBuildingSize(foundation->GetType());
+  QSize foundationSize = foundation->GetStats().size;
   for (int y = baseTile.y(); y < baseTile.y() + foundationSize.height(); ++ y) {
     for (int x = baseTile.x(); x < baseTile.x() + foundationSize.width(); ++ x) {
       if (map->occupiedForBuildingsAt(x, y)) {
@@ -1160,8 +1160,9 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
   // Add progress to the construction.
   // TODO: In the original game, two villagers building does not result in twice the speed. Account for this.
   if (canConstruct) {
-    double constructionTime = GetBuildingConstructionTime(targetBuilding->GetType());
-    double constructionStepAmount = stepLengthInSeconds / constructionTime;
+    // TODO: why is constructionTime double, change to float like everything else ?
+    double constructionTime = static_cast<float>(targetBuilding->GetStats().creationTime);
+    double constructionStepAmount = villager->GetStats().workRate * stepLengthInSeconds / constructionTime;
     
     double newPercentage = std::min<double>(100, targetBuilding->GetBuildPercentage() + 100 * constructionStepAmount);
     if (newPercentage == 100 && !targetBuilding->IsCompleted()) {
@@ -1182,7 +1183,7 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
       accumulatedMessages[player->index] += msg;
     }
     
-    u32 maxHP = GetBuildingMaxHP(targetBuilding->GetType());
+    u32 maxHP = targetBuilding->GetStats().maxHp;
     double addedHP = constructionStepAmount * maxHP;
     targetBuilding->SetHP(std::min<float>(targetBuilding->GetHPInternalFloat() + addedHP, maxHP));
     
@@ -1257,10 +1258,10 @@ void Game::SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, 
       if (item.second->GetPlayerIndex() == villager->GetPlayerIndex() &&
           item.second->isBuilding()) {
         ServerBuilding* candidateDropOffPoint = AsBuilding(item.second);
-        if (IsDropOffPointForResource(candidateDropOffPoint->GetType(), villager->GetCarriedResourceType())) {
+        if (candidateDropOffPoint->GetStats().IsDropOffPointFor(villager->GetCarriedResourceType())) {
           // TODO: Improve the distance computation. Ideally we would use the distance that the
           //       villager has to walk to the edge of the building, not the straight-line distance to its center.
-          QSize candidateSize = GetBuildingSize(candidateDropOffPoint->GetType());
+          QSize candidateSize = candidateDropOffPoint->GetStats().size;
           QPointF candidateCenter = candidateDropOffPoint->GetBaseTile() + 0.5f * QPointF(candidateSize.width(), candidateSize.height());
           
           float squaredDistance = SquaredDistance(candidateCenter, villager->GetMapCoord());
@@ -1407,7 +1408,7 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
 
       // Check if the object is a building and has <= 20% hp left
       if (target->GetGarrisonedUnitsCount() > 0 && target->isBuilding() &&
-            hp <= .2f * GetBuildingMaxHP(AsBuilding(target)->GetType())) {
+            hp <= .2f * AsBuilding(target)->GetStats().maxHp) {
         UngarrisonAllUnits(targetId, target);
       }
     } else if (oldHP > 0.5f) {
@@ -1488,7 +1489,7 @@ bool Game::ChangeUnitGarrisonStatus(u32 unitId, ServerUnit* unit, u32 targetObje
     unit->RemoveTarget();
 
     // Check if the object is a building and has <= 20% hp left
-    if (targetObject->isBuilding() && AsBuilding(targetObject)->GetHPInternalFloat() <= .2f * GetBuildingMaxHP(AsBuilding(targetObject)->GetType())) {
+    if (targetObject->isBuilding() && AsBuilding(targetObject)->GetHPInternalFloat() <= .2f * AsBuilding(targetObject)->GetStats().maxHp) {
       // Unit cannot garrison building beacause of low health;
       return false;
     }
@@ -1549,7 +1550,7 @@ bool Game::FindFreeSpaceAroundBuilding(ServerBuilding* building, ServerUnit* uni
   // Look for a free space to place the unit next to the building.
   float unitRadius = unit->GetStats().radius;
   
-  QSize buildingSize = GetBuildingSize(building->GetType());
+  QSize buildingSize = building->GetStats().size;
   QPointF buildingBaseCoord(building->GetBaseTile() + QPointF(buildingSize.width() + unitRadius, -unitRadius));
   float extendedWidth = buildingSize.width() + 2 * unitRadius;
   float extendedHeight = buildingSize.height() + 2 * unitRadius;
@@ -1724,8 +1725,9 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
     if (deletedManually && !building->IsCompleted()) {
       float remainingResourceAmount = 1 - building->GetBuildPercentage() / 100.f;
       
-      ResourceAmount cost = GetBuildingCost(building->GetType());
-      playersInGame->at(building->GetPlayerIndex())->resources.Add(remainingResourceAmount * cost);
+      Player* player = playersInGame->at(building->GetPlayerIndex()).get();
+      ResourceAmount cost = player->GetBuildingStats(building->GetType()).cost;
+      player->resources.Add(remainingResourceAmount * cost);
     }
     for (usize queueIndex = 0; queueIndex < building->GetProductionQueue().size(); ++ queueIndex) {
       Player* player = playersInGame->at(building->GetPlayerIndex()).get();

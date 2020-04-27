@@ -64,8 +64,8 @@ void ServerMap::GenerateRandomMap(Game* game, int seed) {
   
   std::vector<QPoint> townCenterLocations(playerCount);
   std::vector<QPointF> townCenterCenters(playerCount);
-  QSize townCenterSize = GetBuildingSize(BuildingType::TownCenter);
   for (int player = 0; player < playerCount; ++ player) {
+    QSize townCenterSize = game->GetPlayer(player)->GetBuildingStats(BuildingType::TownCenter).size;
     int positionOnRectangle =
         ((player * rectangleEdgeLength / playerCount) +
          (rand() % (2 * kPositionOnRectangleVariance + 1)) - kPositionOnRectangleVariance) % rectangleEdgeLength;
@@ -518,7 +518,7 @@ u32 ServerMap::AddUnit(ServerUnit* newUnit) {
 
 void ServerMap::SetBuildingConstructionOccupancy(ServerBuilding* building, bool occupied) {
   const QPoint& baseTile = building->GetBaseTile();
-  QSize buildingSize = GetBuildingSize(building->GetType());
+  QSize buildingSize = building->GetStats().size;
   for (int y = baseTile.y(), endY = baseTile.y() + buildingSize.height(); y < endY; ++ y) {
     for (int x = baseTile.x(), endX = baseTile.x() + buildingSize.width(); x < endX; ++ x) {
       occupiedForUnitsAt(x, y) = occupied;
@@ -528,15 +528,16 @@ void ServerMap::SetBuildingConstructionOccupancy(ServerBuilding* building, bool 
 }
 
 void ServerMap::SetBuildingOccupancy(ServerBuilding* building, bool occupied) {
+  // TODO: Wall gates have a dynamic occupancy. Account for this. #gates
   const QPoint& baseTile = building->GetBaseTile();
-  QRect occupancyRect = GetBuildingOccupancy(building->GetType());
+  QRect occupancyRect = building->GetStats().occupancy;
   for (int y = baseTile.y() + occupancyRect.y(), endY = baseTile.y() + occupancyRect.y() + occupancyRect.height(); y < endY; ++ y) {
     for (int x = baseTile.x() + occupancyRect.x(), endX = baseTile.x() + occupancyRect.x() + occupancyRect.width(); x < endX; ++ x) {
       occupiedForUnitsAt(x, y) = occupied;
     }
   }
   
-  QSize buildingSize = GetBuildingSize(building->GetType());
+  QSize buildingSize = building->GetStats().size;
   for (int y = baseTile.y(), endY = baseTile.y() + buildingSize.height(); y < endY; ++ y) {
     for (int x = baseTile.x(), endX = baseTile.x() + buildingSize.width(); x < endX; ++ x) {
       occupiedForBuildingsAt(x, y) = occupied;

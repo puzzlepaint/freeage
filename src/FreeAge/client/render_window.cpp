@@ -1208,7 +1208,7 @@ void RenderWindow::RenderBuildingFoundation(double displayedServerTime, QOpenGLF
   if (foundationBaseTile.x() >= 0 && foundationBaseTile.y() >= 0) {
     // Check whether any tile below the foundation is not in the black fog-of-war.
     // Only display the foundation in this case.
-    QSize foundationSize = GetBuildingSize(constructBuildingType);
+    QSize foundationSize = gameController->GetPlayer()->GetBuildingStats(constructBuildingType).size;
     int maxViewCount = -1;
     for (int y = foundationBaseTile.y(); y < foundationBaseTile.y() + foundationSize.width(); ++ y) {
       for (int x = foundationBaseTile.x(); x < foundationBaseTile.x() + foundationSize.height(); ++ x) {
@@ -1270,7 +1270,7 @@ void RenderWindow::RenderSelectionGroundOutline(QRgb color, ClientObject* object
   if (object->isBuilding()) {
     ClientBuilding& building = *AsBuilding(object);
     
-    QSize size = GetBuildingSize(building.GetType());
+    QSize size = building.GetStats().size;
     std::vector<QPointF> outlineVertices(4 + 2 * (size.width() - 1) + 2 * (size.height() - 1));
     
     QPointF base = building.GetBaseTile();
@@ -1544,7 +1544,7 @@ void RenderWindow::RenderHealthBars(double displayedServerTime, QOpenGLFunctions
         RenderHealthBar(
             barRect,
             centerProjectedCoord.y(),
-            building.GetHP() / (1.f * GetBuildingMaxHP(building.GetType())),
+            building.GetHP() / (1.f * building.GetStats().maxHp),
             (building.GetPlayerIndex() == kGaiaPlayerIndex) ? gaiaColor : playerColors[building.GetPlayerIndex()],
             healthBarShader.get(),
             viewMatrix,
@@ -2289,25 +2289,23 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
     
     // Display the object's HP
     if (singleSelectedObject->GetHP() > 0) {
-      u32 maxHP;
-      if (singleSelectedObject->isUnit()) {
-        maxHP = AsUnit(singleSelectedObject)->GetStats().maxHp;
-      } else {
-        CHECK(singleSelectedObject->isBuilding());
-        maxHP = GetBuildingMaxHP(AsBuilding(singleSelectedObject)->GetType());
-      }
+      int maxHP = singleSelectedObject->GetObjectStats().maxHp;
       
-      hpDisplay.textDisplay->Render(
-          georgiaFontSmaller,
-          qRgba(58, 29, 21, 255),
-          QStringLiteral("%1 / %2").arg(singleSelectedObject->GetHP()).arg(maxHP),
-          QRect(topLeft.x() + uiScale * (2*32),
-                topLeft.y() + uiScale * (50 + 2*46 + 2*60),
-                uiScale * 2*172,
-                uiScale * 2*16),
-          Qt::AlignLeft | Qt::AlignTop,
-          hpDisplay.pointBuffer,
-          uiShader.get(), widgetWidth, widgetHeight, f);
+      if (maxHP > 0) {
+        hpDisplay.textDisplay->Render(
+            georgiaFontSmaller,
+            qRgba(58, 29, 21, 255),
+            QStringLiteral("%1 / %2").arg(singleSelectedObject->GetHP()).arg(maxHP),
+            QRect(topLeft.x() + uiScale * (2*32),
+                  topLeft.y() + uiScale * (50 + 2*46 + 2*60),
+                  uiScale * 2*172,
+                  uiScale * 2*16),
+            Qt::AlignLeft | Qt::AlignTop,
+            hpDisplay.pointBuffer,
+            uiShader.get(), widgetWidth, widgetHeight, f);
+      } else {
+        // TODO: display somehow that the selected object is invulnerable
+      }
     }
     
     // Display unit / building details?
@@ -2741,7 +2739,7 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
       
       // Is the position within the tiles which the building stands on?
       if (haveMapCoord) {
-        QSize size = buildingType.GetSize();
+        QSize size = building.GetStats().size;
         if (mapCoord.x() >= building.GetBaseTile().x() &&
             mapCoord.y() >= building.GetBaseTile().y() &&
             mapCoord.x() <= building.GetBaseTile().x() + size.width() &&
@@ -3067,7 +3065,7 @@ QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y(
     return false;
   }
   
-  QSize foundationSize = GetBuildingSize(type);
+  QSize foundationSize = gameController->GetPlayer()->GetBuildingStats(type).size;
   QPoint foundationBaseTile;
   
   if (foundationSize.width() % 2 == 1) {
@@ -3098,7 +3096,7 @@ QPointF projectedCoord = ScreenCoordToProjectedCoord(cursorPos.x(), cursorPos.y(
   for (const auto& item : map->GetObjects()) {
     if (item.second->isBuilding()) {
       ClientBuilding* building = AsBuilding(item.second);
-      QRect occupiedRect(building->GetBaseTile(), GetBuildingSize(building->GetType()));
+      QRect occupiedRect(building->GetBaseTile(), building->GetStats().size);
       if (foundationRect.intersects(occupiedRect)) {
         return false;
       }
@@ -3225,7 +3223,7 @@ void RenderWindow::ReportNonValidCommandButton(CommandButton* button, CommandBut
     ResourceAmount cost;
     if (button->GetType() == CommandButton::Type::ConstructBuilding) {
       name = GetBuildingName(button->GetBuildingConstructionType());
-      cost = GetBuildingCost(button->GetBuildingConstructionType());
+      cost = gameController->GetPlayer()->GetBuildingStats(button->GetBuildingConstructionType()).cost;
     } else if (button->GetType() == CommandButton::Type::ProduceUnit) {
       name = GetUnitName(button->GetUnitProductionType());
       cost = gameController->GetPlayer()->GetUnitStats(button->GetUnitProductionType()).cost;
@@ -4399,7 +4397,8 @@ CommandButton::State RenderWindow::GetCommandButtonState(CommandButton* button) 
     // TODO: return State::Locked, if the unit is not unlocked yet
 
     // Can afford must be the last check (less important than all the other checks)
-    if (!gameController->GetLatestKnownResourceAmount().CanAfford(GetBuildingCost(buildingType))) {
+    if (!gameController->GetLatestKnownResourceAmount().CanAfford(
+          gameController->GetPlayer()->GetBuildingStats(buildingType).cost)) {
       return CommandButton::State::CannotAfford;
     }
   } else if (button->GetType() == CommandButton::Type::Action) {

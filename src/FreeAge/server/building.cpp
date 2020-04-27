@@ -13,7 +13,7 @@ ServerBuilding::ServerBuilding(Player* player, BuildingType type, const QPoint& 
       type(type),
       baseTile(baseTile),
       buildPercentage(buildPercentage) {
-  SetHP(buildPercentage / 100.0 * GetBuildingMaxHP(type));
+  SetHP(buildPercentage / 100.0 * GetStats().maxHp);
 }
 
 bool ServerBuilding::CanProduce(UnitType unitType, PlayerInGame* /*player*/) {

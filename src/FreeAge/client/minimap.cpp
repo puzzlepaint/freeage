@@ -83,7 +83,7 @@ void Minimap::Update(Map* map, const std::vector<QRgb>& playerColors, QOpenGLFun
       } else if (building->GetPlayerIndex() != kGaiaPlayerIndex) {
         constexpr int growSize = 0;
         
-        QSize buildingSize = GetBuildingSize(building->GetType());
+        QSize buildingSize = building->GetStats().size;
         
         int minX = std::max(0, baseTile.x() - growSize);
         int minY = std::max(0, baseTile.y() - growSize);

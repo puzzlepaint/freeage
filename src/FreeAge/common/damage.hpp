@@ -40,7 +40,7 @@ enum class DamageType {
   Building,
   StoneDefense,
   StandardBuilding,
-  WallGate,
+  WallAndGate,
   Castle,
 
   NumDamageTypes

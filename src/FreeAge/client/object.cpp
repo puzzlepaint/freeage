@@ -9,10 +9,11 @@
 #include "FreeAge/client/unit.hpp"
 
 void ClientObject::UpdateFieldOfView(Map* map, int change) {
+  // TODO: An object line of sight can change (from technologies). Account for this.
   if (isBuilding()) {
     const ClientBuilding* building = static_cast<const ClientBuilding*>(this);
     QPointF center = building->GetCenterMapCoord();
-    map->UpdateFieldOfView(center.x(), center.y(), GetBuildingLineOfSight(building->GetType()), change);
+    map->UpdateFieldOfView(center.x(), center.y(), building->GetStats().lineOfSight, change);
   } else if (isUnit()) {
     const ClientUnit* unit = static_cast<const ClientUnit*>(this);
     int tileX = static_cast<int>(unit->GetMapCoord().x());
@@ -83,7 +84,7 @@ InteractionType GetInteractionType(ClientObject* actor, ClientObject* target) {
         } else if (IsTree(targetBuilding->GetType())) {
           return InteractionType::CollectWood;
         } else if (actorUnit->GetCarriedResourceAmount() > 0 &&
-                   IsDropOffPointForResource(targetBuilding->GetType(), actorUnit->GetCarriedResourceType())) {
+                   targetBuilding->GetStats().IsDropOffPointFor(actorUnit->GetCarriedResourceType())) {
           return InteractionType::DropOffResource;
         }
       }
