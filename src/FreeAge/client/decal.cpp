@@ -39,7 +39,7 @@ Decal::Decal(ClientBuilding* building, Map* map, double serverTime) {
   const QPoint& baseTile = building->GetBaseTile();
   minTileX = baseTile.x();
   minTileY = baseTile.y();
-  QSize size = GetBuildingSize(building->GetType());
+  QSize size = building->GetStats().size;
   maxTileX = minTileX + size.width() - 1;
   maxTileY = minTileY + size.height() - 1;
 }

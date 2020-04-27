@@ -34,7 +34,6 @@ class ClientBuildingType {
   
   bool Load(BuildingType type, const std::filesystem::path& graphicsSubPath, const std::filesystem::path& cachePath, ColorDilationShader* colorDilationShader, const Palettes& palettes);
   
-  QSize GetSize() const;
   bool UsesRandomSpriteFrame() const;
   /// Returns the height (in projected coordinates) above the building's center at which the health bar should be displayed.
   float GetHealthBarHeightAboveCenter(int frameIndex) const;

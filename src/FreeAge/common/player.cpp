@@ -77,9 +77,8 @@ void PlayerStats::FinishedBuildingChange(BuildingType buildingType, int d) {
     buildingExisted[static_cast<int>(buildingType)] = true;
   }
 
-  availablePopulationSpace += d * GetBuildingProvidedPopulationSpace(buildingType);
-
-  // TODO: implement special case: Feitoria
+  // TODO (maanoo): use the stats
+  // availablePopulationSpace += d * GetBuildingProvidedPopulationSpace(buildingType);
 
   Change();
 }

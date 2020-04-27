@@ -47,7 +47,7 @@ InteractionType GetInteractionType(ServerObject* actor, ServerObject* target) {
         } else if (IsTree(targetBuilding->GetType())) {
           return InteractionType::CollectWood;
         } else if (actorUnit->GetCarriedResourceAmount() > 0 &&
-                   IsDropOffPointForResource(targetBuilding->GetType(), actorUnit->GetCarriedResourceType())) {
+                   targetBuilding->GetStats().IsDropOffPointFor(actorUnit->GetCarriedResourceType())) {
           return InteractionType::DropOffResource;
         }
       }
