@@ -23,9 +23,9 @@ GameController::GameController(const std::shared_ptr<Match>& match, const std::s
     networkingDebugFile.open("network_debug_log_messages.txt", std::ios::out);
     networkingDebugFile << std::setprecision(14);
   }
-  // NOTE: The game data are loaded temporary here. However the loading is instant and for 
+  // NOTE: The game data are loaded temporarily here. However the loading is instant and for
   //       now there is no need for something like a loading screen. Also it is unclear if
-  //       they will be needed in later stage, so they are just deleted after the creation of
+  //       the data will be needed in later stage, so they are just deleted after the creation of
   //       the players.
   GameData gameData;
   LoadGameData(gameData);

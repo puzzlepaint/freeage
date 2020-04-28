@@ -80,7 +80,7 @@ class ServerUnit : public ServerObject {
   /// The unit's target object (if any). Set to kInvalidObjectId if the unit does not have a target.
   u32 targetObjectId = kInvalidObjectId;
   
-  /// The interaction with the target object.
+  /// The intended interaction with the target object.
   InteractionType targetObjectInteraction;
 
   /// The last object that was targeted manually (by the player). For example, if the player sends

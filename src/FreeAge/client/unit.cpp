@@ -301,7 +301,7 @@ void ClientUnit::Render(
 }
 
 void ClientUnit::SetCurrentAnimation(UnitAnimation animation, double serverTime) {
-  const ClientUnitType& unitType = ClientUnitType::GetUnitTypes()[static_cast<int>(type)];
+  const ClientUnitType& unitType = GetClientUnitType();
   
   // If this unit is a villager carrying the resource type corresponding to the villager type,
   // turn the idle/walk/death/decay animations into the corresponding "carry" variants if they exist.

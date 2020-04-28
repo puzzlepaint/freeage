@@ -2374,7 +2374,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
 
         // Render the unit that is currently being produced.
         UnitType type = singleSelectedBuilding->GetProductionQueue().front();
-        const Texture* iconTexture = ClientUnitType::GetUnitTypes()[static_cast<int>(type)].GetIconTexture();
+        const Texture* iconTexture = GetClientUnitType(type).GetIconTexture();
         if (iconTexture) {
           productionQueueIconsTopLeft[0] = QPointF(
               topLeft.x() + uiScale * (2*32 + 2*155),
@@ -2439,7 +2439,7 @@ void RenderWindow::RenderSelectionPanel(QOpenGLFunctions_3_2_Core* f) {
       // Render the units that are queued behind the currently produced one.
       for (usize queueIndex = 1; queueIndex < singleSelectedBuilding->GetProductionQueue().size(); ++ queueIndex) {
         UnitType type = singleSelectedBuilding->GetProductionQueue()[queueIndex];
-        const Texture* iconTexture = ClientUnitType::GetUnitTypes()[static_cast<int>(type)].GetIconTexture();
+        const Texture* iconTexture = GetClientUnitType(type).GetIconTexture();
         if (iconTexture) {
           productionQueueIconsTopLeft[queueIndex] = QPointF(
               topLeft.x() + uiScale * (2*32 + 2*155 + 2*(queueIndex - 1)*35),
@@ -2695,8 +2695,6 @@ struct PossibleSelectedObject {
 };
 
 bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vector<u32>* currentSelection, bool toggleThroughObjects, bool selectSuitableTargetsOnly) {
-  auto& buildingTypes = ClientBuildingType::GetBuildingTypes();
-  
   std::vector<ClientObject*> currentSelectedObjects;
   if (selectSuitableTargetsOnly) {
     currentSelectedObjects.resize(currentSelection->size());
@@ -2731,7 +2729,6 @@ bool RenderWindow::GetObjectToSelectAt(float x, float y, u32* objectId, std::vec
     
     if (object.second->isBuilding()) {
       ClientBuilding& building = *AsBuilding(object.second);
-      const ClientBuildingType& buildingType = buildingTypes[static_cast<int>(building.GetType())];
       
       int maxViewCount = map->ComputeMaxViewCountForBuilding(&building);
       if (maxViewCount < 0) {
@@ -4122,8 +4119,8 @@ void RenderWindow::mousePressEvent(QMouseEvent* event) {
             return;
           }
 
-          // TODO: replace with the garrison capacity form the unit type stats #stats
-          bool isTownCenter = targetObject->GetObjectType() == ObjectType::Building && AsBuilding(targetObject)->GetType() == BuildingType::TownCenter;
+          // TODO: replace with the garrison capacity from the unit type stats #stats
+          bool isTownCenter = targetObject->isBuilding() && AsBuilding(targetObject)->GetType() == BuildingType::TownCenter;
           int capacity = isTownCenter ? 15 : 0;
           if (capacity) {
             // Do not check the targetObject->GetGarrisonedUnitsCount() now, by the time the unit 

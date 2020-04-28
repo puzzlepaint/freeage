@@ -42,7 +42,7 @@ class ClientObject {
   void GarrisonUnit(ClientUnit* unit);
   void UngarrisonUnit(ClientUnit* unit);
 
-  // Returns the units that are garrisoned.
+  // Returns the units that are garrisoned within this object.
   inline const std::vector<ClientUnit*>& GetGarrisonedUnits() const { return garrisonedUnits; }
   inline int GetGarrisonedUnitsCount() const { return garrisonedUnits.size(); }
   
@@ -56,7 +56,7 @@ class ClientObject {
   /// Current hitpoints of the object.
   u32 hp;
   
-  // The units that are garrisoned.
+  // The units that are garrisoned within this object.
   std::vector<ClientUnit*> garrisonedUnits;
   
   /// 0 for buildings, 1 for units.

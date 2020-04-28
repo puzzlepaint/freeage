@@ -204,8 +204,8 @@ TEST(DataValidation, UnitTypeStats) {
     << sizeof(UnitTypeStats) << " * " << static_cast<int>(UnitType::NumUnits) << " = "
     << sizeof(UnitTypeStats) * static_cast<int>(UnitType::NumUnits);
 
-  // NOTE: This could be e extracted and moved to the game in order to validate data loaded
-  //       dynamicly from files.
+  // NOTE: This could be extracted and moved to the game in order to validate data loaded
+  //       dynamically from files.
 
   std::vector<UnitTypeStats> unitTypeStats;
   LoadUnitTypeStats(unitTypeStats);
@@ -234,8 +234,8 @@ TEST(DataValidation, BuildingTypeStats) {
     << sizeof(BuildingTypeStats) << " * " << static_cast<int>(BuildingType::NumBuildings) << " = "
     << sizeof(BuildingTypeStats) * static_cast<int>(BuildingType::NumBuildings);
     
-  // NOTE: This could be e extracted and moved to the game in order to validate data loaded 
-  //       dynamicly from files. 
+  // NOTE: This could be extracted and moved to the game in order to validate data loaded 
+  //       dynamically from files. 
 
   std::vector<BuildingTypeStats> buildingTypeStats;
   LoadBuildingTypeStats(buildingTypeStats);

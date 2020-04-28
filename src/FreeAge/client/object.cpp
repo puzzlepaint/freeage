@@ -95,7 +95,7 @@ InteractionType GetInteractionType(ClientObject* actor, ClientObject* target) {
       return InteractionType::Attack;
     }
 
-    // TODO: return InteractionType::Garrison only for targets that are mainly used for garrison, like the
+    // TODO: return InteractionType::Garrison only for targets that are mainly used for garrison, like
     //       the transport ship and rams.
   }
   

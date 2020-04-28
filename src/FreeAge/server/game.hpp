@@ -116,7 +116,7 @@ class Game {
   bool UngarrisonUnit(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject);
   void UngarrisonAllUnits(u32 targetObjectId, ServerObject* targetObject);
   
-  /// Change the garrison state of a unit and the targets object garrisoned units list. 
+  /// Change the garrison state of a unit and the target object's garrisoned units list.
   /// The enter parameter is true for garrison and false for ungarrison.
   /// Returns true if the unit's garrison status changed.
   bool ChangeUnitGarrisonStatus(u32 unitId, ServerUnit* unit, u32 targetObjectId, ServerObject* targetObject, bool enter);
@@ -148,7 +148,7 @@ class Game {
   Player gaiaPlayer;
 
   inline PlayerStats* GetPlayerStats(int playerIndex) { return &(playerIndex == kGaiaPlayerIndex ? gaiaPlayer.GetPlayerStats() : playersInGame->at(playerIndex)->GetPlayerStats()); }
-  inline std::shared_ptr<PlayerInGame>& GetPlayerInGame(int index) { return playersInGame->at(index); }
+  inline const std::shared_ptr<PlayerInGame>& GetPlayerInGame(int index) { return playersInGame->at(index); }
   
   /// Stores the object IDs that should be deleted at the end of the current
   /// game step. This list is required since we generally cannot directly delete

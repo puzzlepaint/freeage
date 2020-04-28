@@ -550,6 +550,9 @@ void Game::HandleDequeueProductionQueueItemMessage(const QByteArray& msg, Player
   UnitType removedType = building->RemoveItemFromQueue(queueIndex);
   
   // Refund the resources for the item.
+  // TODO: Maybe store the item's cost along with the queue item such that we can refund the correct cost
+  //       in case a technology changed the item cost in-between the queueing and the de-queueing.
+  //       Currently we would first charge the old cost, but then refund the new cost.
   player->resources.Add(player->GetUnitStats(removedType).cost);
   
   // Tell the client about the successful removal.
@@ -845,7 +848,7 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
 }
 
 static bool DoesUnitTouchBuildingArea(ServerUnit* unit, const QPointF& unitMapCoord, ServerBuilding* building, float errorMargin) {
-  // Get the point withing the building's area which is closest to the unit
+  // Get the point within the building's area which is closest to the unit
   QSize buildingSize = building->GetStats().size;
   const QPoint& baseTile = building->GetBaseTile();
   QPointF closestPointInBuilding(
@@ -1391,7 +1394,7 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
     float multiplier = 1;
     int damage = CalculateDamage(unit->GetStats().damage,
           target->GetObjectStats().armor, multiplier);
-    CHECK(damage >= 1);
+    CHECK_GE(damage, 1);
     
     // Do the attack damage.
     float oldHP = target->GetHPInternalFloat();
@@ -1408,7 +1411,7 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
 
       // Check if the object is a building and has <= 20% hp left
       if (target->GetGarrisonedUnitsCount() > 0 && target->isBuilding() &&
-            hp <= .2f * AsBuilding(target)->GetStats().maxHp) {
+          hp <= .2f * AsBuilding(target)->GetStats().maxHp) {
         UngarrisonAllUnits(targetId, target);
       }
     } else if (oldHP > 0.5f) {
@@ -1490,12 +1493,12 @@ bool Game::ChangeUnitGarrisonStatus(u32 unitId, ServerUnit* unit, u32 targetObje
 
     // Check if the object is a building and has <= 20% hp left
     if (targetObject->isBuilding() && AsBuilding(targetObject)->GetHPInternalFloat() <= .2f * AsBuilding(targetObject)->GetStats().maxHp) {
-      // Unit cannot garrison building beacause of low health;
+      // Unit cannot garrison in the building beacause it has low HP
       return false;
     }
     
-    // TODO: replace with the garrison capacity form the unit type stats #stats
-    bool isTownCenter = targetObject->GetObjectType() == ObjectType::Building && AsBuilding(targetObject)->GetType() == BuildingType::TownCenter;
+    // TODO: replace with the garrison capacity from the unit type stats #stats
+    bool isTownCenter = targetObject->isBuilding() && AsBuilding(targetObject)->GetType() == BuildingType::TownCenter;
     int capacity = isTownCenter ? 15 : 0;
     if (targetObject->GetGarrisonedUnitsCount() >= capacity) {
       // Unit cannot garrison building beacause of filled capacity
@@ -1511,7 +1514,7 @@ bool Game::ChangeUnitGarrisonStatus(u32 unitId, ServerUnit* unit, u32 targetObje
     }
   } else {
     if (!targetObject->isBuilding()) {
-      // TODO: find an empty spot around the target unit and ungarrison their
+      // TODO: find an empty spot around the target unit and ungarrison there
       LOG(ERROR) << "Ungarrison from unit not implemented yet";
       return false;
     }
@@ -1529,9 +1532,9 @@ bool Game::ChangeUnitGarrisonStatus(u32 unitId, ServerUnit* unit, u32 targetObje
         unit->GetMapCoord(),
         unit->GetStats().speed * gameSpeedFactor * unit->GetMovementDirection(),
         unit->GetCurrentAction());
+      QByteArray bothMessages = unitMoveMessage + unitGarrisonMessage;
       for (auto& player : *playersInGame) {
-        accumulatedMessages[player->index] += unitMoveMessage;
-        accumulatedMessages[player->index] += unitGarrisonMessage;
+        accumulatedMessages[player->index] += bothMessages;
       }
     } else {
       // No free space for unit to ungarrison object

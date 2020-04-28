@@ -427,7 +427,7 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
   { // Palisade Gate
     BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::PalisadeGate);
 
-    // TODO: Palisade Gate decreased to 0/0 while under construction. Could be hanlded as a
+    // TODO: Palisade Gate armor should be 0/0 while under construction. Could be handled as a
     //       special case in the game logic.
     SetBuildingBasic(s,
       /* hp     */ 400,
@@ -452,7 +452,7 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
     SetBuildingArmor(s, DamageType::Building, DamageValues::None);
     SetBuildingArmor(s, DamageType::StandardBuilding, DamageValues::None);
     SetBuildingArmor(s, DamageType::Tree);
-    s.resources.wood() = 100; // Move the wood resourse to the TreeStump
+    s.resources.wood() = 100; // Move the wood resource to the TreeStump
   }
 
   { // Forage Bush

@@ -109,7 +109,7 @@ struct PlayerStats {
   /// Called when the number of units change.
   void UnitChange(UnitType unitType, bool death, int d);
 
-  /// Called when something active (= not unfinished building) change.
+  /// Called when something active (i.e., excluding unfinished buildings) changes.
   void Change(const ObjectTypeStats& stats, int d);
 
   // TODO: change from arrays to maps if the sizeof(PlayerStats) gets too big ?
@@ -144,7 +144,8 @@ struct PlayerStats {
   bool buildingExisted[static_cast<int>(BuildingType::NumBuildings)];
 };
 
-struct Player {
+class Player {
+ public:
 
   /// TODO: pass the civilization
   /// TODO: rename int playerColorIndex to colorIndex
@@ -158,7 +159,7 @@ struct Player {
 
   /// The unique player ID. The IDs are given to the players in consecutive order starting from 0
   /// and they are used as indexes to vectors and arrays containing items for each player. The gaia player
-  /// has a index equal to kGaiaPlayerIndex which is a fixed value that does not follow the consecutive order.
+  /// has an index equal to kGaiaPlayerIndex which is a fixed value that does not follow the consecutive order.
   const int index;
   
   /// The player color index.
@@ -168,7 +169,7 @@ struct Player {
 
   /// The current game resources of the player (wood, food, gold, stone).
   /// TODO: Allow modification to the resources only from a wrapper function
-  ///       in order to have a single code location where player resources change ?
+  ///       in order to have a single code location where player resources change?
   ResourceAmount resources;
 
  private:

@@ -25,7 +25,6 @@ Contributions are welcome!
 
 To know what to expect, here are some examples of known limitations:
 
-* Units cannot be garrisoned into buildings.
 * Units do not auto-attack enemy units; they all have to be microed manually.
   Think of them as all being villagers, or being in no-attack stance.
 * Units often get stuck when moving in groups.
@@ -111,6 +110,8 @@ Hotkeys are currently hard-coded to the following:
 * A:           Build villager / Build militia / Economy buildings
 * S:           Military buildings
 * Q - R, A, Z: Grid mapping for constructing the corresponding buildings
+* G:           Garrison
+* Z:           Ungarrison all
 * Del:         Delete building or unit
 * 1 - 0:       Control groups (define by holding Ctrl)
 * Space:       Jump to selected object(s)

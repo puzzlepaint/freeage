@@ -293,7 +293,7 @@ retryGold:  // TODO: Ugly implementation, improve this
   
   // Generate villagers
   for (int player = 0; player < playerCount; ++ player) {
-    // TODO: check the player civ to determine the staring number of villagers #civs
+    // TODO: check the player civ to determine the starting number of villagers #civs
     int startingVillagerCount = 3;
     for (int villager = 0; villager < startingVillagerCount; ++ villager) {
       ServerUnit* newUnit = new ServerUnit(game->GetPlayer(player), (rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, QPointF(-1, -1));

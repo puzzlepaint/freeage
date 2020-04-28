@@ -123,7 +123,7 @@ class ClientBuilding : public ClientObject {
   virtual const ObjectTypeStats& GetObjectStats() const override { return GetStats(); }
   
   inline QString GetBuildingName() const { return ::GetBuildingName(type); }
-  inline const Texture* GetIconTexture() const { return ClientBuildingType::GetBuildingTypes()[static_cast<int>(type)].GetIconTexture(); }
+  inline const Texture* GetIconTexture() const { return GetClientBuildingType(type).GetIconTexture(); }
   inline QPoint GetBaseTile() const { return QPoint(baseTileX, baseTileY); }
   
   inline float GetBuildPercentage() const { return buildPercentage; }

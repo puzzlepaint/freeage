@@ -102,8 +102,8 @@ void PlayerStats::UnitChange(UnitType unitType, bool death, int d) {
 }
 
 void PlayerStats::Change(const ObjectTypeStats& stats, int d) {
-  // NOTE: This is not enforced at the moment, but there are not technologies that can be researched
-  //       that change the population values of an object. So it can be assumed that the two counters
+  // NOTE: This is not enforced at the moment, but there are no technologies that can be researched
+  //       that change the population value of an object. So it can be assumed that the two counters
   //       will not be invalidated at any point, no total re-evaluations are needed.
   // Keep track of the population.
   doubledPopulationCount += stats.population.GetDoubledPopulationCount() * d;
