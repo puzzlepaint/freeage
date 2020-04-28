@@ -4,11 +4,12 @@
 
 #pragma once
 
+#include "FreeAge/common/civilizations.hpp"
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/type_stats.hpp"
 
 void LoadUnitTypeStats(std::vector<UnitTypeStats>& unitTypeStats);
 void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats);
+void LoadCivilizationStats(std::vector<CivilizationStats>& civilizationStats);
 
-// TODO: move elsewhere
 void LoadGameData(GameData& gameData);

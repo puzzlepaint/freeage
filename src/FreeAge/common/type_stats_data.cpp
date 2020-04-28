@@ -150,6 +150,28 @@ inline void SetBuildingCost(BuildingTypeStats& s, float creationTime, u32 wood, 
   s.cost = ResourceAmount(wood, food, gold, stone);
 }
 
+inline void SetCivilizationDefaults(CivilizationStats& s) {
+  s.startingScoutUnit = UnitType::Scout;
+  s.startingVillagerCount = 3;
+  s.startingLlama = false;
+  s.startingBonusResources = ResourceAmount();
+  s.bonusMaxPopulation = 0;
+  s.bonusPopulationSpace = 0;
+  s.garrisonHealRate = 36;
+  s.tradingFree = .3;
+  s.tributeFee = .3;
+  s.tradeGoldGeneration = 1;
+  s.relicGoldGeneration = .5;
+  s.maxTownCenters = 1;
+  s.VillagerCarryingCapacity(UnitType::FemaleVillager) = 10;
+  s.VillagerCarryingCapacity(UnitType::FemaleVillagerBuilder) = 10;
+  s.VillagerCarryingCapacity(UnitType::FemaleVillagerForager) = 10;
+  s.VillagerCarryingCapacity(UnitType::FemaleVillagerLumberjack) = 10;
+  s.VillagerCarryingCapacity(UnitType::FemaleVillagerGoldMiner) =10;
+  s.VillagerCarryingCapacity(UnitType::FemaleVillagerStoneMiner) = 10;
+  s.fishingShipCarryingCapacity = 10; // TODO: find value ?
+}
+
 // Vector helpers
 
 inline UnitTypeStats& InitUnit(std::vector<UnitTypeStats>& unitTypeStats, UnitType type) {
@@ -171,6 +193,12 @@ inline BuildingTypeStats& InitBuilding(std::vector<BuildingTypeStats>& buildingT
 inline BuildingTypeStats& CopyBuilding(std::vector<BuildingTypeStats>& buildingTypeStats, BuildingType type, BuildingType source) {
   BuildingTypeStats& s = buildingTypeStats[static_cast<int>(type)];
   s = buildingTypeStats[static_cast<int>(source)];
+  return s;
+}
+
+inline CivilizationStats& InitCivilization(std::vector<CivilizationStats>& civilizationStats, Civilization type) {
+  CivilizationStats& s = civilizationStats[static_cast<int>(type)];
+  SetCivilizationDefaults(s);
   return s;
 }
 
@@ -488,9 +516,28 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
   }
 }
 
+void LoadCivilizationStats(std::vector<CivilizationStats>& civilizationStats) {
+  // pre allocate all the BuildingTypeStats and then fill the data
+  civilizationStats.resize(static_cast<int>(Civilization::NumCivilizations));
+
+  { // Gaia
+    InitCivilization(civilizationStats, Civilization::Gaia);
+  }
+  { // ReplaceWithPuzzlepaintsFavoriteCivilization
+    InitCivilization(civilizationStats, Civilization::ReplaceWithPuzzlepaintsFavoriteCivilization);
+    // TODO: implement
+  }
+  { // Byzantines
+    InitCivilization(civilizationStats, Civilization::Byzantines);
+    // TODO: implement
+  }
+
+}
+
 void LoadGameData(GameData& gameData) {
   LoadUnitTypeStats(gameData.unitTypeStats);
   LoadBuildingTypeStats(gameData.buildingTypeStats);
+  LoadCivilizationStats(gameData.civilizationStats);
 
   // Changes to game data for development testing
 
