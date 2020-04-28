@@ -165,9 +165,10 @@ struct Player {
   /// TODO: should this be here?
   const int playerColorIndex;
   
-  // TODO (maanoo): move fields to private and use getters
 
   /// The current game resources of the player (wood, food, gold, stone).
+  /// TODO: Allow modification to the resources only from a wrapper function
+  ///       in order to have a single code location where player resources change ?
   ResourceAmount resources;
 
  private:

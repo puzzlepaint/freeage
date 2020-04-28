@@ -73,7 +73,11 @@ struct ObjectTypeStats {
   /// TODO: not used by the game yet
   AttackType attackType;
 
-  /// The attacks per second. The attack duration is the reciprocal of the attacks per second.
+  /// The seconds between two attacks.
+  /// NOTE: The fire rate is the reciprocal of the attacks per second (the expected unit of fire rate?) to
+  ///       keep the same with the original game. This also causes confusion on what "attack 10% faster" means.
+  /// TODO: special case for technology upgrades #modifications
+  /// TODO: not used by the game yet
   float fireRate;
 
   Damage damage;
@@ -112,7 +116,7 @@ struct ObjectTypeStats {
   /// Duration from start of attack until damage being applied to target represended by the ratio
   /// of the full attack duration. To retrive the duration in seconds multiply by the attack duration.
   /// TODO: rename ?
-  /// TODO: not used by the game yet
+  /// TODO: not used fully by the game yet (ability to cancel attack before the attackDelay mark)
   float attackDelay;
 
   /// If the attack can cause damage to friendly objects.
