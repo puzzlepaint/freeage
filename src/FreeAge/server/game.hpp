@@ -24,7 +24,7 @@ class ServerUnit;
 /// Represents a player in a game.
 struct PlayerInGame : public Player {
 
-  PlayerInGame(int index, int playerColorIndex, const GameData& gameData);
+  PlayerInGame(int index, int playerColorIndex, const GameData& gameData, Civilization civilization);
 
   void RemoveFromGame();
   

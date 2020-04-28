@@ -131,9 +131,11 @@ void PlayerStats::log() const {
   }
 }
 
-Player::Player(int index, int playerColorIndex, const GameData& gameData) 
+Player::Player(int index, int playerColorIndex, const GameData& gameData, Civilization civilization)
   : index(index),
     playerColorIndex(playerColorIndex),
+    civilization(civilization),
+    civilizationStats(gameData.civilizationStats[static_cast<int>(civilization)]),
     unitTypeStats(gameData.unitTypeStats),
     buildingTypeStats(gameData.buildingTypeStats),
     stats(this) {

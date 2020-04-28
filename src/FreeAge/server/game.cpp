@@ -22,8 +22,8 @@
 // in order for CIDE not to show some errors. Compiling always worked. Check the reason for the errors.
 #include <mango/core/endian.hpp>
 
-PlayerInGame::PlayerInGame(int index, int playerColorIndex, const GameData& gameData)
-    : Player(index, playerColorIndex, gameData) {}
+PlayerInGame::PlayerInGame(int index, int playerColorIndex, const GameData& gameData, Civilization civilization)
+    : Player(index, playerColorIndex, gameData, civilization) {}
 
 void PlayerInGame::RemoveFromGame() {
   unparsedBuffer.clear();
@@ -32,7 +32,7 @@ void PlayerInGame::RemoveFromGame() {
 
 
 Game::Game(ServerSettings* settings, GameData* gameData)
-    : gaiaPlayer(kGaiaPlayerIndex, 0, *gameData),
+    : gaiaPlayer(kGaiaPlayerIndex, 0, *gameData, Civilization::Gaia),
       settings(settings) {}
 
 void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame) {
@@ -397,7 +397,7 @@ void Game::HandlePlaceBuildingFoundationMessage(const QByteArray& msg, PlayerInG
   BuildingType type = static_cast<BuildingType>(mango::uload16(data + 3));
 
   // check whether the player is allowed to build this type of building
-  int max = GetBuildingMaxInstances(type);
+  int max = GetBuildingMaxInstances(player, type);
   bool maxReached = max != -1 && player->GetPlayerStats().GetBuildingTypeCount(type) >= max;
   if (maxReached) {
     LOG(ERROR) << "Received a PlaceBuildingFoundation message for which the player cannot build";

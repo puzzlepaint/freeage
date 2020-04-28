@@ -38,7 +38,7 @@ static std::shared_ptr<Player> CreateTestingPlayer() {
     LoadGameData(gameData);
   }
   // Create and return new players
-  std::shared_ptr<Player> player(new Player(0, 0, gameData));
+  std::shared_ptr<Player> player(new Player(0, 0, gameData, Civilization::Byzantines));
   return player;
 }
 

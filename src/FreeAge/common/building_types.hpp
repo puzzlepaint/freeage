@@ -11,6 +11,8 @@
 #include "FreeAge/common/damage.hpp"
 #include "FreeAge/common/resources.hpp"
 
+class Player;
+
 /// Building types. The numbers must be sequential, starting from zero,
 /// since they are used to index into a std::vector of Sprite.
 enum class BuildingType {
@@ -56,7 +58,6 @@ QString GetBuildingName(BuildingType type);
 
 /// Returns the max number of the given building type that the player can build.
 /// Returns -1 if unlimited.
-/// TODO: remove and have a check for only the Town Center bases on the civ stats #civs
-int GetBuildingMaxInstances(BuildingType type);
+int GetBuildingMaxInstances(const Player* player, BuildingType type);
 
 int GetMaxElevationDifferenceForBuilding(BuildingType type);

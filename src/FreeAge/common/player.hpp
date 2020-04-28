@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "FreeAge/common/free_age.hpp"
+#include "FreeAge/common/civilizations.hpp"
 #include "FreeAge/common/building_types.hpp"
+#include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/type_stats.hpp"
 #include "FreeAge/common/unit_types.hpp"
 
@@ -149,11 +150,12 @@ class Player {
 
   /// TODO: pass the civilization
   /// TODO: rename int playerColorIndex to colorIndex
-  Player(int index, int playerColorIndex, const GameData& gameData);
+  Player(int index, int playerColorIndex, const GameData& gameData, Civilization civilization);
 
   inline const PlayerStats& GetPlayerStats() const { return stats; }
   inline PlayerStats& GetPlayerStats() { return stats; }
 
+  inline const CivilizationStats& GetCivilizationStats() const { return civilizationStats; }
   inline const UnitTypeStats& GetUnitStats(UnitType unitType) const { return unitTypeStats.at(static_cast<int>(unitType)); }
   inline const BuildingTypeStats& GetBuildingStats(BuildingType buildingType) const { return buildingTypeStats.at(static_cast<int>(buildingType)); }
 
@@ -165,7 +167,9 @@ class Player {
   /// The player color index.
   /// TODO: should this be here?
   const int playerColorIndex;
-  
+
+  // TODO (maanoo): 
+  const Civilization civilization;
 
   /// The current game resources of the player (wood, food, gold, stone).
   /// TODO: Allow modification to the resources only from a wrapper function
@@ -176,6 +180,8 @@ class Player {
 
   inline UnitTypeStats& GetModifiableUnitStats(UnitType unitType) { return unitTypeStats.at(static_cast<int>(unitType)); }
   inline BuildingTypeStats& GetModifiableBuildingStats(BuildingType buildingType) { return buildingTypeStats.at(static_cast<int>(buildingType)); }
+
+  CivilizationStats civilizationStats;
 
   std::vector<UnitTypeStats> unitTypeStats;
   std::vector<BuildingTypeStats> buildingTypeStats;

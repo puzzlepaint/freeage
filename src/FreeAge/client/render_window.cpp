@@ -4387,7 +4387,7 @@ CommandButton::State RenderWindow::GetCommandButtonState(CommandButton* button) 
     BuildingType buildingType = button->GetBuildingConstructionType();
 
     // Check for the max limit
-    int max = GetBuildingMaxInstances(buildingType);
+    int max = GetBuildingMaxInstances(gameController->GetPlayer(), buildingType);
     if (max != -1 && gameController->GetBuildingTypeCount(buildingType) >= max) {
       return CommandButton::State::MaxLimitReached;
     }

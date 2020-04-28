@@ -7,6 +7,7 @@
 #include <QObject>
 
 #include "FreeAge/common/logging.hpp"
+#include "FreeAge/common/player.hpp"
 
 
 QString GetBuildingName(BuildingType type) {
@@ -37,9 +38,9 @@ QString GetBuildingName(BuildingType type) {
   return "";
 }
 
-int GetBuildingMaxInstances(BuildingType type) {
-  if (type == BuildingType::TownCenter) { // TODO: add wonder
-    return 1;
+int GetBuildingMaxInstances(const Player* player, BuildingType type) {
+  if (type == BuildingType::TownCenter) {
+    return player->GetCivilizationStats().maxTownCenters;
   } else if (type >= BuildingType::House && type <= BuildingType::PalisadeGate) {
     return -1; // unlimited
   }

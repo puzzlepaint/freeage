@@ -293,10 +293,10 @@ retryGold:  // TODO: Ugly implementation, improve this
   
   // Generate villagers
   for (int player = 0; player < playerCount; ++ player) {
-    // TODO: check the player civ to determine the starting number of villagers #civs
-    int startingVillagerCount = 3;
+    Player* p = game->GetPlayer(player);
+    int startingVillagerCount = p->GetCivilizationStats().startingVillagerCount;
     for (int villager = 0; villager < startingVillagerCount; ++ villager) {
-      ServerUnit* newUnit = new ServerUnit(game->GetPlayer(player), (rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, QPointF(-1, -1));
+      ServerUnit* newUnit = new ServerUnit(p, (rand() % 2 == 0) ? UnitType::FemaleVillager : UnitType::MaleVillager, QPointF(-1, -1));
       
       while (true) {
         // TODO: Prevent this from potentially being an endless loop
@@ -316,8 +316,8 @@ retryGold:  // TODO: Ugly implementation, improve this
   
   // Generate scouts
   for (int player = 0; player < playerCount; ++ player) {
-    // TODO: check the player civ to determine the scout unit type #civs
-    ServerUnit* newUnit = new ServerUnit(game->GetPlayer(player), UnitType::Scout, QPointF(-1, -1));
+    Player* p = game->GetPlayer(player);
+    ServerUnit* newUnit = new ServerUnit(p, p->GetCivilizationStats().startingScoutUnit, QPointF(-1, -1));
     
     while (true) {
       // TODO: Prevent this from potentially being an endless loop
