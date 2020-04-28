@@ -11,8 +11,10 @@
 
 enum class Civilization {
   Gaia = 0,
+
   ReplaceWithPuzzlepaintsFavoriteCivilization,
   Byzantines,
+
   NumCivilizations
 };
 
@@ -87,6 +89,8 @@ struct CivilizationStats {
   int fishingShipCarryingCapacity;
 
   // TODO: all modifiable monk conversion stats #monks
+
+  // TODO (maanoo): add modification list per age
 
 };
 
