@@ -779,6 +779,7 @@ void Game::SimulateGameStep(double gameStepServerTime, float stepLengthInSeconds
   for (auto& player : *playersInGame) {
     player->isHoused = false;
   }
+  workers.clear();
   
   // Iterate over all game objects to update their state.
   auto end = map->GetObjects().end();
@@ -1161,11 +1162,14 @@ void Game::SimulateBuildingConstruction(float stepLengthInSeconds, ServerUnit* v
   }
   
   // Add progress to the construction.
-  // TODO: In the original game, two villagers building does not result in twice the speed. Account for this.
   if (canConstruct) {
     // TODO: why is constructionTime double, change to float like everything else ?
+    bool firstBuilder = workers.count(targetBuilding) == 0;
+    workers.emplace(targetBuilding, villager);
     double constructionTime = static_cast<float>(targetBuilding->GetStats().creationTime);
-    double constructionStepAmount = villager->GetStats().workRate * stepLengthInSeconds / constructionTime;
+    // Builders, except the first one, have a 1/3 multiplier
+    double workRate = villager->GetStats().workRate * (firstBuilder ? 1 : 1/3.f);
+    double constructionStepAmount = workRate * stepLengthInSeconds / constructionTime;
     
     double newPercentage = std::min<double>(100, targetBuilding->GetBuildPercentage() + 100 * constructionStepAmount);
     if (newPercentage == 100 && !targetBuilding->IsCompleted()) {

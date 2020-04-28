@@ -150,6 +150,14 @@ class Game {
   inline PlayerStats* GetPlayerStats(int playerIndex) { return &(playerIndex == kGaiaPlayerIndex ? gaiaPlayer.GetPlayerStats() : playersInGame->at(playerIndex)->GetPlayerStats()); }
   inline const std::shared_ptr<PlayerInGame>& GetPlayerInGame(int index) { return playersInGame->at(index); }
   
+  /// A map from objects to all of their workers. Workers are considered:
+  /// - For buildings under construction: all the villagers building.
+  /// - For buildings/units being repaired: all the villagers repairing. TODO: implement
+  /// - For resources spots: all the villagers gathering. TODO: implement
+  /// - For farms: the villager farming. TODO: implement
+  /// The map is reconstructed in every frame.
+  std::multimap<ServerObject*, ServerUnit*> workers;
+
   /// Stores the object IDs that should be deleted at the end of the current
   /// game step. This list is required since we generally cannot directly delete
   //  arbitrary objects during the game step simulation. This is because

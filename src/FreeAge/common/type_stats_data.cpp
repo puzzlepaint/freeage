@@ -494,8 +494,8 @@ void LoadGameData(GameData& gameData) {
 
   // Changes to game data for development testing
 
-  gameData.unitTypeStats[static_cast<int>(UnitType::MaleVillagerBuilder)].workRate = 4;
-  gameData.unitTypeStats[static_cast<int>(UnitType::FemaleVillagerBuilder)].workRate = 4;
+  gameData.unitTypeStats[static_cast<int>(UnitType::MaleVillagerBuilder)].workRate = 3;
+  gameData.unitTypeStats[static_cast<int>(UnitType::FemaleVillagerBuilder)].workRate = 3;
   gameData.unitTypeStats[static_cast<int>(UnitType::MaleVillager)].creationTime = 10;
   gameData.unitTypeStats[static_cast<int>(UnitType::Militia)].creationTime = 3;
   gameData.buildingTypeStats[static_cast<int>(BuildingType::Outpost)].lineOfSight = 300;
