@@ -40,7 +40,7 @@ class ServerBuilding : public ServerObject {
   
   inline BuildingType GetType() const { return type; }
   inline const BuildingTypeStats& GetStats() const { return GetPlayer()->GetBuildingStats(type); }
-  virtual const ObjectTypeStats& GetObjectStats() const { return GetStats(); }
+  virtual const ObjectTypeStats& GetObjectStats() const override { return GetStats(); }
 
   inline const std::vector<UnitType>& GetProductionQueue() const { return productionQueue; }
   

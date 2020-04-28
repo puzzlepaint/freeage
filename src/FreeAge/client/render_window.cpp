@@ -2024,7 +2024,7 @@ void RenderWindow::RenderResourcePanel(QOpenGLFunctions_3_2_Core* f) {
   popTextDisplay.textDisplay->Render(
       georgiaFontSmaller,
       populationBlinking ? qRgba(0, 0, 0, 255) : qRgba(255, 255, 255, 255),
-      tr("%1 / %2").arg(playerStats.GetPopulationDemand()).arg(playerStats.GetPopulationSpace()),
+      tr("%1 / %2").arg(playerStats.GetPopulationCount()).arg(playerStats.GetPopulationSpace()),
       QRect(topLeft.x() + uiScale * (17 + 4 * 200 + 83 + 16),
             topLeft.y() + uiScale * 16,
             uiScale * 82,

@@ -111,7 +111,7 @@ TEST(PlayerStats, Operations) {
   stats.UnitAdded(UnitType::MaleVillager);
 
   EXPECT_EQ(stats.GetPopulationSpace(), 10);
-  EXPECT_EQ(stats.GetPopulationDemand(), 2);
+  EXPECT_EQ(stats.GetPopulationCount(), 2);
   EXPECT_EQ(stats.GetBuildingTypeCount(BuildingType::Barracks), 1);
   EXPECT_TRUE(stats.GetBuildingTypeExisted(BuildingType::Barracks));
 
@@ -121,7 +121,7 @@ TEST(PlayerStats, Operations) {
   stats.UnitRemoved(UnitType::MaleVillager);
 
   EXPECT_EQ(stats.GetPopulationSpace(), 5);
-  EXPECT_EQ(stats.GetPopulationDemand(), 1);
+  EXPECT_EQ(stats.GetPopulationCount(), 1);
   EXPECT_EQ(stats.GetBuildingTypeCount(BuildingType::Barracks), 0);
   EXPECT_TRUE(stats.GetBuildingTypeExisted(BuildingType::Barracks));
 

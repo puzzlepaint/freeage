@@ -32,7 +32,7 @@ void PlayerInGame::RemoveFromGame() {
 
 
 Game::Game(ServerSettings* settings, GameData* gameData)
-    : gaiPlayer(kGaiaPlayerIndex, 0, *gameData),
+    : gaiaPlayer(kGaiaPlayerIndex, 0, *gameData),
       settings(settings) {}
 
 void Game::RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame) {
@@ -765,7 +765,7 @@ void Game::StartGame() {
   }
   
   LOG(INFO) << "Server: Game start prepared";
-  gaiPlayer.GetPlayerStats().log();
+  gaiaPlayer.GetPlayerStats().log();
   for (auto& player : *playersInGame) {
     player->GetPlayerStats().log();
   }
@@ -980,7 +980,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
   }
   
   if (unit->GetMovementDirection() != QPointF(0, 0)) {
-    float moveDistance = unit->GetMoveSpeed() * stepLengthInSeconds;
+    float moveDistance = unit->GetStats().speed * stepLengthInSeconds;
     
     QPointF newMapCoord = unit->GetMapCoord() + moveDistance * unit->GetMovementDirection();
     bool stayInPlace = false;
@@ -1117,7 +1117,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
           CreateUnitMovementMessage(
               unitId,
               unit->GetMapCoord(),
-              unit->GetMoveSpeed() * unit->GetMovementDirection(),
+              unit->GetStats().speed * unit->GetMovementDirection(),
               unit->GetCurrentAction());
     }
   }
@@ -1386,7 +1386,7 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
       target != nullptr) {
     // Compute the attack damage.
     // TODO: handle all the attack types
-    CHECK_EQ(unit->GetStats().attackType == AttackType::Default, true);
+    CHECK(unit->GetStats().attackType == AttackType::Default);
     // TODO: Elevation multiplier 5/4 or 3/4
     float multiplier = 1;
     int damage = CalculateDamage(unit->GetStats().damage,
@@ -1527,7 +1527,7 @@ bool Game::ChangeUnitGarrisonStatus(u32 unitId, ServerUnit* unit, u32 targetObje
       // TODO: move to the gather point #gather-point
       QByteArray unitMoveMessage = CreateUnitMovementMessage(unitId,
         unit->GetMapCoord(),
-        unit->GetMoveSpeed() * unit->GetMovementDirection(),
+        unit->GetStats().speed * unit->GetMovementDirection(),
         unit->GetCurrentAction());
       for (auto& player : *playersInGame) {
         accumulatedMessages[player->index] += unitMoveMessage;
@@ -1752,7 +1752,7 @@ void Game::DeleteObject(u32 objectId, bool deletedManually) {
     
     // NOTE: This population check will not account for zero-population units such as sheep,
     //       but that should be fine.
-    if (stats.GetPopulationDemand() == 0) {
+    if (stats.GetPopulationCount() == 0) {
       bool hasAnyBuilding = false;
       
       // TODO: Only consider production buildings here.

@@ -69,7 +69,7 @@ class Game {
   void RunGameLoop(std::vector<std::shared_ptr<PlayerInGame>>* playersInGame);
   
   inline int GetPlayerCount() const { return playersInGame->size(); }
-  inline Player* GetPlayer(int index) { return index == kGaiaPlayerIndex ? &gaiPlayer : playersInGame->at(index).get(); }
+  inline Player* GetPlayer(int index) { return index == kGaiaPlayerIndex ? &gaiaPlayer : playersInGame->at(index).get(); }
 
  private:
   enum class ParseMessagesResult {
@@ -145,10 +145,10 @@ class Game {
   std::vector<std::shared_ptr<PlayerInGame>>* playersInGame;
 
   /// The Gaia's stats
-  Player gaiPlayer;
+  Player gaiaPlayer;
 
-  inline PlayerStats* GetPlayerStats(int playerIndex) { return &(playerIndex == kGaiaPlayerIndex ? gaiPlayer.GetPlayerStats() : playersInGame->at(playerIndex)->GetPlayerStats()); }
-  inline std::shared_ptr<PlayerInGame> GetPlayerInGame(int index) { return playersInGame->at(index); }
+  inline PlayerStats* GetPlayerStats(int playerIndex) { return &(playerIndex == kGaiaPlayerIndex ? gaiaPlayer.GetPlayerStats() : playersInGame->at(playerIndex)->GetPlayerStats()); }
+  inline std::shared_ptr<PlayerInGame>& GetPlayerInGame(int index) { return playersInGame->at(index); }
   
   /// Stores the object IDs that should be deleted at the end of the current
   /// game step. This list is required since we generally cannot directly delete
