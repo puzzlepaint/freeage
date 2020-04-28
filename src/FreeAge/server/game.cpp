@@ -980,7 +980,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
   }
   
   if (unit->GetMovementDirection() != QPointF(0, 0)) {
-    float moveDistance = unit->GetStats().speed * stepLengthInSeconds;
+    float moveDistance = unit->GetStats().speed * gameSpeedFactor * stepLengthInSeconds;
     
     QPointF newMapCoord = unit->GetMapCoord() + moveDistance * unit->GetMovementDirection();
     bool stayInPlace = false;
@@ -1117,7 +1117,7 @@ void Game::SimulateGameStepForUnit(u32 unitId, ServerUnit* unit, double gameStep
           CreateUnitMovementMessage(
               unitId,
               unit->GetMapCoord(),
-              unit->GetStats().speed * unit->GetMovementDirection(),
+              unit->GetStats().speed * gameSpeedFactor * unit->GetMovementDirection(),
               unit->GetCurrentAction());
     }
   }
@@ -1377,7 +1377,7 @@ bool Game::SimulateMeleeAttack(u32 /*unitId*/, ServerUnit* unit, u32 targetId, S
   
   int numAttackFrames = GetUnitAttackFrames(unit->GetType());
   double fullAttackTime = numAttackFrames / (1.f * animationFramesPerSecond);
-  double attackDamageTime = 0.5 * fullAttackTime;  // TODO: Does this differ among units? Is this available in some data file?
+  double attackDamageTime = unit->GetStats().attackDelay * fullAttackTime;  // TODO: Does this differ among units? Is this available in some data file?
   
   double timeSinceActionStart = gameStepServerTime - unit->GetCurrentActionStartTime();
   
@@ -1527,7 +1527,7 @@ bool Game::ChangeUnitGarrisonStatus(u32 unitId, ServerUnit* unit, u32 targetObje
       // TODO: move to the gather point #gather-point
       QByteArray unitMoveMessage = CreateUnitMovementMessage(unitId,
         unit->GetMapCoord(),
-        unit->GetStats().speed * unit->GetMovementDirection(),
+        unit->GetStats().speed * gameSpeedFactor * unit->GetMovementDirection(),
         unit->GetCurrentAction());
       for (auto& player : *playersInGame) {
         accumulatedMessages[player->index] += unitMoveMessage;

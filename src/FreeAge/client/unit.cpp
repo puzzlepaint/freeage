@@ -266,6 +266,7 @@ void ClientUnit::Render(
   int frame;
   while (true) {
     double animationTime = (idleBlockedStartTime > 0) ? idleBlockedStartTime : serverTime;
+    // TODO: change speed of animation based on current UnitAnimation and UnitStats (eg. movement speed, work speed, fire rate?)
     frame = std::max(0, static_cast<int>(animationFramesPerSecond * (animationTime - lastAnimationStartTime) + 0.5f));
     if (frame < framesPerDirection) {
       break;
