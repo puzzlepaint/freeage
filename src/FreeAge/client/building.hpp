@@ -120,7 +120,7 @@ class ClientBuilding : public ClientObject {
   
   inline BuildingType GetType() const { return type; }
   inline const BuildingTypeStats& GetStats() const { return GetPlayer()->GetBuildingStats(type); }
-  virtual const ObjectTypeStats& GetObjectStats() const { return GetStats(); }
+  virtual const ObjectTypeStats& GetObjectStats() const override { return GetStats(); }
   
   inline QString GetBuildingName() const { return ::GetBuildingName(type); }
   inline const Texture* GetIconTexture() const { return ClientBuildingType::GetBuildingTypes()[static_cast<int>(type)].GetIconTexture(); }

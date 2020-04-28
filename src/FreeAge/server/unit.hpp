@@ -16,7 +16,7 @@ class ServerUnit : public ServerObject {
   
   inline UnitType GetType() const { return type; }
   inline const UnitTypeStats& GetStats() const { return GetPlayer()->GetUnitStats(type); }
-  virtual const ObjectTypeStats& GetObjectStats() const { return GetStats(); }
+  virtual const ObjectTypeStats& GetObjectStats() const override { return GetStats(); }
   
   inline const QPointF& GetMapCoord() const { return mapCoord; }
   inline void SetMapCoord(const QPointF& mapCoord) { this->mapCoord = mapCoord; }
@@ -63,9 +63,6 @@ class ServerUnit : public ServerObject {
   inline int GetCarriedResourceAmount() const { return static_cast<int>(carriedResourceAmount); }
   inline float GetCarriedResourceAmountInternalFloat() const { return carriedResourceAmount; }
   inline void SetCarriedResourceAmount(float amount) { carriedResourceAmount = amount; }
-  
-  // TODO: Load this from some database for each unit type
-  inline float GetMoveSpeed() const { return (type == UnitType::Scout) ? 2.f : 1.f; }
   
  private:
   void SetTargetInternal(u32 targetObjectId, ServerObject* targetObject, bool isManualTargeting);

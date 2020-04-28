@@ -28,9 +28,10 @@ inline void SetUnitDefaults(UnitTypeStats& s) {
   s.maxRange = 0;
   s.accuracy = 1;
   s.damage = GetUnitDefaultDamage();
+  s.attackDelay = .5;
   s.friendlyDamage = false;
   s.population = PopulationCount();
-  s.population.SetToIntegerPopulationDemand(1);
+  s.population.SetToIntegerPopulationCount(1);
   s.radius = 0;
   s.speed = 0;
 }
@@ -72,7 +73,7 @@ inline void SetUnitBonusDamage(UnitTypeStats& s, DamageType damageType, int valu
   s.damage.SetValue(damageType, value);
 }
 
-inline void SetUnitCost(UnitTypeStats& s, float creationTime, u32 wood, u32 food, u32 gold = 0, u32 stone = 0) {
+inline void SetUnitCost(UnitTypeStats& s, float creationTime, u32 wood, u32 food, u32 gold, u32 stone) {
   s.creationTime = creationTime;
   s.cost = ResourceAmount(wood, food, gold, stone);
 }
@@ -98,6 +99,7 @@ inline void SetBuildingDefaults(BuildingTypeStats& s) {
   s.maxRange = 0;
   s.accuracy = 1;
   s.damage = GetBuildingDefaultDamage();
+  s.attackDelay = .5;
   s.friendlyDamage = false;
   s.population = PopulationCount();
   s.dropOffPoint[static_cast<int>(ResourceType::Wood)] = false;
@@ -128,7 +130,7 @@ inline void SetBuildingGarrison(BuildingTypeStats& s, GarrisonType garrisonType,
   s.garrisonCapacity = garrisonCapacity;
 }
 
-inline void SetBuildingAttack(BuildingTypeStats& s, AttackType attackType, float fireRate, int pierceDamage, float accuracy, float maxRange, float projectileSpeed, float attackDelay = 0) {
+inline void SetBuildingAttack(BuildingTypeStats& s, AttackType attackType, float fireRate, int pierceDamage, float accuracy, float maxRange, float projectileSpeed, float attackDelay) {
   s.attackType = attackType;
   s.projectileSpeed = projectileSpeed;
   s.fireRate = fireRate;
@@ -194,7 +196,7 @@ void LoadUnitTypeStats(std::vector<UnitTypeStats>& unitTypeStats) {
     SetUnitMeleeAttack(s,
       /* fireRate    */ 2,
       /* meleeDamage */ 3,
-      /* attackDelay */ 0); // TODO: attack delay?
+      /* attackDelay */ .5); // TODO: attack delay?
     SetUnitBonusDamage(s, DamageType::StoneDefense, 6);
     SetUnitBonusDamage(s, DamageType::Building, 3);
     SetUnitBonusDamage(s, DamageType::Tree, 15); // assumption
@@ -255,7 +257,7 @@ void LoadUnitTypeStats(std::vector<UnitTypeStats>& unitTypeStats) {
     SetUnitMeleeAttack(s,
       /* fireRate    */ 2,
       /* meleeDamage */ 4,
-      /* attackDelay */ 0); // TODO: attack delay?
+      /* attackDelay */ .5); // TODO: attack delay?
     SetUnitCost(s, 21 /*seconds*/, 0 /*wood*/, 60 /*food*/, 20 /*gold*/, 0 /*stone*/);
   }
 
@@ -273,7 +275,7 @@ void LoadUnitTypeStats(std::vector<UnitTypeStats>& unitTypeStats) {
     SetUnitMeleeAttack(s,
       /* fireRate    */ 2,
       /* meleeDamage */ 3,
-      /* attackDelay */ 0); // TODO: attack delay?
+      /* attackDelay */ .5); // TODO: attack delay?
     SetUnitBonusDamage(s, DamageType::Monk, 6);
     SetUnitCost(s, 30 /*seconds*/, 0 /*wood*/, 80 /*food*/, 0 /*gold*/, 0 /*stone*/);
   }
@@ -286,7 +288,7 @@ void LoadUnitTypeStats(std::vector<UnitTypeStats>& unitTypeStats) {
   //   SetUnitMeleeAttack(s,
   //     /* fireRate    */ 2,
   //     /* meleeDamage */ 6,
-  //     /* attackDelay */ 0); // TODO: attack delay?
+  //     /* attackDelay */ .5); // TODO: attack delay?
   //   SetUnitBonusDamage(s, DamageType::EagleWarrior, 6);
   //   SetUnitBonusDamage(s, DamageType::StandardBuilding, 6);
   // }
@@ -319,7 +321,7 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
       /* accuracy     */ 1,
       /* maxRange     */ 6,
       /* projectSpeed */ 7,
-      /* attackDelay  */ 0); // TODO: attack delay?
+      /* attackDelay  */ .5); // TODO: attack delay?
     SetBuildingBonusDamage(s, DamageType::Ship, 5);
     SetBuildingBonusDamage(s, DamageType::Building, 5);
     SetBuildingBonusDamage(s, DamageType::Camel, 1);
@@ -425,9 +427,11 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
   { // Palisade Gate
     BuildingTypeStats& s = InitBuilding(buildingTypeStats, BuildingType::PalisadeGate);
 
+    // TODO: Palisade Gate decreased to 0/0 while under construction. Could be hanlded as a
+    //       special case in the game logic.
     SetBuildingBasic(s,
       /* hp     */ 400,
-      /* armor  */ 2, 2,
+      /* armor  */ 2, 2, // 0, 0 while under construction
       /* size   */ 1,
       /* los    */ 6);
     s.size = QSize(4, 1);

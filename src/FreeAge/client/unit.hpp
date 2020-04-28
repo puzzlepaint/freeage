@@ -102,7 +102,7 @@ class ClientUnit : public ClientObject {
   
   inline UnitType GetType() const { return type; }
   inline const UnitTypeStats& GetStats() const { return GetPlayer()->GetUnitStats(type); }
-  virtual const ObjectTypeStats& GetObjectStats() const { return GetStats(); }
+  virtual const ObjectTypeStats& GetObjectStats() const override { return GetStats(); }
 
   inline void SetType(UnitType newType) { type = newType; }
   

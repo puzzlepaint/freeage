@@ -102,9 +102,11 @@ void PlayerStats::UnitChange(UnitType unitType, bool death, int d) {
 }
 
 void PlayerStats::Change(const ObjectTypeStats& stats, int d) {
-  // Keep track of the population. The population values can only change in the start of the 
-  // game, so no total re-evaluations are needed.
-  doubledPopulationDemand += stats.population.GetDoubledPopulationDemand() * d;
+  // NOTE: This is not enforced at the moment, but there are not technologies that can be researched
+  //       that change the population values of an object. So it can be assumed that the two counters
+  //       will not be invalidated at any point, no total re-evaluations are needed.
+  // Keep track of the population.
+  doubledPopulationCount += stats.population.GetDoubledPopulationCount() * d;
   doubledPopulationSpace += stats.population.GetDoubledPopulationSpace() * d;
 }
 

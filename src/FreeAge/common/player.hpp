@@ -59,14 +59,14 @@ struct PlayerStats {
 
   // getters
 
-  inline int GetPopulationDemand() const { return doubledPopulationDemand / 2; }
+  inline int GetPopulationCount() const { return doubledPopulationCount / 2; }
   inline int GetPopulationSpace() const { return doubledPopulationSpace / 2; }
 
   /// The current population count of this player,
   /// *including units being produced*. This is required for "housed" checking,
   /// and it is different from the population count shown to the client.
   /// TODO: fix, for now the half values are ignored
-  inline int GetPopulationCountIncludingInProduction() const { return GetPopulationDemand() + populationInProduction; }
+  inline int GetPopulationCountIncludingInProduction() const { return GetPopulationCount() + populationInProduction; }
 
   /// The number of units with the given type that are alive.
   inline int GetUnitTypeCount(UnitType unitType) const {
@@ -129,7 +129,7 @@ struct PlayerStats {
   int unitsDied[static_cast<int>(UnitType::NumUnits)];
 
   /// The current population space demand multiplied by 2 (to handle half values).
-  int doubledPopulationDemand = 0;
+  int doubledPopulationCount = 0;
 
   /// The current population space supplied multiplied by 2 (to handle half values).
   int doubledPopulationSpace = 0;

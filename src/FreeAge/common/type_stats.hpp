@@ -56,11 +56,11 @@ struct PopulationCount {
     : doubledCount(0) {};
   
   inline void SetToIntegerPopulationSpace(int count) { doubledCount = count * 2; }
-  inline void SetToIntegerPopulationDemand(int count) { doubledCount = -count * 2; }
-  inline void SetToOneHalfPopulationDemand() { doubledCount = -1; }
+  inline void SetToIntegerPopulationCount(int count) { doubledCount = -count * 2; }
+  inline void SetToOneHalfPopulationCount() { doubledCount = -1; }
 
   inline int GetDoubledPopulationSpace() const { return doubledCount > 0 ? doubledCount : 0; }
-  inline int GetDoubledPopulationDemand() const { return doubledCount < 0 ? -doubledCount : 0; }
+  inline int GetDoubledPopulationCount() const { return doubledCount < 0 ? -doubledCount : 0; }
 
  //private:
 
@@ -70,43 +70,62 @@ struct PopulationCount {
 
 struct ObjectTypeStats {
 
+  /// TODO: not used by the game yet
+  AttackType attackType;
+
+  /// The attacks per second. The attack duration is the reciprocal of the attacks per second.
   float fireRate;
+
   Damage damage;
 
+  /// The min range of a non melee attack.
+  /// TODO: not used by the game yet
   float minRange;
+
+  /// The max range of a non melee attack.
+  /// TODO: not used by the game yet
   float maxRange;
 
   // Attack accuracy.
+  /// TODO: not used by the game yet
   float accuracy;
-
-  AttackType attackType;
 
   /// NOTE: Melee or Ranged is considered a sub type of each AttackType and can be calculated from projectileSpeed
 
   /// The projectile speed or 0 if the attack is melee.
+  /// TODO: not used by the game yet
   float projectileSpeed;
 
+  inline bool IsAttackMelee() const { return projectileSpeed == 0; }
+  inline bool IsAttackRanged() const { return projectileSpeed != 0; }
+
   /// The area of effect of the attack or 0 if there is none.
+  /// TODO: not used by the game yet
   float areaOfEffectSize;
 
   /// The number of attacks performed. Special handling based on the attackType: 
   /// - MultipleProjectiles: the number of projectiles
   /// TODO: rename ?
+  /// TODO: not used by the game yet
   int attacksCount;
 
-  /// Duration from start of attack until damage being applied to target represended by the ratio of the full attack
-  /// duration. To retrive the duration in seconds multiply by the attack duration.
+  /// Duration from start of attack until damage being applied to target represended by the ratio
+  /// of the full attack duration. To retrive the duration in seconds multiply by the attack duration.
   /// TODO: rename ?
+  /// TODO: not used by the game yet
   float attackDelay;
 
+  /// If the attack can cause damage to friendly objects.
+  /// TODO: not used by the game yet
   bool friendlyDamage;
-
-  /// Regenerated HP per minute (can be affected by technologies)
-  int regeneration;
 
   /// The max HP or 0 if invulnerable.
   int maxHp;
 
+  /// Regenerated HP per minute (can be affected by technologies)
+  /// TODO: not used by the game yet
+  int regeneration;
+  
   Armor armor;
 
   /// The line of sight radius.
@@ -117,30 +136,38 @@ struct ObjectTypeStats {
   /// The resources needed for its creation.
   ResourceAmount cost;
 
+  /// TODO: not used by the game yet
   GarrisonType garrisonType;
+  /// TODO: not used by the game yet
   int garrisonCapacity;
 
   /// Based on the type:
   /// - Villager, FishingShip: gather rate
   /// - Production building: production speed
   /// - Other: ?
+  /// TODO: not used fully by the game yet
   float workRate;
 
-  /// TODO: doc
+  /// TODO: doc #monks
   int conversionResistanceLevel;
 
+  /// Either the population space demand (population count) or the population space provided.
   PopulationCount population;
 
-  // Used only by resource spot and animals
+  /// The resources that can extracted a Villager. Used only by resource spot and animals
+  /// TODO: not used by the game yet
   ResourceAmount resources;
+
 };
 
 struct UnitTypeStats : public ObjectTypeStats {
 
-  /// TODO: doc
+  /// The radius of the unit.
+  /// TODO: clarify units
   float radius;
 
-  /// TODO: doc
+  /// The movement speed of the unit.
+  /// TODO: clarify units
   float speed;
 };
 
@@ -149,10 +176,11 @@ struct BuildingTypeStats : public ObjectTypeStats {
   /// Whether it acts as a drop-off point for each resource.
   bool dropOffPoint[static_cast<int>(ResourceType::NumTypes)];
 
-  /// TODO: doc
+  /// The size of the building in grid tile units.
   QSize size;
 
-  /// TODO: doc
+  /// The area of the building that is not traversable by units.
+  /// TODO: Special handle for the gates #gates
   QRect occupancy;
 
   inline bool IsDropOffPointFor(ResourceType resourceType) const { return dropOffPoint[static_cast<int>(resourceType)]; }
