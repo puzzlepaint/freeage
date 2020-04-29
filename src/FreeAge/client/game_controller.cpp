@@ -42,6 +42,14 @@ GameController::GameController(const std::shared_ptr<Match>& match, const std::s
   // Store pointer to the current and Gaia player
   player = &players.at(match->GetPlayerIndex());
   gaiaPlayer = &players.back();
+  // Apply the civ bonuses to each player
+  for (auto& player : players) {
+    if (player.civilization == Civilization::Gaia) {
+      continue;
+    }
+    // Uses the gaia player as the base player for now
+    player.ApplyTechnologyModifications(Technology::DarkAge, *gaiaPlayer);
+  }
 }
 
 void GameController::ParseMessagesUntil(double displayedServerTime) {

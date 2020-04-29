@@ -11,6 +11,7 @@
 
 class Player;
 class ObjectTypeStats;
+class TargetedModification;
 
 /// A collection of stats for a player.
 /// All of the stats can be reproduced from the game state, but they are kept track of here
@@ -148,9 +149,11 @@ struct PlayerStats {
 class Player {
  public:
 
-  /// TODO: pass the civilization
   /// TODO: rename int playerColorIndex to colorIndex
   Player(int index, int playerColorIndex, const GameData& gameData, Civilization civilization);
+
+  void ApplyTechnologyModifications(Technology technology, const Player& basePlayer);
+  void ApplyModification(const TargetedModification& targetedModification, const Player& basePlayer);
 
   inline const PlayerStats& GetPlayerStats() const { return stats; }
   inline PlayerStats& GetPlayerStats() { return stats; }

@@ -6,6 +6,8 @@
 
 #include <cassert>
 
+#include "FreeAge/common/modifications.hpp"
+
 /// NOTE: In order to reduce the verbosity the player is passed with the constructor instead 
 ///       of with each function call, Passing the player pointer restricts the player object 
 ///       to not change the address.
@@ -140,5 +142,13 @@ Player::Player(int index, int playerColorIndex, const GameData& gameData, Civili
     buildingTypeStats(gameData.buildingTypeStats),
     technologyStats(gameData.technologyStats),
     stats(this) {
-  // TODO: apply civilization to game data
+  // Apply the civ bonuses to the age technologies
+}
+
+void Player::ApplyTechnologyModifications(Technology technology, const Player& basePlayer) {
+
+}
+
+void Player::ApplyModification(const TargetedModification& targetedModification, const Player& basePlayer) {
+
 }

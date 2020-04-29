@@ -674,7 +674,7 @@ void LoadCivilizationStats(std::vector<CivilizationStats>& civilizationStats) {
     for (int age = 0; age < static_cast<int>(Technology::NumAges); ++ age) {
       AddCivilizationModification(s, 
           age,
-          ObjectFilter::AllTechnologies(),
+          ObjectFilter::AllBuildings(),
           Modification(Type::MaxHp, Operation::MultAdd, 10));
     }
 

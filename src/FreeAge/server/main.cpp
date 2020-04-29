@@ -91,6 +91,8 @@ int main(int argc, char** argv) {
     delete server->nextPendingConnection();
   }
   
+  // TODO: remove, temp used to init the player
+  Player basePlayer(0, 0, gameData, Civilization::Gaia);
   // Drop all players in non-joined state, and convert others to in-game players.
   std::vector<std::shared_ptr<PlayerInGame>> playersInGame;
   for (const auto& player : playersInMatch) {
@@ -111,6 +113,8 @@ int main(int argc, char** argv) {
       newPlayer->resources.stone() = 200;
       
       newPlayer->lastResources = newPlayer->resources;
+
+      newPlayer->ApplyTechnologyModifications(Technology::DarkAge, basePlayer);
       
       playersInGame.emplace_back(newPlayer);
     } else {

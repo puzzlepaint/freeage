@@ -14,7 +14,7 @@
 usize debugUsedGPUMemory = 0;
 
 static void PrintGPUMemoryUsage() {
-  LOG(1) << "Approx. GPU memory usage: " << static_cast<int>(debugUsedGPUMemory / (1024.f * 1024.f) + 0.5f) << " MB";
+  //LOG(1) << "Approx. GPU memory usage: " << static_cast<int>(debugUsedGPUMemory / (1024.f * 1024.f) + 0.5f) << " MB";
 }
 
 
