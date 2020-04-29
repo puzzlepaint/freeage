@@ -12,6 +12,8 @@
 #include "FreeAge/common/type_stats.hpp"
 #include "FreeAge/common/unit_types.hpp"
 
+class CivilizationStats;
+
 enum class ModificationType {
     // Unit, building and technology
     Cost,            // Extra: affected ResourceType or Unset for to all of them
@@ -45,10 +47,12 @@ enum class ModificationType {
     VillagerCarryingCapacity,  // Extra: villager type or Unset for all of them
 
     // TODO: add all modifiable monk conversion stats #monks
+    MonkHealRate,
 
     // Special handling
 
-    Upgrade,                   // Data: old type. Extra: new type (only Set)
+    // TODO: If the s
+    Upgrade,
 
 };
 
@@ -62,18 +66,17 @@ struct Modification {
 
   static constexpr i32 Unset = std::numeric_limits<i32>::min();
   
-  inline Modification(ModificationType type, ModificationOperation operation, int value = 0)
-      : type(type),
-        operation(operation),
-        value(value),
-        extra(0) {}
+  inline Modification(ModificationType type, ModificationOperation operation, int value)
+      : Modification(type, operation, value, 0) {}
   
   inline Modification(ModificationType type, ModificationOperation operation, int value, DamageType damageType)
-      : type(type),
-        operation(operation),
-        value(value),
-        extra(static_cast<int>(damageType)) {
+      : Modification(type, operation, value, static_cast<int>(damageType)) {
     CHECK(type == ModificationType::Damage || type == ModificationType::Armor);
+  }
+  
+  inline Modification(ModificationType type, ModificationOperation operation, TechnologyAvailability availability)
+      : Modification(type, operation, static_cast<int>(availability), 0) {
+    CHECK(type == ModificationType::TechnologyAvailability);
   }
 
   void ApplyToUnit(UnitTypeStats& stats, const UnitTypeStats& baseStats) const;
@@ -81,6 +84,12 @@ struct Modification {
   void ApplyToTechnology(TechnologyStats& stats, const TechnologyStats& baseStats) const;
 
  private:
+  
+  inline Modification(ModificationType type, ModificationOperation operation, int value, int extra)
+      : type(type),
+        operation(operation),
+        value(value),
+        extra(extra) {}
 
   const ModificationType type;
   const ModificationOperation operation;

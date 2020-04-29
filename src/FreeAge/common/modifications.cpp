@@ -4,6 +4,19 @@
 
 #include "FreeAge/common/modifications.hpp"
 
+
+void Modification::ApplyToUnit(UnitTypeStats& stats, const UnitTypeStats& baseStats) const {
+  // TODO (maanoo): 
+}
+
+void Modification::ApplyToBuilding(BuildingTypeStats& stats, const BuildingTypeStats& baseStats) const {
+  // TODO (maanoo): 
+}
+
+void Modification::ApplyToTechnology(TechnologyStats& stats, const TechnologyStats& baseStats) const {
+  // TODO (maanoo): 
+}
+
 // ObjectFilter
 
 bool ObjectFilter::MatchesCivilization() const {
