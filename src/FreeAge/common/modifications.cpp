@@ -149,6 +149,7 @@ bool Modification::ApplyToCivilization(CivilizationStats& stats, const Civilizat
 
 #undef CalculateCaseI
 #undef CalculateCaseF
+#undef CalculateCaseR
 
 int Modification::CalculateInt(int current, int base) const {
   switch(operation) {

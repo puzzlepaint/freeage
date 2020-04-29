@@ -165,6 +165,7 @@ class Player {
   inline const BuildingTypeStats& GetBuildingStats(BuildingType buildingType) const { return buildingTypeStats.at(static_cast<int>(buildingType)); }
   inline const TechnologyStats& GetTechnologyStats(Technology technology) const { return technologyStats.at(static_cast<int>(technology)); }
 
+  /// TODO: use in the inteface
   inline Technology GetAge() const { return age; }
 
   /// The unique player ID. The IDs are given to the players in consecutive order starting from 0

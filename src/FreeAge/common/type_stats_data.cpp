@@ -562,6 +562,7 @@ void LoadTechnologyStats(std::vector<TechnologyStats>& technologyStats) {
     InitTechnology(technologyStats, Technology::DarkAge);
   }
 
+  // Modifications that are applied in every age change
   auto SetAgeTechnologyCommonModifications = [] (TechnologyStats& s) {
     AddTechnologyModification(s,
         ObjectFilter::UnitByType(UnitType::Scout),

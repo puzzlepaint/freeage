@@ -42,15 +42,14 @@ inline bool IsAge(Technology tech) {
 }
 
 inline bool IsUniqueTechnology(Technology tech) {
-  return tech >= Technology::FirstAge &&
-         tech <= Technology::LastAge;
+  return tech >= Technology::FirstUnique &&
+         tech <= Technology::LastUnique;
 }
 
 // TODO: implement GetTechnologyName()
 
 enum class TechnologyAvailability {
   /// Available after all requirements are reached.
-  /// NOTE: requirements
   /// TODO: not used by the game yet
   Normal = 0,
   /// Unavailable for research.

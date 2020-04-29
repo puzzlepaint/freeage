@@ -157,11 +157,11 @@ Player::Player(int index, int playerColorIndex, const GameData& gameData, Civili
 
 void Player::ApplyTechnologyModifications(Technology technology, const Player& basePlayer) {
   TechnologyStats& stats = technologyStats.at(static_cast<int>(technology));
+  stats.availability = TechnologyAvailability::Researched;
   for (auto& targetedModification : stats.modifications) {
     ApplyModification(targetedModification, basePlayer);
   }
   LOG(INFO) << "Technology applied " << stats.modifications.size() << " modifications";
-  // TODO: store that the technology have been researched #dependencies
   if (IsAge(technology)) {
     SetAge(technology, basePlayer);
   }
@@ -171,6 +171,7 @@ void Player::ApplyModification(const TargetedModification& targetedModification,
   const ObjectFilter& filter = targetedModification.filter;
   const Modification& modification = targetedModification.modification;
   int changes = 0;
+  // TODO: handle the ModificationType::Upgrade modification #upgrades
   if (filter.MatchesUnits()) {
     for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
       if (filter.MatchesUnit(*this, static_cast<UnitType>(unitType)) &&
@@ -215,7 +216,6 @@ void Player::SetAge(Technology age, const Player& basePlayer) {
     for (int technology = 0; technology < static_cast<int>(Technology::NumTechnologies); ++ technology) {
       TechnologyStats& stats = technologyStats.at(technology);
       if (stats.availability == TechnologyAvailability::FreeFromStart) {
-        stats.availability = TechnologyAvailability::Researched;
         ApplyTechnologyModifications(static_cast<Technology>(technology), basePlayer);
       }
     }
