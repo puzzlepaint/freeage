@@ -668,7 +668,7 @@ void LoadCivilizationStats(std::vector<CivilizationStats>& civilizationStats) {
         Modification(Type::Cost, Operation::MultAdd, -33));
     AddCivilizationModification(s, 
         Technology::DarkAge,
-        ObjectFilter::TechnologyByType(Technology::Loom), // TODO: replace with Town Watch
+        ObjectFilter::TechnologyByType(Technology::GreekFire), // TODO: replace with Town Watch
         Modification(Type::TechnologyAvailability, Operation::Set, TechnologyAvailability::FreeFromRequiredAge));
 
     for (int age = 0; age < static_cast<int>(Technology::NumAges); ++ age) {
@@ -698,5 +698,6 @@ void LoadGameData(GameData& gameData) {
   gameData.unitTypeStats[static_cast<int>(UnitType::MaleVillager)].creationTime = 10;
   gameData.unitTypeStats[static_cast<int>(UnitType::Militia)].creationTime = 3;
   gameData.buildingTypeStats[static_cast<int>(BuildingType::Outpost)].lineOfSight = 300;
+  gameData.technologyStats[static_cast<int>(Technology::Loom)].availability = TechnologyAvailability::FreeFromStart;
 
 }

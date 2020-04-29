@@ -160,7 +160,18 @@ float Modification::CalculateFloat(float current, float base) const {
 }
 
 void Modification::CalculateResourceAmount(ResourceAmount& resources, const ResourceAmount& baseResources) const {
-  // TODO (maanoo): implement (check for negatives)
+  if (extra == Unset) {
+    // apply effect to all resources
+    for (int index = 0; index < static_cast<int>(ResourceType::NumTypes); ++ index) {
+      float value = CalculateFloat(resources.resources[index], baseResources.resources[index]);
+      resources.resources[index] = static_cast<u32>(std::max<float>(0, value + .5f));
+    }
+  } else {
+    // apply effect to the resource specifies by the extra variable
+    int index = extra;
+    float value = CalculateFloat(resources.resources[index], baseResources.resources[index]);
+    resources.resources[index] = static_cast<u32>(std::max<float>(0, value + .5f));
+  }
 }
 
 // ObjectFilter
@@ -222,7 +233,7 @@ bool ObjectFilter::MatchesBuilding(const Player& player, const BuildingType& bui
 bool ObjectFilter::MatchesTechnology(const Player& /*player*/, const Technology& technology) const {
   switch(type) {
   case ObjectFilterType::AllTechnologies: 
-    return true;
+    return !IsAge(technology);
   case ObjectFilterType::TechnologyByType: 
     return data == static_cast<int>(technology);
   default: 

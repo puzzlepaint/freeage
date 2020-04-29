@@ -95,7 +95,8 @@ struct CivilizationStats {
 
   // TODO: all modifiable monk conversion stats #monks
 
-  // TODO (maanoo): doc
+  // The modifications to be added to the modifications of the corresponding age. For modifications that apply
+  // from the start of the game the Dark age can be used.
   std::vector<TargetedModification> ageModifications[static_cast<int>(Technology::NumAges)];
 
   inline std::vector<TargetedModification>& modifications(Technology age) {
@@ -103,7 +104,7 @@ struct CivilizationStats {
     return ageModifications[static_cast<int>(age)];
   }
 
-  // TODO (maanoo): doc
+  // The modifications that will apply to all allies at the start of the game.
   std::vector<TargetedModification> teamModifications;
 
 };

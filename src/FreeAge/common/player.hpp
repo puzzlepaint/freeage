@@ -155,6 +155,8 @@ class Player {
   void ApplyTechnologyModifications(Technology technology, const Player& basePlayer);
   void ApplyModification(const TargetedModification& targetedModification, const Player& basePlayer);
 
+  // TODO: store a pointer to the base player to simplify ApplyModification calls ?
+
   inline const PlayerStats& GetPlayerStats() const { return stats; }
   inline PlayerStats& GetPlayerStats() { return stats; }
 
@@ -162,6 +164,8 @@ class Player {
   inline const UnitTypeStats& GetUnitStats(UnitType unitType) const { return unitTypeStats.at(static_cast<int>(unitType)); }
   inline const BuildingTypeStats& GetBuildingStats(BuildingType buildingType) const { return buildingTypeStats.at(static_cast<int>(buildingType)); }
   inline const TechnologyStats& GetTechnologyStats(Technology technology) const { return technologyStats.at(static_cast<int>(technology)); }
+
+  inline Technology GetAge() const { return age; }
 
   /// The unique player ID. The IDs are given to the players in consecutive order starting from 0
   /// and they are used as indexes to vectors and arrays containing items for each player. The gaia player
@@ -172,7 +176,7 @@ class Player {
   /// TODO: should this be here?
   const int playerColorIndex;
 
-  // TODO (maanoo): 
+  /// The civilization of the player.
   const Civilization civilization;
 
   /// The current game resources of the player (wood, food, gold, stone).
@@ -184,6 +188,10 @@ class Player {
 
   inline UnitTypeStats& GetModifiableUnitStats(UnitType unitType) { return unitTypeStats.at(static_cast<int>(unitType)); }
   inline BuildingTypeStats& GetModifiableBuildingStats(BuildingType buildingType) { return buildingTypeStats.at(static_cast<int>(buildingType)); }
+
+  void SetAge(Technology age, const Player& basePlayer);
+
+  Technology age;
 
   CivilizationStats civilizationStats;
 

@@ -137,6 +137,7 @@ Player::Player(int index, int playerColorIndex, const GameData& gameData, Civili
   : index(index),
     playerColorIndex(playerColorIndex),
     civilization(civilization),
+    age(Technology::DarkAge),
     civilizationStats(gameData.civilizationStats[static_cast<int>(civilization)]),
     unitTypeStats(gameData.unitTypeStats),
     buildingTypeStats(gameData.buildingTypeStats),
@@ -148,6 +149,10 @@ Player::Player(int index, int playerColorIndex, const GameData& gameData, Civili
       technologyStats.at(age).modifications.push_back(modification);
     }
   }
+  // TODO: apply the team modifiers from all allies #teams
+  for (auto& modification : civilizationStats.teamModifications) {
+    technologyStats.at(0).modifications.push_back(modification);
+  }
 }
 
 void Player::ApplyTechnologyModifications(Technology technology, const Player& basePlayer) {
@@ -155,8 +160,11 @@ void Player::ApplyTechnologyModifications(Technology technology, const Player& b
   for (auto& targetedModification : stats.modifications) {
     ApplyModification(targetedModification, basePlayer);
   }
-  LOG(INFO) << "ApplyTechnologyModifications performed " << stats.modifications.size() << " ApplyModifications";
-  // TODO: store that the technology have been researched
+  LOG(INFO) << "Technology applied " << stats.modifications.size() << " modifications";
+  // TODO: store that the technology have been researched #dependencies
+  if (IsAge(technology)) {
+    SetAge(technology, basePlayer);
+  }
 }
 
 void Player::ApplyModification(const TargetedModification& targetedModification, const Player& basePlayer) {
@@ -188,7 +196,29 @@ void Player::ApplyModification(const TargetedModification& targetedModification,
     }
   }
   if (filter.MatchesCivilization()) {
-    modification.ApplyToCivilization(civilizationStats, basePlayer.civilizationStats);
+    if (modification.ApplyToCivilization(civilizationStats, basePlayer.civilizationStats)) {
+      ++ changes;
+    }
   }
-  LOG(1) << "ApplyModification caused " << changes << " changes";
+  // debuging
+  if (changes == 0) {
+    LOG(WARNING) << "Modification caused no changes";
+  } else {
+    LOG(1) << "Modification caused " << changes << " changes";
+  }
+}
+
+void Player::SetAge(Technology age, const Player& basePlayer) {
+  this->age = age;
+  // Handle technologies with FreeFromStart availability
+  if (age == Technology::DarkAge) {
+    for (int technology = 0; technology < static_cast<int>(Technology::NumTechnologies); ++ technology) {
+      TechnologyStats& stats = technologyStats.at(technology);
+      if (stats.availability == TechnologyAvailability::FreeFromStart) {
+        stats.availability = TechnologyAvailability::Researched;
+        ApplyTechnologyModifications(static_cast<Technology>(technology), basePlayer);
+      }
+    }
+  }
+  // TODO: handle also FreeFromStart
 }

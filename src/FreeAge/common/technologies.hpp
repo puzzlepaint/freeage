@@ -47,13 +47,17 @@ inline bool IsUniqueTechnology(Technology tech) {
 
 enum class TechnologyAvailability {
   /// Available after all requirements are reached.
+  /// TODO: not used by the game yet
   Normal = 0,
   /// Unavailable for research.
   Unavailable,
   /// Will be applied with the start of the game.
   FreeFromStart,
   /// Will be applied as soon the age required is reached.
-  FreeFromRequiredAge
+  /// TODO: not used by the game yet
+  FreeFromRequiredAge,
+  // Have been researched and cannot be researched again.
+  Researched
 };
 
 struct TechnologyStats {
@@ -64,6 +68,7 @@ struct TechnologyStats {
   /// The resources needed for researching.
   ResourceAmount cost;
 
+  /// TODO: not used by the game yet
   TechnologyAvailability availability;
 
   /// A collection of modifications that will be applied when the research is complete

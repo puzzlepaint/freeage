@@ -125,7 +125,7 @@ enum class ObjectFilterType {
   BuildingsByArmor,
 
   // Techonolies
-  AllTechnologies,
+  AllTechnologies, // except ages
   TechnologyByType,
 };
 
