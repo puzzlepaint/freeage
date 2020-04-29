@@ -143,12 +143,52 @@ Player::Player(int index, int playerColorIndex, const GameData& gameData, Civili
     technologyStats(gameData.technologyStats),
     stats(this) {
   // Apply the civ bonuses to the age technologies
+  for (int age = 0; age < static_cast<int>(Technology::NumAges); ++ age) {
+    for (auto& modification : civilizationStats.modifications(static_cast<Technology>(age))) {
+      technologyStats.at(age).modifications.push_back(modification);
+    }
+  }
 }
 
 void Player::ApplyTechnologyModifications(Technology technology, const Player& basePlayer) {
-
+  TechnologyStats& stats = technologyStats.at(static_cast<int>(technology));
+  for (auto& targetedModification : stats.modifications) {
+    ApplyModification(targetedModification, basePlayer);
+  }
+  LOG(INFO) << "ApplyTechnologyModifications performed " << stats.modifications.size() << " ApplyModifications";
+  // TODO: store that the technology have been researched
 }
 
 void Player::ApplyModification(const TargetedModification& targetedModification, const Player& basePlayer) {
-
+  const ObjectFilter& filter = targetedModification.filter;
+  const Modification& modification = targetedModification.modification;
+  int changes = 0;
+  if (filter.MatchesUnits()) {
+    for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
+      if (filter.MatchesUnit(*this, static_cast<UnitType>(unitType)) &&
+          modification.ApplyToUnit(unitTypeStats.at(unitType), basePlayer.unitTypeStats.at(unitType))) {
+        ++ changes;
+      }
+    }
+  }
+  if (filter.MatchesBuildings()) {
+    for (int buildingType = 0; buildingType < static_cast<int>(BuildingType::NumBuildings); ++ buildingType) {
+      if (filter.MatchesBuilding(*this, static_cast<BuildingType>(buildingType)) &&
+          modification.ApplyToBuilding(buildingTypeStats.at(buildingType), basePlayer.buildingTypeStats.at(buildingType))) {
+        ++ changes;
+      }
+    }
+  }
+  if (filter.MatchesTechnologies()) {
+    for (int technology = 0; technology < static_cast<int>(Technology::NumTechnologies); ++ technology) {
+      if (filter.MatchesTechnology(*this, static_cast<Technology>(technology)) &&
+          modification.ApplyToTechnology(technologyStats.at(technology), basePlayer.technologyStats.at(technology))) {
+        ++ changes;
+      }
+    }
+  }
+  if (filter.MatchesCivilization()) {
+    modification.ApplyToCivilization(civilizationStats, basePlayer.civilizationStats);
+  }
+  LOG(1) << "ApplyModification caused " << changes << " changes";
 }
