@@ -34,7 +34,7 @@ GameController::GameController(const std::shared_ptr<Match>& match, const std::s
   players.reserve(match->GetPlayers().size() + 1);
   int playerIndex = 0;
   for (const Match::Player& matchPlayer : match->GetPlayers()) {
-    players.emplace_back(playerIndex, matchPlayer.playerColorIndex, gameData, Civilization::Byzantines);
+    players.emplace_back(playerIndex, matchPlayer.playerColorIndex, gameData, kDefaultCivilization);
     ++ playerIndex;
   }
   // Add the Gaia player to the last position of the vector

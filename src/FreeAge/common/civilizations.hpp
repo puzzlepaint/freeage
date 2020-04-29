@@ -13,11 +13,13 @@
 enum class Civilization {
   Gaia = 0,
 
-  ReplaceWithPuzzlepaintsFavoriteCivilization,
+  Aztecs,
   Byzantines,
 
   NumCivilizations
 };
+
+constexpr Civilization kDefaultCivilization = Civilization::Aztecs;
 
 // TODO: implement GetCivilizationName()
 
@@ -79,7 +81,7 @@ struct CivilizationStats {
   float relicGoldGeneration;
 
   // Single unit/building information
-  
+
   /// The upper limit on how many Town Centers can be alive at the same time.
   int maxTownCenters;
 
@@ -97,9 +99,13 @@ struct CivilizationStats {
   int fishingShipCarryingCapacity;
 
   // TODO: all modifiable monk conversion stats #monks
+  
+  // Monks
 
   /// TODO: not used by the game yet
   float monkHealRate;
+
+  // Modifications
 
   // The modifications to be added to the modifications of the corresponding age. For modifications that apply
   // from the start of the game the Dark age can be used.

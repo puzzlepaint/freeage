@@ -611,6 +611,8 @@ void LoadTechnologyStats(std::vector<TechnologyStats>& technologyStats) {
     // TODO: implement
   }
 
+  // Technologies
+
   { // Loom
     TechnologyStats& s = InitTechnology(technologyStats, Technology::Loom);
 
@@ -626,6 +628,19 @@ void LoadTechnologyStats(std::vector<TechnologyStats>& technologyStats) {
         Modification(ModificationType::Armor, Operation::Add, 2, DamageType::Pierce));
   }
 
+  // Unique technologies
+
+  { // Atlatl
+    TechnologyStats& s = InitTechnology(technologyStats, Technology::Atlatl);
+
+    SetTechnologyCost(s, 40 /*seconds*/, 0 /*wood*/, 250 /*food*/, 300 /*gold*/, 0 /*stone*/);
+    AddTechnologyModification(s,
+        ObjectFilter::UnitByType(UnitType::Militia), // TODO: replace with Skirmishers and Genitours
+        Modification(ModificationType::Damage, Operation::Add, 1, DamageType::Pierce));
+    AddTechnologyModification(s,
+        ObjectFilter::UnitByType(UnitType::Militia), // TODO: replace with Skirmishers and Genitours
+        Modification(ModificationType::MaxRange, Operation::Add, 1));
+  }
   { // Greek Fire
     TechnologyStats& s = InitTechnology(technologyStats, Technology::GreekFire);
 
@@ -647,9 +662,34 @@ void LoadCivilizationStats(std::vector<CivilizationStats>& civilizationStats) {
   { // Gaia
     InitCivilization(civilizationStats, Civilization::Gaia);
   }
-  { // ReplaceWithPuzzlepaintsFavoriteCivilization
-    InitCivilization(civilizationStats, Civilization::ReplaceWithPuzzlepaintsFavoriteCivilization);
-    // TODO: implement
+  { // Aztecs
+    CivilizationStats& s = InitCivilization(civilizationStats, Civilization::Aztecs);
+
+    s.startingScoutUnit = UnitType::Militia; // TODO: replace with Eagle Scout
+    s.startingBonusResources.gold() = 50;
+    AddCivilizationModification(s, 
+        Technology::DarkAge,
+        ObjectFilter::AllMilitaryUnits(),
+        Modification(Type::ProductionTime, Operation::MultAdd, -18));
+    AddCivilizationModification(s,
+        Technology::DarkAge,
+        ObjectFilter::Civilization(),
+        Modification(Type::VillagerCarryingCapacity, Operation::Add, 5));
+
+    // TODO: Implement: "Monks gain 5 HP for every researched Monastery technology."
+    /// NOTE: This above case can be implemented a different ways in order of ascending difficulty:
+    /// - Have a hardcoded check on the technology research, similar to how Spies would be implemented.
+    /// - Have a hardcoded check and add on more modification to all the monastary technologies after the civ
+    ///   bonuses are applied in the start of the game (suggested by maanoo).
+    /// - Have a field in the CivilizationStats named monasteryTechnologiesBonusMonkMaxHp, similar to all 
+    ///   the monk informations.
+    /// - Create duplicates of all the monastary technologies with the HP effect and add them 
+    /// - Allow modifications to modify modification lists. Which could be suported with some ugly hacks under
+    ///   the current design but the complexity of all the modification system will increased.
+
+    AddCivilizationTeamModification(s,
+        ObjectFilter::Civilization(),
+        Modification(Type::RelicGoldGeneration, Operation::MultAdd, 33));
   }
   { // Byzantines
     CivilizationStats& s = InitCivilization(civilizationStats, Civilization::Byzantines);

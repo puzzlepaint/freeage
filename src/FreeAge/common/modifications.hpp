@@ -58,6 +58,7 @@ enum class ModificationType {
     PopulationMax,
     FreePopulationSpace,
     VillagerCarryingCapacity,  // Extra: villager type or Unset for all of them
+    RelicGoldGeneration,
     MonkHealRate,
     // TODO: add all modifiable monk conversion stats #monks
 
@@ -142,6 +143,7 @@ enum class ObjectFilterType {
 
   // Units
   AllUnits,
+  AllMilitaryUnits,
   UnitByType,
   UnitsByArmor,
 
@@ -170,6 +172,9 @@ struct ObjectFilter {
   }
   static const ObjectFilter AllUnits() {
     return ObjectFilter(ObjectFilterType::AllUnits, 0);
+  }
+  static const ObjectFilter AllMilitaryUnits() {
+    return ObjectFilter(ObjectFilterType::AllMilitaryUnits, 0);
   }
   static const ObjectFilter UnitByType(UnitType unitType) {
     return ObjectFilter(ObjectFilterType::UnitByType, static_cast<int>(unitType));

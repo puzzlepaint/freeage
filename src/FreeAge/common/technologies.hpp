@@ -26,9 +26,10 @@ enum class Technology {
   Loom,
 
   // Unique technologies
+  Atlatl,
   GreekFire,
 
-  FirstUnique = GreekFire,
+  FirstUnique = Atlatl,
   LastUnique = GreekFire,
 
   NumTechnologies,

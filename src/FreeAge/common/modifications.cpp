@@ -45,8 +45,8 @@ bool Modification::ApplyToBuilding(BuildingTypeStats& stats, const BuildingTypeS
 bool Modification::ApplyToObject(ObjectTypeStats& stats, const ObjectTypeStats& baseStats) const {
   switch(type) {
   CalculateCaseI(ModificationType::MaxHp, maxHp);
-  CalculateCaseI(ModificationType::MinRange, minRange);
-  CalculateCaseI(ModificationType::MaxRange, maxRange);
+  CalculateCaseF(ModificationType::MinRange, minRange);
+  CalculateCaseF(ModificationType::MaxRange, maxRange);
   CalculateCaseF(ModificationType::Accuracy, accuracy);
   CalculateCaseF(ModificationType::LineOfSight, lineOfSight);
   CalculateCaseI(ModificationType::GarrisonCapacity, garrisonCapacity);
@@ -129,9 +129,18 @@ bool Modification::ApplyToCivilization(CivilizationStats& stats, const Civilizat
   switch(type) {
   CalculateCaseI(ModificationType::PopulationMax, bonusMaxPopulation);
   CalculateCaseI(ModificationType::FreePopulationSpace, bonusPopulationSpace);
-  CalculateCaseI(ModificationType::MonkHealRate, monkHealRate);
-  CalculateCaseI(ModificationType::VillagerCarryingCapacity, 
-      villagerCarryingCapacity[GetVillagerTypeIndex(static_cast<UnitType>(extra))]);
+  CalculateCaseF(ModificationType::MonkHealRate, monkHealRate);
+  CalculateCaseF(ModificationType::RelicGoldGeneration, relicGoldGeneration);
+
+  case ModificationType::VillagerCarryingCapacity: {
+    for (int index = 0; index < static_cast<int>(UnitType::NumVillagerTypes); ++ index) {
+      if (extra == Unset || index == extra) {
+        int value = CalculateInt(stats.villagerCarryingCapacity[index], baseStats.villagerCarryingCapacity[index]);
+        stats.villagerCarryingCapacity[index] = value;
+      }
+    }
+    return true;
+  }
   default:
     LOG(ERROR) << "Modification type cannot be applied to civilization: " << static_cast<int>(type);
     return false;
@@ -184,6 +193,7 @@ bool ObjectFilter::MatchesCivilization() const {
 
 bool ObjectFilter::MatchesUnits() const {
   return type == ObjectFilterType::AllUnits ||
+         type == ObjectFilterType::AllMilitaryUnits ||
          type == ObjectFilterType::UnitByType ||
          type == ObjectFilterType::UnitsByArmor;
 }
@@ -204,6 +214,9 @@ bool ObjectFilter::MatchesUnit(const Player& player, const UnitType& unitType) c
   switch(type) {
   case ObjectFilterType::AllUnits: 
     return true;
+  case ObjectFilterType::AllMilitaryUnits: 
+    // TODO: complete list #on-new-unit
+    return !IsVillager(unitType);
   case ObjectFilterType::UnitByType: 
     return data == static_cast<int>(unitType);
   case ObjectFilterType::UnitsByArmor:

@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
     if (player->state == PlayerInMatch::State::Joined) {
       int index = playersInGame.size();
       int colorIndex = player->playerColorIndex;
-      std::shared_ptr<PlayerInGame> newPlayer(new PlayerInGame(index, colorIndex, gameData, Civilization::Byzantines));
+      std::shared_ptr<PlayerInGame> newPlayer(new PlayerInGame(index, colorIndex, gameData, kDefaultCivilization));
       
       newPlayer->socket = player->socket;
       newPlayer->unparsedBuffer = player->unparsedBuffer;
