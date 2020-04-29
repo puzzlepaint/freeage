@@ -5,6 +5,7 @@
 #include "FreeAge/common/type_stats_data.hpp"
 
 #include "FreeAge/common/building_types.hpp"
+#include "FreeAge/common/modifications.hpp"
 #include "FreeAge/common/unit_types.hpp"
 
 // UnitTypeStats helpers
@@ -150,6 +151,21 @@ inline void SetBuildingCost(BuildingTypeStats& s, float creationTime, u32 wood, 
   s.cost = ResourceAmount(wood, food, gold, stone);
 }
 
+inline void SetTechnologyDefaults(TechnologyStats& s, Technology technology) {
+  s.researchDuration = 0;
+  s.cost = ResourceAmount();
+  s.availability = IsAge(technology) || !IsUniqueTechnology(technology) ? TechnologyAvailability::Normal : TechnologyAvailability::Unavailable;
+}
+
+inline void SetTechnologyCost(TechnologyStats& s, float researchDuration, u32 wood, u32 food, u32 gold, u32 stone) {
+  s.researchDuration = researchDuration;
+  s.cost = ResourceAmount(wood, food, gold, stone);
+}
+
+inline void AddTechnologyModification(TechnologyStats& s, ObjectFilter filter, Modification modification) {
+  s.modifications.emplace_back(filter, modification);
+}
+
 inline void SetCivilizationDefaults(CivilizationStats& s) {
   s.startingScoutUnit = UnitType::Scout;
   s.startingVillagerCount = 3;
@@ -193,6 +209,12 @@ inline BuildingTypeStats& InitBuilding(std::vector<BuildingTypeStats>& buildingT
 inline BuildingTypeStats& CopyBuilding(std::vector<BuildingTypeStats>& buildingTypeStats, BuildingType type, BuildingType source) {
   BuildingTypeStats& s = buildingTypeStats[static_cast<int>(type)];
   s = buildingTypeStats[static_cast<int>(source)];
+  return s;
+}
+
+inline TechnologyStats& InitTechnology(std::vector<TechnologyStats>& technologyStats, Technology technology) {
+  TechnologyStats& s = technologyStats[static_cast<int>(technology)];
+  SetTechnologyDefaults(s, technology);
   return s;
 }
 
@@ -264,7 +286,7 @@ void LoadUnitTypeStats(std::vector<UnitTypeStats>& unitTypeStats) {
   //     /* attackDelay  */ .3); // assumption // TODO: attack delay?
   // }
 
-  // Duplicate  
+  // Duplicate
   CopyUnit(unitTypeStats, UnitType::MaleVillager, UnitType::FemaleVillager);
   CopyUnit(unitTypeStats, UnitType::MaleVillagerBuilder, UnitType::FemaleVillagerBuilder);
   CopyUnit(unitTypeStats, UnitType::MaleVillagerForager, UnitType::FemaleVillagerForager);
@@ -514,6 +536,92 @@ void LoadBuildingTypeStats(std::vector<BuildingTypeStats>& buildingTypeStats) {
       /* los    */ 0);
     s.resources.stone() = 350;
   }
+}
+
+void LoadTechnologyStats(std::vector<TechnologyStats>& technologyStats) {
+  // pre allocate all the TechnologyStats and then fill the data
+  technologyStats.resize(static_cast<int>(Technology::NumTechnologies));
+
+  using Type = ModificationType;
+  using Operation = ModificationOperation;
+
+  { // DarkAge
+    InitTechnology(technologyStats, Technology::DarkAge);
+  }
+
+  auto SetAgeTechnologyCommonModifications = [] (TechnologyStats& s) {
+    AddTechnologyModification(s,
+        ObjectFilter::UnitByType(UnitType::Scout),
+        Modification(Type::LineOfSight, Operation::Add, 2));
+    AddTechnologyModification(s,
+        ObjectFilter::BuildingsByType(BuildingType::Outpost),
+        Modification(Type::LineOfSight, Operation::Add, 2));
+    AddTechnologyModification(s,
+        ObjectFilter::AllBuildingsExceptDefences(),
+        Modification(ModificationType::Armor, Operation::Add, 1, DamageType::Melee));
+    AddTechnologyModification(s,
+        ObjectFilter::AllBuildingsExceptDefences(),
+        Modification(ModificationType::Armor, Operation::Add, 1, DamageType::Pierce));
+  };
+
+  // TODO: With every age most buldings get more max hp depending on their type. Should this
+  //       be stored in the modification list of the age or in the building?
+
+  { // FeudalAge
+    TechnologyStats& s = InitTechnology(technologyStats, Technology::FeudalAge);
+
+    SetTechnologyCost(s, 130 /*seconds*/, 0 /*wood*/, 500 /*food*/, 0 /*gold*/, 0 /*stone*/);
+    SetAgeTechnologyCommonModifications(s);
+    AddTechnologyModification(s,
+        ObjectFilter::UnitByType(UnitType::Scout),
+        Modification(Type::Damage, Operation::Add, 2, DamageType::Melee));
+    AddTechnologyModification(s,
+        ObjectFilter::UnitByType(UnitType::Scout),
+        Modification(Type::Damage, Operation::Add, .35, DamageType::Melee));
+    AddTechnologyModification(s,
+        ObjectFilter::UnitByType(UnitType::Scout),
+        Modification(Type::Speed, Operation::MultAdd, +30));
+    // TODO: implement building hp change
+  }
+  { // CastleAge
+    TechnologyStats& s = InitTechnology(technologyStats, Technology::CastleAge);
+
+    SetTechnologyCost(s, 160 /*seconds*/, 0 /*wood*/, 800 /*food*/, 200 /*gold*/, 0 /*stone*/);
+    SetAgeTechnologyCommonModifications(s);
+    // TODO: implement
+  }
+  { // ImperialAge
+    TechnologyStats& s = InitTechnology(technologyStats, Technology::ImperialAge);
+
+    SetTechnologyCost(s, 190 /*seconds*/, 0 /*wood*/, 1000 /*food*/, 800 /*gold*/, 0 /*stone*/);
+    SetAgeTechnologyCommonModifications(s);
+    // TODO: implement
+  }
+
+  { // Loom
+    TechnologyStats& s = InitTechnology(technologyStats, Technology::Loom);
+
+    SetTechnologyCost(s, 25 /*seconds*/, 0 /*wood*/, 0 /*food*/, 50 /*gold*/, 0 /*stone*/);
+    AddTechnologyModification(s,
+        ObjectFilter::UnitsByArmor(DamageType::Villager),
+        Modification(ModificationType::MaxHp, Operation::Add, 15));
+    AddTechnologyModification(s,
+        ObjectFilter::UnitsByArmor(DamageType::Villager),
+        Modification(ModificationType::Armor, Operation::Add, 1, DamageType::Melee));
+    AddTechnologyModification(s,
+        ObjectFilter::UnitsByArmor(DamageType::Villager),
+        Modification(ModificationType::Armor, Operation::Add, 2, DamageType::Pierce));
+  }
+
+  { // Greek Fire
+    TechnologyStats& s = InitTechnology(technologyStats, Technology::GreekFire);
+
+    SetTechnologyCost(s, 40 /*seconds*/, 0 /*wood*/, 250 /*food*/, 300 /*gold*/, 0 /*stone*/);
+    AddTechnologyModification(s,
+        ObjectFilter::UnitByType(UnitType::Scout), // TODO: change with FireShip
+        Modification(ModificationType::MaxRange, Operation::Add, 1));
+  }
+
 }
 
 void LoadCivilizationStats(std::vector<CivilizationStats>& civilizationStats) {

@@ -7,6 +7,8 @@
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/resources.hpp"
 
+class TargetedModification;
+
 enum class Technology {
   // Ages
   DarkAge = 0,
@@ -21,11 +23,20 @@ enum class Technology {
   Loom,
 
   // Unique technologies
+  GreekFire,
+
+  FirstUnique = GreekFire,
+  LastUnique = GreekFire,
 
   NumTechnologies
 };
 
 inline bool IsAge(Technology tech) {
+  return tech >= Technology::FirstAge &&
+         tech <= Technology::LastAge;
+}
+
+inline bool IsUniqueTechnology(Technology tech) {
   return tech >= Technology::FirstAge &&
          tech <= Technology::LastAge;
 }
@@ -51,6 +62,7 @@ struct TechnologyStats {
 
   TechnologyAvailability availability;
 
-  // TODO (maanoo): add modification list
+  /// A collection of modifications that will be applied when the research is complete
+  std::vector<TargetedModification> modifications;
 
 };
