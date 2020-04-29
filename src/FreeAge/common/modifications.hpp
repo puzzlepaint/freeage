@@ -11,9 +11,11 @@
 #include "FreeAge/common/unit_types.hpp"
 
 class Player;
+class ObjectTypeStats;
 class UnitTypeStats;
 class BuildingTypeStats;
 class TechnologyStats;
+class CivilizationStats;
 
 enum class ModificationType {
     // Unit, building and technology
@@ -29,30 +31,30 @@ enum class ModificationType {
     Accuracy,
     LineOfSight,
     GarrisonCapacity,
+    WorkRate,
 
     // Unit only
     Speed,
     ProductionTime,
 
     // Building only
-    ConstructionSpeed,
-    WorkRate,
+    ConstructionTime,
     PopulationSpace,
 
     // Technology only
-    ResearchTime,
+    ResearchDuration,
     TechnologyAvailability,    // Data: TechnologyAvailability (only Set)
 
     // civilization only
-    PopulationCap,
+    PopulationMax,
+    FreePopulationSpace,
     VillagerCarryingCapacity,  // Extra: villager type or Unset for all of them
-
-    // TODO: add all modifiable monk conversion stats #monks
     MonkHealRate,
+    // TODO: add all modifiable monk conversion stats #monks
 
     // Special handling
 
-    // TODO: If the s
+    // TODO: Special handling
     Upgrade,
 
 };
@@ -80,12 +82,15 @@ struct Modification {
     CHECK(type == ModificationType::TechnologyAvailability);
   }
 
-  void ApplyToUnit(UnitTypeStats& stats, const UnitTypeStats& baseStats) const;
-  void ApplyToBuilding(BuildingTypeStats& stats, const BuildingTypeStats& baseStats) const;
-  void ApplyToTechnology(TechnologyStats& stats, const TechnologyStats& baseStats) const;
+  bool ApplyToUnit(UnitTypeStats& stats, const UnitTypeStats& baseStats) const;
+  bool ApplyToBuilding(BuildingTypeStats& stats, const BuildingTypeStats& baseStats) const;
+  bool ApplyToTechnology(TechnologyStats& stats, const TechnologyStats& baseStats) const;
+  bool ApplyToCivilization(CivilizationStats& stats, const CivilizationStats& baseStats) const;
 
  private:
   
+  bool ApplyToObject(ObjectTypeStats& stats, const ObjectTypeStats& baseStats) const;
+
   inline Modification(ModificationType type, ModificationOperation operation, int value, int extra)
       : type(type),
         operation(operation),
@@ -98,6 +103,10 @@ struct Modification {
   /// Divide with 100.f in case of Mult
   const int value; 
   const int extra;
+
+  int CalculateInt(int current, int base) const;
+  float CalculateFloat(float current, float base) const;
+  void CalculateResourceAmount(ResourceAmount& resources, const ResourceAmount& baseResources) const;
 
 };
 

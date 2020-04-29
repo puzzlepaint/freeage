@@ -175,7 +175,7 @@ inline void SetCivilizationDefaults(CivilizationStats& s) {
   s.bonusMaxPopulation = 0;
   s.bonusPopulationSpace = 0;
   s.garrisonHealRate = 36;
-  s.tradingFree = .3;
+  s.tradingFee = .3;
   s.tributeFee = .3;
   s.tradeGoldGeneration = 1;
   s.relicGoldGeneration = .5;

@@ -65,7 +65,7 @@ struct CivilizationStats {
   float garrisonHealRate;
   
   /// TODO: not used by the game yet
-  float tradingFree;
+  float tradingFee;
 
   /// TODO: not used by the game yet
   float tributeFee;
@@ -89,6 +89,9 @@ struct CivilizationStats {
 
   /// TODO: not used by the game yet
   int fishingShipCarryingCapacity;
+
+  /// TODO: not used by the game yet
+  float monkHealRate;
 
   // TODO: all modifiable monk conversion stats #monks
 

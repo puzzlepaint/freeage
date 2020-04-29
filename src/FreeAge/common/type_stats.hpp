@@ -60,6 +60,7 @@ struct PopulationCount {
   inline void SetToIntegerPopulationCount(int count) { doubledCount = -count * 2; }
   inline void SetToOneHalfPopulationCount() { doubledCount = -1; }
 
+  inline int GetPopulationSpace() const { return doubledCount > 0 ? doubledCount / 2 : 0; }
   inline int GetDoubledPopulationSpace() const { return doubledCount > 0 ? doubledCount : 0; }
   inline int GetDoubledPopulationCount() const { return doubledCount < 0 ? -doubledCount : 0; }
 
