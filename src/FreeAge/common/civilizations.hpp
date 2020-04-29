@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "FreeAge/common/building_types.hpp"
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/modifications.hpp"
 #include "FreeAge/common/resources.hpp"
@@ -20,6 +19,8 @@ enum class Civilization {
   NumCivilizations
 };
 
+// TODO: implement GetCivilizationName()
+
 // static Civilization GetRandomPlayerCivilization() {
 //   // skips the Gaia civilization
 //   return static_cast<Civilization>((rand() % (static_cast<int>(Civilization::NumCivilizations) - 1) + 1));
@@ -28,11 +29,10 @@ enum class Civilization {
 // TODO: Split CivilizationStats to other file, in order to be able to include only the Civilization enum to the 
 //       pre game code.
 
-constexpr int kNumVillagerTypes = (static_cast<int>(UnitType::LastVillager) - static_cast<int>(UnitType::FirstVillager)) / 2;
 
 static int GetVillagerTypeIndex(UnitType unitType) {
     CHECK(IsVillager(unitType));
-    return (static_cast<int>(unitType)- static_cast<int>(UnitType::FirstVillager)) % kNumVillagerTypes;
+    return (static_cast<int>(unitType) - static_cast<int>(UnitType::FirstVillager)) % static_cast<int>(UnitType::NumVillagerTypes);
 }
 
 struct CivilizationStats {
@@ -48,6 +48,7 @@ struct CivilizationStats {
   /// TODO: not used by the game yet
   bool startingLlama;
 
+  /// Resources added the player stockpile after the map specific resources have been added.
   /// TODO: not used by the game yet
   ResourceAmount startingBonusResources;
 
@@ -82,18 +83,23 @@ struct CivilizationStats {
   /// The upper limit on how many Town Centers can be alive at the same time.
   int maxTownCenters;
 
+  /// The max carrying capacity for each type of villager.
   /// TODO: not used by the game yet
-  int villagerCarryingCapacity[kNumVillagerTypes];
+  int villagerCarryingCapacity[static_cast<int>(UnitType::NumVillagerTypes)];
 
-  inline int& VillagerCarryingCapacity(UnitType villagerType) { return villagerCarryingCapacity[GetVillagerTypeIndex(villagerType)];  }
+  inline int& VillagerCarryingCapacity(UnitType villagerType) {
+    CHECK(IsVillager(villagerType));
+    return villagerCarryingCapacity[GetVillagerTypeIndex(villagerType)];
+  }
 
+  /// The max carrying capacity for fishing boat
   /// TODO: not used by the game yet
   int fishingShipCarryingCapacity;
 
+  // TODO: all modifiable monk conversion stats #monks
+
   /// TODO: not used by the game yet
   float monkHealRate;
-
-  // TODO: all modifiable monk conversion stats #monks
 
   // The modifications to be added to the modifications of the corresponding age. For modifications that apply
   // from the start of the game the Dark age can be used.

@@ -32,7 +32,8 @@ enum class UnitType {
   
   Scout,
   
-  NumUnits
+  NumUnits,
+  NumVillagerTypes = MaleVillager - FemaleVillager
 };
 
 /// Unit actions, leading to different animations.

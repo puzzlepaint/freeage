@@ -256,3 +256,27 @@ TEST(DataValidation, BuildingTypeStats) {
     EXPECT_LE(s.occupancy.width(), s.size.width()) << name;
   }
 }
+
+TEST(Modifications, SimpleOperations) {
+  UnitTypeStats stats, statsBase;
+
+  stats.maxHp = 100;
+  Modification(ModificationType::MaxHp, ModificationOperation::Set, 10).ApplyToUnit(stats, stats);
+  CHECK_EQ(stats.maxHp, 10);
+  Modification(ModificationType::MaxHp, ModificationOperation::Add, 90).ApplyToUnit(stats, stats);
+  CHECK_EQ(stats.maxHp, 100);
+  Modification(ModificationType::MaxHp, ModificationOperation::MultAdd, 20).ApplyToUnit(stats, stats);
+  CHECK_EQ(stats.maxHp, 120);
+
+  statsBase.resources.wood() = 100;
+  stats.resources.wood() = 100;
+  Modification(ModificationType::Resources, ModificationOperation::Set, 20, ResourceType::Wood).ApplyToUnit(stats, statsBase);
+  CHECK_EQ(stats.resources.wood(), 20);
+  Modification(ModificationType::Resources, ModificationOperation::MultAdd, -10, ResourceType::Wood).ApplyToUnit(stats, statsBase);
+  CHECK_EQ(stats.resources.wood(), 10);
+  Modification(ModificationType::Resources, ModificationOperation::MultAdd, -10, ResourceType::Wood).ApplyToUnit(stats, statsBase);
+  CHECK_EQ(stats.resources.wood(), 0);
+  Modification(ModificationType::Resources, ModificationOperation::MultAdd, -10, ResourceType::Wood).ApplyToUnit(stats, statsBase);
+  CHECK_EQ(stats.resources.wood(), 0);
+  
+}

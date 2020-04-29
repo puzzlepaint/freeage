@@ -45,8 +45,11 @@ inline bool IsUniqueTechnology(Technology tech) {
          tech <= Technology::LastAge;
 }
 
+// TODO: implement GetTechnologyName()
+
 enum class TechnologyAvailability {
   /// Available after all requirements are reached.
+  /// NOTE: requirements
   /// TODO: not used by the game yet
   Normal = 0,
   /// Unavailable for research.
@@ -68,7 +71,7 @@ struct TechnologyStats {
   /// The resources needed for researching.
   ResourceAmount cost;
 
-  /// TODO: not used by the game yet
+  /// TODO: revisit when the dependecy "graph" for units/buildings/technologies is implemented #dependencies
   TechnologyAvailability availability;
 
   /// A collection of modifications that will be applied when the research is complete

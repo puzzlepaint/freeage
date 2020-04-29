@@ -52,6 +52,7 @@ bool Modification::ApplyToObject(ObjectTypeStats& stats, const ObjectTypeStats& 
   CalculateCaseI(ModificationType::GarrisonCapacity, garrisonCapacity);
   CalculateCaseF(ModificationType::WorkRate, workRate);
   CalculateCaseR(ModificationType::Cost, cost);
+  CalculateCaseR(ModificationType::Resources, resources);
 
   case ModificationType::Damage: {
     DamageType damageType = static_cast<DamageType>(extra);
@@ -129,7 +130,8 @@ bool Modification::ApplyToCivilization(CivilizationStats& stats, const Civilizat
   CalculateCaseI(ModificationType::PopulationMax, bonusMaxPopulation);
   CalculateCaseI(ModificationType::FreePopulationSpace, bonusPopulationSpace);
   CalculateCaseI(ModificationType::MonkHealRate, monkHealRate);
-  // TODO (maanoo): implement VillagerCarryingCapacity
+  CalculateCaseI(ModificationType::VillagerCarryingCapacity, 
+      villagerCarryingCapacity[GetVillagerTypeIndex(static_cast<UnitType>(extra))]);
   default:
     LOG(ERROR) << "Modification type cannot be applied to civilization: " << static_cast<int>(type);
     return false;
