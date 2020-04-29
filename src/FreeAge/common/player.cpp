@@ -151,7 +151,7 @@ Player::Player(int index, int playerColorIndex, const GameData& gameData, Civili
   }
   // TODO: apply the team modifiers from all allies #teams
   for (auto& modification : civilizationStats.teamModifications) {
-    technologyStats.at(0).modifications.push_back(modification);
+    technologyStats.at(static_cast<int>(Technology::DarkAge)).modifications.push_back(modification);
   }
 }
 

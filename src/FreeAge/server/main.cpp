@@ -112,9 +112,10 @@ int main(int argc, char** argv) {
       newPlayer->resources.gold() = 100;
       newPlayer->resources.stone() = 200;
       
-      newPlayer->lastResources = newPlayer->resources;
-
       newPlayer->ApplyTechnologyModifications(Technology::DarkAge, basePlayer);
+      newPlayer->resources.Add(newPlayer->GetCivilizationStats().startingBonusResources);
+
+      newPlayer->lastResources = newPlayer->resources;
       
       playersInGame.emplace_back(newPlayer);
     } else {

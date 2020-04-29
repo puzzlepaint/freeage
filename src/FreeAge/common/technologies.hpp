@@ -9,8 +9,8 @@
 
 class TargetedModification;
 
-// NOTE: There are scenarios where only the ages values are needed, so they must at the start
-//       of the enum declaration.
+// NOTE: There are places where only the ages' values are needed, so they must be at the
+//       start of the enum declaration.
 
 enum class Technology {
   // Ages

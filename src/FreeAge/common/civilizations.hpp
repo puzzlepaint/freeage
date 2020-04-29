@@ -19,7 +19,7 @@ enum class Civilization {
   NumCivilizations
 };
 
-constexpr Civilization kDefaultCivilization = Civilization::Aztecs;
+static constexpr Civilization kDefaultCivilization = Civilization::Byzantines;
 
 // TODO: implement GetCivilizationName()
 
@@ -51,7 +51,6 @@ struct CivilizationStats {
   bool startingLlama;
 
   /// Resources added the player stockpile after the map specific resources have been added.
-  /// TODO: not used by the game yet
   ResourceAmount startingBonusResources;
 
   // Global information
@@ -86,10 +85,13 @@ struct CivilizationStats {
   int maxTownCenters;
 
   /// The max carrying capacity for each type of villager.
-  /// TODO: not used by the game yet
   int villagerCarryingCapacity[static_cast<int>(UnitType::NumVillagerTypes)];
 
   inline int& VillagerCarryingCapacity(UnitType villagerType) {
+    CHECK(IsVillager(villagerType));
+    return villagerCarryingCapacity[GetVillagerTypeIndex(villagerType)];
+  }
+  inline int VillagerCarryingCapacity(UnitType villagerType) const {
     CHECK(IsVillager(villagerType));
     return villagerCarryingCapacity[GetVillagerTypeIndex(villagerType)];
   }

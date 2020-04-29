@@ -1242,7 +1242,7 @@ void Game::SimulateResourceGathering(float stepLengthInSeconds, u32 villagerId, 
   constexpr double gatherRate = 1.3;
   double resourcesGathered = gatherRate * stepLengthInSeconds;
   
-  constexpr int carryCapacity = 10;  // TODO: Should depend on technologies etc.
+  int carryCapacity = villager->GetPlayer()->GetCivilizationStats().VillagerCarryingCapacity(villager->GetType());
   
   int previousIntegerAmount = villager->GetCarriedResourceAmount();
   villager->SetCarriedResourceAmount(

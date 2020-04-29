@@ -184,7 +184,7 @@ inline void SetCivilizationDefaults(CivilizationStats& s) {
   s.VillagerCarryingCapacity(UnitType::FemaleVillagerBuilder) = 10;
   s.VillagerCarryingCapacity(UnitType::FemaleVillagerForager) = 10;
   s.VillagerCarryingCapacity(UnitType::FemaleVillagerLumberjack) = 10;
-  s.VillagerCarryingCapacity(UnitType::FemaleVillagerGoldMiner) =10;
+  s.VillagerCarryingCapacity(UnitType::FemaleVillagerGoldMiner) = 10;
   s.VillagerCarryingCapacity(UnitType::FemaleVillagerStoneMiner) = 10;
   s.fishingShipCarryingCapacity = 10; // TODO: find value ?
 }
