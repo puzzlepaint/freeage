@@ -5,6 +5,7 @@
 #include "FreeAge/common/type_stats_data.hpp"
 
 #include "FreeAge/common/building_types.hpp"
+#include "FreeAge/common/game_data.hpp"
 #include "FreeAge/common/modifications.hpp"
 #include "FreeAge/common/unit_types.hpp"
 
@@ -687,6 +688,7 @@ void LoadCivilizationStats(std::vector<CivilizationStats>& civilizationStats) {
 void LoadGameData(GameData& gameData) {
   LoadUnitTypeStats(gameData.unitTypeStats);
   LoadBuildingTypeStats(gameData.buildingTypeStats);
+  LoadTechnologyStats(gameData.technologyStats);
   LoadCivilizationStats(gameData.civilizationStats);
 
   // Changes to game data for development testing

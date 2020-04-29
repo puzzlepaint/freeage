@@ -138,6 +138,7 @@ Player::Player(int index, int playerColorIndex, const GameData& gameData, Civili
     civilizationStats(gameData.civilizationStats[static_cast<int>(civilization)]),
     unitTypeStats(gameData.unitTypeStats),
     buildingTypeStats(gameData.buildingTypeStats),
+    technologyStats(gameData.technologyStats),
     stats(this) {
   // TODO: apply civilization to game data
 }

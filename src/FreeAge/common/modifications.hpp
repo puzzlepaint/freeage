@@ -6,13 +6,14 @@
 
 #include "FreeAge/common/building_types.hpp"
 #include "FreeAge/common/free_age.hpp"
-#include "FreeAge/common/player.hpp"
 #include "FreeAge/common/resources.hpp"
 #include "FreeAge/common/technologies.hpp"
-#include "FreeAge/common/type_stats.hpp"
 #include "FreeAge/common/unit_types.hpp"
 
-class CivilizationStats;
+class Player;
+class UnitTypeStats;
+class BuildingTypeStats;
+class TechnologyStats;
 
 enum class ModificationType {
     // Unit, building and technology

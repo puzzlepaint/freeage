@@ -190,11 +190,3 @@ struct BuildingTypeStats : public ObjectTypeStats {
 
   inline bool IsDropOffPointFor(ResourceType resourceType) const { return dropOffPoint[static_cast<int>(resourceType)]; }
 };
-
-// TODO: move? rename?
-struct GameData {
-
-  std::vector<UnitTypeStats> unitTypeStats;
-  std::vector<BuildingTypeStats> buildingTypeStats;
-  std::vector<CivilizationStats> civilizationStats;
-};

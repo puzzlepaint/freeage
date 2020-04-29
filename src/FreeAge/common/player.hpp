@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "FreeAge/common/civilizations.hpp"
 #include "FreeAge/common/building_types.hpp"
 #include "FreeAge/common/free_age.hpp"
-#include "FreeAge/common/type_stats.hpp"
+#include "FreeAge/common/game_data.hpp"
 #include "FreeAge/common/unit_types.hpp"
 
 class Player;
+class ObjectTypeStats;
 
 /// A collection of stats for a player.
 /// All of the stats can be reproduced from the game state, but they are kept track of here
@@ -158,6 +158,7 @@ class Player {
   inline const CivilizationStats& GetCivilizationStats() const { return civilizationStats; }
   inline const UnitTypeStats& GetUnitStats(UnitType unitType) const { return unitTypeStats.at(static_cast<int>(unitType)); }
   inline const BuildingTypeStats& GetBuildingStats(BuildingType buildingType) const { return buildingTypeStats.at(static_cast<int>(buildingType)); }
+  inline const TechnologyStats& GetTechnologyStats(Technology technology) const { return technologyStats.at(static_cast<int>(technology)); }
 
   /// The unique player ID. The IDs are given to the players in consecutive order starting from 0
   /// and they are used as indexes to vectors and arrays containing items for each player. The gaia player
@@ -185,6 +186,7 @@ class Player {
 
   std::vector<UnitTypeStats> unitTypeStats;
   std::vector<BuildingTypeStats> buildingTypeStats;
+  std::vector<TechnologyStats> technologyStats;
 
   PlayerStats stats;
 };

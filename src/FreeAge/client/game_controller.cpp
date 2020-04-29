@@ -8,6 +8,7 @@
 
 #include <mango/core/endian.hpp>
 
+#include "FreeAge/common/game_data.hpp"
 #include "FreeAge/common/logging.hpp"
 #include "FreeAge/common/type_stats_data.hpp"
 #include "FreeAge/client/building.hpp"
@@ -26,7 +27,7 @@ GameController::GameController(const std::shared_ptr<Match>& match, const std::s
   // NOTE: The game data are loaded temporarily here. However the loading is instant and for
   //       now there is no need for something like a loading screen. Also it is unclear if
   //       the data will be needed in later stage, so they are just deleted after the creation of
-  //       the players.
+  //       the players. (currently the Gaia plater is used to access the base stats)
   GameData gameData;
   LoadGameData(gameData);
   // Create the player list based on the match information

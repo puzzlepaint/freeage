@@ -4,6 +4,10 @@
 
 #include "FreeAge/common/modifications.hpp"
 
+#include "FreeAge/common/civilizations.hpp"
+#include "FreeAge/common/player.hpp"
+#include "FreeAge/common/type_stats.hpp"
+
 
 void Modification::ApplyToUnit(UnitTypeStats& stats, const UnitTypeStats& baseStats) const {
   // TODO (maanoo): 

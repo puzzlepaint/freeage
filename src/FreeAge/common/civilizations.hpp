@@ -6,12 +6,10 @@
 
 #include "FreeAge/common/building_types.hpp"
 #include "FreeAge/common/free_age.hpp"
+#include "FreeAge/common/modifications.hpp"
 #include "FreeAge/common/resources.hpp"
 #include "FreeAge/common/technologies.hpp"
 #include "FreeAge/common/unit_types.hpp"
-
-#include "FreeAge/common/modifications.hpp"
-//class TargetedModification;
 
 enum class Civilization {
   Gaia = 0,
