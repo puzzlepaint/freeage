@@ -7,7 +7,11 @@
 #include "FreeAge/common/building_types.hpp"
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/resources.hpp"
+#include "FreeAge/common/technologies.hpp"
 #include "FreeAge/common/unit_types.hpp"
+
+#include "FreeAge/common/modifications.hpp"
+//class TargetedModification;
 
 enum class Civilization {
   Gaia = 0,
@@ -90,7 +94,16 @@ struct CivilizationStats {
 
   // TODO: all modifiable monk conversion stats #monks
 
-  // TODO (maanoo): add modification list per age
+  // TODO (maanoo): doc
+  std::vector<TargetedModification> ageModifications[static_cast<int>(Technology::NumAges)];
+
+  inline std::vector<TargetedModification>& modifications(Technology age) {
+    CHECK(IsAge(age));
+    return ageModifications[static_cast<int>(age)];
+  }
+
+  // TODO (maanoo): doc
+  std::vector<TargetedModification> teamModifications;
 
 };
 

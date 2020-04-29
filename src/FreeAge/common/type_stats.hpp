@@ -7,6 +7,7 @@
 #include <QRect>
 #include <QSize>
 
+#include "FreeAge/common/civilizations.hpp"
 #include "FreeAge/common/damage.hpp"
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/resources.hpp"

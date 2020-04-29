@@ -188,6 +188,18 @@ inline void SetCivilizationDefaults(CivilizationStats& s) {
   s.fishingShipCarryingCapacity = 10; // TODO: find value ?
 }
 
+inline void AddCivilizationModification(CivilizationStats& s, Technology age, ObjectFilter filter, Modification modification) {
+  s.modifications(age).emplace_back(filter, modification);
+}
+
+inline void AddCivilizationModification(CivilizationStats& s, int age, ObjectFilter filter, Modification modification) {
+  s.modifications(static_cast<Technology>(age)).emplace_back(filter, modification);
+}
+
+inline void AddCivilizationTeamModification(CivilizationStats& s, ObjectFilter filter, Modification modification) {
+  s.teamModifications.emplace_back(filter, modification);
+}
+
 // Vector helpers
 
 inline UnitTypeStats& InitUnit(std::vector<UnitTypeStats>& unitTypeStats, UnitType type) {
@@ -628,6 +640,9 @@ void LoadCivilizationStats(std::vector<CivilizationStats>& civilizationStats) {
   // pre allocate all the BuildingTypeStats and then fill the data
   civilizationStats.resize(static_cast<int>(Civilization::NumCivilizations));
 
+  using Type = ModificationType;
+  using Operation = ModificationOperation;
+
   { // Gaia
     InitCivilization(civilizationStats, Civilization::Gaia);
   }
@@ -636,8 +651,35 @@ void LoadCivilizationStats(std::vector<CivilizationStats>& civilizationStats) {
     // TODO: implement
   }
   { // Byzantines
-    InitCivilization(civilizationStats, Civilization::Byzantines);
-    // TODO: implement
+    CivilizationStats& s = InitCivilization(civilizationStats, Civilization::Byzantines);
+    
+    AddCivilizationModification(s, 
+        Technology::DarkAge,
+        ObjectFilter::UnitByType(UnitType::Militia), // TODO: replace with Camel Riders, Skirmishers, and the Spearman
+        Modification(Type::Cost, Operation::MultAdd, -25));
+    AddCivilizationModification(s, 
+        Technology::DarkAge,
+        ObjectFilter::UnitByType(UnitType::Militia), // TODO: replace with FireShip
+        Modification(Type::FireRate, Operation::MultAdd, 20));
+    AddCivilizationModification(s, 
+        Technology::DarkAge,
+        ObjectFilter::TechnologyByType(Technology::ImperialAge),
+        Modification(Type::Cost, Operation::MultAdd, -33));
+    AddCivilizationModification(s, 
+        Technology::DarkAge,
+        ObjectFilter::TechnologyByType(Technology::Loom), // TODO: replace with Town Watch
+        Modification(Type::TechnologyAvailability, Operation::Set, TechnologyAvailability::FreeFromRequiredAge));
+
+    for (int age = 0; age < static_cast<int>(Technology::NumAges); ++ age) {
+      AddCivilizationModification(s, 
+          age,
+          ObjectFilter::AllTechnologies(),
+          Modification(Type::MaxHp, Operation::MultAdd, 10));
+    }
+
+    AddCivilizationTeamModification(s,
+        ObjectFilter::Civilization(),
+        Modification(Type::MonkHealRate, Operation::MultAdd, 50));
   }
 
 }

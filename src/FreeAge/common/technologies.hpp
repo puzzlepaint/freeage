@@ -9,6 +9,9 @@
 
 class TargetedModification;
 
+// NOTE: There are scenarios where only the ages values are needed, so they must at the start
+//       of the enum declaration.
+
 enum class Technology {
   // Ages
   DarkAge = 0,
@@ -28,7 +31,8 @@ enum class Technology {
   FirstUnique = GreekFire,
   LastUnique = GreekFire,
 
-  NumTechnologies
+  NumTechnologies,
+  NumAges = LastAge + 1,
 };
 
 inline bool IsAge(Technology tech) {
