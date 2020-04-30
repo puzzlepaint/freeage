@@ -26,60 +26,68 @@ class CivilizationStats;
 /// Some modification types expect specific values at the Data and Extra fields
 /// of the modification.
 enum class ModificationType {
-    // Unit, building and technology
-    Cost,            // Extra: affected ResourceType or Unset for to all of them
+  // Unit, building and technology
+  Cost,            // Extra: affected ResourceType or Unset for to all of them
 
-    // Unit and building
-    MaxHp,
-    Damage,          // Extra: affected DamageType
-    Armor,           // Extra: affected DamageType
-    MinRange,
-    MaxRange,
-    FireRate,
-    Accuracy,
-    LineOfSight,
-    GarrisonCapacity,
-    WorkRate,
-    Resources,
+  // Unit and building
+  MaxHp,
+  Damage,          // Extra: affected DamageType
+  Armor,           // Extra: affected DamageType
+  MinRange,
+  MaxRange,
+  FireRate,
+  Accuracy,
+  LineOfSight,
+  GarrisonCapacity,
+  WorkRate,
+  Resources,
 
-    // Unit only
-    Speed,
-    ProductionTime,
+  // Unit only
+  Speed,
+  ProductionTime,
 
-    // Building only
-    ConstructionTime,
-    PopulationSpace,
+  // Building only
+  ConstructionTime,
+  PopulationSpace,
 
-    // Technology only
-    ResearchDuration,
-    TechnologyAvailability,    // Data: TechnologyAvailability (only Set)
+  // Technology only
+  ResearchDuration,
+  TechnologyAvailability,    // Data: TechnologyAvailability (only Set)
 
-    // civilization only
-    PopulationMax,
-    FreePopulationSpace,
-    VillagerCarryingCapacity,  // Extra: villager type or Unset for all of them
-    RelicGoldGeneration,
-    MonkHealRate,
-    // TODO: add all modifiable monk conversion stats #monks
+  // civilization only
+  PopulationMax,
+  FreePopulationSpace,
+  VillagerCarryingCapacity,  // Extra: villager type or Unset for all of them
+  RelicGoldGeneration,
+  MonkHealRate,
+  // TODO: add all modifiable monk conversion stats #monks
 
-    // Special handling
-    // TODO: Special handling #dependencies
-    Upgrade,
+  // Special handling
+  // TODO: Special handling #dependencies
+  Upgrade,
+
+  NumModificationTypes
 };
 
+bool CanModificationTypeApplyToUnit(ModificationType type);
+bool CanModificationTypeApplyToBuilding(ModificationType type);
+bool CanModificationTypeApplyToTechnology(ModificationType type);
+bool CanModificationTypeApplyToCivilization(ModificationType type);
+bool DoesModificationRequiresTheExtraValue(ModificationType type);
+
 enum class ModificationOperation {
-    /// Set to the given value.
-    Set,
-    /// Add the given value.
-    Add,
-    /// Multiply the given value with the base value and add the result to the current value.
-    /// The given value is divided by 100 before the calculation of the result.
-    /// Examples:
-    /// - current: 4, base: 4, given value: 20 => 4 + 4 * 20 /100 = 4.8
-    //    which is +20% increase from current and base.
-    /// - current: 4.8, base: 4, given value: 20 => 4.8 + 4 * 20 /100 = 5.6
-    //    which is +20% increase from current but +44% from base.
-    MultAdd,
+  /// Set to the given value.
+  Set,
+  /// Add the given value.
+  Add,
+  /// Multiply the given value with the base value and add the result to the current value.
+  /// The given value is divided by 100 before the calculation of the result.
+  /// Examples:
+  /// - current: 4, base: 4, given value: 20 => 4 + 4 * 20 /100 = 4.8
+  //    which is +20% increase from current and base.
+  /// - current: 4.8, base: 4, given value: 20 => 4.8 + 4 * 20 /100 = 5.6
+  //    which is +20% increase from current but +44% from base.
+  MultAdd,
 };
 
 /// A modifications to a stat of a unit, building, technology or civilization. The target of the modification
@@ -90,7 +98,9 @@ enum class ModificationOperation {
 struct Modification {
 
   inline Modification(ModificationType type, ModificationOperation operation, int value)
-      : Modification(type, operation, value, Unset) {}
+      : Modification(type, operation, value, Unset) {
+    CHECK(!DoesModificationRequiresTheExtraValue(type)) << "The extra value must be set for " << static_cast<int>(type);
+  }
 
   inline Modification(ModificationType type, ModificationOperation operation, int value, DamageType damageType)
       : Modification(type, operation, value, static_cast<int>(damageType)) {

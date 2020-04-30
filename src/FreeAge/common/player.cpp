@@ -167,7 +167,7 @@ void Player::ApplyTechnologyModifications(Technology technology, const Player& b
   }
 }
 
-void Player::ApplyModification(const TargetedModification& targetedModification, const Player& basePlayer) {
+bool Player::ApplyModification(const TargetedModification& targetedModification, const Player& basePlayer) {
   const ObjectFilter& filter = targetedModification.filter;
   const Modification& modification = targetedModification.modification;
   int changes = 0;
@@ -207,6 +207,7 @@ void Player::ApplyModification(const TargetedModification& targetedModification,
   } else {
     LOG(1) << "Modification caused " << changes << " changes";
   }
+  return changes > 0;
 }
 
 void Player::SetAge(Technology age, const Player& basePlayer) {

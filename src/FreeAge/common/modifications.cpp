@@ -8,6 +8,74 @@
 #include "FreeAge/common/player.hpp"
 #include "FreeAge/common/type_stats.hpp"
 
+bool CanModificationTypeApplyToUnit(ModificationType type) {
+  switch(type) {
+  case ModificationType::Cost: return true;
+  case ModificationType::MaxHp: return true;
+  case ModificationType::Damage: return true;
+  case ModificationType::Armor: return true;
+  case ModificationType::MinRange: return true;
+  case ModificationType::MaxRange: return true;
+  case ModificationType::FireRate: return true;
+  case ModificationType::Accuracy: return true;
+  case ModificationType::LineOfSight: return true;
+  case ModificationType::GarrisonCapacity: return true;
+  case ModificationType::WorkRate: return true;
+  case ModificationType::Resources: return true;
+  case ModificationType::Speed: return true;
+  case ModificationType::ProductionTime: return true;
+  default: return false;
+  }
+}
+
+bool CanModificationTypeApplyToBuilding(ModificationType type) {
+  switch(type) {
+  case ModificationType::Cost: return true;
+  case ModificationType::MaxHp: return true;
+  case ModificationType::Damage: return true;
+  case ModificationType::Armor: return true;
+  case ModificationType::MinRange: return true;
+  case ModificationType::MaxRange: return true;
+  case ModificationType::FireRate: return true;
+  case ModificationType::Accuracy: return true;
+  case ModificationType::LineOfSight: return true;
+  case ModificationType::GarrisonCapacity: return true;
+  case ModificationType::WorkRate: return true;
+  case ModificationType::Resources: return true;
+  case ModificationType::ConstructionTime: return true;
+  case ModificationType::PopulationSpace: return true;
+  default: return false;
+  }
+}
+
+bool CanModificationTypeApplyToTechnology(ModificationType type) {
+  switch(type) {
+  case ModificationType::Cost: return true;
+  case ModificationType::ResearchDuration: return true;
+  case ModificationType::TechnologyAvailability: return true;
+  default: return false;
+  }
+}
+
+bool CanModificationTypeApplyToCivilization(ModificationType type) {
+  switch(type) {
+  case ModificationType::PopulationMax: return true;
+  case ModificationType::FreePopulationSpace: return true;
+  case ModificationType::VillagerCarryingCapacity: return true;
+  case ModificationType::RelicGoldGeneration: return true;
+  case ModificationType::MonkHealRate: return true;
+  default: return false;
+  }
+}
+
+bool DoesModificationRequiresTheExtraValue(ModificationType type) {
+  switch(type) {
+  case ModificationType::Damage: return true;
+  case ModificationType::Armor: return true;
+  default: return false;
+  }
+}
+
 #define CalculateCaseI(type, field) case type: stats.field = CalculateInt(stats.field, baseStats.field); return true;
 #define CalculateCaseF(type, field) case type: stats.field = CalculateFloat(stats.field, baseStats.field); return true;
 #define CalculateCaseR(type, field) case type: CalculateResourceAmount(stats.field, baseStats.field); return true;
@@ -57,7 +125,7 @@ bool Modification::ApplyToObject(ObjectTypeStats& stats, const ObjectTypeStats& 
   case ModificationType::Damage: {
     DamageType damageType = static_cast<DamageType>(extra);
     int current = stats.damage.GetValue(damageType);
-    int newValue; 
+    int newValue;
     if (current == DamageValues::None || value == DamageValues::None) {
       newValue = value;
     } else {
@@ -71,7 +139,7 @@ bool Modification::ApplyToObject(ObjectTypeStats& stats, const ObjectTypeStats& 
   case ModificationType::Armor: {
     DamageType damageType = static_cast<DamageType>(extra);
     int current = stats.armor.GetValue(damageType);
-    int newValue; 
+    int newValue;
     if (current == DamageValues::None || value == DamageValues::None) {
       newValue = value;
     } else {
@@ -85,7 +153,7 @@ bool Modification::ApplyToObject(ObjectTypeStats& stats, const ObjectTypeStats& 
   case ModificationType::FireRate: {
     // TODO: revisit!!
     if (operation != ModificationOperation::MultAdd) {
-      stats.fireRate = CalculateFloat(stats.fireRate, baseStats.fireRate); 
+      stats.fireRate = CalculateFloat(stats.fireRate, baseStats.fireRate);
       return true;
     }
     int current = stats.fireRate;
@@ -213,46 +281,46 @@ bool ObjectFilter::MatchesTechnologies() const {
 
 bool ObjectFilter::MatchesUnit(const Player& player, const UnitType& unitType) const {
   switch(type) {
-  case ObjectFilterType::AllUnits: 
+  case ObjectFilterType::AllUnits:
     return true;
-  case ObjectFilterType::AllMilitaryUnits: 
+  case ObjectFilterType::AllMilitaryUnits:
     // TODO: complete list #on-new-unit
     return !IsVillager(unitType);
-  case ObjectFilterType::UnitByType: 
+  case ObjectFilterType::UnitByType:
     return data == static_cast<int>(unitType);
   case ObjectFilterType::UnitsByArmor:
     return player.GetUnitStats(unitType).armor.HasValue(static_cast<DamageType>(data));
-  default: 
+  default:
     return false;
   }
 }
 
 bool ObjectFilter::MatchesBuilding(const Player& player, const BuildingType& buildingType) const {
   switch(type) {
-  case ObjectFilterType::AllBuildings: 
+  case ObjectFilterType::AllBuildings:
     return true;
-  case ObjectFilterType::AllBuildingsExceptDefences: 
+  case ObjectFilterType::AllBuildingsExceptDefences:
     // All Buildings except Outposts, Towers, Castles and Walls
     // TODO: complete list #on-new-building
     return buildingType != BuildingType::Outpost &&
            buildingType != BuildingType::PalisadeWall &&
            buildingType != BuildingType::PalisadeGate;
-  case ObjectFilterType::BuildingByType: 
+  case ObjectFilterType::BuildingByType:
     return data == static_cast<int>(buildingType);
   case ObjectFilterType::BuildingsByArmor:
     return player.GetBuildingStats(buildingType).armor.HasValue(static_cast<DamageType>(data));
-  default: 
+  default:
     return false;
   }
 }
 
 bool ObjectFilter::MatchesTechnology(const Player& /*player*/, const Technology& technology) const {
   switch(type) {
-  case ObjectFilterType::AllTechnologies: 
+  case ObjectFilterType::AllTechnologies:
     return !IsAge(technology);
-  case ObjectFilterType::TechnologyByType: 
+  case ObjectFilterType::TechnologyByType:
     return data == static_cast<int>(technology);
-  default: 
+  default:
     return false;
   }
 }

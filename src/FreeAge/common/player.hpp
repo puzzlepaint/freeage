@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include "FreeAge/common/building_types.hpp"
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/game_data.hpp"
 #include "FreeAge/common/unit_types.hpp"
 
-class Player;
 class ObjectTypeStats;
+class Player;
 class TargetedModification;
 
 /// A collection of stats for a player.
@@ -153,7 +152,7 @@ class Player {
   Player(int index, int playerColorIndex, const GameData& gameData, Civilization civilization);
 
   void ApplyTechnologyModifications(Technology technology, const Player& basePlayer);
-  void ApplyModification(const TargetedModification& targetedModification, const Player& basePlayer);
+  bool ApplyModification(const TargetedModification& targetedModification, const Player& basePlayer);
 
   // TODO: store a pointer to the base player to simplify ApplyModification calls ?
 

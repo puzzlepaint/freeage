@@ -257,6 +257,30 @@ TEST(DataValidation, BuildingTypeStats) {
   }
 }
 
+TEST(DataValidation, TechnologyModifications) {
+  LOG(INFO) << "sizeof(TechnologyStats) * BuildingType::NumBuildings = " 
+    << sizeof(TechnologyStats) << " * " << static_cast<int>(Technology::NumTechnologies) << " = "
+    << sizeof(TechnologyStats) * static_cast<int>(Technology::NumTechnologies);
+    
+  // NOTE: This could be extracted and moved to the game in order to validate data loaded 
+  //       dynamically from files. 
+
+  std::shared_ptr<Player> player = CreateTestingPlayer();
+  std::shared_ptr<Player> basePlayer = CreateTestingPlayer();
+
+  for (int technology = 0; technology < static_cast<int>(Technology::NumTechnologies); ++ technology) {
+    const TechnologyStats& stats = player->GetTechnologyStats(static_cast<Technology>(technology));
+
+    EXPECT_GT(stats.modifications.size(), 0) << technology;
+
+    // Apply all technologies' modifications to player
+    for (auto& targetedModification : stats.modifications) {
+      // TODO: add more helpfull message
+      CHECK(player->ApplyModification(targetedModification, *basePlayer)) << "One modification of " << technology << " has no effect";
+    }
+  }
+}
+
 TEST(Modifications, SimpleOperations) {
   UnitTypeStats stats, statsBase;
 
@@ -279,4 +303,43 @@ TEST(Modifications, SimpleOperations) {
   Modification(ModificationType::Resources, ModificationOperation::MultAdd, -10, ResourceType::Wood).ApplyToUnit(stats, statsBase);
   CHECK_EQ(stats.resources.wood(), 0);
   
+}
+
+TEST(Modifications, CompleteSupport) {
+  std::shared_ptr<Player> player = CreateTestingPlayer();
+  UnitTypeStats unitTypeStats = player->GetUnitStats(UnitType::MaleVillager);
+  BuildingTypeStats buildingTypeStats = player->GetBuildingStats(BuildingType::House);
+  TechnologyStats technologyStats = player->GetTechnologyStats(Technology::Loom);
+  CivilizationStats civilizationStats = player->GetCivilizationStats();
+
+  for (int modificationTypeIndex = 0; modificationTypeIndex < static_cast<int>(ModificationType::NumModificationTypes); ++ modificationTypeIndex) {
+    ModificationType modificationType = static_cast<ModificationType>(modificationTypeIndex);
+
+    if (modificationType == ModificationType::Upgrade) {
+      continue; // special case
+    }
+    if (DoesModificationRequiresTheExtraValue(modificationType)) {
+      continue; // TODO: skip those for now 
+    }
+    Modification modification = Modification(modificationType, ModificationOperation::Set, 0);
+
+    bool atLeastOneCan = false;
+    if (CanModificationTypeApplyToUnit(modificationType)) {
+      atLeastOneCan = true;
+      CHECK(modification.ApplyToUnit(unitTypeStats, unitTypeStats)) << modificationTypeIndex << " failed to be applied";
+    }
+    if (CanModificationTypeApplyToBuilding(modificationType)) {
+      atLeastOneCan = true;
+      CHECK(modification.ApplyToBuilding(buildingTypeStats, buildingTypeStats)) << modificationTypeIndex << " failed to be applied";
+    }
+    if (CanModificationTypeApplyToTechnology(modificationType)) {
+      atLeastOneCan = true;
+      CHECK(modification.ApplyToTechnology(technologyStats, technologyStats)) << modificationTypeIndex << " failed to be applied";
+    }
+    if (CanModificationTypeApplyToCivilization(modificationType)) {
+      atLeastOneCan = true;
+      CHECK(modification.ApplyToCivilization(civilizationStats, civilizationStats)) << modificationTypeIndex << " failed to be applied";
+    }
+    CHECK(atLeastOneCan) << modificationTypeIndex << " cannot be applied to any object";
+  }
 }
