@@ -11,11 +11,11 @@
 #include "FreeAge/common/unit_types.hpp"
 
 class Player;
-class ObjectTypeStats;
-class UnitTypeStats;
-class BuildingTypeStats;
-class TechnologyStats;
-class CivilizationStats;
+struct ObjectTypeStats;
+struct UnitTypeStats;
+struct BuildingTypeStats;
+struct TechnologyStats;
+struct CivilizationStats;
 
 /// NOTE: The Modification and ObjectFilter structs use mainly enums to to specify their
 ///       behavior instead of virtual methods and inheritance in order to allow (in the

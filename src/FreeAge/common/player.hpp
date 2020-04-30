@@ -8,9 +8,9 @@
 #include "FreeAge/common/game_data.hpp"
 #include "FreeAge/common/unit_types.hpp"
 
-class ObjectTypeStats;
 class Player;
-class TargetedModification;
+struct ObjectTypeStats;
+struct TargetedModification;
 
 /// A collection of stats for a player.
 /// All of the stats can be reproduced from the game state, but they are kept track of here

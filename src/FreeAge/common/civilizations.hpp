@@ -21,7 +21,7 @@ enum class Civilization {
 
 static constexpr Civilization kDefaultCivilization = Civilization::Byzantines;
 
-// TODO: implement GetCivilizationName()
+QString GetCivilizationName(Civilization civilization);
 
 // static Civilization GetRandomPlayerCivilization() {
 //   // skips the Gaia civilization

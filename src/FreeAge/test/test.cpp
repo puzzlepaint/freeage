@@ -200,7 +200,7 @@ TEST(GameLogic, VillagerVsTree) {
 }
 
 TEST(DataValidation, UnitTypeStats) {
-  LOG(INFO) << "sizeof(UnitTypeStats) * UnitType::NumUnits = " 
+  LOG(INFO) << "sizeof(UnitTypeStats) * UnitType::NumUnits = "
     << sizeof(UnitTypeStats) << " * " << static_cast<int>(UnitType::NumUnits) << " = "
     << sizeof(UnitTypeStats) * static_cast<int>(UnitType::NumUnits);
 
@@ -212,8 +212,8 @@ TEST(DataValidation, UnitTypeStats) {
 
   for (int unitType = 0; unitType < static_cast<int>(UnitType::NumUnits); ++ unitType) {
     // TODO: get the internal name
-    std::string name = GetUnitName(static_cast<UnitType>(unitType)).toStdString();
-    UnitTypeStats& s = unitTypeStats.at(unitType);
+    const std::string name = GetUnitName(static_cast<UnitType>(unitType)).toStdString();
+    const UnitTypeStats& s = unitTypeStats.at(unitType);
 
     EXPECT_GE(s.maxHp, 0) << name;
     EXPECT_GT(s.radius, 0) << name;
@@ -230,7 +230,7 @@ inline bool IsRealBuilding(BuildingType type) {
 }
 
 TEST(DataValidation, BuildingTypeStats) {
-  LOG(INFO) << "sizeof(BuildingTypeStats) * BuildingType::NumBuildings = " 
+  LOG(INFO) << "sizeof(BuildingTypeStats) * BuildingType::NumBuildings = "
     << sizeof(BuildingTypeStats) << " * " << static_cast<int>(BuildingType::NumBuildings) << " = "
     << sizeof(BuildingTypeStats) * static_cast<int>(BuildingType::NumBuildings);
     
@@ -245,8 +245,8 @@ TEST(DataValidation, BuildingTypeStats) {
       continue;
     }
     // TODO: get the internal name
-    std::string name = GetBuildingName(static_cast<BuildingType>(buildingType)).toStdString();
-    BuildingTypeStats& s = buildingTypeStats.at(buildingType);
+    const std::string name = GetBuildingName(static_cast<BuildingType>(buildingType)).toStdString();
+    const BuildingTypeStats& s = buildingTypeStats.at(buildingType);
 
     EXPECT_GE(s.maxHp, 0) << name;
     EXPECT_GT(s.size.height(), 0) << name;
@@ -258,7 +258,7 @@ TEST(DataValidation, BuildingTypeStats) {
 }
 
 TEST(DataValidation, TechnologyModifications) {
-  LOG(INFO) << "sizeof(TechnologyStats) * BuildingType::NumBuildings = " 
+  LOG(INFO) << "sizeof(TechnologyStats) * Technology::NumTechnologies = "
     << sizeof(TechnologyStats) << " * " << static_cast<int>(Technology::NumTechnologies) << " = "
     << sizeof(TechnologyStats) * static_cast<int>(Technology::NumTechnologies);
     
@@ -269,6 +269,7 @@ TEST(DataValidation, TechnologyModifications) {
   std::shared_ptr<Player> basePlayer = CreateTestingPlayer();
 
   for (int technology = 0; technology < static_cast<int>(Technology::NumTechnologies); ++ technology) {
+    const std::string name = GetTechnologyName(static_cast<Technology>(technology)).toStdString();
     const TechnologyStats& stats = player->GetTechnologyStats(static_cast<Technology>(technology));
 
     EXPECT_GT(stats.modifications.size(), 0) << technology;
@@ -276,7 +277,7 @@ TEST(DataValidation, TechnologyModifications) {
     // Apply all technologies' modifications to player
     for (auto& targetedModification : stats.modifications) {
       // TODO: add more helpfull message
-      CHECK(player->ApplyModification(targetedModification, *basePlayer)) << "One modification of " << technology << " has no effect";
+      CHECK(player->ApplyModification(targetedModification, *basePlayer)) << "One modification of " << name << " has no effect";
     }
   }
 }

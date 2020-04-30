@@ -7,7 +7,7 @@
 #include "FreeAge/common/free_age.hpp"
 #include "FreeAge/common/resources.hpp"
 
-class TargetedModification;
+struct TargetedModification;
 
 // NOTE: There are places where only the ages' values are needed, so they must be at the
 //       start of the enum declaration.
@@ -46,7 +46,7 @@ inline bool IsUniqueTechnology(Technology tech) {
          tech <= Technology::LastUnique;
 }
 
-// TODO: implement GetTechnologyName()
+QString GetTechnologyName(Technology technology);
 
 enum class TechnologyAvailability {
   /// Available after all requirements are reached.

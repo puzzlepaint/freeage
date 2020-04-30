@@ -70,11 +70,13 @@ set_target_properties(gtest gtest_main PROPERTIES FOLDER "third_party")
 # FreeAge base library, used by both the application and the test
 add_library(FreeAgeLib
   src/FreeAge/common/building_types.cpp
+  src/FreeAge/common/civilizations.cpp
   src/FreeAge/common/damage.cpp
   src/FreeAge/common/type_stats_data.cpp
   src/FreeAge/common/messages.cpp
   src/FreeAge/common/modifications.cpp
   src/FreeAge/common/player.cpp
+  src/FreeAge/common/technologies.cpp
   src/FreeAge/common/timing.cpp
   src/FreeAge/common/unit_types.cpp
 )
